@@ -9,6 +9,26 @@ import UserProfilePage from './modules/user/pages/UserProfilePage'
 import { useUserStore } from './modules/user/store/useUserStore'
 import { useEffect } from 'react'
 
+// Admin Modules
+import AdminLayout from './modules/admin/layouts/AdminLayout'
+import AdminDashboard from './modules/admin/pages/AdminDashboard'
+import CampaignManagement from './modules/admin/pages/CampaignManagement'
+import ContentControl from './modules/admin/pages/ContentControl'
+import FinancialManagement from './modules/admin/pages/FinancialManagement'
+import UserManagement from './modules/admin/pages/UserManagement'
+import AuditLogs from './modules/admin/pages/AuditLogs'
+import NFTModeration from './modules/admin/pages/NFTModeration'
+import VotingManagement from './modules/admin/pages/VotingManagement'
+import FraudMonitoring from './modules/admin/pages/FraudMonitoring'
+import PlatformSettings from './modules/admin/pages/PlatformSettings'
+import WalletOverview from './modules/admin/pages/WalletOverview'
+import NotificationManagement from './modules/admin/pages/NotificationManagement'
+
+// Auth Modules
+import LoginPage from './modules/auth/pages/LoginPage'
+import LogoutPage from './modules/auth/pages/LogoutPage'
+import ProtectedRoute from './modules/auth/components/ProtectedRoute'
+
 export default function App() {
   const { darkMode } = useUserStore()
 
@@ -19,6 +39,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/logout" element={<LogoutPage />} />
+
         <Route path="/" element={<AppShell />}>
           <Route index element={<Navigate to="/home" replace />} />
           <Route path="home" element={<HomePage />} />
@@ -27,6 +50,32 @@ export default function App() {
           <Route path="wallet" element={<WalletPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="user/:userId" element={<UserProfilePage />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="content" element={<ContentControl />} />
+            <Route path="campaigns" element={<CampaignManagement />} />
+            <Route path="voting" element={<VotingManagement />} />
+            <Route path="nfts" element={<NFTModeration />} />
+
+            <Route path="wallet" element={<WalletOverview />} />
+            <Route path="withdrawals" element={<FinancialManagement />} />
+            <Route path="financials" element={<WalletOverview />} />
+            <Route path="gifts" element={<FinancialManagement />} />
+            <Route path="commissions" element={<PlatformSettings />} />
+
+            <Route path="fraud" element={<FraudMonitoring />} />
+            <Route path="suspicious" element={<FraudMonitoring />} />
+            <Route path="audit" element={<AuditLogs />} />
+
+            <Route path="settings" element={<PlatformSettings />} />
+            <Route path="notifications" element={<NotificationManagement />} />
+            <Route path="transparency" element={<AuditLogs />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

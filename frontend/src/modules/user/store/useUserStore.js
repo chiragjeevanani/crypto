@@ -2,6 +2,8 @@ import { create } from 'zustand'
 
 export const useUserStore = create((set) => ({
     darkMode: true,
+    isAuthenticated: false,
+    user: null,
     profile: {
         id: 'me',
         username: 'Chirag J',
@@ -16,6 +18,16 @@ export const useUserStore = create((set) => ({
     },
 
     toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+
+    login: (userData) => set({
+        isAuthenticated: true,
+        user: userData
+    }),
+
+    logout: () => set({
+        isAuthenticated: false,
+        user: null
+    }),
 
     updateProfile: (data) => set((state) => ({
         profile: { ...state.profile, ...data },

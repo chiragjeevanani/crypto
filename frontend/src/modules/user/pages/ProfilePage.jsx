@@ -28,7 +28,7 @@ export default function ProfilePage() {
             {/* Profile header */}
             <ProfileHeader profile={profile} onEdit={() => setEditOpen(true)} />
 
-            {/* Dark mode toggle + settings row */}
+            {/* Dark mode toggle + Logout row */}
             <div className="flex items-center justify-end gap-2 px-4 mb-3">
                 <motion.button
                     whileTap={{ scale: 0.9 }}
@@ -37,7 +37,17 @@ export default function ProfilePage() {
                     style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                 >
                     {darkMode ? <Sun size={13} /> : <Moon size={13} />}
-                    {darkMode ? 'Light Mode' : 'Dark Mode'}
+                </motion.button>
+                <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                        useUserStore.getState().logout();
+                        window.location.href = '/login';
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer text-rose-500"
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                >
+                    Logout
                 </motion.button>
             </div>
 
