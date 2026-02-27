@@ -23,6 +23,11 @@ import FraudMonitoring from './modules/admin/pages/FraudMonitoring'
 import PlatformSettings from './modules/admin/pages/PlatformSettings'
 import WalletOverview from './modules/admin/pages/WalletOverview'
 import NotificationManagement from './modules/admin/pages/NotificationManagement'
+import EditUser from './modules/admin/pages/EditUser'
+import EditSettlement from './modules/admin/pages/EditSettlement'
+import EditCampaign from './modules/admin/pages/EditCampaign'
+import GiftTrash from './modules/admin/pages/GiftTrash'
+import CreateGift from './modules/admin/pages/CreateGift'
 
 // Auth Modules
 import LoginPage from './modules/auth/pages/LoginPage'
@@ -57,15 +62,20 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="users/edit/:userId" element={<EditUser />} />
             <Route path="content" element={<ContentControl />} />
             <Route path="campaigns" element={<CampaignManagement />} />
+            <Route path="campaigns/edit/:campaignId" element={<EditCampaign />} />
             <Route path="voting" element={<VotingManagement />} />
             <Route path="nfts" element={<NFTModeration />} />
 
             <Route path="wallet" element={<WalletOverview />} />
             <Route path="withdrawals" element={<FinancialManagement />} />
+            <Route path="withdrawals/edit/:settlementId" element={<EditSettlement />} />
             <Route path="financials" element={<WalletOverview />} />
             <Route path="gifts" element={<FinancialManagement />} />
+            <Route path="gifts/create" element={<CreateGift />} />
+            <Route path="gifts/trash" element={<GiftTrash />} />
             <Route path="commissions" element={<PlatformSettings />} />
 
             <Route path="fraud" element={<FraudMonitoring />} />

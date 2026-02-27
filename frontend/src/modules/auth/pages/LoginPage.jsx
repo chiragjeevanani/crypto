@@ -54,8 +54,8 @@ export default function LoginPage() {
                     <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-6">
                         <ShieldCheck className="text-black w-8 h-8" />
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight text-text">SocialEarn Infrastructure</h1>
-                    <p className="text-[10px] text-muted font-semibold uppercase tracking-[0.2em] mt-2 opacity-60">Authentication Protocol v4.0</p>
+                    <h1 className="text-xl font-bold tracking-tight text-text">SocialEarn</h1>
+                    {/* <p className="text-[10px] text-muted font-semibold uppercase tracking-[0.2em] mt-2 opacity-60">Authentication Protocol v4.0</p> */}
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-5">
@@ -112,7 +112,7 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <div className="mt-10 pt-8 border-t border-surface/50">
+                {/* <div className="mt-10 pt-8 border-t border-surface/50">
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest text-center mb-6 opacity-40">Third-Party Verification</p>
                     <div className="grid grid-cols-2 gap-4">
                         <button className="flex items-center justify-center gap-2 py-3 bg-surface2 hover:bg-surface border border-surface rounded-xl transition-all">
@@ -129,7 +129,7 @@ export default function LoginPage() {
                 <div className="mt-8 flex items-center justify-center gap-2 text-muted">
                     <Command className="w-3.5 h-3.5 opacity-30" />
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] opacity-30">Encrypted Enterprise Protocol</p>
-                </div>
+                </div> */}
             </motion.div>
         </div>
     );

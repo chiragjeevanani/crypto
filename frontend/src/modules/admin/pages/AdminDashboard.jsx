@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Users,
     TrendingUp,
@@ -16,11 +16,13 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader, AdminStatCard } from '../components/shared';
+import { formatCurrency, getCurrency } from '../utils/currency';
+import { useAdminStore } from '../store/useAdminStore';
 
 const summaryStats = [
     {
         label: 'Platform Revenue',
-        value: '$124,502.80',
+        value: formatCurrency(124502.80),
         change: '+12.5%',
         icon: DollarSign,
         color: 'emerald-500',
@@ -60,11 +62,11 @@ const summaryStats = [
     },
 ];
 
-const ChartBar = ({ height, label, value }) => {
+const ChartBar = ({ height, value }) => {
     const [isHovered, setIsHovered] = useState(false);
     return (
         <div
-            className="flex flex-col items-center gap-2 group relative w-full h-full justify-end"
+            className="flex flex-col items-center gap-2 group relative flex-1 h-full justify-end max-w-[30px] min-w-[12px]"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -74,33 +76,103 @@ const ChartBar = ({ height, label, value }) => {
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 5 }}
-                        className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-text text-bg text-[9px] font-bold rounded shadow-xl whitespace-nowrap z-20"
+                        className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-text text-bg text-[10px] font-bold rounded-md shadow-2xl whitespace-nowrap z-20 border border-surface/10"
                     >
                         {value}
                     </motion.div>
                 )}
             </AnimatePresence>
-            <motion.div
-                initial={{ height: 0 }}
-                animate={{ height: `${height}%` }}
-                className="w-full bg-primary/20 hover:bg-primary transition-colors rounded-t-sm relative cursor-pointer"
-            >
-                <div className="absolute inset-x-0 top-0 h-1 bg-primary hidden group-hover:block" />
-            </motion.div>
+            <div className="w-full relative flex items-end justify-center h-[200px]">
+                <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${height}%` }}
+                    className="w-full bg-primary group-hover:bg-primary transition-all duration-300 rounded-t-[4px] relative cursor-pointer min-h-[8px]"
+                >
+                    <div className="absolute inset-x-0 top-0 h-1 bg-primary/30 rounded-t-[4px]" />
+                </motion.div>
+            </div>
         </div>
     );
 };
 
 export default function AdminDashboard() {
+    const {
+        loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts,
+        users, withdrawals, campaigns, posts, isLoading
+    } = useAdminStore();
+
+    useEffect(() => {
+        const syncAll = async () => {
+            await Promise.all([
+                loadUsers(),
+                loadWithdrawals(),
+                loadGifts(),
+                loadCampaigns(),
+                loadLedger(),
+                loadPosts()
+            ]);
+        };
+        syncAll();
+    }, [loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts]);
+
+    const activeMandates = campaigns.filter(c => c.status === 'Active').length;
+    const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'Pending').length;
+    const flaggedPostsCount = posts.filter(p => p.status === 'Flagged' || p.status === 'Urgent').length;
+
+    const summaryStats = [
+        {
+            label: 'Platform Revenue',
+            value: formatCurrency(124502.80),
+            change: '+12.5%',
+            icon: DollarSign,
+            color: 'emerald-500',
+            path: '/admin/financials'
+        },
+        {
+            label: 'Active Creators',
+            value: users.length.toLocaleString(),
+            change: '+3.2%',
+            icon: Users,
+            color: 'blue-500',
+            path: '/admin/users'
+        },
+        {
+            label: 'Brand Mandates',
+            value: activeMandates.toString(),
+            change: `Total ${campaigns.length}`,
+            icon: Target,
+            color: 'primary',
+            path: '/admin/campaigns'
+        },
+        {
+            label: 'Pending Liquidation',
+            value: pendingWithdrawalsCount.toString(),
+            change: 'Critical',
+            icon: Clock,
+            color: 'amber-500',
+            path: '/admin/withdrawals'
+        },
+        {
+            label: 'Content Risks',
+            value: flaggedPostsCount.toString(),
+            change: 'Action Required',
+            icon: AlertCircle,
+            color: 'rose-500',
+            path: '/admin/moderation'
+        },
+    ];
     return (
         <div className="space-y-6 pb-20">
             <AdminPageHeader
                 title="Strategic Control Center"
                 subtitle="High-fidelity telemetry for the SocialEarn reward ecosystem."
                 actions={
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text">
-                        <BarChart3 className="w-3.5 h-3.5" />
-                        Intelligence Feed
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
+                    >
+                        <BarChart3 className={`w-3.5 h-3.5 ${isLoading ? 'animate-pulse text-primary' : ''}`} />
+                        Sync Intelligence
                     </button>
                 }
             />
@@ -136,9 +208,9 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    <div className="flex-1 w-full bg-bg/30 rounded-lg border border-dashed border-surface p-6 flex items-end justify-around gap-2 relative group mt-auto">
+                    <div className="flex-1 w-full bg-surface2/50 rounded-lg border border-surface p-8 flex items-end justify-between gap-3 relative group mt-auto min-h-[250px]">
                         {[45, 65, 30, 85, 55, 95, 75, 40, 60, 80, 50, 90].map((h, i) => (
-                            <ChartBar key={i} height={h} value={`$${h * 120}`} />
+                            <ChartBar key={i} height={h} value={`${getCurrency()}${h * 120}`} />
                         ))}
                     </div>
                 </div>

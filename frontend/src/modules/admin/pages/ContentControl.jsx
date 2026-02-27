@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Filter,
@@ -12,6 +12,7 @@ import {
     Activity
 } from 'lucide-react';
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
+import { useAdminStore } from '../store/useAdminStore';
 
 const mockPosts = [
     {
@@ -44,6 +45,11 @@ const mockPosts = [
 ];
 
 export default function ContentControl() {
+    const { posts, loadPosts, handlePostApproval, isLoading } = useAdminStore();
+
+    useEffect(() => {
+        loadPosts();
+    }, [loadPosts]);
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
@@ -72,7 +78,7 @@ export default function ContentControl() {
             <AdminDataTable
                 title="Quarantined Content Ledger"
                 columns={["Content", "Author", "Reason", "Status", "Actions"]}
-                data={mockPosts.map(post => ({
+                data={posts.map(post => ({
                     id: post.id,
                     cells: [
                         <div className="flex items-center gap-3">
@@ -91,7 +97,8 @@ export default function ContentControl() {
                         </div>,
                         <span className={`px-2 py-0.5 rounded-full text-[8px] font-semibold uppercase tracking-wider border ${post.status === 'Urgent' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                                 post.status === 'Flagged' ? 'bg-primary/10 text-primary border-primary/20' :
-                                    'bg-surface2 text-muted border-surface'
+                                    post.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                        'bg-surface2 text-muted border-surface'
                             }`}>
                             {post.status}
                         </span>,
@@ -99,10 +106,18 @@ export default function ContentControl() {
                             <button className="p-1.5 rounded-md bg-surface2 hover:bg-surface border border-surface transition-all">
                                 <Eye className="w-3.5 h-3.5 text-muted hover:text-primary transition-colors" />
                             </button>
-                            <button className="p-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            </button>
-                            <button className="p-1.5 rounded-md bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all">
+                            {post.status !== 'Approved' && (
+                                <button
+                                    onClick={() => handlePostApproval(post.id, true)}
+                                    className="p-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all"
+                                >
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                </button>
+                            )}
+                            <button
+                                onClick={() => handlePostApproval(post.id, false)}
+                                className="p-1.5 rounded-md bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all"
+                            >
                                 <XCircle className="w-3.5 h-3.5 text-rose-500" />
                             </button>
                         </div>

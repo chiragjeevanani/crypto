@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export const useUserStore = create((set) => ({
-    darkMode: true,
+    darkMode: false,
     isAuthenticated: false,
     user: null,
     profile: {

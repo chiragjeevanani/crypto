@@ -15,7 +15,7 @@ import {
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../user/store/useUserStore';
 
-export default function AdminTopbar({ isCollapsed, setIsCollapsed }) {
+export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMenuOpen }) {
     const { darkMode, toggleDarkMode, logout } = useUserStore();
     const location = useLocation();
     const navigate = useNavigate();
@@ -24,10 +24,16 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed }) {
     const pathnames = location.pathname.split('/').filter((x) => x);
 
     return (
-        <div className="h-16 bg-bg/80 backdrop-blur-md border-b border-surface sticky top-0 z-40 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-6">
+        <div className="h-16 bg-bg/80 backdrop-blur-md border-b border-surface sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between">
+            <div className="flex items-center gap-4 md:gap-6">
                 <button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    onClick={() => {
+                        if (window.innerWidth < 1024) {
+                            setIsMobileMenuOpen(true);
+                        } else {
+                            setIsCollapsed(!isCollapsed);
+                        }
+                    }}
                     className="p-2 hover:bg-surface2 rounded-lg transition-colors text-muted hover:text-text"
                 >
                     {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
