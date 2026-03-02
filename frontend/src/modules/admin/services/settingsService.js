@@ -1,19 +1,14 @@
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+import { getPlatformSettingsFromCookie, savePlatformSettingsToCookie } from '../../../shared/platformSettings';
 
-let mockSettings = {
-    commission: 15,
-    minWithdrawal: 25,
-    maintenanceMode: false,
-    kycMandatory: true,
-    maxVotesPerDay: 50,
-    maxGiftsPerMinute: 200,
-};
+let mockSettings = getPlatformSettingsFromCookie();
 
 let mockSettingsLog = [];
 
 export const settingsService = {
     fetchSettings: async () => {
         await delay(500);
+        mockSettings = getPlatformSettingsFromCookie();
         return { ...mockSettings };
     },
 
@@ -25,7 +20,7 @@ export const settingsService = {
         }
 
         const oldSettings = { ...mockSettings };
-        mockSettings = { ...mockSettings, ...newSettings };
+        mockSettings = savePlatformSettingsToCookie({ ...mockSettings, ...newSettings });
 
         // Log changes
         for (const key in newSettings) {

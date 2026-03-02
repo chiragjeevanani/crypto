@@ -3,9 +3,13 @@ import { timeAgo } from '../../utils/formatCurrency'
 
 const TYPE_META = {
     gift: { icon: Gift, color: 'var(--color-danger)', label: 'Gift' },
+    gift_sent: { icon: ArrowUpRight, color: 'var(--color-primary)', label: 'Gift Sent' },
     task: { icon: CheckSquare, color: 'var(--color-primary)', label: 'Task' },
     nft: { icon: Gem, color: 'var(--color-purple)', label: 'NFT' },
+    nft_buy: { icon: ArrowUpRight, color: 'var(--color-primary)', label: 'NFT Buy' },
     withdraw: { icon: ArrowUpRight, color: 'var(--color-muted)', label: 'Withdraw' },
+    topup: { icon: ArrowDownLeft, color: 'var(--color-success)', label: 'Top Up' },
+    transfer: { icon: ArrowUpRight, color: 'var(--color-muted)', label: 'Transfer' },
 }
 
 export default function TransactionItem({ tx }) {
@@ -26,7 +30,7 @@ export default function TransactionItem({ tx }) {
                     {tx.title}
                 </p>
                 <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                    {meta.label} · {timeAgo(tx.date)}
+                    {meta.label} · {timeAgo(tx.date)} · {tx.status}
                 </p>
             </div>
             <span

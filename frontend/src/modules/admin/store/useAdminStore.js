@@ -5,6 +5,9 @@ import { userService } from '../services/userService';
 import { campaignService } from '../services/campaignService';
 import { moderationService } from '../services/moderationService';
 import { settingsService } from '../services/settingsService';
+import { useCampaignStore } from '../../user/store/useCampaignStore';
+import { patchKYCSubmission } from '../../../shared/kycSync';
+import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
 
 export const useAdminStore = create((set, get) => ({
     // States
@@ -16,10 +19,28 @@ export const useAdminStore = create((set, get) => ({
     userDetail: null,
     campaigns: [],
     posts: [],
+    postDetail: null,
     ledger: [],
     auditLogs: [],
     suspiciousUsers: [],
     settings: null,
+    prdMetrics: null,
+    giftPolicy: {
+        allowedINR: [2, 3, 4, 5, 6, 7, 8, 9, 10],
+        strictMode: true,
+    },
+    kycQueue: [],
+    fraudSignals: [
+        { id: 'FR-201', type: 'ip_cluster', severity: 'high', entity: 'U-7722', detail: '3 accounts from same /24 subnet', status: 'open' },
+        { id: 'FR-202', type: 'device_reuse', severity: 'medium', entity: 'U-7723', detail: 'Shared device fingerprint with flagged account', status: 'open' },
+        { id: 'FR-203', type: 'duplicate_submission', severity: 'high', entity: 'POST-4821', detail: 'Near-identical media hash used in multiple campaigns', status: 'open' },
+    ],
+    settlementRails: [
+        { id: 'rail_upi', name: 'UPI', status: 'active', reconciled: 42, pending: 3, lastRun: '5 mins ago' },
+        { id: 'rail_bank', name: 'Bank Transfer', status: 'degraded', reconciled: 20, pending: 5, lastRun: '17 mins ago' },
+        { id: 'rail_crypto', name: 'Crypto Payout', status: 'active', reconciled: 15, pending: 1, lastRun: '2 mins ago' },
+    ],
+    campaignClosures: [],
 
     // UI States
     isLoading: false,
@@ -48,6 +69,7 @@ export const useAdminStore = create((set, get) => ({
     loadGifts: () => get().execute(async () => {
         const gifts = await giftService.fetchGifts();
         set({ gifts });
+        syncGiftCatalogFromAdminGifts(gifts);
     }),
 
     loadTrashGifts: () => get().execute(async () => {
@@ -57,7 +79,11 @@ export const useAdminStore = create((set, get) => ({
 
     addGift: (data) => get().execute(async () => {
         const newGift = await giftService.createGift(data);
-        set((state) => ({ gifts: [...state.gifts, newGift] }));
+        set((state) => {
+            const nextGifts = [...state.gifts, newGift];
+            syncGiftCatalogFromAdminGifts(nextGifts);
+            return { gifts: nextGifts };
+        });
     }, "Gift created successfully."),
 
     updateGift: (id, data) => get().execute(async () => {
@@ -65,18 +91,21 @@ export const useAdminStore = create((set, get) => ({
         set((state) => ({
             gifts: state.gifts.map(g => g.id === id ? updated : g)
         }));
+        syncGiftCatalogFromAdminGifts(get().gifts);
     }, "Gift configuration updated."),
 
     removeGift: (id) => get().execute(async () => {
         await giftService.deleteGift(id);
         const [gifts, trash] = await Promise.all([giftService.fetchGifts(), giftService.fetchTrashGifts()]);
         set({ gifts, trashGifts: trash });
+        syncGiftCatalogFromAdminGifts(gifts);
     }, "Gift moved to trash."),
 
     restoreGift: (id) => get().execute(async () => {
         await giftService.restoreGift(id);
         const [gifts, trash] = await Promise.all([giftService.fetchGifts(), giftService.fetchTrashGifts()]);
         set({ gifts, trashGifts: trash });
+        syncGiftCatalogFromAdminGifts(gifts);
     }, "Gift restored to registry."),
 
     permanentlyDeleteGift: (id) => get().execute(async () => {
@@ -91,6 +120,7 @@ export const useAdminStore = create((set, get) => ({
         set((state) => ({
             gifts: state.gifts.map(g => g.id === id ? updated : g)
         }));
+        syncGiftCatalogFromAdminGifts(get().gifts);
     }),
 
     // Actions - Withdrawals
@@ -161,6 +191,24 @@ export const useAdminStore = create((set, get) => ({
         }));
     }, "Identity flagged for forensic monitoring."),
 
+    deleteUser: (id) => get().execute(async () => {
+        const removed = await userService.deleteUser(id);
+        if (!removed) return;
+        const nextUsers = get().users.filter((u) => u.id !== id);
+        const nextUsersDataUsers = get().usersData.users.filter((u) => u.id !== id);
+        const nextTotal = Math.max(0, (get().usersData.total || 0) - 1);
+        set((state) => ({
+            users: nextUsers,
+            usersData: {
+                ...state.usersData,
+                users: nextUsersDataUsers,
+                total: nextTotal,
+                totalPages: Math.max(1, state.usersData.totalPages || 1),
+            },
+            userDetail: state.userDetail?.id === id ? null : state.userDetail,
+        }));
+    }, "User removed from platform registry."),
+
     verifyUserKYC: (id) => get().execute(async () => {
         const updated = await userService.verifyKYC(id);
         set((state) => ({
@@ -177,8 +225,27 @@ export const useAdminStore = create((set, get) => ({
     // Actions - Campaigns
     loadCampaigns: () => get().execute(async () => {
         const campaigns = await campaignService.fetchCampaigns();
-        set({ campaigns });
+        const votingState = useCampaignStore.getState().campaigns || [];
+        const closures = votingState
+            .filter((campaign) => campaign.votingStatus === 'completed')
+            .map((campaign) => ({
+                id: campaign.id,
+                title: campaign.title,
+                winner: campaign.winner?.creatorHandle || 'TBD',
+                payout: campaign.myReward,
+                auditLinked: false,
+            }));
+        set({ campaigns, campaignClosures: closures });
     }),
+
+    createCampaign: (data) => get().execute(async () => {
+        const created = await campaignService.createCampaign({
+            ...data,
+            status: data?.status || 'Active',
+        });
+        set((state) => ({ campaigns: [...state.campaigns, created] }));
+        return created;
+    }, "Campaign created."),
 
     setCampaignStatus: (id, status) => get().execute(async () => {
         const updated = await campaignService.updateStatus(id, status);
@@ -193,6 +260,11 @@ export const useAdminStore = create((set, get) => ({
         set({ posts });
     }),
 
+    loadPostDetail: (id) => get().execute(async () => {
+        const postDetail = await moderationService.fetchPostDetail(id);
+        set({ postDetail });
+    }),
+
     handlePostApproval: (id, approve) => get().execute(async () => {
         let updated;
         if (approve) {
@@ -201,7 +273,8 @@ export const useAdminStore = create((set, get) => ({
             updated = await moderationService.rejectPost(id, "Content policy violation");
         }
         set((state) => ({
-            posts: state.posts.map(p => p.id === id ? updated : p)
+            posts: state.posts.map(p => p.id === id ? updated : p),
+            postDetail: state.postDetail?.id === id ? { ...state.postDetail, ...updated } : state.postDetail,
         }));
     }, approve ? "Post approved for broadcast." : "Post restricted."),
 
@@ -215,6 +288,174 @@ export const useAdminStore = create((set, get) => ({
         const updated = await settingsService.updateSettings(data);
         set({ settings: updated });
     }, "Kernel parameters updated successfully."),
+
+    enforceGiftPolicy: () => get().execute(async () => {
+        const allowed = get().giftPolicy.allowedINR;
+        const normalized = get().gifts.map((gift) => {
+            const normalizedPrice = allowed.includes(gift.price)
+                ? gift.price
+                : allowed.reduce((prev, next) =>
+                    Math.abs(next - gift.price) < Math.abs(prev - gift.price) ? next : prev,
+                );
+            return { ...gift, price: normalizedPrice };
+        });
+        set({ gifts: normalized });
+        syncGiftCatalogFromAdminGifts(normalized);
+        return normalized;
+    }, "Gift ladder normalized to PRD policy (₹2/₹5/₹10)."),
+
+    updateGiftPolicy: (payload) => set((state) => ({
+        giftPolicy: { ...state.giftPolicy, ...payload },
+    })),
+
+    loadKYCQueue: () => get().execute(async () => {
+        const queue = await userService.fetchKYCQueue();
+        set({ kycQueue: queue });
+    }),
+
+    reviewKYC: (queueId, decision) => get().execute(async () => {
+        const item = get().kycQueue.find((entry) => entry.id === queueId);
+        if (!item) return;
+        if (decision === 'approve' && !item.eligibleByReferral) {
+            throw new Error(`KYC approval blocked. Referral onboarding is ${item.referredCount}/5.`);
+        }
+        if (decision === 'approve') await get().verifyUserKYC(item.userId);
+        if (decision === 'reject') {
+            patchKYCSubmission(item.userId, { status: 'rejected', payoutsUnlocked: false });
+        }
+        set((state) => ({
+            kycQueue: state.kycQueue.map((entry) =>
+                entry.id === queueId ? { ...entry, status: decision === 'approve' ? 'approved' : 'rejected' } : entry,
+            ),
+            auditLogs: [
+                {
+                    id: `LOG-${Date.now()}`,
+                    action: 'KYC Review',
+                    admin: 'SuperAdmin',
+                    timestamp: new Date().toISOString(),
+                    details: `${decision.toUpperCase()} for ${item.userId}`,
+                },
+                ...state.auditLogs,
+            ],
+        }));
+    }, "KYC queue updated."),
+
+    incrementReferralOnboarding: (userId) => get().execute(async () => {
+        const updated = await userService.incrementReferral(userId);
+        if (!updated) return;
+        const nextCount = updated.referredCount || 0;
+        set((state) => ({
+            users: state.users.map((u) => (u.id === userId ? updated : u)),
+            usersData: {
+                ...state.usersData,
+                users: state.usersData.users.map((u) => (u.id === userId ? updated : u)),
+            },
+            userDetail: state.userDetail?.id === userId
+                ? { ...state.userDetail, referredCount: nextCount, referralCode: updated.referralCode }
+                : state.userDetail,
+            kycQueue: state.kycQueue.map((entry) =>
+                entry.userId === userId
+                    ? {
+                        ...entry,
+                        referredCount: nextCount,
+                        eligibleByReferral: nextCount >= (entry.requiredReferrals || 5),
+                        status: nextCount >= (entry.requiredReferrals || 5) && entry.status !== 'approved'
+                            ? 'pending'
+                            : entry.status,
+                    }
+                    : entry,
+            ),
+        }));
+    }, "Referral onboarding count updated."),
+
+    loadFraudSignals: () => get().execute(async () => {
+        set({ fraudSignals: [...get().fraudSignals] });
+    }),
+
+    resolveFraudSignal: (signalId, resolution = 'resolved') => get().execute(async () => {
+        set((state) => ({
+            fraudSignals: state.fraudSignals.map((signal) =>
+                signal.id === signalId ? { ...signal, status: resolution } : signal,
+            ),
+            auditLogs: [
+                {
+                    id: `LOG-${Date.now()}`,
+                    action: 'Fraud Resolution',
+                    admin: 'SuperAdmin',
+                    timestamp: new Date().toISOString(),
+                    details: `Signal ${signalId} -> ${resolution}`,
+                },
+                ...state.auditLogs,
+            ],
+        }));
+    }, "Fraud signal disposition recorded."),
+
+    loadSettlementRails: () => get().execute(async () => {
+        set({ settlementRails: [...get().settlementRails] });
+    }),
+
+    reconcileSettlementRail: (railId) => get().execute(async () => {
+        set((state) => ({
+            settlementRails: state.settlementRails.map((rail) =>
+                rail.id === railId
+                    ? { ...rail, reconciled: rail.reconciled + rail.pending, pending: 0, lastRun: 'just now', status: 'active' }
+                    : rail,
+            ),
+            auditLogs: [
+                {
+                    id: `LOG-${Date.now()}`,
+                    action: 'Rail Reconciliation',
+                    admin: 'SuperAdmin',
+                    timestamp: new Date().toISOString(),
+                    details: `Reconciled ${railId}`,
+                },
+                ...state.auditLogs,
+            ],
+        }));
+    }, "Settlement rail reconciled."),
+
+    linkCampaignClosureAudit: (campaignId) => get().execute(async () => {
+        const closure = get().campaignClosures.find((entry) => entry.id === campaignId);
+        if (!closure) return;
+        set((state) => ({
+            campaignClosures: state.campaignClosures.map((entry) =>
+                entry.id === campaignId ? { ...entry, auditLinked: true } : entry,
+            ),
+            auditLogs: [
+                {
+                    id: `LOG-${Date.now()}`,
+                    action: 'Campaign Closure',
+                    admin: 'SuperAdmin',
+                    timestamp: new Date().toISOString(),
+                    details: `Winner ${closure.winner} payout linked for ${closure.title}`,
+                },
+                ...state.auditLogs,
+            ],
+        }));
+    }, "Campaign closure linked to immutable audit trail."),
+
+    computePRDMetrics: () => get().execute(async () => {
+        const voteVolume = useCampaignStore
+            .getState()
+            .campaigns.reduce((acc, campaign) => acc + campaign.submissions.reduce((s, sub) => s + sub.votes, 0), 0);
+        const payoutLatency = get().withdrawals.length
+            ? `${Math.max(1, Math.round(get().withdrawals.filter((w) => w.status === 'pending').length * 0.4))}h`
+            : '1h';
+        set({
+            prdMetrics: {
+                dauProxy: get().users.length * 17,
+                avgGiftsPerUser: (get().gifts.reduce((acc, gift) => acc + gift.usage, 0) / Math.max(1, get().users.length)).toFixed(1),
+                campaignParticipation: get().campaigns.reduce((acc, campaign) => acc + (campaign.participants || 0), 0),
+                voteVolume,
+                payoutLatency,
+                brandRetentionProxy: `${Math.min(98, 72 + get().campaigns.length)}%`,
+            },
+        });
+    }),
+
+    notify: (type, message) => set({
+        lastSharedAction: { type: type === 'error' ? 'error' : 'success', message, timestamp: Date.now() },
+    }),
 
     // Global clear notification
     clearNotification: () => set({ lastSharedAction: null })

@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { X, Camera, Receipt, Video, ChevronRight, Trophy, Users, Clock, CheckCircle2 } from 'lucide-react'
-import { useWalletStore } from '../../store/useWalletStore'
+import { useCampaignStore } from '../../store/useCampaignStore'
 import { triggerCoinRain } from '../shared/CoinRain'
 import { daysLeft, formatCount } from '../../utils/formatCurrency'
 
@@ -17,13 +17,13 @@ export default function TaskDetail({ task, onClose }) {
     const { register, handleSubmit, formState: { isSubmitting } } = useForm()
     const [submitted, setSubmitted] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
-    const { addTaskEarning } = useWalletStore()
+    const { submitEntry } = useCampaignStore()
 
     const brandColor = BRAND_COLORS[task.brand.name] || '#f59e0b'
 
     const onSubmit = async () => {
         await new Promise((r) => setTimeout(r, 800))
-        addTaskEarning(task.myReward, task.brand.name)
+        submitEntry(task)
         setSubmitted(true)
         triggerCoinRain()
     }
@@ -104,7 +104,7 @@ export default function TaskDetail({ task, onClose }) {
                             </div>
                             <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Task Submitted!</p>
                             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-                                ₹{task.myReward} has been credited to your wallet 🎉
+                                Submission queued for public voting. Winner payout: ₹{task.myReward}
                             </p>
                             <button
                                 onClick={onClose}

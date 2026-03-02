@@ -1,4 +1,5 @@
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+import { getKYCSubmissionByUser, getKYCSubmissions, patchKYCSubmission } from '../../../shared/kycSync'
 
 let mockUsers = [
     {
@@ -7,6 +8,7 @@ let mockUsers = [
         email: 'whale@crypto.com',
         role: 'VIP User',
         status: 'Verified',
+        kycStatus: 'approved',
         kycVerified: true,
         riskScore: 'Low',
         joined: 'Jan 12, 2024',
@@ -15,6 +17,10 @@ let mockUsers = [
         campaigns: 12,
         isBanned: false,
         isSuspicious: false,
+        referralCode: 'WHALE88',
+        referredCount: 7,
+        aadharFront: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Front+U-7721',
+        aadharBack: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Back+U-7721',
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
     },
     {
@@ -23,6 +29,7 @@ let mockUsers = [
         email: 'bh@gmail.com',
         role: 'Standard',
         status: 'Flagged',
+        kycStatus: 'pending',
         kycVerified: false,
         riskScore: 'High',
         joined: 'Feb 05, 2024',
@@ -31,6 +38,10 @@ let mockUsers = [
         campaigns: 2,
         isBanned: false,
         isSuspicious: true,
+        referralCode: 'BOTX22',
+        referredCount: 2,
+        aadharFront: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Front+U-7722',
+        aadharBack: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Back+U-7722',
         avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
     },
     {
@@ -39,6 +50,7 @@ let mockUsers = [
         email: 'meme@xyz.com',
         role: 'Standard',
         status: 'Pending',
+        kycStatus: 'pending',
         kycVerified: false,
         riskScore: 'Medium',
         joined: 'Feb 20, 2024',
@@ -47,6 +59,10 @@ let mockUsers = [
         campaigns: 5,
         isBanned: false,
         isSuspicious: false,
+        referralCode: 'MEME23',
+        referredCount: 4,
+        aadharFront: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Front+U-7723',
+        aadharBack: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Back+U-7723',
         avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop'
     }
 ];
@@ -86,6 +102,11 @@ export const userService = {
 
         return {
             ...user,
+            referralCode: user.referralCode,
+            referredCount: user.referredCount || 0,
+            aadharFront: user.aadharFront,
+            aadharBack: user.aadharBack,
+            kycStatus: user.kycStatus || (user.kycVerified ? 'approved' : 'pending'),
             giftHistory: [
                 { id: 'G-1', sender: 'Anonymous', gift: 'Rose', value: 10, date: '2024-02-25' },
                 { id: 'G-2', sender: 'WhaleAlpha', gift: 'Diamond', value: 1000, date: '2024-02-21' }
@@ -123,16 +144,90 @@ export const userService = {
         await delay(1200);
         const user = mockUsers.find(u => u.id === id);
         if (user) {
+            if ((user.referredCount || 0) < 5) {
+                throw new Error('KYC cannot be approved until at least 5 users join with this referral code.');
+            }
             user.status = 'Verified';
             user.kycVerified = true;
+            user.kycStatus = 'approved';
+            return { ...user };
         }
-        return user ? { ...user } : null;
+        const synced = getKYCSubmissionByUser(id)
+        if (!synced) return null
+        if ((synced.referredCount || 0) < (synced.requiredReferrals || 5)) {
+            throw new Error('KYC cannot be approved until at least 5 users join with this referral code.');
+        }
+        const updated = patchKYCSubmission(id, { status: 'approved', payoutsUnlocked: true })
+        return updated ? { ...updated } : null
+    },
+
+    incrementReferral: async (id) => {
+        await delay(500);
+        const user = mockUsers.find(u => u.id === id);
+        if (user) {
+            user.referredCount = Math.min(25, (user.referredCount || 0) + 1);
+            return { ...user };
+        }
+        const synced = getKYCSubmissionByUser(id)
+        if (!synced) return null
+        const required = synced.requiredReferrals || 5
+        const nextCount = Math.min(100, (synced.referredCount || 0) + 1)
+        const updated = patchKYCSubmission(id, {
+            referredCount: nextCount,
+            status: nextCount >= required ? 'pending' : synced.status,
+        })
+        return updated ? { ...updated } : null
+    },
+
+    fetchKYCQueue: async () => {
+        await delay(700);
+        const mockQueue = mockUsers
+            .filter((u) => !u.kycVerified)
+            .map((u, idx) => ({
+                id: `KYC-${2000 + idx}`,
+                userId: u.id,
+                user: u.name,
+                docType: 'Aadhaar Front + Aadhaar Back',
+                status: u.kycStatus === 'rejected' ? 'rejected' : 'pending',
+                submittedAt: '2026-02-27',
+                referralCode: u.referralCode || '-',
+                referredCount: u.referredCount || 0,
+                requiredReferrals: 5,
+                eligibleByReferral: (u.referredCount || 0) >= 5,
+                aadharFront: u.aadharFront,
+                aadharBack: u.aadharBack,
+            }));
+        const syncedQueue = getKYCSubmissions()
+            .filter((entry) => entry.status !== 'approved')
+            .map((entry, idx) => ({
+                id: `KYC-EXT-${3000 + idx}`,
+                userId: entry.userId,
+                user: entry.user || 'User',
+                docType: 'Aadhaar Front + Aadhaar Back',
+                status: entry.status || 'pending',
+                submittedAt: entry.submittedAt || '2026-02-28',
+                referralCode: entry.referralCode || '-',
+                referredCount: entry.referredCount || 0,
+                requiredReferrals: entry.requiredReferrals || 5,
+                eligibleByReferral: (entry.referredCount || 0) >= (entry.requiredReferrals || 5),
+                aadharFront: entry.aadharFront || '#',
+                aadharBack: entry.aadharBack || '#',
+            }))
+        return [...syncedQueue, ...mockQueue]
     },
 
     updateUser: async (id, userData) => {
         await delay(1000);
         mockUsers = mockUsers.map(u => u.id === id ? { ...u, ...userData } : u);
         return mockUsers.find(u => u.id === id);
+    },
+
+    deleteUser: async (id) => {
+        await delay(900);
+        const existing = mockUsers.find((u) => u.id === id);
+        if (!existing) return null;
+        mockUsers = mockUsers.filter((u) => u.id !== id);
+        return { ...existing };
     },
 
     fetchSuspiciousUsers: async () => {

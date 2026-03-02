@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Save,
@@ -57,6 +57,8 @@ export default function EditCampaign() {
     const { campaignId } = useParams();
     const navigate = useNavigate();
     const [formData, setFormData] = useState(null);
+    const [creativePreview, setCreativePreview] = useState('');
+    const creativeInputRef = useRef(null);
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -166,10 +168,10 @@ export default function EditCampaign() {
                                 </div>
                                 <div className="space-y-2.5">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-                                        <DollarSign className="w-3 h-3" /> Allocated Budget ({import.meta.env.VITE_CURRENCY || '$'})
+                                        <DollarSign className="w-3 h-3" /> Allocated Budget ({import.meta.env.VITE_CURRENCY || '₹'})
                                     </label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{import.meta.env.VITE_CURRENCY || '$'}</span>
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{import.meta.env.VITE_CURRENCY || '₹'}</span>
                                         <input
                                             type="number"
                                             value={formData.budget}
@@ -177,6 +179,37 @@ export default function EditCampaign() {
                                             className="w-full bg-bg border border-surface rounded-xl py-3 pl-8 pr-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
                                         />
                                     </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2.5">
+                                <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1">Campaign Creative</label>
+                                <div className="p-4 bg-bg border border-surface rounded-xl">
+                                    {creativePreview ? (
+                                        <img src={creativePreview} alt="Campaign creative preview" className="w-full max-h-56 object-cover rounded-lg mb-3" />
+                                    ) : (
+                                        <p className="text-[10px] text-muted uppercase tracking-wider mb-3">No file selected</p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => creativeInputRef.current?.click()}
+                                        className="px-3 py-2 bg-primary/10 text-primary rounded-lg text-[10px] font-bold uppercase tracking-wider"
+                                    >
+                                        Upload Image
+                                    </button>
+                                    <input
+                                        ref={creativeInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => setCreativePreview(ev.target.result);
+                                            reader.readAsDataURL(file);
+                                        }}
+                                    />
                                 </div>
                             </div>
 

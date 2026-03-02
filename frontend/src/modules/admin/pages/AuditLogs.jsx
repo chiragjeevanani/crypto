@@ -23,11 +23,12 @@ const logs = [
 ];
 
 export default function AuditLogs() {
-    const { auditLogs, loadAuditLogs, isLoading } = useAdminStore();
+    const { auditLogs, campaignClosures, loadAuditLogs, loadCampaigns, linkCampaignClosureAudit, isLoading } = useAdminStore();
 
     useEffect(() => {
         loadAuditLogs();
-    }, [loadAuditLogs]);
+        loadCampaigns();
+    }, [loadAuditLogs, loadCampaigns]);
 
     return (
         <div className="space-y-10 pb-20">
@@ -78,6 +79,32 @@ export default function AuditLogs() {
                     ]
                 }))}
             />
+
+            <div className="bg-surface border border-surface rounded-lg p-6">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-text mb-4">Campaign Closure to Immutable Audit Links</h3>
+                <div className="space-y-2">
+                    {campaignClosures.length === 0 && (
+                        <div className="p-3 rounded-lg bg-bg border border-surface text-[9px] text-muted uppercase tracking-wider">
+                            No campaign closures available.
+                        </div>
+                    )}
+                    {campaignClosures.map((closure) => (
+                        <div key={closure.id} className="p-3 rounded-lg bg-bg border border-surface flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-semibold text-text">{closure.title}</p>
+                                <p className="text-[9px] text-muted uppercase tracking-wider">Winner: {closure.winner} · Payout: {closure.payout}</p>
+                            </div>
+                            <button
+                                onClick={() => linkCampaignClosureAudit(closure.id)}
+                                disabled={closure.auditLinked}
+                                className={`px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider border ${closure.auditLinked ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}
+                            >
+                                {closure.auditLinked ? 'Linked' : 'Link'}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
 
             <div className="bg-surface/50 border border-dashed border-surface rounded-lg p-8 flex flex-col items-center justify-center text-center">
                 <div className="p-3 bg-surface rounded-full mb-4 border border-surface">

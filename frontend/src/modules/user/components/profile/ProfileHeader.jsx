@@ -2,7 +2,7 @@ import { Star } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCount, formatINR } from '../../utils/formatCurrency'
 
-export default function ProfileHeader({ profile, onEdit }) {
+export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpenFollowing }) {
     return (
         <div className="px-4 pt-5 pb-4">
             {/* Avatar + stats */}
@@ -16,7 +16,11 @@ export default function ProfileHeader({ profile, onEdit }) {
                         className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white"
                         style={{ background: 'var(--color-surface2)' }}
                     >
-                        {profile.username.charAt(0)}
+                        {profile.avatar ? (
+                            <img src={profile.avatar} alt={profile.username} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                            profile.username.charAt(0)
+                        )}
                     </div>
                 </div>
 
@@ -27,14 +31,22 @@ export default function ProfileHeader({ profile, onEdit }) {
                         { label: 'Followers', value: formatCount(profile.followers) },
                         { label: 'Following', value: formatCount(profile.following) },
                     ].map((stat) => (
-                        <div key={stat.label} className="flex flex-col items-center">
+                        <button
+                            key={stat.label}
+                            onClick={() => {
+                                if (stat.label === 'Followers') onOpenFollowers?.()
+                                if (stat.label === 'Following') onOpenFollowing?.()
+                            }}
+                            className="flex flex-col items-center cursor-pointer"
+                            disabled={stat.label === 'Posts'}
+                        >
                             <span className="text-base font-extrabold" style={{ color: 'var(--color-text)' }}>
                                 {stat.value}
                             </span>
                             <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                                 {stat.label}
                             </span>
-                        </div>
+                        </button>
                     ))}
                 </div>
             </div>

@@ -1,4 +1,4 @@
-const CURRENCY = import.meta.env.VITE_CURRENCY || '$';
+const CURRENCY = import.meta.env.VITE_CURRENCY || '₹';
 
 export const formatCurrency = (value) => {
     if (typeof value === 'string' && value.startsWith('$')) {

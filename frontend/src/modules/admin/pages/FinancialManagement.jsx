@@ -46,7 +46,7 @@ export default function FinancialManagement() {
     const {
         withdrawals, loadWithdrawals, approveWithdrawal, rejectWithdrawal, getUserFinancialSnapshot,
         gifts, loadGifts, addGift, updateGift, removeGift, toggleGiftStatus,
-        settings, loadSettings, updatePlatformSettings,
+        settings, giftPolicy, settlementRails, loadSettlementRails, reconcileSettlementRail, enforceGiftPolicy, updateGiftPolicy, loadSettings, updatePlatformSettings,
         isLoading
     } = useAdminStore();
 
@@ -61,10 +61,26 @@ export default function FinancialManagement() {
 
     const navigate = useNavigate();
 
+    const exportLedgerCsv = () => {
+        const rows = [
+            ['ID', 'User', 'Amount', 'Method', 'Status', 'Date'],
+            ...withdrawals.map((w) => [w.id, w.user, w.amount, w.method, w.status, w.date]),
+        ];
+        const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `withdrawals-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     useEffect(() => {
         loadWithdrawals(withdrawalFilter);
         loadGifts();
         loadSettings();
+        loadSettlementRails();
     }, [loadWithdrawals, loadGifts, loadSettings, withdrawalFilter]);
 
     const handleWithdrawalReview = async (w) => {
@@ -91,10 +107,14 @@ export default function FinancialManagement() {
     const handleGiftSubmit = async (e) => {
         e.preventDefault();
         try {
+            const safePrice = Math.max(2, Math.min(10, Math.round(Number(giftFormData.price || 2))))
+            if (giftPolicy.strictMode && !giftPolicy.allowedINR.includes(safePrice)) {
+                return
+            }
             if (editingGift) {
-                await updateGift(editingGift.id, giftFormData);
+                await updateGift(editingGift.id, { ...giftFormData, price: safePrice, value: safePrice });
             } else {
-                await addGift(giftFormData);
+                await addGift({ ...giftFormData, price: safePrice, value: safePrice });
             }
             setGiftModalOpen(false);
             setEditingGift(null);
@@ -130,18 +150,20 @@ export default function FinancialManagement() {
                 actions={
                     <div className="flex gap-3">
                         <button
-                            onClick={() => alert('Compiling Financial Ledger for Export...')}
+                            onClick={exportLedgerCsv}
                             className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
                         >
                             <Download className="w-3.5 h-3.5" />
                             Export Ledger
                         </button>
                         <button
-                            onClick={() => alert('Initiating Batch Liquidation Sequence...')}
+                            onClick={() => {
+                                settlementRails.forEach((rail) => reconcileSettlementRail(rail.id));
+                            }}
                             className="flex items-center gap-2 px-6 py-2.5 bg-primary text-black rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-md hover:bg-primary/90 transition-all font-bold"
                         >
                             <Cpu className="w-3.5 h-3.5" />
-                            Process Batch
+                            Reconcile Batch
                         </button>
                     </div>
                 }
@@ -183,7 +205,7 @@ export default function FinancialManagement() {
 
                         <div className="pt-6 border-t border-surface/50 space-y-4">
                             <div className="space-y-2">
-                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">Min Withdrawal ({import.meta.env.VITE_CURRENCY || '$'})</label>
+                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">Min Withdrawal ({import.meta.env.VITE_CURRENCY || '₹'})</label>
                                 <input
                                     type="number"
                                     value={settings.minWithdrawal}
@@ -193,6 +215,26 @@ export default function FinancialManagement() {
                             </div>
                             <button className="w-full py-3 bg-surface2 hover:bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all mt-4">Commit Settings</button>
                         </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-surface/50 space-y-3">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-text">Gift Ladder Policy</h4>
+                        <p className="text-[9px] text-muted uppercase tracking-wider">Allowed INR tiers: ₹{giftPolicy.allowedINR.join(' / ₹')}</p>
+                        <label className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                            <input
+                                type="checkbox"
+                                checked={giftPolicy.strictMode}
+                                onChange={(e) => updateGiftPolicy({ strictMode: e.target.checked })}
+                                className="accent-primary"
+                            />
+                            Strict enforcement
+                        </label>
+                        <button
+                            onClick={() => enforceGiftPolicy()}
+                            className="w-full py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-lg text-[10px] font-bold uppercase tracking-wider"
+                        >
+                            Normalize Gift Pricing
+                        </button>
                     </div>
                 </div>
 
@@ -274,6 +316,28 @@ export default function FinancialManagement() {
                             ]
                         }))}
                     />
+
+                    <div className="bg-surface border border-surface rounded-lg p-4">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Settlement Rails</h4>
+                        <div className="space-y-2">
+                            {settlementRails.map((rail) => (
+                                <div key={rail.id} className="flex items-center justify-between p-3 rounded-lg bg-bg border border-surface">
+                                    <div>
+                                        <p className="text-xs font-semibold text-text">{rail.name}</p>
+                                        <p className="text-[9px] text-muted uppercase tracking-wider">
+                                            Reconciled: {rail.reconciled} · Pending: {rail.pending} · Last: {rail.lastRun}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => reconcileSettlementRail(rail.id)}
+                                        className="px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20"
+                                    >
+                                        Reconcile
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -414,10 +478,12 @@ export default function FinancialManagement() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Price (Coins)</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Price (₹)</label>
                                         <input
                                             required
                                             type="number"
+                                            min={2}
+                                            max={10}
                                             value={giftFormData.price}
                                             onChange={(e) => setGiftFormData({ ...giftFormData, price: parseInt(e.target.value) })}
                                             className="w-full bg-bg border border-surface rounded-lg p-2.5 text-xs font-semibold outline-none focus:ring-1 focus:ring-primary/20 text-text"

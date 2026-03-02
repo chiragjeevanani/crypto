@@ -12,6 +12,8 @@ import {
     Filter
 } from 'lucide-react';
 import { AdminPageHeader, AdminStatCard } from '../components/shared';
+import { useNavigate } from 'react-router-dom';
+import { useAdminStore } from '../store/useAdminStore';
 
 const activeVotes = [
     { id: 'VT-701', title: 'Sept. Brand Ambassador', type: 'Leaderboard', totalVotes: '12,402', status: 'In Progress', trend: '+140/hr' },
@@ -20,13 +22,53 @@ const activeVotes = [
 ];
 
 export default function VotingManagement() {
+    const navigate = useNavigate();
+    const { notify } = useAdminStore();
+    const [votes, setVotes] = React.useState(activeVotes);
+    const [proxyFiltered, setProxyFiltered] = React.useState(false);
+    const [allFlagged, setAllFlagged] = React.useState(false);
+
+    const launchVote = () => {
+        const nextId = `VT-${700 + votes.length + 1}`;
+        const newVote = {
+            id: nextId,
+            title: `New Community Vote ${votes.length + 1}`,
+            type: 'Governance',
+            totalVotes: '0',
+            status: 'In Progress',
+            trend: '+0/hr',
+        };
+        setVotes((prev) => [newVote, ...prev]);
+        notify('success', `${nextId} launched successfully.`);
+    };
+
+    const markAudit = (voteId) => {
+        setVotes((prev) => prev.map((vote) => vote.id === voteId ? { ...vote, status: 'Audit Phase' } : vote));
+        notify('success', `Audit data captured for ${voteId}.`);
+    };
+
+    const openAudit = (voteId) => {
+        notify('success', `Opening audit logs for ${voteId}.`);
+        navigate('/admin/audit');
+    };
+
+    const handleProxyFilter = () => {
+        setProxyFiltered((prev) => !prev);
+        notify('success', `Proxy filter ${!proxyFiltered ? 'enabled' : 'disabled'}.`);
+    };
+
+    const handleFlagAll = () => {
+        setAllFlagged(true);
+        notify('success', 'All suspicious voters flagged for manual review.');
+    };
+
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
                 title="Governance & Voting"
                 subtitle="Manage community decisions and leaderboard integrity protocols."
                 actions={
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-primary text-black rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-md">
+                    <button onClick={launchVote} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-black rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-md">
                         <Vote className="w-3.5 h-3.5" />
                         Launch Vote
                     </button>
@@ -34,7 +76,7 @@ export default function VotingManagement() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeVotes.map((vote, idx) => (
+                {votes.map((vote) => (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -68,8 +110,16 @@ export default function VotingManagement() {
                         </div>
 
                         <div className="flex gap-2">
-                            <button className="flex-1 py-2 bg-surface2 hover:bg-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all text-text border border-surface">Audit Data</button>
-                            <button className="p-2 bg-surface2 hover:bg-surface rounded-lg transition-all border border-surface">
+                            <button
+                                onClick={() => markAudit(vote.id)}
+                                className="flex-1 py-2 bg-surface2 hover:bg-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all text-text border border-surface"
+                            >
+                                Audit Data
+                            </button>
+                            <button
+                                onClick={() => openAudit(vote.id)}
+                                className="p-2 bg-surface2 hover:bg-surface rounded-lg transition-all border border-surface"
+                            >
                                 <ExternalLink className="w-3.5 h-3.5 text-muted" />
                             </button>
                         </div>
@@ -89,8 +139,18 @@ export default function VotingManagement() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button className="px-4 py-2 bg-surface2 rounded-lg text-[9px] font-semibold uppercase tracking-wider border border-surface text-text hover:bg-surface transition-all">Filter Proxies</button>
-                        <button className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg text-[9px] font-semibold uppercase tracking-wider text-rose-500 border border-rose-500/20 transition-all">Flag All</button>
+                        <button
+                            onClick={handleProxyFilter}
+                            className="px-4 py-2 bg-surface2 rounded-lg text-[9px] font-semibold uppercase tracking-wider border border-surface text-text hover:bg-surface transition-all"
+                        >
+                            {proxyFiltered ? 'Proxies Filtered' : 'Filter Proxies'}
+                        </button>
+                        <button
+                            onClick={handleFlagAll}
+                            className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg text-[9px] font-semibold uppercase tracking-wider text-rose-500 border border-rose-500/20 transition-all"
+                        >
+                            {allFlagged ? 'Flagged' : 'Flag All'}
+                        </button>
                     </div>
                 </div>
 

@@ -1,35 +1,108 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
-import { useWalletStore } from '../store/useWalletStore'
+import { useFeedStore } from '../store/useFeedStore'
 import ProfileHeader from '../components/profile/ProfileHeader'
 import NFTBadge from '../components/shared/NFTBadge'
+import PostFeedModal from '../components/feed/PostFeedModal'
 import { mockNFTs, mockProfilePosts } from '../data/mockNFTs'
 import { mockTasks } from '../data/mockTasks'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
+const SETTINGS_SECTIONS = ['Personal Information', 'Change Password', 'Terms & Policies', 'Contacts']
 
 export default function ProfilePage() {
+    const navigate = useNavigate()
+    const location = useLocation()
     const { profile, updateProfile, toggleDarkMode, darkMode } = useUserStore()
-    const { giftEarnings, taskEarnings, nftEarnings } = useWalletStore()
+    const { posts } = useFeedStore()
     const [activeTab, setActiveTab] = useState('Posts')
     const [editOpen, setEditOpen] = useState(false)
+    const [activePostIndex, setActivePostIndex] = useState(null)
+    const [settingsOpen, setSettingsOpen] = useState(false)
+    const [settingsTab, setSettingsTab] = useState('Personal Information')
+    const [settingsMode, setSettingsMode] = useState('menu')
+    const [connectionsOpen, setConnectionsOpen] = useState(null)
+    const [editAvatar, setEditAvatar] = useState(null)
+    const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
+    const [passwordMsg, setPasswordMsg] = useState('')
+
     const { register, handleSubmit } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
+    const settingsForm = useForm({
+        defaultValues: {
+            fullName: profile.fullName || profile.username,
+            username: profile.username,
+            handle: profile.handle,
+            email: profile.email || '',
+            phone: profile.phone || '',
+            bio: profile.bio,
+        },
+    })
 
     const onEdit = (data) => {
-        updateProfile(data)
+        updateProfile({ ...data, avatar: editAvatar || profile.avatar })
+        setEditAvatar(null)
         setEditOpen(false)
     }
 
+    const onSavePersonalInfo = (data) => {
+        updateProfile({
+            fullName: data.fullName,
+            username: data.username,
+            handle: data.handle.startsWith('@') ? data.handle : `@${data.handle}`,
+            email: data.email,
+            phone: data.phone,
+            bio: data.bio,
+        })
+        setSettingsOpen(false)
+    }
+
+    const onChangePassword = () => {
+        if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+            setPasswordMsg('Please fill all password fields.')
+            return
+        }
+        if (passwordForm.next !== passwordForm.confirm) {
+            setPasswordMsg('New password and confirm password do not match.')
+            return
+        }
+        setPasswordMsg('Password changed successfully.')
+        setPasswordForm({ current: '', next: '', confirm: '' })
+    }
+
+    useEffect(() => {
+        const state = location.state
+        if (!state?.openSettings) return
+        setSettingsOpen(true)
+        setSettingsMode(state.settingsMode || 'menu')
+        setSettingsTab(state.settingsTab || 'Personal Information')
+        navigate(location.pathname, { replace: true, state: null })
+    }, [location.pathname, location.state, navigate])
+
     return (
         <div>
-            {/* Profile header */}
-            <ProfileHeader profile={profile} onEdit={() => setEditOpen(true)} />
+            <ProfileHeader
+                profile={profile}
+                onEdit={() => setEditOpen(true)}
+                onOpenFollowers={() => setConnectionsOpen('followers')}
+                onOpenFollowing={() => setConnectionsOpen('following')}
+            />
 
-            {/* Dark mode toggle + Logout row */}
             <div className="flex items-center justify-end gap-2 px-4 mb-3">
+                <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                        setSettingsMode('menu')
+                        setSettingsOpen(true)
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
+                    style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                >
+                    <Settings size={13} /> Settings
+                </motion.button>
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={toggleDarkMode}
@@ -38,20 +111,8 @@ export default function ProfilePage() {
                 >
                     {darkMode ? <Sun size={13} /> : <Moon size={13} />}
                 </motion.button>
-                <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => {
-                        useUserStore.getState().logout();
-                        window.location.href = '/login';
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer text-rose-500"
-                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                >
-                    Logout
-                </motion.button>
             </div>
 
-            {/* Tabs */}
             <div className="flex border-b px-4" style={{ borderColor: 'var(--color-border)' }}>
                 {TABS.map((tab) => {
                     const active = tab === activeTab
@@ -63,179 +124,211 @@ export default function ProfilePage() {
                             style={{ color: active ? 'var(--color-primary)' : 'var(--color-muted)' }}
                         >
                             {tab}
-                            {active && (
-                                <motion.div
-                                    layoutId="profile-tab"
-                                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                                    style={{ background: 'var(--color-primary)' }}
-                                />
-                            )}
+                            {active && <motion.div layoutId="profile-tab" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ background: 'var(--color-primary)' }} />}
                         </button>
                     )
                 })}
             </div>
 
-            {/* Tab content */}
             <AnimatePresence mode="wait">
-                <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                >
-                    {/* Posts grid */}
+                <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                     {activeTab === 'Posts' && (
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
                             {mockProfilePosts.map((post) => (
-                                <div key={post.id} className="relative" style={{ aspectRatio: '1' }}>
-                                    <img
-                                        src={post.thumbnail}
-                                        alt="post"
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
+                                <div key={post.id} className="relative cursor-pointer" style={{ aspectRatio: '1' }} onClick={() => setActivePostIndex(mockProfilePosts.findIndex((item) => item.id === post.id) % posts.length)}>
+                                    <img src={post.thumbnail} alt="post" className="w-full h-full object-cover" loading="lazy" />
                                     <div className="absolute bottom-1 right-1">
-                                        <span
-                                            className="text-[9px] font-bold px-1 py-0.5 rounded-sm"
-                                            style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}
-                                        >
-                                            ₹{post.earnings}
-                                        </span>
+                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>₹{post.earnings}</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* NFTs */}
                     {activeTab === 'NFTs' && (
                         <div className="px-4 py-3 flex flex-col gap-3">
                             {mockNFTs.map((nft) => (
-                                <div
-                                    key={nft.id}
-                                    className="flex items-center gap-3 p-3 rounded-2xl"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                >
-                                    <img
-                                        src={nft.thumbnail}
-                                        alt={nft.title}
-                                        className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
-                                    />
+                                <div key={nft.id} className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                    <img src={nft.thumbnail} alt={nft.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {nft.title}
-                                        </p>
+                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
                                         <NFTBadge status={nft.status} price={nft.price} className="mt-1" />
-                                        <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>
-                                            {nft.views} views · {nft.bids} bids
-                                        </p>
+                                        <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>{nft.views} views · {nft.bids} bids</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* Tasks won */}
                     {activeTab === 'Tasks' && (
                         <div className="px-4 py-3 flex flex-col gap-3">
                             {mockTasks.filter((t) => t.joined).map((task) => (
-                                <div
-                                    key={task.id}
-                                    className="flex items-center gap-3 p-3 rounded-2xl"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                >
-                                    <div
-                                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                                        style={{ background: '#FF3F6C' }}
-                                    >
-                                        {task.brand.name.charAt(0)}
-                                    </div>
+                                <div key={task.id} className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: '#FF3F6C' }}>{task.brand.name.charAt(0)}</div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {task.title}
-                                        </p>
-                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                                            {task.brand.name}
-                                        </p>
+                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{task.title}</p>
+                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{task.brand.name}</p>
                                     </div>
-                                    <span className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>
-                                        +₹{task.myReward}
-                                    </span>
+                                    <span className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>+₹{task.myReward}</span>
                                 </div>
                             ))}
-                            {mockTasks.filter((t) => t.joined).length === 0 && (
-                                <p className="text-sm text-center py-8" style={{ color: 'var(--color-muted)' }}>
-                                    No tasks completed yet
-                                </p>
-                            )}
                         </div>
                     )}
                 </motion.div>
             </AnimatePresence>
+            <PostFeedModal posts={posts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
 
-            {/* Edit Profile bottom sheet */}
             <AnimatePresence>
                 {editOpen && (
-                    <motion.div
-                        className="fixed inset-0 z-40 flex flex-col justify-end"
-                        style={{ background: 'rgba(0,0,0,0.6)' }}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setEditOpen(false)}
-                    >
-                        <motion.div
-                            className="rounded-t-3xl px-5 pt-4 pb-8"
-                            style={{ background: 'var(--color-surface)' }}
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', stiffness: 280, damping: 30 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Handle */}
-                            <div className="flex justify-center mb-4">
-                                <div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} />
-                            </div>
+                    <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditOpen(false)}>
+                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-8" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-center mb-4"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} /></div>
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>Edit Profile</p>
-                                <button onClick={() => setEditOpen(false)} className="cursor-pointer">
-                                    <X size={18} style={{ color: 'var(--color-muted)' }} />
-                                </button>
+                                <button onClick={() => setEditOpen(false)} className="cursor-pointer"><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
                             </div>
-
                             <form onSubmit={handleSubmit(onEdit)} className="flex flex-col gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
-                                        Display Name
+                                <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                                    <div className="w-12 h-12 rounded-full overflow-hidden" style={{ background: 'var(--color-surface)' }}>
+                                        {(editAvatar || profile.avatar)
+                                            ? <img src={editAvatar || profile.avatar} alt={profile.username} className="w-full h-full object-cover" />
+                                            : <div className="w-full h-full flex items-center justify-center text-sm font-bold" style={{ color: 'var(--color-muted)' }}>{profile.username.charAt(0)}</div>}
+                                    </div>
+                                    <label className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }}>
+                                        Change Profile Photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (!file) return
+                                                const reader = new FileReader()
+                                                reader.onload = (ev) => setEditAvatar(typeof ev.target?.result === 'string' ? ev.target.result : null)
+                                                reader.readAsDataURL(file)
+                                            }}
+                                        />
                                     </label>
-                                    <input
-                                        {...register('username')}
-                                        className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                    />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
-                                        Bio
-                                    </label>
-                                    <textarea
-                                        {...register('bio')}
-                                        rows={3}
-                                        className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
-                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                    />
+                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>Display Name</label>
+                                    <input {...register('username')} className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                 </div>
-                                <motion.button
-                                    type="submit"
-                                    whileTap={{ scale: 0.96 }}
-                                    className="w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer"
-                                    style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))', color: '#fff' }}
-                                >
+                                <div>
+                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>Bio</label>
+                                    <textarea {...register('bio')} rows={3} className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                </div>
+                                <motion.button type="submit" whileTap={{ scale: 0.96 }} className="w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))', color: '#fff' }}>
                                     Save Changes
                                 </motion.button>
                             </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {connectionsOpen && (
+                    <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConnectionsOpen(null)}>
+                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-8 max-h-[70vh] overflow-y-auto" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-center mb-4"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} /></div>
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>{connectionsOpen === 'followers' ? 'Followers' : 'Following'}</p>
+                                <button onClick={() => setConnectionsOpen(null)} className="cursor-pointer"><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
+                            </div>
+                            <div className="space-y-2">
+                                {(connectionsOpen === 'followers' ? profile.followersList : profile.followingList).map((item) => (
+                                    <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'var(--color-primary)' }}>{item.name.charAt(0)}</div>
+                                        <div>
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{item.name}</p>
+                                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{item.handle}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {settingsOpen && (
+                    <motion.div className="fixed inset-0 z-50 flex justify-end p-2 md:p-3" style={{ background: 'rgba(0,0,0,0.55)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSettingsOpen(false)}>
+                        <motion.div className="h-full w-full max-w-md overflow-hidden rounded-2xl" initial={{ x: 36, opacity: 0.96 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 36, opacity: 0.96 }} transition={{ duration: 0.22, ease: 'easeOut' }} onClick={(e) => e.stopPropagation()}>
+                            <div className="h-full rounded-2xl p-4 overflow-y-auto" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        {settingsMode === 'detail' && (
+                                            <button onClick={() => setSettingsMode('menu')} className="p-1.5 rounded-md" style={{ background: 'var(--color-surface2)' }}>
+                                                <ArrowLeft size={14} style={{ color: 'var(--color-text)' }} />
+                                            </button>
+                                        )}
+                                        <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>
+                                            {settingsMode === 'menu' ? 'Settings' : settingsTab}
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setSettingsOpen(false)}><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
+                                </div>
+
+                                {settingsMode === 'menu' && (
+                                    <div className="space-y-2 mb-2">
+                                        {SETTINGS_SECTIONS.map((section) => (
+                                            <button
+                                                key={section}
+                                                onClick={() => {
+                                                    setSettingsTab(section)
+                                                    setSettingsMode('detail')
+                                                }}
+                                                className="w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm font-semibold"
+                                                style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                            >
+                                                <span>{section}</span>
+                                                <ChevronRight size={15} style={{ color: 'var(--color-muted)' }} />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {settingsMode === 'detail' && settingsTab === 'Personal Information' && (
+                                    <form onSubmit={settingsForm.handleSubmit(onSavePersonalInfo)} className="space-y-3">
+                                        <input {...settingsForm.register('fullName')} placeholder="Full Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <input {...settingsForm.register('username')} placeholder="User Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <input {...settingsForm.register('handle')} placeholder="@handle" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <input {...settingsForm.register('email')} placeholder="Email" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <input {...settingsForm.register('phone')} placeholder="Phone Number" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <textarea {...settingsForm.register('bio')} rows={3} placeholder="Bio" className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <button type="submit" className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>Save Personal Information</button>
+                                    </form>
+                                )}
+                                {settingsMode === 'detail' && settingsTab === 'Change Password' && (
+                                    <div className="space-y-3">
+                                        <input type="password" value={passwordForm.current} onChange={(e) => setPasswordForm((p) => ({ ...p, current: e.target.value }))} placeholder="Current Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <input type="password" value={passwordForm.next} onChange={(e) => setPasswordForm((p) => ({ ...p, next: e.target.value }))} placeholder="New Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <input type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} placeholder="Confirm New Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <button onClick={onChangePassword} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>Update Password</button>
+                                        {passwordMsg && <p className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>{passwordMsg}</p>}
+                                    </div>
+                                )}
+                                {settingsMode === 'detail' && settingsTab === 'Terms & Policies' && (
+                                    <div className="space-y-2">
+                                        <button onClick={() => { setSettingsOpen(false); navigate('/terms', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><FileText size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Terms & Conditions</p></button>
+                                        <button onClick={() => { setSettingsOpen(false); navigate('/privacy', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Shield size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Privacy Policy</p></button>
+                                        <button onClick={() => { setSettingsOpen(false); navigate('/guidelines', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><FileText size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Community Guidelines</p></button>
+                                    </div>
+                                )}
+                                {settingsMode === 'detail' && settingsTab === 'Contacts' && (
+                                    <div className="space-y-2">
+                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Support</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>support@socialearn.app</p></div></div>
+                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Business Contact</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>+91 90000 12345</p></div></div>
+                                    </div>
+                                )}
+                                <div className="pt-5 mt-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                                    <button onClick={() => { useUserStore.getState().logout(); window.location.href = '/signin' }} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
+                                        Logout
+                                    </button>
+                                </div>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

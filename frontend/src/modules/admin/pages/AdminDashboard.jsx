@@ -98,7 +98,7 @@ const ChartBar = ({ height, value }) => {
 export default function AdminDashboard() {
     const {
         loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts,
-        users, withdrawals, campaigns, posts, isLoading
+        computePRDMetrics, prdMetrics, users, withdrawals, campaigns, posts, isLoading
     } = useAdminStore();
 
     useEffect(() => {
@@ -109,11 +109,12 @@ export default function AdminDashboard() {
                 loadGifts(),
                 loadCampaigns(),
                 loadLedger(),
-                loadPosts()
+                loadPosts(),
+                computePRDMetrics()
             ]);
         };
         syncAll();
-    }, [loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts]);
+    }, [loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts, computePRDMetrics]);
 
     const activeMandates = campaigns.filter(c => c.status === 'Active').length;
     const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'Pending').length;
@@ -130,8 +131,8 @@ export default function AdminDashboard() {
         },
         {
             label: 'Active Creators',
-            value: users.length.toLocaleString(),
-            change: '+3.2%',
+            value: (prdMetrics?.dauProxy || users.length).toLocaleString(),
+            change: 'DAU Proxy',
             icon: Users,
             color: 'blue-500',
             path: '/admin/users'
@@ -147,7 +148,7 @@ export default function AdminDashboard() {
         {
             label: 'Pending Liquidation',
             value: pendingWithdrawalsCount.toString(),
-            change: 'Critical',
+            change: `Latency ${prdMetrics?.payoutLatency || 'n/a'}`,
             icon: Clock,
             color: 'amber-500',
             path: '/admin/withdrawals'

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search,
@@ -12,19 +13,28 @@ import {
     Vote,
     UserPlus,
     UserMinus,
-    ShieldAlert
+    ShieldAlert,
+    Edit2,
+    Ban,
+    Trash2,
 } from 'lucide-react';
 import { useAdminStore } from '../store/useAdminStore';
 import { AdminPageHeader, AdminDataTable } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 
 export default function UserManagement() {
+    const navigate = useNavigate();
     const {
         usersData,
+        kycQueue,
         loadUsers,
+        loadKYCQueue,
+        reviewKYC,
+        incrementReferralOnboarding,
         userDetail,
         loadUserDetail,
         toggleUserBan,
+        deleteUser,
         markUserSuspicious,
         verifyUserKYC,
         isLoading
@@ -44,7 +54,21 @@ export default function UserManagement() {
 
     useEffect(() => {
         loadUsers(params);
-    }, [loadUsers, params]);
+        loadKYCQueue();
+    }, [loadUsers, loadKYCQueue, params]);
+
+    useEffect(() => {
+        const sync = () => loadKYCQueue()
+        const onStorage = (event) => {
+            if (event.key === 'socialearn_kyc_sync_v1') sync()
+        }
+        window.addEventListener('kyc-sync-updated', sync)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            window.removeEventListener('kyc-sync-updated', sync)
+            window.removeEventListener('storage', onStorage)
+        }
+    }, [loadKYCQueue])
 
     useEffect(() => {
         if (selectedId) {
@@ -59,6 +83,7 @@ export default function UserManagement() {
     const handleAction = async (action, id) => {
         if (confirm(`Authorize mission command: ${action}?`)) {
             if (action === 'Ban') await toggleUserBan(id);
+            if (action === 'Delete') await deleteUser(id);
             if (action === 'Suspicious') await markUserSuspicious(id);
             if (action === 'Verify') await verifyUserKYC(id);
             // Refresh detail if current user
@@ -69,8 +94,8 @@ export default function UserManagement() {
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
-                title="Identity Intelligence"
-                subtitle="Platform-wide identity management and KYC control protocols."
+                title="All Users"
+                subtitle="Search users, filter accounts, block users, and remove profiles."
                 actions={
                     <div className="flex gap-3">
                         <div className="relative">
@@ -83,9 +108,12 @@ export default function UserManagement() {
                                 className="pl-9 pr-4 py-2 bg-surface border border-surface rounded-lg text-xs focus:ring-1 focus:ring-primary/30 outline-none text-text w-64"
                             />
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-md hover:bg-primary/90 transition-all">
+                        <button
+                            onClick={() => navigate('/admin/users/new')}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-md hover:bg-primary/90 transition-all"
+                        >
                             <UserPlus className="w-3.5 h-3.5" />
-                            Identity Node
+                            Create User
                         </button>
                     </div>
                 }
@@ -131,7 +159,7 @@ export default function UserManagement() {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 <div className="xl:col-span-2 space-y-6">
                     <AdminDataTable
-                        title="Registered Identities"
+                        title="User Directory"
                         columns={["Identity", "Role", "KYC", "Rating", "Actions"]}
                         data={usersData.users.map(user => ({
                             id: user.id,
@@ -139,7 +167,12 @@ export default function UserManagement() {
                                 <div className="flex items-center gap-3">
                                     <img src={user.avatar} className="w-8 h-8 rounded-lg border border-surface" alt="" />
                                     <div>
-                                        <p className="text-xs font-bold text-text">@{user.name}</p>
+                                        <button
+                                            onClick={() => navigate(`/admin/users/edit/${user.id}`)}
+                                            className="text-xs font-bold text-text hover:text-primary transition-colors"
+                                        >
+                                            @{user.name}
+                                        </button>
                                         <p className="text-[9px] text-muted font-bold uppercase">{user.id}</p>
                                     </div>
                                 </div>,
@@ -150,10 +183,28 @@ export default function UserManagement() {
                                 <div className={`w-8 h-1 rounded-full ${user.riskScore === 'Low' ? 'bg-emerald-500' : user.riskScore === 'Medium' ? 'bg-amber-500' : 'bg-rose-500'}`} />,
                                 <div className="flex items-center gap-1.5">
                                     <button
-                                        onClick={() => setSelectedId(user.id)}
+                                        onClick={() => navigate(`/admin/users/edit/${user.id}`)}
                                         className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group"
+                                        title="Edit Identity"
                                     >
-                                        <ChevronRight className="w-3.5 h-3.5 text-muted group-hover:text-primary" />
+                                        <UserPlus className="w-3.5 h-3.5 text-muted group-hover:text-primary" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleAction('Ban', user.id)}
+                                        className={`p-1.5 rounded-md border transition-all ${user.isBanned
+                                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                                            : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                                            }`}
+                                        title={user.isBanned ? 'Unblock User' : 'Block User'}
+                                    >
+                                        <Ban className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleAction('Delete', user.id)}
+                                        className="p-1.5 rounded-md border transition-all bg-rose-500/10 border-rose-500/20 text-rose-500"
+                                        title="Delete User"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
                             ]
@@ -187,8 +238,68 @@ export default function UserManagement() {
                     </div>
                 </div>
 
-                {/* Side Intelligence Panel */}
                 <div className="xl:col-span-1">
+                    <div className="bg-surface border border-surface rounded-2xl p-5 mb-6">
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">KYC Review Queue</h3>
+                        <div className="space-y-2">
+                            {kycQueue.filter(k => k.status === 'pending').slice(0, 5).map((entry) => (
+                                <div key={entry.id} className="p-3 rounded-xl bg-bg border border-surface">
+                                    <p className="text-[10px] font-bold text-text uppercase tracking-wider">{entry.user} · {entry.userId}</p>
+                                    <p className="text-[9px] text-muted uppercase tracking-wider mt-1">{entry.docType}</p>
+                                    <p className="text-[9px] text-muted mt-1">Referral: <span className="font-bold text-text">{entry.referralCode}</span></p>
+                                    <p className={`text-[9px] mt-1 font-semibold ${entry.eligibleByReferral ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                        Onboarded via referral: {entry.referredCount}/{entry.requiredReferrals}
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        <a
+                                            href={entry.aadharFront}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[8px] text-center py-1 rounded-md bg-surface2 border border-surface text-muted hover:text-text transition-colors"
+                                        >
+                                            Aadhaar Front
+                                        </a>
+                                        <a
+                                            href={entry.aadharBack}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[8px] text-center py-1 rounded-md bg-surface2 border border-surface text-muted hover:text-text transition-colors"
+                                        >
+                                            Aadhaar Back
+                                        </a>
+                                    </div>
+                                    <div className="mt-2 flex gap-2">
+                                        <button
+                                            onClick={() => reviewKYC(entry.id, 'approve')}
+                                            disabled={!entry.eligibleByReferral}
+                                            className="px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            Approve
+                                        </button>
+                                        <button
+                                            onClick={() => reviewKYC(entry.id, 'reject')}
+                                            className="px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={() => incrementReferralOnboarding(entry.userId)}
+                                            className="px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30"
+                                        >
+                                            +1 Referred
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {kycQueue.filter(k => k.status === 'pending').length === 0 && (
+                                <div className="p-3 rounded-xl bg-bg border border-surface text-[9px] text-muted uppercase tracking-wider">
+                                    No pending KYC reviews.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Side Intelligence Panel */}
                     <AnimatePresence mode="wait">
                         {userDetail && !isLoading ? (
                             <motion.div
@@ -197,6 +308,8 @@ export default function UserManagement() {
                                 animate={{ opacity: 1, x: 0 }}
                                 className="bg-surface border border-surface rounded-2xl p-6 sticky top-20 shadow-2xl space-y-6 overflow-hidden"
                             >
+
+
                                 {/* Header */}
                                 <div className="text-center relative">
                                     <div className="w-20 h-20 rounded-2xl bg-surface2 mx-auto mb-4 border border-surface p-1 shadow-lg">
@@ -204,7 +317,14 @@ export default function UserManagement() {
                                     </div>
                                     <h3 className="text-base font-bold text-text leading-none mb-1">@{userDetail.name}</h3>
                                     <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">{userDetail.email}</p>
-                                    <div className="absolute top-0 right-0">
+                                    <button
+                                        onClick={() => navigate(`/admin/users/edit/${userDetail.id}`)}
+                                        className="absolute top-0 right-0 p-2 bg-primary/20 text-primary rounded-full hover:bg-primary/30 transition-colors"
+                                        title="Edit Identity"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <div className="absolute top-0 left-0">
                                         {userDetail.isSuspicious && <div className="p-1 px-2.5 bg-rose-500/10 border border-rose-500 text-rose-500 rounded-full text-[8px] font-bold animate-pulse">FLAGGED</div>}
                                     </div>
                                 </div>

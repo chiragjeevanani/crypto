@@ -13,83 +13,99 @@ import {
     ShieldAlert,
     Terminal,
     Globe,
-    Bell,
     Box,
+    Tags,
     ShieldCheck,
-    Cpu,
     Target,
-    BarChart3,
     PanelLeftClose,
     ChevronDown,
-    ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { simplifyAdminCopy } from '../utils/simplifyCopy';
 
 const menuGroups = [
     {
-        title: 'Strategic Insights',
+        title: 'Overview',
         items: [
-            { icon: LayoutDashboard, label: 'Control Center', path: '/admin' },
+            { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
         ]
     },
     {
-        title: 'Social & Moderation',
+        title: 'Users & Content',
         items: [
-            { icon: Users, label: 'Identity Intelligence', path: '/admin/users' },
+            {
+                icon: Users,
+                label: 'Users',
+                path: '/admin/users',
+                children: [
+                    { label: 'All Users', path: '/admin/users' },
+                    { label: 'Create User', path: '/admin/users/new' }
+                ]
+            },
             {
                 icon: FileText,
-                label: 'Content Control',
+                label: 'Content',
                 path: '/admin/content',
             },
-            { icon: Box, label: 'NFT Moderation', path: '/admin/nfts' },
-            { icon: Vote, label: 'Protocol Voting', path: '/admin/voting' },
+            { icon: Tags, label: 'Categories', path: '/admin/categories' },
+            { icon: Box, label: 'NFT Review', path: '/admin/nfts' },
+            { icon: Vote, label: 'Voting', path: '/admin/voting' },
         ]
     },
     {
-        title: 'Brand & Campaigns',
+        title: 'Campaigns',
         items: [
             {
                 icon: Target,
-                label: 'Campaign Management',
+                label: 'Campaigns',
                 path: '/admin/campaigns',
                 children: [
-                    { label: 'Manage All', path: '/admin/campaigns' },
-                    { label: 'Initialize Protocol', path: '/admin/campaigns?action=create' }
+                    { label: 'All Campaigns', path: '/admin/campaigns' },
+                    { label: 'Create Campaign', path: '/admin/campaigns/new' }
                 ]
             },
+            { icon: Users, label: 'Advertisers', path: '/admin/advertisers' },
         ]
     },
     {
-        title: 'Rewards & Finance',
+        title: 'Money',
         items: [
-            { icon: Wallet, label: 'Vault Overview', path: '/admin/wallet' },
-            { icon: Send, label: 'Withdrawal Approvals', path: '/admin/withdrawals', badge: 12 },
+            { icon: Wallet, label: 'Wallet Overview', path: '/admin/wallet' },
+            { icon: Send, label: 'Withdrawals', path: '/admin/withdrawals', badge: 12 },
             {
                 icon: Gift,
-                label: 'Gift Controls',
+                label: 'Gifts',
                 path: '/admin/gifts',
                 children: [
-                    { label: 'Manage Assets', path: '/admin/gifts' },
-                    { label: 'Deploy New Asset', path: '/admin/gifts/create' },
-                    { label: 'Gift Archive', path: '/admin/gifts/trash' }
+                    { label: 'Gift List', path: '/admin/gifts' },
+                    { label: 'Add Gift', path: '/admin/gifts/create' },
+                    { label: 'Deleted Gifts', path: '/admin/gifts/trash' }
                 ]
             },
-            { icon: History, label: 'Financial Rules', path: '/admin/financials' },
+            { icon: History, label: 'Finance Rules', path: '/admin/financials' },
         ]
     },
     {
-        title: 'Trust & Safety',
+        title: 'Safety',
         items: [
-            { icon: ShieldAlert, label: 'Fraud Monitoring', path: '/admin/fraud' },
+            { icon: ShieldAlert, label: 'Fraud Checks', path: '/admin/fraud' },
             { icon: Terminal, label: 'Audit Logs', path: '/admin/audit' },
         ]
     },
     {
-        title: 'Infrastructure',
+        title: 'Settings',
         items: [
-            { icon: Globe, label: 'Platform Settings', path: '/admin/settings' },
-            { icon: Bell, label: 'System Comms', path: '/admin/notifications' },
+            {
+                icon: Globe,
+                label: 'Platform Settings',
+                path: '/admin/settings',
+                children: [
+                    { label: 'Finance', path: '/admin/settings/financial' },
+                    { label: 'Security', path: '/admin/settings/security' },
+                    { label: 'Network', path: '/admin/settings/network' }
+                ]
+            },
         ]
     }
 ];
@@ -125,7 +141,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                                 className="overflow-hidden whitespace-nowrap"
                             >
                                 <h2 className="text-sm font-bold tracking-tight text-text">SocialEarn</h2>
-                                <p className="text-[9px] text-muted font-semibold uppercase tracking-widest mt-0.5 opacity-60">Admin Node</p>
+                                <p className="text-[9px] text-muted font-semibold uppercase tracking-widest mt-0.5 opacity-60">Admin Panel</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -150,15 +166,15 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                                     animate={{ opacity: 1 }}
                                     className="text-[9px] font-semibold text-muted uppercase tracking-[0.15em] px-3 mb-3 opacity-40"
                                 >
-                                    {group.title}
+                                    {simplifyAdminCopy(group.title)}
                                 </motion.p>
                             )}
                         </AnimatePresence>
                         <div className="space-y-1">
                             {group.items.map((item) => {
                                 const hasChildren = item.children && item.children.length > 0;
-                                const isExpanded = expandedItems[item.label];
                                 const isChildActive = hasChildren && item.children.some(child => location.pathname === child.path);
+                                const isExpanded = expandedItems[item.label] || isChildActive;
                                 const isParentActive = location.pathname === item.path || isChildActive;
 
                                 return (
@@ -194,7 +210,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                                                         className="flex-1 flex items-center justify-between overflow-hidden"
                                                     >
                                                         <span className="text-[11px] font-semibold uppercase tracking-wider truncate">
-                                                            {item.label}
+                                                            {simplifyAdminCopy(item.label)}
                                                         </span>
                                                         {hasChildren && (
                                                             <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
@@ -232,7 +248,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                                                                     ${isActive ? 'bg-primary/10 text-primary' : 'text-muted hover:text-text hover:bg-surface2'}
                                                                 `}
                                                             >
-                                                                {child.label}
+                                                                {simplifyAdminCopy(child.label)}
                                                             </NavLink>
                                                         ))}
                                                     </div>

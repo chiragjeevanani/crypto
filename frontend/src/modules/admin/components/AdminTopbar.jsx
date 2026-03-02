@@ -118,7 +118,7 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                             <button
                                 onClick={() => {
                                     logout();
-                                    navigate('/login');
+                                    navigate('/admin/login');
                                 }}
                                 className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors"
                             >

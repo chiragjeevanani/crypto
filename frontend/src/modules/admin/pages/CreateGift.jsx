@@ -13,7 +13,7 @@ import { AdminPageHeader } from '../components/shared';
 import { useAdminStore } from '../store/useAdminStore';
 
 export default function CreateGift() {
-    const { addGift, isLoading } = useAdminStore();
+    const { addGift, giftPolicy, isLoading } = useAdminStore();
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         name: '',
@@ -26,7 +26,12 @@ export default function CreateGift() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await addGift(formData);
+            const safePrice = Math.max(2, Math.min(10, Math.round(Number(formData.price || 2))))
+            if (giftPolicy.strictMode && !giftPolicy.allowedINR.includes(safePrice)) {
+                alert(`Policy violation: allowed gift range is ₹2 to ₹10.`);
+                return;
+            }
+            await addGift({ ...formData, price: safePrice, value: safePrice });
             navigate('/admin/gifts');
         } catch (err) {
             console.error('Failed to initialize asset:', err);
@@ -96,14 +101,19 @@ export default function CreateGift() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-2.5">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Acquisition Cost (Coins)</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Gift Price (₹)</label>
                                     <input
                                         required
                                         type="number"
+                                        min={2}
+                                        max={10}
                                         value={formData.price}
                                         onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
                                         className="w-full bg-bg border border-surface rounded-xl p-4 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 text-text transition-all"
                                     />
+                                    <p className="text-[9px] text-muted uppercase tracking-wider">
+                                        Allowed range: ₹2 to ₹10
+                                    </p>
                                 </div>
                                 <div className="space-y-2.5">
                                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Platform Protocol Fee (%)</label>
@@ -149,7 +159,7 @@ export default function CreateGift() {
                                 </div>
                                 <div>
                                     <h5 className="text-sm font-bold text-text mb-1 uppercase tracking-wider">{formData.name || 'Unnamed Asset'}</h5>
-                                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{formData.price} Coins</p>
+                                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest">₹{formData.price}</p>
                                 </div>
                                 <div className="w-full pt-4 border-t border-surface/50 grid grid-cols-2 gap-4">
                                     <div>

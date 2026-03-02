@@ -1,0 +1,68 @@
+import { Zap, RotateCcw, Save, AlertTriangle } from 'lucide-react';
+import { AdminPageHeader } from '../components/shared';
+import { useSettingsForm } from '../hooks/useSettingsForm';
+
+export default function AutomationHooks() {
+    const { formData, handleChange, handleCommit, reset, isLoading } = useSettingsForm();
+
+    return (
+        <div className="space-y-10 pb-20">
+            <AdminPageHeader
+                title="Automation Hooks"
+                subtitle="Serverless functions and workflow triggers."
+                actions={
+                    <div className="flex gap-3">
+                        <button
+                            onClick={reset}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-rose-500/10 hover:text-rose-500 transition-all text-text"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reset
+                        </button>
+                        <button
+                            onClick={handleCommit}
+                            disabled={isLoading}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-black rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-md hover:bg-primary/90 transition-all font-bold disabled:opacity-50"
+                        >
+                            <Save className={`w-3.5 h-3.5 ${isLoading ? 'animate-pulse' : ''}`} />
+                            Commit Changes
+                        </button>
+                    </div>
+                }
+            />
+
+            <div className="bg-surface border border-surface rounded-lg p-6 space-y-8">
+                <div className="space-y-4">
+                    <p className="text-[10px] text-muted">Sample hook definitions (non‑functional demo):</p>
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                            <input type="text" value={formData.hookA ?? 'onUserRegister'} disabled className="flex-1 bg-bg border border-surface rounded-lg py-2 px-3 text-xs text-text" />
+                            <span className="text-[9px] text-muted">→</span>
+                            <input type="text" value={formData.hookAEndpoint ?? '/api/hooks/register'} disabled className="flex-1 bg-bg border border-surface rounded-lg py-2 px-3 text-xs text-text" />
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <input type="text" value={formData.hookB ?? 'onCampaignComplete'} disabled className="flex-1 bg-bg border border-surface rounded-lg py-2 px-3 text-xs text-text" />
+                            <span className="text-[9px] text-muted">→</span>
+                            <input type="text" value={formData.hookBEndpoint ?? '/api/hooks/campaign'} disabled className="flex-1 bg-bg border border-surface rounded-lg py-2 px-3 text-xs text-text" />
+                        </div>
+                    </div>
+                </div>
+                <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-bg/50 rounded-lg border border-dashed border-surface">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
+                        <Zap className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-bold text-text uppercase tracking-widest">Automation Hooks</h4>
+                    <p className="text-[10px] text-muted font-medium uppercase tracking-widest mt-2 max-w-xs">Module under hyper-scaling. Configurations are currently locked to protocol defaults.</p>
+                </div>
+            </div>
+
+            <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-lg flex items-start gap-4">
+                <AlertTriangle className="text-amber-500 w-5 h-5 shrink-0" />
+                <div>
+                    <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider mb-1">Administrative Warning</p>
+                    <p className="text-[10px] text-amber-500/60 font-medium leading-relaxed uppercase tracking-wider">Changes broadcast an engine update to all nodes. All actions are logged to the SuperAdmin vault.</p>
+                </div>
+            </div>
+        </div>
+    );
+}

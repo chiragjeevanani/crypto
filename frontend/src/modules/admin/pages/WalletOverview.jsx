@@ -15,6 +15,7 @@ import {
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
+import { useNavigate } from 'react-router-dom';
 
 const recentTransactions = [
     { id: 'TX-401', user: 'Alex_Pro', type: 'Gift Payout', amount: 450.00, status: 'Settled', date: '2m ago' },
@@ -24,16 +25,19 @@ const recentTransactions = [
 ];
 
 export default function WalletOverview() {
-    const { ledger, loadLedger, isLoading } = useAdminStore();
+    const navigate = useNavigate();
+    const { ledger, settlementRails, prdMetrics, loadLedger, loadSettlementRails, computePRDMetrics, isLoading } = useAdminStore();
 
     useEffect(() => {
         loadLedger();
-    }, [loadLedger]);
+        loadSettlementRails();
+        computePRDMetrics();
+    }, [loadLedger, loadSettlementRails, computePRDMetrics]);
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
-                title="Financial Vault"
-                subtitle="Liquidity tracking and multi-node transaction ledger oversight."
+                title="Financial Overview"
+                subtitle="Track money flow, payouts, and settlements."
                 actions={
                     <>
                         <button
@@ -41,11 +45,20 @@ export default function WalletOverview() {
                             className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
                         >
                             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                            Sync Ledger
+                            Refresh Data
                         </button>
-                        <button className="flex items-center gap-2 px-5 py-2.5 bg-primary text-black rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-md">
+                        <button
+                            onClick={() => navigate('/admin/withdrawals')}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-black rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-md"
+                        >
                             <Plus className="w-3.5 h-3.5" />
-                            Manual Adj.
+                            Manage Withdrawals
+                        </button>
+                        <button
+                            onClick={() => navigate('/admin/settings/financial')}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
+                        >
+                            Finance Rules
                         </button>
                     </>
                 }
@@ -77,8 +90,35 @@ export default function WalletOverview() {
 
                 {/* Secondary Stats */}
                 <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <AdminStatCard label="Total Payouts" value={formatCurrency(42801)} change="-2.4%" icon={ArrowDownRight} color="emerald-500" />
-                    <AdminStatCard label="Escrowed" value={formatCurrency(12400)} change="+8.1%" icon={CreditCard} color="indigo-500" />
+                    <AdminStatCard label="Total Payouts" value={formatCurrency(42801)} change={prdMetrics ? `Latency ${prdMetrics.payoutLatency}` : "-2.4%"} icon={ArrowDownRight} color="emerald-500" />
+                    <AdminStatCard label="Escrowed" value={formatCurrency(12400)} change={prdMetrics ? `DAU ${prdMetrics.dauProxy}` : "+8.1%"} icon={CreditCard} color="indigo-500" />
+                </div>
+            </div>
+
+            <div className="bg-surface border border-surface rounded-lg p-5">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">PRD Success Metrics (Computed UI)</h4>
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">DAU</p><p className="text-sm font-bold text-text">{prdMetrics?.dauProxy || 0}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Avg Gifts</p><p className="text-sm font-bold text-text">{prdMetrics?.avgGiftsPerUser || 0}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Participation</p><p className="text-sm font-bold text-text">{prdMetrics?.campaignParticipation || 0}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Votes</p><p className="text-sm font-bold text-text">{prdMetrics?.voteVolume || 0}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Latency</p><p className="text-sm font-bold text-text">{prdMetrics?.payoutLatency || '--'}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Retention</p><p className="text-sm font-bold text-text">{prdMetrics?.brandRetentionProxy || '--'}</p></div>
+                </div>
+            </div>
+
+            <div className="bg-surface border border-surface rounded-lg p-5">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Settlement Rail Health</h4>
+                <div className="space-y-2">
+                    {settlementRails.map((rail) => (
+                        <div key={rail.id} className="flex items-center justify-between p-3 bg-bg border border-surface rounded-lg">
+                            <div>
+                                <p className="text-xs font-semibold text-text">{rail.name}</p>
+                                <p className="text-[9px] text-muted uppercase tracking-wider">Reconciled {rail.reconciled} · Pending {rail.pending}</p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-wider border ${rail.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>{rail.status}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
 

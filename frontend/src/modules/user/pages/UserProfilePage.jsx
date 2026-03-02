@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star } from 'lucide-react'
-import { mockPosts } from '../data/mockPosts'
+import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X } from 'lucide-react'
 import { mockProfilePosts, mockNFTs } from '../data/mockNFTs'
 import { useFeedStore } from '../store/useFeedStore'
-import { formatCount, formatINR } from '../utils/formatCurrency'
 import NFTBadge from '../components/shared/NFTBadge'
+import PostFeedModal from '../components/feed/PostFeedModal'
 
 const TABS = ['Posts', 'NFTs']
 
@@ -22,6 +21,8 @@ export default function UserProfilePage() {
     const navigate = useNavigate()
     const { toggleFollow, posts } = useFeedStore()
     const [activeTab, setActiveTab] = useState('Posts')
+    const [activePostIndex, setActivePostIndex] = useState(null)
+    const [connectionsOpen, setConnectionsOpen] = useState(null)
 
     // Find user in posts
     const user = useMemo(() => {
@@ -36,18 +37,65 @@ export default function UserProfilePage() {
         }
     }, [userId, posts])
 
-    // Filter posts by this user
+    // Keep grid as existing profile posts, only use modal mapping for full-view opening
     const userPosts = useMemo(() => {
-        return mockProfilePosts.slice(0, 6) // Mocking their grid
+        return mockProfilePosts.slice(0, 6)
     }, [])
 
+    const modalPosts = useMemo(() => {
+        const fromFeed = posts.filter((p) => p.creator.id === userId)
+        if (fromFeed.length) return fromFeed
+        return userPosts.map((post, idx) => ({
+            id: `fallback_${userId}_${idx}`,
+            creator: {
+                id: user.id,
+                username: user.username,
+                handle: user.handle,
+                avatar: null,
+                isFollowing: user.isFollowing,
+            },
+            media: {
+                type: 'image',
+                url: post.thumbnail,
+                aspectRatio: '1/1',
+            },
+            caption: 'Creator post',
+            postType: 'regular',
+            allowGifts: true,
+            likes: post.likes || 0,
+            comments: 0,
+            shares: 0,
+            earnings: post.earnings || 0,
+            isLiked: false,
+            createdAt: new Date().toISOString(),
+        }))
+    }, [posts, userId, user, userPosts])
+
     const avatarColor = getColor(userId)
+    const followersList = useMemo(
+        () =>
+            Array.from({ length: 100 }).map((_, idx) => ({
+                id: `f_${idx + 1}`,
+                name: `Follower ${idx + 1}`,
+                handle: `@follower${idx + 1}`,
+            })),
+        [],
+    )
+    const followingList = useMemo(
+        () =>
+            Array.from({ length: 64 }).map((_, idx) => ({
+                id: `g_${idx + 1}`,
+                name: `Following ${idx + 1}`,
+                handle: `@following${idx + 1}`,
+            })),
+        [],
+    )
 
     return (
         <div className="flex flex-col h-full bg-inherit">
             {/* Header / Actions */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-2 sticky top-0 z-10 bg-inherit pb-4"
-                style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <div className="flex items-center justify-between px-4 pt-4 pb-4 sticky top-0 z-20"
+                style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
                 <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full cursor-pointer hover:bg-zinc-800/50">
                     <ChevronLeft size={24} />
                 </button>
@@ -84,17 +132,23 @@ export default function UserProfilePage() {
                         {/* Stats */}
                         <div className="flex-1 grid grid-cols-3 gap-2 pt-4">
                             {[
-                                { label: 'Posts', value: '1.2K' },
-                                { label: 'Followers', value: '48K' },
-                                { label: 'Following', value: '892' },
+                                { label: 'Posts', value: '1.2K', onClick: null },
+                                { label: 'Followers', value: String(followersList.length), onClick: () => setConnectionsOpen('followers') },
+                                { label: 'Following', value: String(followingList.length), onClick: () => setConnectionsOpen('following') },
                             ].map((stat) => (
                                 <div key={stat.label} className="flex flex-col items-center">
-                                    <span className="text-base font-extrabold" style={{ color: 'var(--color-text)' }}>
-                                        {stat.value}
-                                    </span>
-                                    <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                                        {stat.label}
-                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={stat.onClick || undefined}
+                                        className={stat.onClick ? 'cursor-pointer' : 'cursor-default'}
+                                    >
+                                        <span className="text-base font-extrabold block text-center" style={{ color: 'var(--color-text)' }}>
+                                            {stat.value}
+                                        </span>
+                                        <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
+                                            {stat.label}
+                                        </span>
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -182,8 +236,8 @@ export default function UserProfilePage() {
                 <div className="min-h-[300px]">
                     {activeTab === 'Posts' && (
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                            {userPosts.map((post) => (
-                                <div key={post.id} className="relative aspect-square">
+                            {userPosts.map((post, idx) => (
+                                <div key={post.id} className="relative aspect-square cursor-pointer" onClick={() => setActivePostIndex(idx)}>
                                     <img
                                         src={post.thumbnail}
                                         alt="post"
@@ -227,6 +281,63 @@ export default function UserProfilePage() {
                     )}
                 </div>
             </div>
+            <PostFeedModal posts={modalPosts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+
+            <AnimatePresence>
+                {connectionsOpen && (
+                    <motion.div
+                        className="fixed inset-0 z-40 flex flex-col justify-end"
+                        style={{ background: 'rgba(0,0,0,0.6)' }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setConnectionsOpen(null)}
+                    >
+                        <motion.div
+                            className="rounded-t-3xl px-5 pt-4 pb-8 max-h-[72vh] overflow-y-auto"
+                            style={{ background: 'var(--color-surface)' }}
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', stiffness: 280, damping: 30 }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex justify-center mb-4">
+                                <div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} />
+                            </div>
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>
+                                    {connectionsOpen === 'followers' ? 'Followers' : 'Following'}
+                                </p>
+                                <button onClick={() => setConnectionsOpen(null)} className="cursor-pointer">
+                                    <X size={18} style={{ color: 'var(--color-muted)' }} />
+                                </button>
+                            </div>
+                            <div className="space-y-2">
+                                {(connectionsOpen === 'followers' ? followersList : followingList).map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center gap-3 p-3 rounded-xl"
+                                        style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
+                                    >
+                                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'var(--color-primary)' }}>
+                                            {item.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                                                {item.name}
+                                            </p>
+                                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                                                {item.handle}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye } from 'lucide-react'
+import { useUserStore } from '../store/useUserStore'
+import { getSelectablePostCategories } from '../../../shared/postCategories'
+import { addUserNFTListing } from '../../../shared/nftListings'
 
 const STEPS = [
     { id: 1, label: 'Upload Media', icon: Image },
@@ -11,16 +14,37 @@ const STEPS = [
     { id: 5, label: 'Preview', icon: Eye },
 ]
 
-const CATEGORIES = ['Entertainment', 'Fashion', 'Food', 'Tech', 'Fitness', 'Travel']
-
 export default function CreatePage() {
     const [step, setStep] = useState(1)
     const [isNFT, setIsNFT] = useState(false)
-    const [selectedCategory, setSelectedCategory] = useState('Entertainment')
+    const [categories, setCategories] = useState(getSelectablePostCategories())
+    const [selectedCategory, setSelectedCategory] = useState(categories[0] || 'General')
     const [mediaPreview, setMediaPreview] = useState(null)
     const [published, setPublished] = useState(false)
     const { register, watch, handleSubmit } = useForm({ defaultValues: { caption: '', price: '' } })
+    const { kyc, profile } = useUserStore()
     const caption = watch('caption', '')
+    const nftPriceINR = Number(watch('price', 0) || 0)
+    const nftPriceUSD = nftPriceINR / 83
+    const nftPriceValid = nftPriceUSD >= 1 && nftPriceUSD <= 20
+
+    useEffect(() => {
+        const sync = () => {
+            const next = getSelectablePostCategories()
+            setCategories(next)
+            setSelectedCategory((prev) => (next.includes(prev) ? prev : next[0]))
+        }
+        sync()
+        const onStorage = (event) => {
+            if (event.key === 'socialearn_post_categories_v2') sync()
+        }
+        window.addEventListener('post-categories-updated', sync)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            window.removeEventListener('post-categories-updated', sync)
+            window.removeEventListener('storage', onStorage)
+        }
+    }, [])
 
     const handleMediaChange = (e) => {
         const file = e.target.files?.[0]
@@ -28,6 +52,19 @@ export default function CreatePage() {
     }
 
     const handlePublish = () => {
+        if (isNFT && nftPriceINR > 0 && nftPriceValid) {
+            addUserNFTListing({
+                title: caption?.trim() ? caption.trim().slice(0, 40) : 'Creator NFT',
+                thumbnail: mediaPreview || '',
+                price: nftPriceINR,
+                creatorId: profile.id,
+                creatorName: profile.username,
+                creatorHandle: profile.handle,
+                status: 'listed',
+                views: 0,
+                bids: 0,
+            })
+        }
         setPublished(true)
         setTimeout(() => {
             setPublished(false)
@@ -182,7 +219,7 @@ export default function CreatePage() {
                                             exit={{ opacity: 0, height: 0 }}
                                         >
                                             <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
-                                                Set Price (₹)
+                                                Set Price (₹) · Policy: $1–$20
                                             </label>
                                             <input
                                                 type="number"
@@ -195,6 +232,14 @@ export default function CreatePage() {
                                                     border: '1px solid var(--color-primary)',
                                                 }}
                                             />
+                                            <p className="text-[11px] mt-1" style={{ color: nftPriceValid ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                                                Approx ${nftPriceUSD.toFixed(2)} USD ({nftPriceValid ? 'within policy range' : 'outside allowed range'})
+                                            </p>
+                                            {!kyc.payoutsUnlocked && (
+                                                <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>
+                                                    KYC verification is required to receive NFT sale payouts.
+                                                </p>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -206,7 +251,7 @@ export default function CreatePage() {
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Select Category</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {CATEGORIES.map((cat) => {
+                                    {categories.map((cat) => {
                                         const active = cat === selectedCategory
                                         return (
                                             <motion.button

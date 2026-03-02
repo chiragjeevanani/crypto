@@ -127,12 +127,12 @@ export default function NFTModeration() {
             />
 
             {/* Status Tabs */}
-            <div className="flex border-b border-surface">
+            <div className="flex border-b border-surface overflow-x-auto hide-scrollbar whitespace-nowrap">
                 {['pending', 'approved', 'rejected', 'disabled'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-6 py-3 text-[11px] font-bold uppercase tracking-widest transition-all relative ${activeTab === tab ? 'text-primary' : 'text-muted hover:text-text'
+                        className={`px-4 sm:px-6 py-3 text-[11px] font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === tab ? 'text-primary' : 'text-muted hover:text-text'
                             }`}
                     >
                         {tab}
@@ -173,7 +173,7 @@ export default function NFTModeration() {
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <p className="text-[9px] font-bold text-primary uppercase tracking-wider mb-0.5">{nft.collection}</p>
-                                            <h3 className="text-sm font-bold text-text truncate max-w-[150px]">{nft.name}</h3>
+                                            <h3 className="text-sm font-bold text-text truncate max-w-[190px] sm:max-w-[150px]">{nft.name}</h3>
                                             <p className="text-[9px] text-muted font-medium mt-1">Creator: <span className="text-text">{nft.creator}</span></p>
                                         </div>
                                         <div className="flex flex-col items-end">

@@ -140,10 +140,10 @@ export default function EditSettlement() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                             <div className="space-y-2.5">
                                 <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-                                    <DollarSign className="w-3 h-3" /> Quantum Amount ({import.meta.env.VITE_CURRENCY || '$'})
+                                    <DollarSign className="w-3 h-3" /> Quantum Amount ({import.meta.env.VITE_CURRENCY || '₹'})
                                 </label>
                                 <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{import.meta.env.VITE_CURRENCY || '$'}</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{import.meta.env.VITE_CURRENCY || '₹'}</span>
                                     <input
                                         type="number"
                                         value={formData.amount}
