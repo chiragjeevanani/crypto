@@ -42,19 +42,19 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
     return (
         <AnimatePresence>
             <motion.div
-                className="fixed inset-0 z-[80]"
+                className="fixed inset-0 z-[65] flex flex-col"
                 style={{ background: 'var(--color-bg)' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
                 <div
-                    className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3"
+                    className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 shrink-0"
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 rounded-full flex items-center justify-center"
+                        className="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer"
                         style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
                     >
                         <ArrowLeft size={18} />
@@ -66,7 +66,10 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
 
                 <div
                     ref={containerRef}
-                    className="h-[calc(100vh-62px)] overflow-y-auto px-3 py-4 md:px-6"
+                    className="flex-1 overflow-y-auto px-3 py-4 md:px-6 hide-scrollbar"
+                    style={{
+                        paddingBottom: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px)'
+                    }}
                 >
                     <div className="mx-auto w-full max-w-[520px]">
                         {posts.map((post) => (

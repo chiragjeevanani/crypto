@@ -56,7 +56,7 @@ export default function CoinRain() {
     return (
         <div
             ref={containerRef}
-            className="pointer-events-none fixed inset-0 z-50 overflow-hidden"
+            className="pointer-events-none fixed inset-0 z-[100] overflow-hidden"
             style={{ display: 'none' }}
         />
     )

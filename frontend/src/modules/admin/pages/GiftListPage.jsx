@@ -9,7 +9,7 @@ export default function GiftListPage() {
     const navigate = useNavigate()
     const { gifts, loadGifts, updateGift, removeGift, toggleGiftStatus, isLoading, giftPolicy } = useAdminStore()
     const [editingGift, setEditingGift] = useState(null)
-    const [formData, setFormData] = useState({ name: '', price: 2, icon: '🎁', commission: 15, status: 'Active' })
+    const [formData, setFormData] = useState({ name: '', price: 2, icon: '🎁', status: 'Active' })
 
     useEffect(() => {
         loadGifts()
@@ -21,7 +21,6 @@ export default function GiftListPage() {
             name: gift.name,
             price: Number(gift.price || 2),
             icon: gift.icon || '🎁',
-            commission: Number(gift.commission || 15),
             status: gift.status || 'Active',
         })
     }
@@ -76,7 +75,6 @@ export default function GiftListPage() {
                             </div>
                             <div className="mt-3 flex items-center justify-between text-xs text-muted">
                                 <span>Usage: {gift.usage || 0}</span>
-                                <span>Commission: {gift.commission || 0}%</span>
                             </div>
                             <div className="mt-4 flex items-center gap-2">
                                 <button

@@ -4,11 +4,11 @@ const ADMIN_GIFTS_KEY = 'socialearn_admin_gifts_v1'
 const ADMIN_TRASH_GIFTS_KEY = 'socialearn_admin_trash_gifts_v1'
 
 const defaultGifts = [
-    { id: 1, name: 'Rose', price: 2, value: 2, icon: '🌹', status: 'Active', usage: 12402, commission: 15 },
-    { id: 2, name: 'Egg', price: 2, value: 2, icon: '🥚', status: 'Active', usage: 842, commission: 15 },
-    { id: 3, name: 'Tomato', price: 3, value: 3, icon: '🍅', status: 'Active', usage: 124, commission: 15 },
-    { id: 4, name: 'Golden Heart', price: 5, value: 5, icon: '💛', status: 'Active', usage: 0, commission: 15 },
-    { id: 5, name: 'Premium Heart', price: 10, value: 10, icon: '💎', status: 'Active', usage: 0, commission: 15 },
+    { id: 1, name: 'Rose', price: 2, value: 2, icon: '🌹', status: 'Active', usage: 12402 },
+    { id: 2, name: 'Egg', price: 2, value: 2, icon: '🥚', status: 'Active', usage: 842 },
+    { id: 3, name: 'Tomato', price: 3, value: 3, icon: '🍅', status: 'Active', usage: 124 },
+    { id: 4, name: 'Golden Heart', price: 5, value: 5, icon: '💛', status: 'Active', usage: 0 },
+    { id: 5, name: 'Premium Heart', price: 10, value: 10, icon: '💎', status: 'Active', usage: 0 },
 ]
 
 function readList(key, fallback) {

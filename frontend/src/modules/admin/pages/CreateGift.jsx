@@ -19,7 +19,6 @@ export default function CreateGift() {
         name: '',
         price: 0,
         icon: '🎁',
-        commission: 15,
         status: 'Active'
     });
 
@@ -115,16 +114,6 @@ export default function CreateGift() {
                                         Allowed range: ₹2 to ₹10
                                     </p>
                                 </div>
-                                <div className="space-y-2.5">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Platform Protocol Fee (%)</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        value={formData.commission}
-                                        onChange={(e) => setFormData({ ...formData, commission: parseInt(e.target.value) || 0 })}
-                                        className="w-full bg-bg border border-surface rounded-xl p-4 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 text-text transition-all"
-                                    />
-                                </div>
                             </div>
 
                             <div className="pt-6">
@@ -161,14 +150,10 @@ export default function CreateGift() {
                                     <h5 className="text-sm font-bold text-text mb-1 uppercase tracking-wider">{formData.name || 'Unnamed Asset'}</h5>
                                     <p className="text-[10px] font-bold text-primary uppercase tracking-widest">₹{formData.price}</p>
                                 </div>
-                                <div className="w-full pt-4 border-t border-surface/50 grid grid-cols-2 gap-4">
+                                <div className="w-full pt-4 border-t border-surface/50">
                                     <div>
-                                        <p className="text-[8px] font-bold text-muted uppercase mb-1">Fee</p>
-                                        <p className="text-xs font-bold text-text">{formData.commission}%</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[8px] font-bold text-muted uppercase mb-1">Status</p>
-                                        <p className="text-xs font-bold text-emerald-500">Live</p>
+                                        <p className="text-[8px] font-bold text-muted uppercase mb-1 text-center">Status</p>
+                                        <p className="text-xs font-bold text-emerald-500 text-center">Live</p>
                                     </div>
                                 </div>
                             </div>

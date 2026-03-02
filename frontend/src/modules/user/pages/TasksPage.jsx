@@ -272,9 +272,7 @@ export default function TasksPage() {
                         </button>
                     </div>
 
-                    <p className="text-[11px] mb-3" style={{ color: 'var(--color-muted)' }}>
-                        Policy enforced: NFT list price between $1 and $20. Admin commission: {platformSettings.commission}% on each sale.
-                    </p>
+
                     {nftMessage && (
                         <p className="text-[11px] mb-3 font-medium" style={{ color: 'var(--color-text)' }}>
                             {nftMessage}
@@ -304,9 +302,7 @@ export default function TasksPage() {
                                             </p>
                                             <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{nft.bids} bids</p>
                                         </div>
-                                        <p className="text-[10px] mt-1" style={{ color: inPolicy ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                                            {inPolicy ? 'Within $1–$20 policy' : 'Outside policy'}
-                                        </p>
+
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation()

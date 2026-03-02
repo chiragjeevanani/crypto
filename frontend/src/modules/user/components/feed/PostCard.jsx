@@ -269,87 +269,113 @@ export default function PostCard({ post, onOpen }) {
             </div>
 
             {typeof document !== 'undefined' && createPortal(
-                <AnimatePresence>
-                    {commentsOpen && (
-                        <motion.div
-                            className="fixed inset-0 z-[120] flex flex-col justify-end"
-                            style={{ background: 'rgba(0,0,0,0.55)' }}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setCommentsOpen(false)}
-                        >
+                <>
+                    <AnimatePresence>
+                        {commentsOpen && (
                             <motion.div
-                                className="rounded-t-3xl px-4 pt-4 pb-5 max-h-[70vh] overflow-y-auto"
-                                style={{ background: 'var(--color-surface)' }}
-                                initial={{ y: '100%' }}
-                                animate={{ y: 0 }}
-                                exit={{ y: '100%' }}
-                                transition={{ duration: 0.22, ease: 'easeOut' }}
-                                onClick={(e) => e.stopPropagation()}
+                                className="fixed inset-0 z-[120] flex flex-col justify-end"
+                                style={{ background: 'rgba(0,0,0,0.55)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setCommentsOpen(false)}
                             >
-                                <p className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>Comments</p>
-                                <div className="space-y-2 mb-3">
-                                    {localComments.map((item) => (
-                                        <div key={item.id} className="p-2.5 rounded-lg" style={{ background: 'var(--color-surface2)' }}>
-                                            <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>@{item.user}</p>
-                                            <p className="text-xs" style={{ color: 'var(--color-sub)' }}>{item.text}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={commentDraft}
-                                        onChange={(e) => setCommentDraft(e.target.value)}
-                                        placeholder="Add a comment..."
-                                        className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
-                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                    />
-                                    <button
-                                        onClick={handleAddComment}
-                                        className="px-3 py-2 rounded-lg text-xs font-bold"
-                                        style={{ background: 'var(--color-primary)', color: '#fff' }}
-                                    >
-                                        Post
-                                    </button>
-                                </div>
+                                <motion.div
+                                    className="rounded-t-3xl px-4 pt-4 pb-5 max-h-[70vh] overflow-y-auto"
+                                    style={{ background: 'var(--color-surface)' }}
+                                    initial={{ y: '100%' }}
+                                    animate={{ y: 0 }}
+                                    exit={{ y: '100%' }}
+                                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex justify-center mb-4">
+                                        <div className="w-10 h-1 rounded-full bg-zinc-700/50" />
+                                    </div>
+                                    <p className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>Comments</p>
+                                    <div className="space-y-2 mb-3">
+                                        {localComments.map((item) => (
+                                            <div key={item.id} className="p-2.5 rounded-lg" style={{ background: 'var(--color-surface2)' }}>
+                                                <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>@{item.user}</p>
+                                                <p className="text-xs" style={{ color: 'var(--color-sub)' }}>{item.text}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={commentDraft}
+                                            onChange={(e) => setCommentDraft(e.target.value)}
+                                            placeholder="Add a comment..."
+                                            className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        />
+                                        <button
+                                            onClick={handleAddComment}
+                                            className="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer"
+                                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                        >
+                                            Post
+                                        </button>
+                                    </div>
+                                </motion.div>
                             </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                        {shareOpen && (
+                            <motion.div
+                                className="fixed inset-0 z-[120] flex flex-col justify-end"
+                                style={{ background: 'rgba(0,0,0,0.55)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShareOpen(false)}
+                            >
+                                <motion.div
+                                    className="rounded-t-3xl px-4 pt-4 pb-8"
+                                    style={{ background: 'var(--color-surface)' }}
+                                    initial={{ y: '100%' }}
+                                    animate={{ y: 0 }}
+                                    exit={{ y: '100%' }}
+                                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex justify-center mb-4">
+                                        <div className="w-10 h-1 rounded-full bg-zinc-700/50" />
+                                    </div>
+                                    <p className="text-sm font-bold mb-4" style={{ color: 'var(--color-text)' }}>Share Post</p>
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={() => handleShare('copy_link')}
+                                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors hover:bg-zinc-800/40"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        >
+                                            Copy Link
+                                        </button>
+                                        <button
+                                            onClick={() => handleShare('whatsapp')}
+                                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors hover:bg-zinc-800/40"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        >
+                                            Share to WhatsApp
+                                        </button>
+                                        <button
+                                            onClick={() => handleShare('instagram_story')}
+                                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors hover:bg-zinc-800/40"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        >
+                                            Share to Story
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </>,
                 document.body
             )}
-
-            <AnimatePresence>
-                {shareOpen && (
-                    <motion.div
-                        className="fixed inset-0 z-[120] flex flex-col justify-end"
-                        style={{ background: 'rgba(0,0,0,0.55)' }}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setShareOpen(false)}
-                    >
-                        <motion.div
-                            className="rounded-t-3xl px-4 pt-4 pb-5"
-                            style={{ background: 'var(--color-surface)' }}
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ duration: 0.22, ease: 'easeOut' }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <p className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>Share Post</p>
-                            <div className="space-y-2">
-                                <button onClick={() => handleShare('copy_link')} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}>Copy Link</button>
-                                <button onClick={() => handleShare('whatsapp')} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}>Share to WhatsApp</button>
-                                <button onClick={() => handleShare('instagram_story')} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}>Share to Story</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </article>
     )
 }
