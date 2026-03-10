@@ -1,8 +1,12 @@
-export function formatINR(amount) {
+export function formatCurrency(amount, symbol = '₹') {
     if (amount >= 1000) {
-        return `₹${(amount / 1000).toFixed(1)}K`
+        return `${symbol}${(amount / 1000).toFixed(1)}K`
     }
-    return `₹${amount}`
+    return `${symbol}${amount}`
+}
+
+export function formatINR(amount) {
+    return formatCurrency(amount, '₹')
 }
 
 export function formatCount(n) {

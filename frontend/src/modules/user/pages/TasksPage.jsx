@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Globe2, Trophy } from 'lucide-react'
 import { mockTasks } from '../data/mockTasks'
 import { mockNFTs } from '../data/mockNFTs'
 import TaskCard from '../components/tasks/TaskCard'
-import TaskDetail from '../components/tasks/TaskDetail'
+import TaskDetailPage from './TaskDetailPage'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { useCampaignStore } from '../store/useCampaignStore'
 import { useWalletStore } from '../store/useWalletStore'
@@ -18,6 +18,8 @@ const FILTERS = ['All', 'Active', 'Joined']
 const NFT_TABS = ['Discover', 'My Listings', 'Resale']
 
 export default function TasksPage() {
+    const navigate = useNavigate()
+    const { taskId: routeTaskId } = useParams()
     const [searchParams] = useSearchParams()
     const view = searchParams.get('view')
     const isNFTView = view === 'nft'
@@ -70,7 +72,7 @@ export default function TasksPage() {
         }
     }, [])
 
-    const allTasks = [...adminTasks, ...mockTasks]
+    const allTasks = useMemo(() => [...adminTasks, ...mockTasks], [adminTasks])
     const filtered = allTasks.filter((t) => {
         if (activeFilter === 'Joined') return t.joined
         if (activeFilter === 'Active') return t.status === 'active'
@@ -140,6 +142,34 @@ export default function TasksPage() {
         )
     }
 
+    useEffect(() => {
+        if (isNFTView || !routeTaskId) return
+        const match = allTasks.find((task) => task.id === routeTaskId || task.adminCampaignId === routeTaskId)
+        if (match) setSelectedTask(match)
+    }, [isNFTView, routeTaskId, allTasks])
+
+    const openTaskDetailPage = (task) => {
+        navigate(`/tasks/${encodeURIComponent(task.id)}`)
+    }
+
+    if (!isNFTView && routeTaskId) {
+        if (!selectedTask) {
+            return (
+                <div className="px-4 pt-6">
+                    <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Campaign not found.</p>
+                    <button
+                        onClick={() => navigate('/tasks')}
+                        className="mt-3 text-sm font-semibold"
+                        style={{ color: 'var(--color-primary)' }}
+                    >
+                        Back to campaigns
+                    </button>
+                </div>
+            )
+        }
+        return <TaskDetailPage task={selectedTask} />
+    }
+
     return (
         <div className="px-4 pt-4">
             <div className="mb-4">
@@ -174,7 +204,7 @@ export default function TasksPage() {
 
                     <div>
                         {filtered.map((task) => (
-                            <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                            <TaskCard key={task.id} task={task} onClick={() => openTaskDetailPage(task)} />
                         ))}
                         {filtered.length === 0 && (
                             <div className="text-center py-12">
@@ -238,11 +268,6 @@ export default function TasksPage() {
                         </div>
                     )}
 
-                    <AnimatePresence>
-                        {selectedTask && (
-                            <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} />
-                        )}
-                    </AnimatePresence>
                 </>
             ) : (
                 <>
@@ -282,7 +307,6 @@ export default function TasksPage() {
                     <div className="grid grid-cols-2 gap-3 pb-4">
                         {filteredNFTs.map((nft) => {
                             const usd = +(nft.price / 83).toFixed(2)
-                            const inPolicy = usd >= 1 && usd <= 20
                             return (
                                 <div
                                     key={nft.id}

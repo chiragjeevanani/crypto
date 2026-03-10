@@ -1,8 +1,11 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '../../utils/cn'
+import { useUserStore } from '../../store/useUserStore'
 
 export default function GiftButton({ gift, onGift, disabled }) {
+    const { profile } = useUserStore()
+    const currencySymbol = profile?.currencySymbol || '₹'
     const [popping, setPopping] = useState(false)
     const btnRef = useRef(null)
 
@@ -31,7 +34,7 @@ export default function GiftButton({ gift, onGift, disabled }) {
             >
                 <span className="text-sm leading-none">{gift.emoji}</span>
                 <span className="text-[11px] font-semibold" style={{ color: 'var(--color-primary)' }}>
-                    ₹{gift.price}
+                    {currencySymbol}{gift.price}
                 </span>
             </motion.button>
         </div>

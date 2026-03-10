@@ -15,27 +15,27 @@ import { useUserStore } from '../../user/store/useUserStore';
 
 export default function LoginPage() {
     const navigate = useNavigate();
-    const login = useUserStore(state => state.login);
-    const [isLoading, setIsLoading] = useState(false);
+    const loginAdmin = useUserStore(state => state.loginAdmin);
+    const authLoading = useUserStore(state => state.authLoading);
+    const authError = useUserStore(state => state.authError);
+    const setAuthError = useUserStore(state => state.setAuthError);
     const [formData, setFormData] = useState({
         email: 'admin@socialearn.io',
-        password: '••••••••'
+        password: ''
     });
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
-
-        // Simulate network delay
-        setTimeout(() => {
-            login({
-                name: 'SuperAdmin',
+        setAuthError('');
+        try {
+            await loginAdmin({
                 email: formData.email,
-                role: 'SuperNode'
+                password: formData.password
             });
-            setIsLoading(false);
             navigate('/admin');
-        }, 1500);
+        } catch {
+            // error handled in store
+        }
     };
 
     return (
@@ -99,10 +99,10 @@ export default function LoginPage() {
 
                     <button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={authLoading}
                         className="w-full bg-primary text-black font-bold uppercase tracking-widest text-[11px] py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
                     >
-                        {isLoading ? (
+                        {authLoading ? (
                             <Zap className="w-4 h-4 animate-spin" />
                         ) : (
                             <>
@@ -110,6 +110,7 @@ export default function LoginPage() {
                             </>
                         )}
                     </button>
+                    {authError && <p className="text-xs text-red-400">{authError}</p>}
                 </form>
 
                 {/* <div className="mt-10 pt-8 border-t border-surface/50">

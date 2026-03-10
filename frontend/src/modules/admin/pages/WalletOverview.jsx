@@ -90,19 +90,19 @@ export default function WalletOverview() {
 
                 {/* Secondary Stats */}
                 <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <AdminStatCard label="Total Payouts" value={formatCurrency(42801)} change={prdMetrics ? `Latency ${prdMetrics.payoutLatency}` : "-2.4%"} icon={ArrowDownRight} color="emerald-500" />
-                    <AdminStatCard label="Escrowed" value={formatCurrency(12400)} change={prdMetrics ? `DAU ${prdMetrics.dauProxy}` : "+8.1%"} icon={CreditCard} color="indigo-500" />
+                    <AdminStatCard label="Total Payouts" value={formatCurrency(42801)} change={prdMetrics ? `Processing Time ${prdMetrics.payoutLatency}` : "-2.4%"} icon={ArrowDownRight} color="emerald-500" />
+                    <AdminStatCard label="Held Funds" value={formatCurrency(12400)} change={prdMetrics ? `Daily Users ${prdMetrics.dauProxy}` : "+8.1%"} icon={CreditCard} color="indigo-500" />
                 </div>
             </div>
 
             <div className="bg-surface border border-surface rounded-lg p-5">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">PRD Success Metrics (Computed UI)</h4>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Performance Summary</h4>
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">DAU</p><p className="text-sm font-bold text-text">{prdMetrics?.dauProxy || 0}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Daily Users</p><p className="text-sm font-bold text-text">{prdMetrics?.dauProxy || 0}</p></div>
                     <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Avg Gifts</p><p className="text-sm font-bold text-text">{prdMetrics?.avgGiftsPerUser || 0}</p></div>
                     <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Participation</p><p className="text-sm font-bold text-text">{prdMetrics?.campaignParticipation || 0}</p></div>
                     <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Votes</p><p className="text-sm font-bold text-text">{prdMetrics?.voteVolume || 0}</p></div>
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Latency</p><p className="text-sm font-bold text-text">{prdMetrics?.payoutLatency || '--'}</p></div>
+                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Processing Time</p><p className="text-sm font-bold text-text">{prdMetrics?.payoutLatency || '--'}</p></div>
                     <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Retention</p><p className="text-sm font-bold text-text">{prdMetrics?.brandRetentionProxy || '--'}</p></div>
                 </div>
             </div>

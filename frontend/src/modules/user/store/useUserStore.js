@@ -1,9 +1,93 @@
 import { create } from 'zustand'
+import { authService } from '../../auth/services/authService'
 
-export const useUserStore = create((set) => ({
+const TOKEN_KEY = 'crypto_auth_token'
+const REFRESH_TOKEN_KEY = 'crypto_refresh_token'
+const USER_KEY = 'crypto_auth_user'
+
+const getStoredToken = () => localStorage.getItem(TOKEN_KEY)
+const getStoredRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY)
+const getStoredUser = () => {
+    const raw = localStorage.getItem(USER_KEY)
+    if (!raw) return null
+    try {
+        return JSON.parse(raw)
+    } catch {
+        return null
+    }
+}
+
+const saveAuthToStorage = ({ token, refreshToken, user }) => {
+    if (token != null) localStorage.setItem(TOKEN_KEY, token)
+    if (refreshToken != null) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+    if (user != null) localStorage.setItem(USER_KEY, JSON.stringify(user))
+}
+
+const clearAuthStorage = () => {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
+}
+
+const defaultProfile = {
+    id: '',
+    username: '',
+    fullName: '',
+    handle: '',
+    email: '',
+    phone: '',
+    avatar: null,
+    bio: '',
+    countryCode: '',
+    countryName: '',
+    currencyCode: 'INR',
+    currencySymbol: '₹',
+    posts: 0,
+    followers: 0,
+    following: 0,
+    badge: '',
+    totalEarnings: 0,
+    followersList: [],
+    followingList: [],
+}
+
+function profileFromUser(user) {
+    if (!user) return defaultProfile
+    const name = user.name || ''
+    const handle = user.handle || `@${name.replace(/\s+/g, '').toLowerCase() || 'user'}`
+    return {
+        id: user.id,
+        username: name,
+        fullName: name,
+        handle: handle.startsWith('@') ? handle : `@${handle}`,
+        email: user.email || '',
+        phone: user.phone || '',
+        avatar: user.avatar || null,
+        bio: user.bio || '',
+        countryCode: user.countryCode || '',
+        countryName: user.countryName || '',
+        currencyCode: user.currencyCode || 'INR',
+        currencySymbol: user.currencySymbol || '₹',
+        posts: 0,
+        followers: 0,
+        following: 0,
+        badge: '',
+        totalEarnings: 0,
+        followersList: [],
+        followingList: [],
+    }
+}
+
+const storedUser = getStoredUser()
+
+export const useUserStore = create((set, get) => ({
     darkMode: false,
-    isAuthenticated: false,
-    user: null,
+    isAuthenticated: Boolean(getStoredToken()),
+    token: getStoredToken(),
+    authChecked: false,
+    authLoading: false,
+    authError: '',
+    user: storedUser,
     kyc: {
         status: 'unverified', // unverified | pending | verified
         level: 'L0',
@@ -17,35 +101,124 @@ export const useUserStore = create((set) => ({
         aadharBackName: '',
         submittedAt: null,
     },
-    profile: {
-        id: 'me',
-        username: 'Chirag J',
-        fullName: 'Chirag Jain',
-        handle: '@chiragj',
-        email: 'chiragj@example.com',
-        phone: '+91 98765 43210',
-        avatar: null,
-        bio: 'Creator | Entrepreneur | Building the future 🚀',
-        posts: 1200,
-        followers: 48300,
-        following: 892,
-        badge: 'Top Creator',
-        totalEarnings: 28470,
-        followersList: [
-            { id: 'f1', name: 'Priya Sharma', handle: '@priyasharma' },
-            { id: 'f2', name: 'Rahul Verma', handle: '@rahulcooks' },
-            { id: 'f3', name: 'Aisha Khan', handle: '@aishafashion' },
-            { id: 'f4', name: 'Dev Patel', handle: '@devbuilds' },
-        ],
-        followingList: [
-            { id: 'g1', name: 'Meera Nair', handle: '@meeradances' },
-            { id: 'g2', name: 'Arjun Singh', handle: '@arjunfitness' },
-            { id: 'g3', name: 'Nikhil Raj', handle: '@nikhilcrafts' },
-            { id: 'g4', name: 'Sana Ali', handle: '@sanaedits' },
-        ],
-    },
+    profile: storedUser ? profileFromUser(storedUser) : defaultProfile,
 
     toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+    setAuthError: (message) => set({ authError: message || '' }),
+
+    initializeAuth: async () => {
+        let token = get().token || getStoredToken()
+        const refreshToken = getStoredRefreshToken()
+
+        if (!token && !refreshToken) {
+            set({ isAuthenticated: false, user: null, authChecked: true, authLoading: false })
+            return
+        }
+
+        set({ authLoading: true, authError: '' })
+        try {
+            if (token) {
+                const response = await authService.getMe(token)
+                const user = response.user
+                saveAuthToStorage({ token, refreshToken, user })
+                set({ token, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
+                return
+            }
+        } catch (_) {
+            // access token invalid or expired; try refresh
+        }
+
+        if (refreshToken) {
+            try {
+                const response = await authService.refresh(refreshToken)
+                const newToken = response.token
+                const newRefresh = response.refreshToken
+                const user = response.user
+                saveAuthToStorage({ token: newToken, refreshToken: newRefresh, user })
+                set({ token: newToken, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
+                return
+            } catch (_) {
+                // refresh failed
+            }
+        }
+
+        clearAuthStorage()
+        set({
+            token: null,
+            user: null,
+            profile: defaultProfile,
+            isAuthenticated: false,
+            authChecked: true,
+            authLoading: false,
+            authError: ''
+        })
+    },
+
+    loginUser: async ({ email, password }) => {
+        set({ authLoading: true, authError: '' })
+        try {
+            const response = await authService.loginUser({ email, password })
+            const { token, refreshToken, user } = response
+            saveAuthToStorage({ token, refreshToken, user })
+            set({
+                token,
+                user,
+                profile: profileFromUser(user),
+                isAuthenticated: true,
+                authChecked: true,
+                authLoading: false,
+                authError: ''
+            })
+            return { user }
+        } catch (error) {
+            set({ authLoading: false, authError: error.message })
+            throw error
+        }
+    },
+
+    loginAdmin: async ({ email, password }) => {
+        set({ authLoading: true, authError: '' })
+        try {
+            const response = await authService.loginAdmin({ email, password })
+            const { token, refreshToken, user } = response
+            saveAuthToStorage({ token, refreshToken, user })
+            set({
+                token,
+                user,
+                profile: profileFromUser(user),
+                isAuthenticated: true,
+                authChecked: true,
+                authLoading: false,
+                authError: ''
+            })
+            return { user }
+        } catch (error) {
+            set({ authLoading: false, authError: error.message })
+            throw error
+        }
+    },
+
+    registerUser: async ({ name, email, password, phone, countryCode }) => {
+        set({ authLoading: true, authError: '' })
+        try {
+            const response = await authService.register({ name, email, password, phone, countryCode })
+            const { token, refreshToken, user } = response
+            saveAuthToStorage({ token, refreshToken, user })
+            set({
+                token,
+                user,
+                profile: profileFromUser(user),
+                isAuthenticated: true,
+                authChecked: true,
+                authLoading: false,
+                authError: ''
+            })
+            return { user }
+        } catch (error) {
+            set({ authLoading: false, authError: error.message })
+            throw error
+        }
+    },
 
     login: (userData) => set({
         isAuthenticated: true,
@@ -57,10 +230,18 @@ export const useUserStore = create((set) => ({
         user: userData
     }),
 
-    logout: () => set({
-        isAuthenticated: false,
-        user: null
-    }),
+    logout: () => {
+        clearAuthStorage()
+        set({
+            token: null,
+            isAuthenticated: false,
+            user: null,
+            profile: defaultProfile,
+            authError: '',
+            authLoading: false,
+            authChecked: true
+        })
+    },
 
     startKYC: () => set((state) => ({
         kyc: { ...state.kyc, status: 'pending', level: 'L1' },
@@ -122,7 +303,24 @@ export const useUserStore = create((set) => ({
         }
     }),
 
-    updateProfile: (data) => set((state) => ({
-        profile: { ...state.profile, ...data },
-    })),
+    updateProfile: async (data) => {
+        const token = get().token
+        if (!token) return
+        try {
+            const payload = {}
+            const name = data.name ?? data.fullName ?? data.username
+            if (name !== undefined) payload.name = name
+            if (data.email !== undefined) payload.email = data.email
+            if (data.phone !== undefined) payload.phone = data.phone
+            if (data.bio !== undefined) payload.bio = data.bio
+            if (data.avatar !== undefined) payload.avatar = data.avatar
+            if (data.handle !== undefined) payload.handle = data.handle?.startsWith('@') ? data.handle.slice(1) : data.handle
+            const response = await authService.updateProfile(token, payload)
+            const user = response.user
+            saveAuthToStorage({ token, user: { ...get().user, ...user } })
+            set({ user: { ...get().user, ...user }, profile: profileFromUser({ ...get().user, ...user }) })
+        } catch (err) {
+            throw err
+        }
+    },
 }))

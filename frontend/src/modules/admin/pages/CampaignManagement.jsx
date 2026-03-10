@@ -77,30 +77,30 @@ export default function CampaignManagement() {
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
-                title="Brand Mandates"
-                subtitle="Design and oversee high-impact reward campaigns and brand initiatives."
+                title="Brand Campaigns"
+                subtitle="Create and manage reward campaigns for users."
                 actions={
                     <button
                         onClick={() => navigate('/admin/campaigns/new')}
                         className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-black rounded-lg font-bold uppercase tracking-widest text-[10px] hover:opacity-90 transition-all shadow-md"
                     >
                         <Plus className="w-3.5 h-3.5" />
-                        Deploy Protocol
+                        Create Campaign
                     </button>
                 }
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <AdminStatCard label="Live Mandates" value={campaigns.filter(c => c.status === 'Active').length.toString()} change="+2" icon={Activity} color="primary" />
-                <AdminStatCard label="Liquidity Pool" value={formatCurrency(84200)} change="USDT" icon={Trophy} color="amber-500" />
-                <AdminStatCard label="Node Traffic" value="42.8k" change="+1.2k" icon={Users} color="blue-500" />
-                <AdminStatCard label="Closure Linked" value={`${campaignClosures.filter(c => c.auditLinked).length}/${campaignClosures.length}`} change="Audit Trail" icon={Award} color="emerald-500" />
+                <AdminStatCard label="Live Campaigns" value={campaigns.filter(c => c.status === 'Active').length.toString()} change="+2" icon={Activity} color="primary" />
+                <AdminStatCard label="Reward Pool" value={formatCurrency(84200)} change="USDT" icon={Trophy} color="amber-500" />
+                <AdminStatCard label="Participants" value="42.8k" change="+1.2k" icon={Users} color="blue-500" />
+                <AdminStatCard label="Audit Linked" value={`${campaignClosures.filter(c => c.auditLinked).length}/${campaignClosures.length}`} change="Winner Logs" icon={Award} color="emerald-500" />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 <div className="xl:col-span-2">
                     <AdminDataTable
-                        title="Mandate Registry"
+                        title="Campaign List"
                         columns={["Campaign", "Allocation", "Progress", "Status", "Actions"]}
                         onRowClick={(camp) => setSelectedCampaign(campaigns.find(c => c.id === camp.id))}
                         data={campaigns.map(camp => ({
@@ -162,7 +162,7 @@ export default function CampaignManagement() {
                             >
                                 <div className="p-4 bg-bg border border-surface rounded-lg">
                                     <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted mb-4 flex items-center gap-2">
-                                        <Activity className="w-3 h-3 text-primary" /> Telemetry Flux
+                                        <Activity className="w-3 h-3 text-primary" /> Activity Trend
                                     </h4>
                                     <div className="h-32 flex items-end justify-around gap-1">
                                         {[40, 70, 45, 90, 65, 80, 55].map((h, i) => (
@@ -175,7 +175,7 @@ export default function CampaignManagement() {
 
                                 <div className="space-y-4">
                                     <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
-                                        <ShieldCheck className="w-3 h-3 text-emerald-500" /> Integrity Metrics
+                                        <ShieldCheck className="w-3 h-3 text-emerald-500" /> Trust Metrics
                                     </h4>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="p-3 bg-bg border border-surface rounded-lg">
@@ -194,21 +194,21 @@ export default function CampaignManagement() {
                                         onClick={() => navigate(`/admin/campaigns/edit/${selectedCampaign.id}`)}
                                         className="w-full flex items-center justify-between px-4 py-3 bg-primary text-black rounded-lg font-bold uppercase tracking-widest text-[9px] shadow-sm active:scale-[0.98] transition-all"
                                     >
-                                        Command Center <ChevronRight className="w-3.5 h-3.5" />
+                                        Edit Campaign <ChevronRight className="w-3.5 h-3.5" />
                                     </button>
                                     {selectedCampaign.status === 'Active' ? (
                                         <button
                                             onClick={() => handleSuspend(selectedCampaign.id)}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-rose-500/5 text-muted hover:text-rose-500 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px]"
                                         >
-                                            <Pause className="w-3.5 h-3.5" /> Suspend Protocol
+                                            <Pause className="w-3.5 h-3.5" /> Pause Campaign
                                         </button>
                                     ) : (
                                         <button
                                             onClick={() => handleResume(selectedCampaign.id)}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-emerald-500/5 text-muted hover:text-emerald-500 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px]"
                                         >
-                                            <Activity className="w-3.5 h-3.5" /> Resume Protocol
+                                            <Activity className="w-3.5 h-3.5" /> Resume Campaign
                                         </button>
                                     )}
                                 </div>
@@ -217,7 +217,7 @@ export default function CampaignManagement() {
                                     onClick={() => setSelectedCampaign(null)}
                                     className="w-full text-center text-[9px] font-bold uppercase tracking-[0.2em] text-muted hover:text-text transition-all pt-2"
                                 >
-                                    Exit Analysis View
+                                    Close Details
                                 </button>
                             </motion.div>
                         ) : null}
@@ -226,7 +226,7 @@ export default function CampaignManagement() {
             </div>
 
             <div className="bg-surface border border-surface rounded-lg p-6">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-text mb-4">Voting Adjudication & Payout Closures</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-text mb-4">Voting Winners & Payout Closures</h3>
                 <div className="space-y-3">
                     {campaignClosures.length === 0 && (
                         <div className="p-4 rounded-lg bg-bg border border-surface text-[10px] text-muted uppercase tracking-wider">

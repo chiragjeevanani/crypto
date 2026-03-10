@@ -1,125 +1,47 @@
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const ADMIN_USERS = `${API_BASE}/admin/users`;
 import { getKYCSubmissionByUser, getKYCSubmissions, patchKYCSubmission } from '../../../shared/kycSync'
 
-let mockUsers = [
-    {
-        id: 'U-7721',
-        name: 'CryptoWhale_88',
-        email: 'whale@crypto.com',
-        role: 'VIP User',
-        status: 'Verified',
-        kycStatus: 'approved',
-        kycVerified: true,
-        riskScore: 'Low',
-        joined: 'Jan 12, 2024',
-        walletBalance: 1240.50,
-        totalEarnings: 4500.00,
-        campaigns: 12,
-        isBanned: false,
-        isSuspicious: false,
-        referralCode: 'WHALE88',
-        referredCount: 7,
-        aadharFront: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Front+U-7721',
-        aadharBack: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Back+U-7721',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
-    },
-    {
-        id: 'U-7722',
-        name: 'BotHunter_X',
-        email: 'bh@gmail.com',
-        role: 'Standard',
-        status: 'Flagged',
-        kycStatus: 'pending',
-        kycVerified: false,
-        riskScore: 'High',
-        joined: 'Feb 05, 2024',
-        walletBalance: 45.00,
-        totalEarnings: 120.00,
-        campaigns: 2,
-        isBanned: false,
-        isSuspicious: true,
-        referralCode: 'BOTX22',
-        referredCount: 2,
-        aadharFront: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Front+U-7722',
-        aadharBack: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Back+U-7722',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
-    },
-    {
-        id: 'U-7723',
-        name: 'MemeMaster',
-        email: 'meme@xyz.com',
-        role: 'Standard',
-        status: 'Pending',
-        kycStatus: 'pending',
-        kycVerified: false,
-        riskScore: 'Medium',
-        joined: 'Feb 20, 2024',
-        walletBalance: 210.00,
-        totalEarnings: 840.00,
-        campaigns: 5,
-        isBanned: false,
-        isSuspicious: false,
-        referralCode: 'MEME23',
-        referredCount: 4,
-        aadharFront: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Front+U-7723',
-        aadharBack: 'https://dummyimage.com/600x380/e5e7eb/111827&text=Aadhaar+Back+U-7723',
-        avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop'
-    }
-];
+const getAuthHeaders = () => {
+    const raw = localStorage.getItem("crypto_auth_token");
+    return raw ? { Authorization: `Bearer ${raw}` } : {};
+};
 
 export const userService = {
     fetchUsers: async (params = {}) => {
-        await delay(900);
         const { search = '', role = 'all', status = 'all', kyc = 'all', page = 1, limit = 10 } = params;
+        const query = new URLSearchParams();
+        if (search) query.set("search", search);
+        query.set("page", String(page));
+        query.set("limit", String(limit));
 
-        let filtered = mockUsers.filter(u => {
-            const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
-                u.email.toLowerCase().includes(search.toLowerCase()) ||
-                u.id.toLowerCase().includes(search.toLowerCase());
-            const matchesRole = role === 'all' || u.role === role;
-            const matchesStatus = status === 'all' || u.status === status || (status === 'Banned' && u.isBanned);
-            const matchesKYC = kyc === 'all' || (kyc === 'verified' && u.kycVerified) || (kyc === 'pending' && !u.kycVerified);
-
-            return matchesSearch && matchesRole && matchesStatus && matchesKYC;
+        const response = await fetch(`${ADMIN_USERS}?${query.toString()}`, {
+            headers: getAuthHeaders(),
         });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data?.message || "Failed to load users");
+        }
 
-        const total = filtered.length;
-        const start = (page - 1) * limit;
-        const paginated = filtered.slice(start, start + limit);
-
+        // The backend already returns users in the shape expected by the admin UI.
         return {
-            users: paginated,
-            total,
-            page,
-            totalPages: Math.ceil(total / limit)
+            users: data.users || [],
+            total: data.total || 0,
+            page: data.page || page,
+            totalPages: data.totalPages || 1,
         };
     },
 
     fetchUserDetail: async (id) => {
-        await delay(800);
-        const user = mockUsers.find(u => u.id === id);
-        if (!user) throw new Error("Identity node not found.");
-
-        return {
-            ...user,
-            referralCode: user.referralCode,
-            referredCount: user.referredCount || 0,
-            aadharFront: user.aadharFront,
-            aadharBack: user.aadharBack,
-            kycStatus: user.kycStatus || (user.kycVerified ? 'approved' : 'pending'),
-            giftHistory: [
-                { id: 'G-1', sender: 'Anonymous', gift: 'Rose', value: 10, date: '2024-02-25' },
-                { id: 'G-2', sender: 'WhaleAlpha', gift: 'Diamond', value: 1000, date: '2024-02-21' }
-            ],
-            votingHistory: [
-                { id: 'V-101', poll: 'Sept. Ambassador', choice: 'Option A', date: '2024-02-20' },
-                { id: 'V-102', poll: 'UI Colors', choice: 'Dark Mode', date: '2024-02-15' }
-            ],
-            campaignParticipation: [
-                { id: 'C-55', title: 'Summer Splash', reward: 50, status: 'Claimed', date: '2024-02-10' },
-                { id: 'C-58', title: 'New App Blast', reward: 100, status: 'Pending', date: '2024-02-26' }
-            ]
-        };
+        const response = await fetch(`${ADMIN_USERS}/${id}`, {
+            headers: getAuthHeaders(),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data?.message || "Identity node not found.");
+        }
+        return data.user;
     },
 
     toggleBan: async (id) => {

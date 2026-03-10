@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Bell } from 'lucide-react'
 import { useFeedStore } from '../store/useFeedStore'
 import PostCard from '../components/feed/PostCard'
 import PostFeedModal from '../components/feed/PostFeedModal'
+import Stories from '../components/feed/Stories'
 
 export default function HomePage() {
-    const { posts, notifications, unreadNotifications, markNotificationsRead } = useFeedStore()
+    const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts } = useFeedStore()
+    useEffect(() => { loadPosts() }, [loadPosts])
     const [searchParams] = useSearchParams()
     const [query, setQuery] = useState('')
     const [showNotifications, setShowNotifications] = useState(false)
@@ -25,9 +27,9 @@ export default function HomePage() {
         const q = query.toLowerCase()
         return posts.filter(
             (post) =>
-                post.caption.toLowerCase().includes(q) ||
-                post.creator.username.toLowerCase().includes(q) ||
-                post.creator.handle.toLowerCase().includes(q),
+                (post.caption || '').toLowerCase().includes(q) ||
+                (post.creator?.username || '').toLowerCase().includes(q) ||
+                (post.creator?.handle || '').toLowerCase().includes(q),
         )
     }, [posts, query])
 
@@ -85,6 +87,9 @@ export default function HomePage() {
                     )}
                 </div>
             </div>
+
+            {/* Stories Section (Instagram-like) */}
+            {!isExplore && <Stories />}
 
             {!isExplore ? (
                 <div className="desktop-feed-grid">

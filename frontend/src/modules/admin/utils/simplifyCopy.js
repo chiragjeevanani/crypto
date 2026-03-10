@@ -1,5 +1,6 @@
 const PHRASE_REPLACEMENTS = [
     [/Strategic Control Center/gi, 'Control Center'],
+    [/High-fidelity telemetry for the SocialEarn reward ecosystem\./gi, 'Live platform stats for the SocialEarn rewards app.'],
     [/Security Intelligence/gi, 'Security Monitor'],
     [/Anomaly Detection Stream/gi, 'Risk Alerts'],
     [/Asset Moderation Protocol/gi, 'NFT Review'],
@@ -13,6 +14,7 @@ const PHRASE_REPLACEMENTS = [
     [/Archived Assets/gi, 'Deleted Items'],
     [/Modify Settlement/gi, 'Edit Settlement'],
     [/Edit Mandate/gi, 'Edit Campaign'],
+    [/DAU Proxy/gi, 'Daily Active Users'],
 ]
 
 const WORD_REPLACEMENTS = [
@@ -22,6 +24,11 @@ const WORD_REPLACEMENTS = [
     [/\bliquidation\b/gi, 'payout'],
     [/\bregistry\b/gi, 'list'],
     [/\bassets\b/gi, 'items'],
+    [/\bmandates?\b/gi, 'campaigns'],
+    [/\bescrowed\b/gi, 'held funds'],
+    [/\blatency\b/gi, 'processing time'],
+    [/\bflux\b/gi, 'activity'],
+    [/\bDAU\b/gi, 'daily users'],
 ]
 
 export function simplifyAdminCopy(text) {

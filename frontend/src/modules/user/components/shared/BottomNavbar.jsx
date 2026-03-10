@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, ListChecks, Plus, Wallet, User } from 'lucide-react'
+import { Home, Megaphone, Plus, Wallet, User } from 'lucide-react'
 
 const navItems = [
     { to: '/home', icon: Home, label: 'Home' },
-    { to: '/tasks', icon: ListChecks, label: 'Tasks' },
+    { to: '/tasks', icon: Megaphone, label: 'Campaigns' },
     { to: '/create', icon: Plus, label: 'Create', isCreate: true },
     { to: '/wallet', icon: Wallet, label: 'Wallet' },
     { to: '/profile', icon: User, label: 'Profile' },

@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness } from 'lucide-react'
+import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
@@ -10,7 +10,8 @@ import { triggerCoinRain } from '../shared/CoinRain'
 import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
 import NFTBadge from '../shared/NFTBadge'
-import { formatCount, formatINR, timeAgo } from '../../utils/formatCurrency'
+import { formatCount, formatCurrency, timeAgo } from '../../utils/formatCurrency'
+import { playGiftSound } from '../../utils/giftSounds'
 
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
@@ -20,7 +21,7 @@ function getColor(id) {
 }
 
 export default function PostCard({ post, onOpen }) {
-    const { toggleLike, sendGift, toggleFollow, addComment, sharePost, splats, clearSplat } = useFeedStore()
+    const { toggleLike, sendGift, toggleFollow, addComment, loadComments, commentsByPostId, commentsLoading, sharePost, splats, clearSplat } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
@@ -28,10 +29,12 @@ export default function PostCard({ post, onOpen }) {
     const [commentsOpen, setCommentsOpen] = useState(false)
     const [shareOpen, setShareOpen] = useState(false)
     const [commentDraft, setCommentDraft] = useState('')
-    const [localComments, setLocalComments] = useState([
-        { id: `cmt_${post.id}_1`, user: 'creator_fan', text: 'Amazing content!' },
-        { id: `cmt_${post.id}_2`, user: 'daily_viewer', text: 'Loved this post.' },
-    ])
+    const postComments = commentsByPostId[post.id] ?? []
+    const isSelfPost = post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id)
+
+    useEffect(() => {
+        if (commentsOpen && post.id) loadComments(post.id)
+    }, [commentsOpen, post.id, loadComments])
 
     const splat = splats[post.id]
 
@@ -43,6 +46,7 @@ export default function PostCard({ post, onOpen }) {
             return
         }
         sendGift(post.id, gift)
+        playGiftSound(gift.id)
         if (post.creator.id === profile.id) addGiftEarning(gift.price)
         setGiftError('')
         setEarningsFlash(true)
@@ -54,21 +58,57 @@ export default function PostCard({ post, onOpen }) {
     const isNFTPost = post.postType === 'nft'
     const isBrandPost = post.postType === 'brand'
 
-    const handleAddComment = () => {
+    const handleAddComment = async () => {
         const text = commentDraft.trim()
         if (!text) return
-        addComment(post.id, text)
-        setLocalComments((prev) => [...prev, { id: `cmt_${Date.now()}`, user: 'you', text }])
-        setCommentDraft('')
+        try {
+            await addComment(post.id, text)
+            setCommentDraft('')
+        } catch {
+            // error already handled by store or could show toast
+        }
     }
 
     const handleShare = async (channel) => {
         sharePost(post.id, channel)
+        const shareLink = `${window.location.origin}/home?post=${post.id}`
+        const shareText = `${post.creator.username}'s post on SocialEarn`
+
         if (channel === 'copy_link' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
             try {
-                await navigator.clipboard.writeText(`${window.location.origin}/home?post=${post.id}`)
+                await navigator.clipboard.writeText(shareLink)
             } catch {
                 // keep UI functional even if clipboard fails
+            }
+        }
+        if (channel === 'whatsapp') {
+            const text = encodeURIComponent(`${shareText}\n${shareLink}`)
+            window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
+        }
+        if (channel === 'telegram') {
+            const text = encodeURIComponent(shareText)
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${text}`, '_blank', 'noopener,noreferrer')
+        }
+        if (channel === 'instagram_story' || channel === 'instagram_dm') {
+            if (typeof navigator !== 'undefined' && navigator.share) {
+                try {
+                    await navigator.share({ title: 'SocialEarn', text: shareText, url: shareLink })
+                } catch {
+                    // ignore cancellation
+                }
+            } else if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                try {
+                    await navigator.clipboard.writeText(shareLink)
+                } catch {
+                    // keep UI functional even if clipboard fails
+                }
+            }
+        }
+        if (channel === 'more' && typeof navigator !== 'undefined' && navigator.share) {
+            try {
+                await navigator.share({ title: 'SocialEarn', text: shareText, url: shareLink })
+            } catch {
+                // ignore cancellation
             }
         }
         setShareOpen(false)
@@ -82,7 +122,10 @@ export default function PostCard({ post, onOpen }) {
             {/* Creator row */}
             <div className="flex items-start gap-3 px-4 pt-5 pb-4 lg:px-5 lg:pt-5 lg:pb-4">
                 {/* Avatar */}
-                <Link to={`/user/${post.creator.id}`} className="cursor-pointer">
+                <Link
+                    to={isSelfPost ? '/profile' : `/user/${post.creator.id}`}
+                    className="cursor-pointer"
+                >
                     <div
                         className="w-10 h-10 lg:w-11 lg:h-11 rounded-full flex items-center justify-center flex-shrink-0 text-white text-base font-bold shadow-md"
                         style={{ background: avatarColor }}
@@ -91,7 +134,10 @@ export default function PostCard({ post, onOpen }) {
                     </div>
                 </Link>
                 <div className="flex-1 min-w-0">
-                    <Link to={`/user/${post.creator.id}`} className="cursor-pointer">
+                    <Link
+                        to={isSelfPost ? '/profile' : `/user/${post.creator.id}`}
+                        className="cursor-pointer"
+                    >
                         <p className="text-sm lg:text-[15px] font-bold truncate hover:text-[var(--desktop-accent,var(--color-primary))] transition-colors" style={{ color: 'var(--color-text)' }}>
                             {post.creator.username}
                         </p>
@@ -116,37 +162,57 @@ export default function PostCard({ post, onOpen }) {
                         </div>
                     )}
                 </div>
-                <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => toggleFollow(post.creator.id)}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold cursor-pointer flex-shrink-0 transition-all duration-200"
-                    style={
-                        post.creator.isFollowing
-                            ? { background: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }
-                            : { background: 'transparent', color: 'var(--desktop-accent,var(--color-primary))', border: '1px solid var(--desktop-accent,var(--color-primary))' }
-                    }
-                >
-                    {post.creator.isFollowing ? (
-                        <><Check size={12} strokeWidth={3} /> Following</>
-                    ) : (
-                        <><UserPlus size={12} strokeWidth={3} /> Follow</>
-                    )}
-                </motion.button>
+                {!isSelfPost && (
+                    <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => toggleFollow(post.creator.id)}
+                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold cursor-pointer flex-shrink-0 transition-all duration-200"
+                        style={
+                            post.creator.isFollowing
+                                ? { background: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }
+                                : { background: 'transparent', color: 'var(--desktop-accent,var(--color-primary))', border: '1px solid var(--desktop-accent,var(--color-primary))' }
+                        }
+                    >
+                        {post.creator.isFollowing ? (
+                            <><Check size={12} strokeWidth={3} /> Following</>
+                        ) : (
+                            <><UserPlus size={12} strokeWidth={3} /> Follow</>
+                        )}
+                    </motion.button>
+                )}
             </div>
 
             {/* Media */}
             <div
                 className={`w-full relative bg-black/5 ${onOpen ? 'cursor-pointer' : ''}`}
-                style={{ aspectRatio: '4/3' }}
+                style={{ aspectRatio: post.media?.type === 'audio' ? 'auto' : '4/3' }}
                 onClick={() => onOpen?.(post.id)}
             >
-                <img
-                    src={post.media.url}
-                    alt="post media"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
-                />
+                {post.media?.type === 'video' ? (
+                    <video
+                        src={post.media.url}
+                        className="w-full h-full object-cover"
+                        controls
+                        playsInline
+                        muted
+                        onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
+                    />
+                ) : post.media?.type === 'audio' ? (
+                    <div className="w-full p-4 flex items-center gap-3" style={{ background: 'var(--color-surface2)' }}>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary)', color: '#000' }}>
+                            <Music size={24} />
+                        </div>
+                        <audio src={post.media.url} controls className="flex-1 min-w-0" />
+                    </div>
+                ) : (
+                    <img
+                        src={post.media?.url}
+                        alt="post media"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
+                    />
+                )}
 
                 {/* Enhanced Animations Overlay */}
                 <AnimatePresence>
@@ -222,7 +288,7 @@ export default function PostCard({ post, onOpen }) {
                             className="text-sm font-black"
                             style={{ color: earningsFlash ? 'var(--color-success)' : 'var(--desktop-accent,var(--color-primary))' }}
                         >
-                            {formatINR(post.earnings)}
+                            {formatCurrency(post.earnings, profile?.currencySymbol || '₹')}
                         </motion.span>
                     </AnimatePresence>
                 </div>
@@ -240,18 +306,18 @@ export default function PostCard({ post, onOpen }) {
                         Earnings Summary
                     </span>
                     <span className="text-sm font-bold" style={{ color: 'var(--desktop-accent,var(--color-primary))' }}>
-                        {formatINR(post.earnings)}
+                        {formatCurrency(post.earnings, profile?.currencySymbol || '₹')}
                     </span>
                 </div>
             </div>
 
             {/* Gift interaction area */}
             <div className="px-4 lg:px-5 pt-2 lg:pt-3 pb-5 lg:pb-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                {post.allowGifts !== false ? (
+                {post.allowGifts !== false && !isSelfPost ? (
                     <>
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
-                                Support this creator
+                                Gift the creator
                             </span>
                         </div>
                         <GiftBar postId={post.id} onGift={handleGift} />
@@ -261,9 +327,13 @@ export default function PostCard({ post, onOpen }) {
                             </p>
                         )}
                     </>
-                ) : (
+                ) : post.allowGifts === false ? (
                     <div className="text-xs font-medium rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
                         Gifts are disabled for brand task posts. Earn via task participation and voting.
+                    </div>
+                ) : (
+                    <div className="text-xs font-medium rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
+                        You can’t send gifts to your own post.
                     </div>
                 )}
             </div>
@@ -294,12 +364,19 @@ export default function PostCard({ post, onOpen }) {
                                     </div>
                                     <p className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>Comments</p>
                                     <div className="space-y-2 mb-3">
-                                        {localComments.map((item) => (
-                                            <div key={item.id} className="p-2.5 rounded-lg" style={{ background: 'var(--color-surface2)' }}>
-                                                <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>@{item.user}</p>
-                                                <p className="text-xs" style={{ color: 'var(--color-sub)' }}>{item.text}</p>
-                                            </div>
-                                        ))}
+                                        {commentsLoading[post.id] ? (
+                                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Loading...</p>
+                                        ) : postComments.length === 0 ? (
+                                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No comments yet.</p>
+                                        ) : (
+                                            postComments.map((item) => (
+                                                <div key={item.id} className="p-2.5 rounded-lg" style={{ background: 'var(--color-surface2)' }}>
+                                                    <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.author?.handle || item.author?.name || 'User'}</p>
+                                                    <p className="text-xs" style={{ color: 'var(--color-sub)' }}>{item.text}</p>
+                                                    {item.createdAt && <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-muted)' }}>{timeAgo(item.createdAt)}</p>}
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <input
@@ -346,27 +423,54 @@ export default function PostCard({ post, onOpen }) {
                                         <div className="w-10 h-1 rounded-full bg-zinc-700/50" />
                                     </div>
                                     <p className="text-sm font-bold mb-4" style={{ color: 'var(--color-text)' }}>Share Post</p>
-                                    <div className="space-y-3">
+                                    <div className="grid grid-cols-3 gap-2">
                                         <button
                                             onClick={() => handleShare('copy_link')}
-                                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors hover:bg-zinc-800/40"
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
                                             style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                                         >
-                                            Copy Link
+                                            <Link2 size={16} />
+                                            Copy
                                         </button>
                                         <button
                                             onClick={() => handleShare('whatsapp')}
-                                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors hover:bg-zinc-800/40"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
+                                            style={{ background: 'rgba(37,211,102,0.12)', color: '#25D366', border: '1px solid rgba(37,211,102,0.35)' }}
                                         >
-                                            Share to WhatsApp
+                                            <MessageCircle size={16} />
+                                            WhatsApp
                                         </button>
                                         <button
                                             onClick={() => handleShare('instagram_story')}
-                                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors hover:bg-zinc-800/40"
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
                                             style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                                         >
-                                            Share to Story
+                                            <Camera size={16} />
+                                            Story
+                                        </button>
+                                        <button
+                                            onClick={() => handleShare('instagram_dm')}
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        >
+                                            <MessagesSquare size={16} />
+                                            IG DM
+                                        </button>
+                                        <button
+                                            onClick={() => handleShare('telegram')}
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        >
+                                            <Send size={16} />
+                                            Telegram
+                                        </button>
+                                        <button
+                                            onClick={() => handleShare('more')}
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                        >
+                                            <MoreHorizontal size={16} />
+                                            More
                                         </button>
                                     </div>
                                 </motion.div>

@@ -1,28 +1,60 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye, Music, Check } from 'lucide-react'
 import { useUserStore } from '../store/useUserStore'
+import { useFeedStore } from '../store/useFeedStore'
+import { postService } from '../services/postService'
 import { getSelectablePostCategories } from '../../../shared/postCategories'
 import { addUserNFTListing } from '../../../shared/nftListings'
 
 const STEPS = [
     { id: 1, label: 'Upload Media', icon: Image },
-    { id: 2, label: 'Caption', icon: FileText },
-    { id: 3, label: 'NFT & Price', icon: ToggleLeft },
-    { id: 4, label: 'Category', icon: Eye },
-    { id: 5, label: 'Preview', icon: Eye },
+    { id: 2, label: 'Edit', icon: Image },
+    { id: 3, label: 'Caption', icon: FileText },
+    { id: 4, label: 'NFT & Price', icon: ToggleLeft },
+    { id: 5, label: 'Category', icon: Eye },
+    { id: 6, label: 'Preview', icon: Eye },
+]
+
+const FILTERS = [
+    { name: 'Normal', value: 'none' },
+    { name: 'Clarendon', value: 'contrast(1.2) saturate(1.35)' },
+    { name: 'Gingham', value: 'brightness(1.05) hue-rotate(-10deg)' },
+    { name: 'Moon', value: 'grayscale(1) contrast(1.1) brightness(1.1)' },
+    { name: 'Lark', value: 'contrast(0.9)' },
+    { name: 'Reyes', value: 'sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)' },
+    { name: 'Juno', value: 'saturate(1.3)' },
+    { name: 'Slumber', value: 'saturate(0.66) hue-rotate(350deg)' },
+    { name: 'Crema', value: 'sepia(0.5) contrast(1.25)' },
+]
+
+const AUDIO_TRACKS = [
+    { id: 'none', title: 'Original Audio', duration: '--:--' },
+    { id: '1', title: 'Trending - Neon Dreams', duration: '0:30' },
+    { id: '2', title: 'LoFi Chill Beats', duration: '1:00' },
+    { id: '3', title: 'Upbeat Pop 2026', duration: '0:45' },
+    { id: '4', title: 'Acoustic Sunset', duration: '0:50' },
 ]
 
 export default function CreatePage() {
+    const navigate = useNavigate()
     const [step, setStep] = useState(1)
     const [isNFT, setIsNFT] = useState(false)
     const [categories, setCategories] = useState(getSelectablePostCategories())
     const [selectedCategory, setSelectedCategory] = useState(categories[0] || 'General')
     const [mediaPreview, setMediaPreview] = useState(null)
+    const [mediaFile, setMediaFile] = useState(null)
+    const [mediaType, setMediaType] = useState('image')
+    const [activeFilter, setActiveFilter] = useState('none')
+    const [selectedMusic, setSelectedMusic] = useState('none')
     const [published, setPublished] = useState(false)
+    const [publishError, setPublishError] = useState('')
+    const [publishing, setPublishing] = useState(false)
     const { register, watch, handleSubmit } = useForm({ defaultValues: { caption: '', price: '' } })
     const { kyc, profile } = useUserStore()
+    const addPost = useFeedStore((s) => s.addPost)
     const caption = watch('caption', '')
     const nftPriceINR = Number(watch('price', 0) || 0)
     const nftPriceUSD = nftPriceINR / 83
@@ -48,30 +80,66 @@ export default function CreatePage() {
 
     const handleMediaChange = (e) => {
         const file = e.target.files?.[0]
-        if (file) setMediaPreview(URL.createObjectURL(file))
+        if (!file) return
+        setMediaFile(file)
+        setMediaPreview(URL.createObjectURL(file))
+        if (file.type.startsWith('video/')) setMediaType('video')
+        else if (file.type.startsWith('audio/')) setMediaType('audio')
+        else setMediaType('image')
     }
 
-    const handlePublish = () => {
-        if (isNFT && nftPriceINR > 0 && nftPriceValid) {
-            addUserNFTListing({
-                title: caption?.trim() ? caption.trim().slice(0, 40) : 'Creator NFT',
-                thumbnail: mediaPreview || '',
-                price: nftPriceINR,
-                creatorId: profile.id,
-                creatorName: profile.username,
-                creatorHandle: profile.handle,
-                status: 'listed',
-                views: 0,
-                bids: 0,
-            })
+    const handlePublish = async () => {
+        setPublishError('')
+        if (!mediaFile) {
+            setPublishError('Please upload an image, video, or audio file.')
+            return
         }
-        setPublished(true)
-        setTimeout(() => {
-            setPublished(false)
-            setStep(1)
-            setMediaPreview(null)
-            setIsNFT(false)
-        }, 2500)
+        setPublishing(true)
+        try {
+            const formData = new FormData()
+            formData.append('media', mediaFile)
+            formData.append('caption', caption?.trim() || '')
+            formData.append('category', selectedCategory || 'General')
+            formData.append('filter', activeFilter || 'none')
+            formData.append('musicTrackId', selectedMusic || 'none')
+            formData.append('isNFT', isNFT ? 'true' : 'false')
+            formData.append('nftPriceINR', String(isNFT ? nftPriceINR : 0))
+            formData.append('aspectRatio', '4/3')
+
+            const res = await postService.createPost(formData)
+            const newPost = res?.post
+            if (newPost) addPost(newPost)
+
+            if (isNFT && nftPriceINR > 0 && nftPriceValid) {
+                addUserNFTListing({
+                    title: caption?.trim() ? caption.trim().slice(0, 40) : 'Creator NFT',
+                    thumbnail: mediaPreview || newPost?.media?.url || '',
+                    price: nftPriceINR,
+                    creatorId: profile.id,
+                    creatorName: profile.username,
+                    creatorHandle: profile.handle,
+                    status: 'listed',
+                    views: 0,
+                    bids: 0,
+                })
+            }
+
+            setPublished(true)
+            setTimeout(() => {
+                setPublished(false)
+                setStep(1)
+                setMediaPreview(null)
+                setMediaFile(null)
+                setActiveFilter('none')
+                setSelectedMusic('none')
+                setIsNFT(false)
+                navigate('/home')
+            }, 1500)
+        } catch (err) {
+            setPublishError(err?.message || 'Failed to publish post')
+        } finally {
+            setPublishing(false)
+        }
     }
 
     if (published) {
@@ -139,7 +207,16 @@ export default function CreatePage() {
                                         }}
                                     >
                                         {mediaPreview ? (
-                                            <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
+                                            mediaType === 'video' ? (
+                                                <video src={mediaPreview} className="w-full h-full object-cover" controls muted />
+                                            ) : mediaType === 'audio' ? (
+                                                <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4" style={{ background: 'var(--color-surface2)' }}>
+                                                    <Music size={40} style={{ color: 'var(--color-primary)' }} />
+                                                    <audio src={mediaPreview} controls className="w-full max-w-xs" />
+                                                </div>
+                                            ) : (
+                                                <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
+                                            )
                                         ) : (
                                             <>
                                                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -150,23 +227,109 @@ export default function CreatePage() {
                                                     Tap to upload
                                                 </p>
                                                 <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                                                    Image or Video
+                                                    Image, Video or Audio
                                                 </p>
                                             </>
                                         )}
                                     </div>
-                                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaChange} />
+                                    <input type="file" accept="image/*,video/*,audio/*" className="hidden" onChange={handleMediaChange} />
                                 </label>
                             </div>
                         )}
 
-                        {/* Step 2: Caption */}
+                        {/* Step 2: Edit Media */}
                         {step === 2 && (
+                            <div>
+                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Edit Media</p>
+                                {mediaPreview && (
+                                    <div className="w-full rounded-2xl overflow-hidden mb-6 border border-surface" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
+                                        {mediaType === 'video' ? (
+                                            <video src={mediaPreview} className="w-full h-full object-cover" controls muted />
+                                        ) : mediaType === 'audio' ? (
+                                            <div className="p-4 flex flex-col items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
+                                                <Music size={32} style={{ color: 'var(--color-primary)' }} />
+                                                <audio src={mediaPreview} controls className="w-full" />
+                                            </div>
+                                        ) : (
+                                            <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" style={{ filter: activeFilter }} />
+                                        )}
+                                    </div>
+                                )}
+                                {mediaType === 'image' && (
+                                <div className="overflow-x-auto hide-scrollbar pb-2">
+                                    <div className="flex gap-3 px-1 w-max">
+                                        {FILTERS.map(f => (
+                                            <div
+                                                key={f.name}
+                                                className="flex flex-col items-center gap-1 cursor-pointer"
+                                                onClick={() => setActiveFilter(f.value)}
+                                            >
+                                                <div
+                                                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeFilter === f.value ? 'border-primary scale-105' : 'border-transparent'}`}
+                                                >
+                                                    <img
+                                                        src={mediaPreview || "https://i.pravatar.cc/150"}
+                                                        className="w-full h-full object-cover"
+                                                        style={{ filter: f.value }}
+                                                        alt={f.name}
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] font-semibold" style={{ color: activeFilter === f.value ? 'var(--color-primary)' : 'var(--color-text)' }}>
+                                                    {f.name}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                )}
+
+                                <div className="mt-8">
+                                    <p className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+                                        <Music size={16} /> Add Music
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        {AUDIO_TRACKS.map(track => (
+                                            <div
+                                                key={track.id}
+                                                onClick={() => setSelectedMusic(track.id)}
+                                                className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200"
+                                                style={{
+                                                    background: selectedMusic === track.id ? 'var(--color-primary)' : 'var(--color-surface)',
+                                                    color: selectedMusic === track.id ? '#000' : 'var(--color-text)',
+                                                    border: `1px solid ${selectedMusic === track.id ? 'var(--color-primary)' : 'var(--color-border)'}`
+                                                }}
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-bold">{track.title}</p>
+                                                    <p className="text-[10px] opacity-80" style={{ color: selectedMusic === track.id ? '#000' : 'var(--color-muted)' }}>
+                                                        {track.duration}
+                                                    </p>
+                                                </div>
+                                                {selectedMusic === track.id && <Check size={18} />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+
+                        {/* Step 3: Caption */}
+                        {step === 3 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Add Caption</p>
                                 {mediaPreview && (
-                                    <div className="w-full rounded-xl overflow-hidden mb-4" style={{ aspectRatio: '4/3' }}>
-                                        <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
+                                    <div className="w-full rounded-xl overflow-hidden mb-4" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
+                                        {mediaType === 'video' ? (
+                                            <video src={mediaPreview} className="w-full h-full object-cover" muted />
+                                        ) : mediaType === 'audio' ? (
+                                            <div className="p-3 flex items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
+                                                <Music size={24} style={{ color: 'var(--color-primary)' }} />
+                                                <audio src={mediaPreview} controls className="flex-1" />
+                                            </div>
+                                        ) : (
+                                            <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" style={{ filter: activeFilter }} />
+                                        )}
                                     </div>
                                 )}
                                 <textarea
@@ -189,8 +352,8 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 3: NFT Toggle */}
-                        {step === 3 && (
+                        {/* Step 4: NFT Toggle */}
+                        {step === 4 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>List as NFT</p>
                                 <div
@@ -246,8 +409,8 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 4: Category */}
-                        {step === 4 && (
+                        {/* Step 5: Category */}
+                        {step === 5 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Select Category</p>
                                 <div className="grid grid-cols-2 gap-2">
@@ -273,13 +436,23 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 5: Preview */}
-                        {step === 5 && (
+                        {/* Step 6: Preview */}
+                        {step === 6 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Preview & Publish</p>
+                                {publishError && <p className="text-xs text-red-500 mb-2">{publishError}</p>}
                                 <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
                                     {mediaPreview && (
-                                        <img src={mediaPreview} alt="preview" className="w-full object-cover" style={{ aspectRatio: '4/3' }} />
+                                        mediaType === 'video' ? (
+                                            <video src={mediaPreview} className="w-full object-cover" style={{ aspectRatio: '4/3' }} muted />
+                                        ) : mediaType === 'audio' ? (
+                                            <div className="p-4 flex items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
+                                                <Music size={28} style={{ color: 'var(--color-primary)' }} />
+                                                <audio src={mediaPreview} controls className="flex-1" />
+                                            </div>
+                                        ) : (
+                                            <img src={mediaPreview} alt="preview" className="w-full object-cover" style={{ aspectRatio: '4/3', filter: activeFilter }} />
+                                        )
                                     )}
                                     <div className="p-4">
                                         <p className="text-sm" style={{ color: 'var(--color-sub)' }}>
@@ -296,6 +469,13 @@ export default function CreatePage() {
                                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                     style={{ background: 'rgba(168,85,247,0.12)', color: 'var(--color-purple)' }}>
                                                     NFT Listed
+                                                </span>
+                                            )}
+                                            {selectedMusic !== 'none' && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1"
+                                                    style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}>
+                                                    <Music size={10} />
+                                                    {AUDIO_TRACKS.find(t => t.id === selectedMusic)?.title}
                                                 </span>
                                             )}
                                         </div>
@@ -322,7 +502,7 @@ export default function CreatePage() {
                         <ChevronLeft size={16} /> Previous
                     </motion.button>
                 )}
-                {step < 5 ? (
+                {step < 6 ? (
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setStep(step + 1)}
@@ -338,13 +518,14 @@ export default function CreatePage() {
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={handlePublish}
-                        className="flex-1 py-3 rounded-xl text-sm font-bold cursor-pointer"
+                        disabled={publishing}
+                        className="flex-1 py-3 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-50"
                         style={{
                             background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))',
                             color: '#fff',
                         }}
                     >
-                        🚀 Publish
+                        {publishing ? 'Publishing...' : '🚀 Publish'}
                     </motion.button>
                 )}
             </div>

@@ -1,24 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
 import ProfileHeader from '../components/profile/ProfileHeader'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
-import { mockNFTs, mockProfilePosts } from '../data/mockNFTs'
+import { mockNFTs } from '../data/mockNFTs'
 import { mockTasks } from '../data/mockTasks'
+import { followService } from '../services/followService'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
-const SETTINGS_SECTIONS = ['Personal Information', 'Change Password', 'Terms & Policies', 'Contacts']
+const SETTINGS_SECTIONS = ['Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
 export default function ProfilePage() {
     const navigate = useNavigate()
     const location = useLocation()
-    const { profile, updateProfile, toggleDarkMode, darkMode } = useUserStore()
-    const { posts } = useFeedStore()
+    const { profile, updateProfile, toggleDarkMode, darkMode, user } = useUserStore()
+    const { posts, loadPosts } = useFeedStore()
+    const profilePosts = useMemo(() => posts.filter((p) => String(p.creator?.id) === String(profile?.id)), [posts, profile?.id])
     const [activeTab, setActiveTab] = useState('Posts')
     const [editOpen, setEditOpen] = useState(false)
     const [activePostIndex, setActivePostIndex] = useState(null)
@@ -29,6 +31,9 @@ export default function ProfilePage() {
     const [editAvatar, setEditAvatar] = useState(null)
     const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
     const [passwordMsg, setPasswordMsg] = useState('')
+    const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
+    const [followers, setFollowers] = useState([])
+    const [following, setFollowing] = useState([])
 
     const { register, handleSubmit } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
     const settingsForm = useForm({
@@ -42,22 +47,45 @@ export default function ProfilePage() {
         },
     })
 
-    const onEdit = (data) => {
-        updateProfile({ ...data, avatar: editAvatar || profile.avatar })
-        setEditAvatar(null)
-        setEditOpen(false)
+    const [profileSaveError, setProfileSaveError] = useState('')
+    const [profileSaving, setProfileSaving] = useState(false)
+
+    const onEdit = async (data) => {
+        setProfileSaveError('')
+        setProfileSaving(true)
+        try {
+            await updateProfile({
+                name: data.username || profile.fullName,
+                bio: data.bio,
+                avatar: editAvatar || profile.avatar,
+            })
+            setEditAvatar(null)
+            setEditOpen(false)
+        } catch (err) {
+            setProfileSaveError(err?.message || 'Failed to save profile')
+        } finally {
+            setProfileSaving(false)
+        }
     }
 
-    const onSavePersonalInfo = (data) => {
-        updateProfile({
-            fullName: data.fullName,
-            username: data.username,
-            handle: data.handle.startsWith('@') ? data.handle : `@${data.handle}`,
-            email: data.email,
-            phone: data.phone,
-            bio: data.bio,
-        })
-        setSettingsOpen(false)
+    const onSavePersonalInfo = async (data) => {
+        setProfileSaveError('')
+        setProfileSaving(true)
+        try {
+            await updateProfile({
+                fullName: data.fullName,
+                username: data.username,
+                handle: data.handle?.startsWith('@') ? data.handle : `@${data.handle || ''}`,
+                email: data.email,
+                phone: data.phone,
+                bio: data.bio,
+            })
+            setSettingsOpen(false)
+        } catch (err) {
+            setProfileSaveError(err?.message || 'Failed to save profile')
+        } finally {
+            setProfileSaving(false)
+        }
     }
 
     const onChangePassword = () => {
@@ -74,6 +102,46 @@ export default function ProfilePage() {
     }
 
     useEffect(() => {
+        settingsForm.reset({
+            fullName: profile.fullName || profile.username,
+            username: profile.username,
+            handle: profile.handle,
+            email: profile.email || '',
+            phone: profile.phone || '',
+            bio: profile.bio,
+        })
+    }, [profile.id, profile.email, profile.fullName, profile.username, profile.handle, profile.phone, profile.bio])
+
+    useEffect(() => { loadPosts() }, [loadPosts])
+
+    // Load followers / following for the logged-in user from backend
+    useEffect(() => {
+        const userId = profile?.id
+        if (!userId) return
+        let cancelled = false
+        const load = async () => {
+            try {
+                const [fRes, gRes] = await Promise.all([
+                    followService.getFollowers(userId),
+                    followService.getFollowing(userId),
+                ])
+                if (cancelled) return
+                setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
+                setFollowing(Array.isArray(gRes.following) ? gRes.following : [])
+            } catch {
+                if (!cancelled) {
+                    setFollowers([])
+                    setFollowing([])
+                }
+            }
+        }
+        load()
+        return () => {
+            cancelled = true
+        }
+    }, [profile.id])
+
+    useEffect(() => {
         const state = location.state
         if (!state?.openSettings) return
         setSettingsOpen(true)
@@ -82,10 +150,38 @@ export default function ProfilePage() {
         navigate(location.pathname, { replace: true, state: null })
     }, [location.pathname, location.state, navigate])
 
+    useEffect(() => {
+        const key = 'socialearn_screen_time_start_v1'
+        const todayKey = new Date().toISOString().slice(0, 10)
+        const startValue = window.localStorage.getItem(key)
+        const parsed = startValue ? JSON.parse(startValue) : null
+        if (!parsed || parsed.day !== todayKey) {
+            window.localStorage.setItem(key, JSON.stringify({ day: todayKey, startAt: Date.now() }))
+        }
+
+        const formatDuration = (ms) => {
+            const totalMinutes = Math.max(0, Math.floor(ms / 60000))
+            const hours = Math.floor(totalMinutes / 60)
+            const minutes = totalMinutes % 60
+            if (hours === 0) return `${minutes}m`
+            return `${hours}h ${minutes}m`
+        }
+
+        const tick = () => {
+            const raw = window.localStorage.getItem(key)
+            const current = raw ? JSON.parse(raw) : { day: todayKey, startAt: Date.now() }
+            setScreenTimeLabel(formatDuration(Date.now() - Number(current.startAt || Date.now())))
+        }
+
+        tick()
+        const timer = window.setInterval(tick, 30000)
+        return () => window.clearInterval(timer)
+    }, [])
+
     return (
         <div>
             <ProfileHeader
-                profile={profile}
+                profile={{ ...profile, followers: followers.length, following: following.length }}
                 onEdit={() => setEditOpen(true)}
                 onOpenFollowers={() => setConnectionsOpen('followers')}
                 onOpenFollowing={() => setConnectionsOpen('following')}
@@ -134,11 +230,28 @@ export default function ProfilePage() {
                 <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                     {activeTab === 'Posts' && (
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                            {mockProfilePosts.map((post) => (
-                                <div key={post.id} className="relative cursor-pointer" style={{ aspectRatio: '1' }} onClick={() => setActivePostIndex(mockProfilePosts.findIndex((item) => item.id === post.id) % posts.length)}>
-                                    <img src={post.thumbnail} alt="post" className="w-full h-full object-cover" loading="lazy" />
+                            {profilePosts.map((post) => (
+                                <div key={post.id} className="relative cursor-pointer overflow-hidden" style={{ aspectRatio: '1' }} onClick={() => setActivePostIndex(profilePosts.findIndex((item) => item.id === post.id))}>
+                                    {post.media?.type === 'video' ? (
+                                        <>
+                                            <video
+                                                src={post.media?.url || post.thumbnail}
+                                                muted
+                                                playsInline
+                                                preload="metadata"
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                                                    <Play size={22} className="text-white" fill="white" />
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <img src={post.media?.url || post.thumbnail} alt="post" className="w-full h-full object-cover" loading="lazy" />
+                                    )}
                                     <div className="absolute bottom-1 right-1">
-                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>₹{post.earnings}</span>
+                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>₹{post.earnings ?? 0}</span>
                                     </div>
                                 </div>
                             ))}
@@ -176,7 +289,7 @@ export default function ProfilePage() {
                     )}
                 </motion.div>
             </AnimatePresence>
-            <PostFeedModal posts={posts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            <PostFeedModal posts={profilePosts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
 
             <AnimatePresence>
                 {editOpen && (
@@ -188,11 +301,12 @@ export default function ProfilePage() {
                                 <button onClick={() => setEditOpen(false)} className="cursor-pointer"><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
                             </div>
                             <form onSubmit={handleSubmit(onEdit)} className="flex flex-col gap-4">
+                                {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}
                                 <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
                                     <div className="w-12 h-12 rounded-full overflow-hidden" style={{ background: 'var(--color-surface)' }}>
                                         {(editAvatar || profile.avatar)
                                             ? <img src={editAvatar || profile.avatar} alt={profile.username} className="w-full h-full object-cover" />
-                                            : <div className="w-full h-full flex items-center justify-center text-sm font-bold" style={{ color: 'var(--color-muted)' }}>{profile.username.charAt(0)}</div>}
+                                            : <div className="w-full h-full flex items-center justify-center text-sm font-bold" style={{ color: 'var(--color-muted)' }}>{(profile.username || user?.name || '').charAt(0)}</div>}
                                     </div>
                                     <label className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }}>
                                         Change Profile Photo
@@ -218,8 +332,8 @@ export default function ProfilePage() {
                                     <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>Bio</label>
                                     <textarea {...register('bio')} rows={3} className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                 </div>
-                                <motion.button type="submit" whileTap={{ scale: 0.96 }} className="w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))', color: '#fff' }}>
-                                    Save Changes
+                                <motion.button type="submit" disabled={profileSaving} whileTap={{ scale: 0.96 }} className="w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-50" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))', color: '#fff' }}>
+                                    {profileSaving ? 'Saving...' : 'Save Changes'}
                                 </motion.button>
                             </form>
                         </motion.div>
@@ -229,15 +343,15 @@ export default function ProfilePage() {
 
             <AnimatePresence>
                 {connectionsOpen && (
-                    <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConnectionsOpen(null)}>
-                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-8 max-h-[70vh] overflow-y-auto" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+                    <motion.div className="fixed inset-0 z-[120] flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConnectionsOpen(null)}>
+                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-8 max-h-[70vh] overflow-y-auto pb-[var(--bottom-nav-height)]" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-center mb-4"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} /></div>
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>{connectionsOpen === 'followers' ? 'Followers' : 'Following'}</p>
                                 <button onClick={() => setConnectionsOpen(null)} className="cursor-pointer"><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
                             </div>
                             <div className="space-y-2">
-                                {(connectionsOpen === 'followers' ? profile.followersList : profile.followingList).map((item) => (
+                                {(connectionsOpen === 'followers' ? followers : following).map((item) => (
                                     <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
                                         <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'var(--color-primary)' }}>{item.name.charAt(0)}</div>
                                         <div>
@@ -292,13 +406,14 @@ export default function ProfilePage() {
 
                                 {settingsMode === 'detail' && settingsTab === 'Personal Information' && (
                                     <form onSubmit={settingsForm.handleSubmit(onSavePersonalInfo)} className="space-y-3">
+                                        {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}
                                         <input {...settingsForm.register('fullName')} placeholder="Full Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('username')} placeholder="User Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('handle')} placeholder="@handle" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('email')} placeholder="Email" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('phone')} placeholder="Phone Number" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <textarea {...settingsForm.register('bio')} rows={3} placeholder="Bio" className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <button type="submit" className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>Save Personal Information</button>
+                                        <button type="submit" disabled={profileSaving} className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-primary)', color: '#fff' }}>{profileSaving ? 'Saving...' : 'Save Personal Information'}</button>
                                     </form>
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Change Password' && (
@@ -308,6 +423,17 @@ export default function ProfilePage() {
                                         <input type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} placeholder="Confirm New Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <button onClick={onChangePassword} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>Update Password</button>
                                         {passwordMsg && <p className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>{passwordMsg}</p>}
+                                    </div>
+                                )}
+                                {settingsMode === 'detail' && settingsTab === 'Usage & Screen Time' && (
+                                    <div className="space-y-3">
+                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                                            <Clock3 size={14} style={{ color: 'var(--color-primary)' }} />
+                                            <div>
+                                                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Today Screen Time</p>
+                                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{screenTimeLabel}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Terms & Policies' && (

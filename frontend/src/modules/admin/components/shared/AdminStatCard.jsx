@@ -1,25 +1,29 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { simplifyAdminCopy } from '../../utils/simplifyCopy';
 
 export default function AdminStatCard({ label, value, change, icon: Icon, color = 'primary', delay = 0, path }) {
+    const simpleLabel = simplifyAdminCopy(label);
+    const simpleChange = simplifyAdminCopy(change);
+
     const CardContent = (
         <div className="relative z-10 w-full h-full">
             <div className="flex justify-between items-start mb-4">
                 <div className={`p-2.5 rounded-lg bg-${color}/5 text-${color} border border-${color}/10 group-hover:scale-110 transition-transform duration-500`}>
                     <Icon className="w-5 h-5" />
                 </div>
-                {change && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${change.startsWith('+')
+                {simpleChange && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${String(simpleChange).startsWith('+')
                             ? 'bg-emerald-500/10 text-emerald-500'
-                            : change.includes('%') ? 'bg-indigo-500/10 text-indigo-500' : 'bg-rose-500/10 text-rose-500'
+                            : String(simpleChange).includes('%') ? 'bg-indigo-500/10 text-indigo-500' : 'bg-rose-500/10 text-rose-500'
                         }`}>
-                        {change}
+                        {simpleChange}
                     </span>
                 )}
             </div>
             <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1 opacity-60">{label}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1 opacity-60">{simpleLabel}</p>
                 <p className="text-xl font-bold text-text tracking-tight">{value}</p>
             </div>
         </div>

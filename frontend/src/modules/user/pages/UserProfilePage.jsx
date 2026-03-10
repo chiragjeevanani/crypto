@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X } from 'lucide-react'
-import { mockProfilePosts, mockNFTs } from '../data/mockNFTs'
+import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play } from 'lucide-react'
+import { mockNFTs } from '../data/mockNFTs'
 import { useFeedStore } from '../store/useFeedStore'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
+import { followService } from '../services/followService'
 
 const TABS = ['Posts', 'NFTs']
 
@@ -19,16 +20,51 @@ function getColor(id) {
 export default function UserProfilePage() {
     const { userId } = useParams()
     const navigate = useNavigate()
-    const { toggleFollow, posts } = useFeedStore()
+    const { toggleFollow, posts, loadPosts } = useFeedStore()
     const [activeTab, setActiveTab] = useState('Posts')
     const [activePostIndex, setActivePostIndex] = useState(null)
     const [connectionsOpen, setConnectionsOpen] = useState(null)
+    const [followers, setFollowers] = useState([])
+    const [following, setFollowing] = useState([])
 
-    // Find user in posts
+    useEffect(() => { loadPosts() }, [loadPosts])
+
+    // Load followers / following for this profile from backend
+    useEffect(() => {
+        const id = userId
+        if (!id) return
+        let cancelled = false
+        const load = async () => {
+            try {
+                const [fRes, gRes] = await Promise.all([
+                    followService.getFollowers(id),
+                    followService.getFollowing(id),
+                ])
+                if (cancelled) return
+                setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
+                setFollowing(Array.isArray(gRes.following) ? gRes.following : [])
+            } catch {
+                if (!cancelled) {
+                    setFollowers([])
+                    setFollowing([])
+                }
+            }
+        }
+        load()
+        return () => {
+            cancelled = true
+        }
+    }, [userId])
+
+    // That user's posts from feed (current posts for this profile)
+    const userPosts = useMemo(() => {
+        return posts.filter((p) => String(p.creator?.id) === String(userId))
+    }, [posts, userId])
+
+    // Find user from first post or fallback
     const user = useMemo(() => {
-        const post = posts.find(p => p.creator.id === userId)
-        if (post) return post.creator
-        // Fallback or handle not found
+        const post = posts.find((p) => String(p.creator?.id) === String(userId))
+        if (post?.creator) return post.creator
         return {
             id: userId,
             username: 'Unknown User',
@@ -37,59 +73,22 @@ export default function UserProfilePage() {
         }
     }, [userId, posts])
 
-    // Keep grid as existing profile posts, only use modal mapping for full-view opening
-    const userPosts = useMemo(() => {
-        return mockProfilePosts.slice(0, 6)
-    }, [])
-
-    const modalPosts = useMemo(() => {
-        const fromFeed = posts.filter((p) => p.creator.id === userId)
-        if (fromFeed.length) return fromFeed
-        return userPosts.map((post, idx) => ({
-            id: `fallback_${userId}_${idx}`,
-            creator: {
-                id: user.id,
-                username: user.username,
-                handle: user.handle,
-                avatar: null,
-                isFollowing: user.isFollowing,
-            },
-            media: {
-                type: 'image',
-                url: post.thumbnail,
-                aspectRatio: '1/1',
-            },
-            caption: 'Creator post',
-            postType: 'regular',
-            allowGifts: true,
-            likes: post.likes || 0,
-            comments: 0,
-            shares: 0,
-            earnings: post.earnings || 0,
-            isLiked: false,
-            createdAt: new Date().toISOString(),
-        }))
-    }, [posts, userId, user, userPosts])
-
     const avatarColor = getColor(userId)
-    const followersList = useMemo(
-        () =>
-            Array.from({ length: 100 }).map((_, idx) => ({
-                id: `f_${idx + 1}`,
-                name: `Follower ${idx + 1}`,
-                handle: `@follower${idx + 1}`,
-            })),
-        [],
-    )
-    const followingList = useMemo(
-        () =>
-            Array.from({ length: 64 }).map((_, idx) => ({
-                id: `g_${idx + 1}`,
-                name: `Following ${idx + 1}`,
-                handle: `@following${idx + 1}`,
-            })),
-        [],
-    )
+
+    const handleToggleFollow = async () => {
+        try {
+            await toggleFollow(user.id)
+            // Refresh followers/following so counts and lists stay in sync with DB
+            const [fRes, gRes] = await Promise.all([
+                followService.getFollowers(user.id),
+                followService.getFollowing(user.id),
+            ])
+            setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
+            setFollowing(Array.isArray(gRes.following) ? gRes.following : [])
+        } catch {
+            // error handling not critical for UI here; state already optimistically toggled
+        }
+    }
 
     return (
         <div className="flex flex-col h-full bg-inherit">
@@ -132,9 +131,9 @@ export default function UserProfilePage() {
                         {/* Stats */}
                         <div className="flex-1 grid grid-cols-3 gap-2 pt-4">
                             {[
-                                { label: 'Posts', value: '1.2K', onClick: null },
-                                { label: 'Followers', value: String(followersList.length), onClick: () => setConnectionsOpen('followers') },
-                                { label: 'Following', value: String(followingList.length), onClick: () => setConnectionsOpen('following') },
+                                { label: 'Posts', value: String(userPosts.length), onClick: null },
+                                { label: 'Followers', value: String(followers.length), onClick: () => setConnectionsOpen('followers') },
+                                { label: 'Following', value: String(following.length), onClick: () => setConnectionsOpen('following') },
                             ].map((stat) => (
                                 <div key={stat.label} className="flex flex-col items-center">
                                     <button
@@ -180,7 +179,7 @@ export default function UserProfilePage() {
                     <div className="flex gap-2 mt-5">
                         <motion.button
                             whileTap={{ scale: 0.96 }}
-                            onClick={() => toggleFollow(user.id)}
+                            onClick={handleToggleFollow}
                             className="flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all"
                             style={
                                 user.isFollowing
@@ -237,19 +236,36 @@ export default function UserProfilePage() {
                     {activeTab === 'Posts' && (
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
                             {userPosts.map((post, idx) => (
-                                <div key={post.id} className="relative aspect-square cursor-pointer" onClick={() => setActivePostIndex(idx)}>
-                                    <img
-                                        src={post.thumbnail}
-                                        alt="post"
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
+                                <div key={post.id} className="relative aspect-square cursor-pointer overflow-hidden" onClick={() => setActivePostIndex(idx)}>
+                                    {post.media?.type === 'video' ? (
+                                        <>
+                                            <video
+                                                src={post.media?.url || post.thumbnail}
+                                                muted
+                                                playsInline
+                                                preload="metadata"
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                                                    <Play size={22} className="text-white" fill="white" />
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <img
+                                            src={post.media?.url || post.thumbnail}
+                                            alt="post"
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    )}
                                     <div className="absolute bottom-1 right-1">
                                         <span
                                             className="text-[9px] font-bold px-1 py-0.5 rounded-sm"
                                             style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}
                                         >
-                                            ₹{post.earnings}
+                                            ₹{post.earnings ?? 0}
                                         </span>
                                     </div>
                                 </div>
@@ -281,12 +297,12 @@ export default function UserProfilePage() {
                     )}
                 </div>
             </div>
-            <PostFeedModal posts={modalPosts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            <PostFeedModal posts={userPosts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
 
             <AnimatePresence>
                 {connectionsOpen && (
                     <motion.div
-                        className="fixed inset-0 z-40 flex flex-col justify-end"
+                        className="fixed inset-0 z-[120] flex flex-col justify-end"
                         style={{ background: 'rgba(0,0,0,0.6)' }}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -294,7 +310,7 @@ export default function UserProfilePage() {
                         onClick={() => setConnectionsOpen(null)}
                     >
                         <motion.div
-                            className="rounded-t-3xl px-5 pt-4 pb-8 max-h-[72vh] overflow-y-auto"
+                            className="rounded-t-3xl px-5 pt-4 pb-8 max-h-[72vh] overflow-y-auto pb-[var(--bottom-nav-height)]"
                             style={{ background: 'var(--color-surface)' }}
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
@@ -314,7 +330,7 @@ export default function UserProfilePage() {
                                 </button>
                             </div>
                             <div className="space-y-2">
-                                {(connectionsOpen === 'followers' ? followersList : followingList).map((item) => (
+                                {(connectionsOpen === 'followers' ? followers : following).map((item) => (
                                     <div
                                         key={item.id}
                                         className="flex items-center gap-3 p-3 rounded-xl"

@@ -97,8 +97,20 @@ const ChartBar = ({ height, value }) => {
 
 export default function AdminDashboard() {
     const {
-        loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts,
-        computePRDMetrics, prdMetrics, users, withdrawals, campaigns, posts, isLoading
+        loadUsers,
+        loadWithdrawals,
+        loadGifts,
+        loadCampaigns,
+        loadLedger,
+        loadPosts,
+        computePRDMetrics,
+        prdMetrics,
+        users,
+        usersData,
+        withdrawals,
+        campaigns,
+        posts,
+        isLoading
     } = useAdminStore();
 
     useEffect(() => {
@@ -116,23 +128,16 @@ export default function AdminDashboard() {
         syncAll();
     }, [loadUsers, loadWithdrawals, loadGifts, loadCampaigns, loadLedger, loadPosts, computePRDMetrics]);
 
+    const totalUsers = usersData?.total ?? users.length;
     const activeMandates = campaigns.filter(c => c.status === 'Active').length;
     const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'Pending').length;
     const flaggedPostsCount = posts.filter(p => p.status === 'Flagged' || p.status === 'Urgent').length;
 
     const summaryStats = [
         {
-            label: 'Platform Revenue',
-            value: formatCurrency(124502.80),
-            change: '+12.5%',
-            icon: DollarSign,
-            color: 'emerald-500',
-            path: '/admin/financials'
-        },
-        {
             label: 'Active Creators',
-            value: (prdMetrics?.dauProxy || users.length).toLocaleString(),
-            change: 'DAU Proxy',
+            value: totalUsers.toLocaleString(),
+            change: 'Total registered',
             icon: Users,
             color: 'blue-500',
             path: '/admin/users'

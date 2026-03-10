@@ -14,9 +14,10 @@ import {
 } from 'lucide-react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../user/store/useUserStore';
+import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
 
 export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMenuOpen }) {
-    const { darkMode, toggleDarkMode, logout } = useUserStore();
+    const { darkMode, toggleDarkMode, logout, user, profile } = useUserStore();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -90,13 +91,13 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                 <div className="relative group">
                     <button className="flex items-center gap-3 p-1 rounded-lg hover:bg-surface2 transition-all">
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-[10px] text-black shadow-md">
-                            AD
+                            {(user?.name || 'AD').slice(0, 2).toUpperCase()}
                         </div>
                         <div className="hidden lg:block text-left pr-2">
-                            <p className="text-[10px] font-bold text-text leading-tight uppercase tracking-wider">Supernode</p>
+                            <p className="text-[10px] font-bold text-text leading-tight uppercase tracking-wider truncate max-w-[120px]">{user?.name || getRoleLabel(user?.role)}</p>
                             <div className="flex items-center gap-1 mt-0.5">
                                 <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                                <span className="text-[8px] text-muted font-bold uppercase tracking-widest">Connected</span>
+                                <span className="text-[8px] text-muted font-bold uppercase tracking-widest">{getRoleHandle(user, profile)}</span>
                             </div>
                         </div>
                     </button>
@@ -105,12 +106,13 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                     <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right group-hover:translate-y-0 translate-y-1">
                         <div className="w-52 bg-surface border border-surface rounded-lg shadow-2xl p-2">
                             <div className="px-3 py-2 mb-2 border-b border-surface pb-3">
-                                <p className="text-[10px] font-bold text-text uppercase tracking-wider">Administrative Suite</p>
-                                <p className="text-[8px] text-muted font-medium mt-0.5 uppercase tracking-wider truncate">admin.socialearn.io</p>
+                                <p className="text-[10px] font-bold text-text uppercase tracking-wider truncate">{user?.name || getRoleLabel(user?.role)}</p>
+                                <p className="text-[8px] text-muted font-medium mt-0.5 uppercase tracking-wider truncate">{user?.email || '—'}</p>
+                                <p className="text-[8px] text-muted/80 mt-0.5">{getRoleHandle(user, profile)} · {getRoleLabel(user?.role)}</p>
                             </div>
-                            <button className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider hover:bg-primary/5 hover:text-primary rounded-md transition-colors text-text group/item">
-                                <User className="w-3.5 h-3.5" /> Credentials
-                            </button>
+                            <Link to="/admin/profile" className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider hover:bg-primary/5 hover:text-primary rounded-md transition-colors text-text group/item">
+                                <User className="w-3.5 h-3.5" /> My Profile
+                            </Link>
                             <button className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider hover:bg-primary/5 hover:text-primary rounded-md transition-colors text-text group/item">
                                 <Settings className="w-3.5 h-3.5" /> Parameters
                             </button>

@@ -1,21 +1,104 @@
 import { create } from 'zustand'
-import { mockPosts } from '../data/mockPosts'
+import { postService } from '../services/postService'
+import { followService } from '../services/followService'
+
+const getStoredCurrencySymbol = () => {
+    try {
+        const raw = localStorage.getItem('crypto_auth_user')
+        if (!raw) return '₹'
+        const user = JSON.parse(raw)
+        return user?.currencySymbol || '₹'
+    } catch {
+        return '₹'
+    }
+}
+
+// Post IDs the current user has already shared (so we only count once per user when API fails or mock data)
+const SHARED_POST_IDS_KEY = 'crypto_feed_shared_post_ids';
+
+const getSharedPostIds = () => {
+    try {
+        const raw = localStorage.getItem(SHARED_POST_IDS_KEY)
+        if (!raw) return new Set()
+        return new Set(JSON.parse(raw))
+    } catch {
+        return new Set()
+    }
+}
+
+const saveSharedPostIds = (set) => {
+    try {
+        localStorage.setItem(SHARED_POST_IDS_KEY, JSON.stringify([...set]))
+    } catch { /* ignore */ }
+}
 
 export const useFeedStore = create((set, get) => ({
-    posts: mockPosts,
+    posts: [],
+    postsLoading: false,
+    postsError: null,
+    commentsByPostId: {},
+    commentsLoading: {},
+
+    addPost: (post) => set((state) => ({
+        posts: [post, ...state.posts],
+    })),
+
+    loadPosts: async () => {
+        set({ postsLoading: true, postsError: null })
+        try {
+            const res = await postService.getPosts()
+            const list = res?.posts || []
+            // Always reflect backend state, even if empty (no mock fallback)
+            set({ posts: list })
+        } catch (err) {
+            set({ postsError: err?.message || 'Failed to load feed' })
+        } finally {
+            set({ postsLoading: false })
+        }
+    },
+
+    loadComments: async (postId) => {
+        set((state) => ({ commentsLoading: { ...state.commentsLoading, [postId]: true } }))
+        try {
+            const res = await postService.getComments(postId)
+            const list = res?.comments || []
+            set((state) => ({
+                commentsByPostId: { ...state.commentsByPostId, [postId]: list },
+                commentsLoading: { ...state.commentsLoading, [postId]: false },
+            }))
+            return list
+        } catch (err) {
+            set((state) => ({ commentsLoading: { ...state.commentsLoading, [postId]: false } }))
+            return []
+        }
+    },
+
     giftAnimations: {}, // postId -> { emoji, key }
     splats: {}, // postId -> { type, key }
     roseTrigger: 0,
     notifications: [],
     unreadNotifications: 0,
 
-    toggleLike: (postId) => set((state) => ({
-        posts: state.posts.map((p) =>
-            p.id === postId
-                ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
-                : p
-        ),
-    })),
+    toggleLike: async (postId) => {
+        try {
+            const res = await postService.likePost(postId)
+            set((state) => ({
+                posts: state.posts.map((p) =>
+                    p.id === postId
+                        ? { ...p, isLiked: res.liked, likes: res.likes ?? (res.liked ? p.likes + 1 : p.likes - 1) }
+                        : p
+                ),
+            }))
+        } catch {
+            set((state) => ({
+                posts: state.posts.map((p) =>
+                    p.id === postId
+                        ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
+                        : p
+                ),
+            }))
+        }
+    },
 
     sendGift: (postId, gift) => {
         const { id, price, emoji } = gift
@@ -27,7 +110,7 @@ export const useFeedStore = create((set, get) => ({
             extraNotifications.push({
                 id: `note_${Date.now()}`,
                 type: 'premium_gift',
-                title: `Premium gift broadcast: ₹${price} ${gift.name}`,
+                title: `Premium gift broadcast: ${getStoredCurrencySymbol()}${price} ${gift.name}`,
                 subtitle: `${target?.creator?.username || 'Creator'} just received a premium gift. Join the post now.`,
                 createdAt: new Date().toISOString(),
             })
@@ -74,39 +157,108 @@ export const useFeedStore = create((set, get) => ({
         splats: { ...state.splats, [postId]: null },
     })),
 
-    toggleFollow: (creatorId) => set((state) => ({
-        posts: state.posts.map((p) =>
-            p.creator.id === creatorId
-                ? { ...p, creator: { ...p.creator, isFollowing: !p.creator.isFollowing } }
-                : p
-        ),
-    })),
+    toggleFollow: async (creatorId) => {
+        try {
+            const res = await followService.toggleFollow(creatorId)
+            const isFollowing = !!res.following
+            const followerCount = typeof res.followerCount === 'number' ? res.followerCount : null
+            set((state) => ({
+                posts: state.posts.map((p) =>
+                    p.creator.id === creatorId
+                        ? {
+                            ...p,
+                            creator: {
+                                ...p.creator,
+                                isFollowing,
+                                followers: followerCount !== null ? followerCount : p.creator.followers,
+                            },
+                        }
+                        : p
+                ),
+            }))
+            return res
+        } catch (error) {
+            // Fallback: optimistic toggle in UI only
+            set((state) => ({
+                posts: state.posts.map((p) =>
+                    p.creator.id === creatorId
+                        ? {
+                            ...p,
+                            creator: {
+                                ...p.creator,
+                                isFollowing: !p.creator.isFollowing,
+                            },
+                        }
+                        : p
+                ),
+            }))
+            throw error
+        }
+    },
 
-    addComment: (postId, comment) => set((state) => {
-        const text = String(comment || '').trim()
-        if (!text) return state
+    addComment: async (postId, text) => {
+        const trimmed = String(text || '').trim()
+        if (!trimmed) return
+        try {
+            const res = await postService.addComment(postId, trimmed)
+            const comment = res?.comment
+            set((state) => {
+                const nextComments = [...(state.commentsByPostId[postId] || []), comment].filter(Boolean)
+                return {
+                    commentsByPostId: { ...state.commentsByPostId, [postId]: nextComments },
+                    posts: state.posts.map((p) =>
+                        p.id === postId ? { ...p, comments: res.commentCount ?? (p.comments || 0) + 1 } : p
+                    ),
+                }
+            })
+            return comment
+        } catch (err) {
+            throw err
+        }
+    },
+
+    sharePost: async (postId, channel = 'copy_link') => {
+        const idStr = String(postId)
+        try {
+            const res = await postService.sharePost(postId)
+            const raw = res?.shares
+            const count = typeof raw === 'number' ? raw : (raw != null ? Number(raw) : null)
+            set((s) => ({
+                posts: s.posts.map((p) =>
+                    String(p.id) === idStr
+                        ? { ...p, shares: count !== null && !Number.isNaN(count) ? count : (p.shares || 0) }
+                        : p,
+                ),
+                notifications: [
+                    {
+                        id: `share_${Date.now()}`,
+                        type: 'share',
+                        title: 'Post shared',
+                        subtitle: `Shared via ${channel.replace('_', ' ')}`,
+                        createdAt: new Date().toISOString(),
+                    },
+                    ...s.notifications,
+                ],
+            }))
+        } catch {
+            // If the API fails, do not change the local share count.
+            // This keeps the UI consistent with the database (shares are stored in DB only).
+        }
+    },
+
+    pushNotification: (payload) => set((state) => {
+        const next = {
+            id: payload?.id || `note_${Date.now()}`,
+            type: payload?.type || 'system',
+            title: payload?.title || 'New update',
+            subtitle: payload?.subtitle || '',
+            createdAt: payload?.createdAt || new Date().toISOString(),
+        }
         return {
-            posts: state.posts.map((p) =>
-                p.id === postId ? { ...p, comments: (p.comments || 0) + 1 } : p,
-            ),
+            notifications: [next, ...state.notifications],
+            unreadNotifications: state.unreadNotifications + 1,
         }
     }),
-
-    sharePost: (postId, channel = 'copy_link') => set((state) => ({
-        posts: state.posts.map((p) =>
-            p.id === postId ? { ...p, shares: (p.shares || 0) + 1 } : p,
-        ),
-        notifications: [
-            {
-                id: `share_${Date.now()}`,
-                type: 'share',
-                title: 'Post shared',
-                subtitle: `Shared via ${channel.replace('_', ' ')}`,
-                createdAt: new Date().toISOString(),
-            },
-            ...state.notifications,
-        ],
-    })),
 
     markNotificationsRead: () => set({ unreadNotifications: 0 }),
 }))

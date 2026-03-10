@@ -71,6 +71,30 @@ export default function TaskDetail({ task, onClose }) {
                         </button>
                     </div>
 
+                    {/* Campaign image (user side only) */}
+                    <div className="px-5 mb-4">
+                        {task.backgroundImage ? (
+                            <img
+                                src={task.backgroundImage}
+                                alt={`${task.title} campaign`}
+                                className="w-full h-40 rounded-2xl object-cover border"
+                                style={{ borderColor: 'var(--color-border)' }}
+                            />
+                        ) : (
+                            <div
+                                className="w-full h-40 rounded-2xl border p-4 flex items-end"
+                                style={{
+                                    borderColor: 'var(--color-border)',
+                                    background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(249,115,22,0.12))',
+                                }}
+                            >
+                                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                                    {task.title}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Stats */}
                     <div className="flex gap-3 px-5 mb-4">
                         <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-primary)' }}>
@@ -194,7 +218,7 @@ export default function TaskDetail({ task, onClose }) {
                                     opacity: isSubmitting ? 0.7 : 1,
                                 }}
                             >
-                                {isSubmitting ? 'Submitting...' : `Submit & Earn ₹${task.myReward}`}
+                                {isSubmitting ? 'Submitting...' : 'Submit Task'}
                             </motion.button>
                         </form>
                     )}

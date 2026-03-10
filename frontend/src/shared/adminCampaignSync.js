@@ -41,6 +41,11 @@ function normalizeCampaign(campaign, idx = 0) {
     const participants = Number(campaign?.participants || 0)
     const progress = Number(campaign?.progress || 0)
     const status = String(campaign?.status || 'Active')
+    const campaignType = String(campaign?.campaignType || 'brand_task')
+    const blockchainNetwork = String(campaign?.blockchainNetwork || '')
+    const nftPriceMin = Number(campaign?.nftPriceMin || 0)
+    const nftPriceMax = Number(campaign?.nftPriceMax || 0)
+    const commissionRate = Number(campaign?.commissionRate || 0)
     return {
         id: String(campaign?.id || `C-${200 + idx}`),
         title: String(campaign?.title || 'Campaign'),
@@ -51,6 +56,12 @@ function normalizeCampaign(campaign, idx = 0) {
         endDate: String(campaign?.endDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)),
         progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
         color: String(campaign?.color || 'primary'),
+        backgroundImage: String(campaign?.backgroundImage || ''),
+        campaignType,
+        blockchainNetwork,
+        nftPriceMin: Number.isFinite(nftPriceMin) ? Math.max(0, nftPriceMin) : 0,
+        nftPriceMax: Number.isFinite(nftPriceMax) ? Math.max(0, nftPriceMax) : 0,
+        commissionRate: Number.isFinite(commissionRate) ? Math.max(0, Math.min(100, commissionRate)) : 0,
     }
 }
 
@@ -96,20 +107,27 @@ export function mapAdminCampaignToUserTask(campaign, idx = 0) {
             color: '#f59e0b',
         },
         title: item.title,
-        description: `Live campaign from admin panel. Status: ${item.status}. Participate to earn rewards.`,
+        description: item.campaignType === 'nft_launch'
+            ? `This NFT campaign is live on ${item.blockchainNetwork || 'blockchain'} network. Current status: ${item.status}.`
+            : `This campaign is live now. Current status: ${item.status}. Join and earn rewards.`,
         rewardPool: item.budget,
         myReward: Math.max(100, Math.round(item.budget * 0.1)),
         deadline: `${item.endDate}T00:00:00Z`,
         participants: item.participants,
         maxParticipants: Math.max(item.participants + 500, 2000),
         steps: [
-            { id: 1, label: 'Create your campaign content', type: 'selfie', required: true },
+            { id: 1, label: 'Create your campaign post', type: 'selfie', required: true },
             { id: 2, label: 'Upload proof and details', type: 'bill', required: true },
-            { id: 3, label: 'Submit post for voting', type: 'video', required: true },
+            { id: 3, label: 'Submit your post for voting', type: 'video', required: true },
         ],
-        category: 'Admin Campaign',
+        category: item.campaignType === 'nft_launch' ? 'NFT Campaign' : 'Admin Campaign',
         status: statusLower === 'paused' ? 'paused' : (statusLower === 'active' ? 'active' : 'completed'),
         joined: false,
+        backgroundImage: item.backgroundImage,
+        campaignType: item.campaignType,
+        blockchainNetwork: item.blockchainNetwork,
+        nftPriceMin: item.nftPriceMin,
+        nftPriceMax: item.nftPriceMax,
+        commissionRate: item.commissionRate,
     }
 }
-

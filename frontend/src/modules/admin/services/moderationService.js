@@ -1,88 +1,74 @@
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const ADMIN_CONTENT = `${API_BASE}/admin/content`;
 
-let mockPosts = [
-    {
-        id: 'POST-4821',
-        author: 'cryptoking_99',
-        type: 'Video',
-        content: 'Check out this new NFT drop! Fast money...',
-        flagReason: 'Potential Scam Mention',
-        status: 'Pending',
-        thumbnail: 'https://images.unsplash.com/photo-1620712943543-bcc4628c6bb5?w=200&h=200&fit=crop'
-    },
-    {
-        id: 'POST-4822',
-        author: 'art_lover_22',
-        type: 'Image',
-        content: 'My latest digital painting for the community.',
-        flagReason: 'Copyright Check - Visual match',
-        status: 'Flagged',
-        thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop'
-    },
-    {
-        id: 'POST-4823',
-        author: 'meme_lord',
-        type: 'Post',
-        content: 'Click here for free tokens! 🔥🔥🔥',
-        flagReason: 'Spam Pattern Detected',
-        status: 'Pending',
-        thumbnail: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=200&h=200&fit=crop'
-    },
-];
+const getAuthHeaders = () => {
+    const token = localStorage.getItem("crypto_auth_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export const moderationService = {
-    fetchPosts: async () => {
-        await delay(700);
-        return [...mockPosts];
+    async fetchPosts() {
+        const res = await fetch(ADMIN_CONTENT, { headers: getAuthHeaders() });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.message || "Failed to load content");
+        return data.posts || [];
     },
 
-    fetchPostDetail: async (id) => {
-        await delay(600);
-        const post = mockPosts.find((p) => p.id === id);
-        if (!post) return null;
+    async fetchPostDetail(id) {
+        const res = await fetch(`${ADMIN_CONTENT}/${id}`, { headers: getAuthHeaders() });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.post) return null;
+        const p = data.post;
         return {
-            ...post,
-            mediaUrl: post.thumbnail.replace('w=200&h=200&fit=crop', 'w=1200&h=900&fit=crop'),
-            createdAt: '2026-02-27T11:30:00Z',
-            reportCount: post.status === 'Urgent' ? 18 : post.status === 'Flagged' ? 9 : 4,
-            aiRiskScore: post.status === 'Urgent' ? '92%' : post.status === 'Flagged' ? '71%' : '48%',
-            moderationNotes: post.status === 'Flagged'
-                ? 'Possible content duplication detected. Needs manual rights verification.'
-                : 'Waiting for admin decision before publishing.',
-            authorStats: {
-                followers: 12840,
-                posts: 167,
-                previousFlags: post.status === 'Flagged' ? 2 : 0,
-            },
-            reports: [
-                { id: 'RPT-1', reason: post.flagReason, source: 'Auto-Detection Engine', confidence: 'High' },
-                { id: 'RPT-2', reason: 'Community report submitted', source: 'User Report', confidence: 'Medium' },
-            ],
+            id: p.id,
+            author: p.author ?? p.creator?.handle ?? p.creator?.username,
+            type: p.type ?? (p.media?.type === "video" ? "Video" : p.media?.type === "audio" ? "Audio" : "Image"),
+            content: p.content ?? p.caption,
+            flagReason: p.flagReason ?? "Pending review",
+            status: p.status ?? "Pending",
+            thumbnail: p.thumbnail ?? p.media?.url,
+            mediaUrl: p.mediaUrl ?? p.media?.url,
+            createdAt: p.createdAt,
+            reportCount: p.reportCount ?? 0,
+            aiRiskScore: p.aiRiskScore ?? "—",
+            moderationNotes: p.moderationNotes ?? "Review and approve or reject.",
+            authorStats: p.authorStats ?? { followers: 0, posts: 0, previousFlags: 0 },
+            reports: p.reports ?? []
         };
     },
 
-    approvePost: async (id) => {
-        await delay(800);
-        const post = mockPosts.find(p => p.id === id);
-        if (post) {
-            post.status = 'Approved';
-        }
-        return post;
+    async approvePost(id) {
+        const res = await fetch(`${ADMIN_CONTENT}/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ approved: true })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.message || "Failed to approve");
+        return data.post;
     },
 
-    rejectPost: async (id, reason) => {
-        await delay(800);
-        const post = mockPosts.find(p => p.id === id);
-        if (post) {
-            post.status = 'Rejected';
-            post.rejectReason = reason;
-        }
-        return post;
+    async rejectPost(id, reason) {
+        const res = await fetch(`${ADMIN_CONTENT}/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ approved: false, reason: reason || "" })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.message || "Failed to reject");
+        return data.post;
     },
 
-    softDelete: async (id) => {
-        await delay(1000);
-        mockPosts = mockPosts.filter(p => p.id !== id);
+    async softDelete(id) {
+        const res = await fetch(`${ADMIN_CONTENT}/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ approved: false, reason: "Removed by admin" })
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.message || "Failed to remove");
+        }
         return true;
     }
 };

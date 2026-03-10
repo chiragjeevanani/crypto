@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
     Home,
     Compass,
@@ -17,10 +17,11 @@ import RoseShower from '../components/shared/RoseShower'
 import { useWalletStore } from '../store/useWalletStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
-import { formatINR, formatCount } from '../utils/formatCurrency'
+import { formatINR, formatCurrency, formatCount } from '../utils/formatCurrency'
 import { mockTasks } from '../data/mockTasks'
 import { mockNFTs } from '../data/mockNFTs'
 import { getKYCSubmissionByUser } from '../../../shared/kycSync'
+import { getAdminCampaignsFromStorage, mapAdminCampaignToUserTask } from '../../../shared/adminCampaignSync'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
@@ -33,15 +34,17 @@ const SIDEBAR_ITEMS = [
 ]
 
 export default function AppShell() {
+    const navigate = useNavigate()
     const location = useLocation()
     const searchParams = new URLSearchParams(location.search)
     const view = searchParams.get('view')
 
     const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore()
-    const { posts } = useFeedStore()
-    const { kyc, setKYCFromSync } = useUserStore()
+    const { posts, pushNotification } = useFeedStore()
+    const { kyc, setKYCFromSync, user, profile } = useUserStore()
 
-    const activeCampaigns = mockTasks.filter((task) => task.status === 'active').slice(0, 3)
+    const [activeCampaigns, setActiveCampaigns] = useState(mockTasks.filter((task) => task.status === 'active').slice(0, 3))
+    const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
     const trendingNFTs = mockNFTs.slice(0, 3)
 
     const leaderboard = posts
@@ -66,10 +69,12 @@ export default function AppShell() {
 
     const cryptoBalance = Number(cryptoWallet || 0).toFixed(4)
     const today = new Date().toISOString().slice(0, 10)
+    const currencySymbol = profile?.currencySymbol || '₹'
+
     const todayEarnings = posts
         .filter((post) => String(post.createdAt || '').slice(0, 10) === today)
         .reduce((sum, post) => sum + (post.earnings || 0), 0)
-    const todayEarningsLabel = formatINR(todayEarnings || 120)
+    const todayEarningsLabel = formatCurrency(todayEarnings || 120, currencySymbol)
 
     const isItemActive = (item) => {
         if (item.key === 'home') return location.pathname === '/home' && view !== 'explore'
@@ -97,6 +102,75 @@ export default function AppShell() {
             window.removeEventListener('storage', onStorage)
         }
     }, [kyc.syncUserId, setKYCFromSync])
+
+    useEffect(() => {
+        const seenCampaignKey = 'socialearn_seen_campaign_ids_v1'
+        const hydrateCampaigns = () => {
+            const localTasks = mockTasks.filter((task) => task.status === 'active')
+            const adminTasks = getAdminCampaignsFromStorage()
+                .map((campaign, idx) => mapAdminCampaignToUserTask(campaign, idx))
+                .filter((task) => task.status === 'active')
+            const merged = [...adminTasks, ...localTasks]
+            setActiveCampaigns(merged.slice(0, 3))
+
+            const ids = merged.map((task) => String(task.adminCampaignId || task.id))
+            const seenRaw = window.localStorage.getItem(seenCampaignKey)
+            const seen = new Set(seenRaw ? JSON.parse(seenRaw) : [])
+            const newCampaigns = merged.filter((task) => !seen.has(String(task.adminCampaignId || task.id)))
+
+            if (seen.size > 0 && newCampaigns.length > 0) {
+                newCampaigns.slice(0, 3).forEach((task) => {
+                    pushNotification({
+                        type: 'campaign',
+                        title: 'New campaign added',
+                        subtitle: `${task.title} is now live.`,
+                    })
+                })
+            }
+
+            const updatedSeen = [...new Set([...Array.from(seen), ...ids])]
+            window.localStorage.setItem(seenCampaignKey, JSON.stringify(updatedSeen))
+        }
+        hydrateCampaigns()
+        const onUpdate = () => hydrateCampaigns()
+        const onStorage = (event) => {
+            if (event.key === 'socialearn_admin_campaigns_v1') hydrateCampaigns()
+        }
+        window.addEventListener('admin-campaigns-updated', onUpdate)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            window.removeEventListener('admin-campaigns-updated', onUpdate)
+            window.removeEventListener('storage', onStorage)
+        }
+    }, [pushNotification])
+
+    useEffect(() => {
+        const key = 'socialearn_screen_time_start_v1'
+        const todayKey = new Date().toISOString().slice(0, 10)
+        const startValue = window.localStorage.getItem(key)
+        const parsed = startValue ? JSON.parse(startValue) : null
+        if (!parsed || parsed.day !== todayKey) {
+            window.localStorage.setItem(key, JSON.stringify({ day: todayKey, startAt: Date.now() }))
+        }
+
+        const formatDuration = (ms) => {
+            const totalMinutes = Math.max(0, Math.floor(ms / 60000))
+            const hours = Math.floor(totalMinutes / 60)
+            const minutes = totalMinutes % 60
+            if (hours === 0) return `${minutes}m`
+            return `${hours}h ${minutes}m`
+        }
+
+        const tick = () => {
+            const raw = window.localStorage.getItem(key)
+            const current = raw ? JSON.parse(raw) : { day: todayKey, startAt: Date.now() }
+            setScreenTimeLabel(formatDuration(Date.now() - Number(current.startAt || Date.now())))
+        }
+
+        tick()
+        const timer = window.setInterval(tick, 30000)
+        return () => window.clearInterval(timer)
+    }, [])
 
     return (
         <div
@@ -137,7 +211,7 @@ export default function AppShell() {
                     })}
                 </nav>
 
-                <div className="mt-auto">
+                <div className="mt-auto space-y-2">
                     <Link
                         to="/create"
                         className="desktop-upload-btn flex items-center justify-center lg:justify-center gap-2 w-full rounded-xl py-2.5 font-semibold text-sm transition-all duration-200 ease-out"
@@ -146,6 +220,10 @@ export default function AppShell() {
                         <PlusSquare size={18} />
                         <span className="hidden lg:inline">Upload</span>
                     </Link>
+                    <div className="hidden lg:block px-2 py-2 rounded-xl text-center" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                        <p className="text-[10px] font-semibold truncate" style={{ color: 'var(--color-text)' }}>{user?.name || 'User'}</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>User account</p>
+                    </div>
                 </div>
             </aside>
 
@@ -162,17 +240,17 @@ export default function AppShell() {
                 <div className="space-y-5 pb-6">
                     <div className="px-1">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-muted)' }}>
-                            Earnings Control Center
+                            Earnings Summary
                         </p>
                     </div>
 
                     <section className="desktop-panel-card overflow-hidden rounded-2xl p-0">
                         <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.16), rgba(249,115,22,0.10))' }}>
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-primary)' }}>
-                                Wallet Summary
-                            </p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-primary)' }}>
+                                    Wallet Summary
+                                </p>
                             <p className="mt-1 text-3xl font-extrabold tracking-tight" style={{ color: 'var(--color-text)' }}>
-                                {formatINR(earningsWallet)}
+                                {formatCurrency(earningsWallet, currencySymbol)}
                             </p>
                             <div className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
                                 style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--color-success)' }}>
@@ -182,7 +260,7 @@ export default function AppShell() {
                         <div className="space-y-2 px-5 py-4 text-sm">
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>INR Balance</span>
-                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatINR(inrWallet)}</span>
+                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(inrWallet, currencySymbol)}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>Crypto Balance</span>
@@ -190,16 +268,34 @@ export default function AppShell() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>Earning Balance</span>
-                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatINR(earningsWallet)}</span>
+                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(earningsWallet, currencySymbol)}</span>
                             </div>
                         </div>
+                    </section>
+
+                    <section className="desktop-panel-card rounded-2xl p-4">
+                        <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Screen Time</p>
+                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Today</p>
+                        <p className="text-2xl font-bold mt-1" style={{ color: 'var(--color-primary)' }}>{screenTimeLabel}</p>
                     </section>
 
                     <section className="desktop-panel-card rounded-2xl p-4">
                         <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Campaigns</p>
                         <div className="space-y-2.5">
                             {activeCampaigns.map((task) => (
-                                <div key={task.id} className="rounded-xl p-3.5" style={{ background: 'var(--color-surface2)' }}>
+                                <button
+                                    key={task.id}
+                                    onClick={() => navigate(`/tasks/${encodeURIComponent(task.id)}`)}
+                                    className="w-full text-left rounded-xl p-3.5 cursor-pointer"
+                                    style={{ background: 'var(--color-surface2)' }}
+                                >
+                                    {task.backgroundImage && (
+                                        <img
+                                            src={task.backgroundImage}
+                                            alt={task.title}
+                                            className="w-full h-20 object-cover rounded-lg mb-2"
+                                        />
+                                    )}
                                     <div className="flex items-center justify-between gap-2">
                                         <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{task.brand.name}</p>
                                         <p className="text-[11px] font-semibold" style={{ color: 'var(--color-primary)' }}>
@@ -216,7 +312,7 @@ export default function AppShell() {
                                             }}
                                         />
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </section>
@@ -231,7 +327,7 @@ export default function AppShell() {
                                         <img src={nft.thumbnail} alt={nft.title} className="h-11 w-11 rounded-lg object-cover" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
-                                            <p className="text-xs" style={{ color: 'var(--color-primary)' }}>{formatINR(nft.price)}</p>
+                                            <p className="text-xs" style={{ color: 'var(--color-primary)' }}>{formatCurrency(nft.price, currencySymbol)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -265,7 +361,7 @@ export default function AppShell() {
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>{formatINR(creator.earnings)}</p>
+                                        <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>{formatCurrency(creator.earnings, currencySymbol)}</p>
                                         <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{formatCount(creator.likes)} likes</p>
                                     </div>
                                 </div>

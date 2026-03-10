@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
+    User,
     FileText,
     Trophy,
     Vote,
@@ -22,7 +23,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { useUserStore } from '../../user/store/useUserStore';
 import { simplifyAdminCopy } from '../utils/simplifyCopy';
+import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
 
 const menuGroups = [
     {
@@ -96,6 +99,7 @@ const menuGroups = [
     {
         title: 'Settings',
         items: [
+            { icon: User, label: 'My Profile', path: '/admin/profile' },
             {
                 icon: Globe,
                 label: 'Platform Settings',
@@ -113,6 +117,7 @@ const menuGroups = [
 export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile }) {
     const [expandedItems, setExpandedItems] = useState({});
     const location = useLocation();
+    const { user, profile } = useUserStore();
 
     const toggleSubmenu = (label) => {
         setExpandedItems(prev => ({
@@ -263,16 +268,16 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                 ))}
             </div>
 
-            {/* User Profile Hook */}
+            {/* User Profile Hook - shows logged-in admin role from DB */}
             <div className="p-4 border-t border-surface/50">
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : 'p-2.5 bg-surface2/50 rounded-lg border border-surface group cursor-pointer hover:bg-surface2 transition-all'}`}>
                     <div className="w-8 h-8 rounded-lg bg-bg border border-surface flex items-center justify-center font-bold text-[10px] text-primary shrink-0">
-                        SA
+                        {(user?.name || getRoleLabel(user?.role)).slice(0, 2).toUpperCase()}
                     </div>
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold truncate text-text uppercase tracking-wider leading-none mb-1">SuperAdmin</p>
-                            <p className="text-[8px] text-muted truncate uppercase font-medium">Session: Active</p>
+                            <p className="text-[10px] font-bold truncate text-text uppercase tracking-wider leading-none mb-1">{getRoleLabel(user?.role)}</p>
+                            <p className="text-[8px] text-muted truncate uppercase font-medium">{getRoleHandle(user, profile)} · Active</p>
                         </div>
                     )}
                 </div>

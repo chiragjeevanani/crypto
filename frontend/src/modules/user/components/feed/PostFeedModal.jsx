@@ -66,9 +66,10 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
 
                 <div
                     ref={containerRef}
-                    className="flex-1 overflow-y-auto px-3 py-4 md:px-6 hide-scrollbar"
+                    className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-0 md:px-6 hide-scrollbar snap-y snap-mandatory"
                     style={{
-                        paddingBottom: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px)'
+                        paddingBottom: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px)',
+                        WebkitOverflowScrolling: 'touch'
                     }}
                 >
                     <div className="mx-auto w-full max-w-[520px]">
@@ -78,6 +79,8 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
                                 ref={(node) => {
                                     if (node) postRefs.current[post.id] = node
                                 }}
+                                className="snap-start snap-always shrink-0 w-full"
+                                style={{ minHeight: 'calc(100vh - 56px)' }}
                             >
                                 <PostCard post={post} />
                             </div>

@@ -3,11 +3,15 @@ import { Gift } from 'lucide-react'
 import GiftButton from './GiftButton'
 import { usePlatformSettings } from '../../hooks/usePlatformSettings'
 import { useWalletStore } from '../../store/useWalletStore'
+import { useUserStore } from '../../store/useUserStore'
 import { getActiveGiftCatalog } from '../../../../shared/giftCatalog'
 
 export default function GiftBar({ postId, onGift }) {
     const { maxGiftsPerMinute } = usePlatformSettings()
     const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet } = useWalletStore()
+    const { profile } = useUserStore()
+    const currencySymbol = profile?.currencySymbol || '₹'
+    const currencyCode = profile?.currencyCode || 'INR'
     const [giftTypes, setGiftTypes] = useState(() => getActiveGiftCatalog())
     const sentAtRef = useRef([])
 
@@ -51,7 +55,7 @@ export default function GiftBar({ postId, onGift }) {
                             color: giftSpendWallet === 'inr' ? 'var(--color-primary)' : 'var(--color-muted)',
                         }}
                     >
-                        INR ₹{Math.round(inrWallet)}
+                        {currencyCode} {currencySymbol}{Math.round(inrWallet)}
                     </button>
                     <button
                         type="button"

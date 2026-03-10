@@ -38,6 +38,7 @@ import GiftTrash from './modules/admin/pages/GiftTrash'
 import CreateGift from './modules/admin/pages/CreateGift'
 import CampaignCreatePage from './modules/admin/pages/CampaignCreatePage'
 import AdvertiserPanel from './modules/admin/pages/AdvertiserPanel'
+import AdminProfilePage from './modules/admin/pages/AdminProfilePage'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -48,6 +49,7 @@ import PublicAuditLogs from './modules/public/pages/PublicAuditLogs'
 import LoginPage from './modules/auth/pages/LoginPage' // admin login
 import LogoutPage from './modules/auth/pages/LogoutPage'
 import ProtectedRoute from './modules/auth/components/ProtectedRoute'
+import RootRoute from './modules/auth/components/RootRoute'
 import UserCreatePage from './modules/admin/pages/UserCreatePage'
 
 // user module auth
@@ -55,39 +57,47 @@ import SignInPage from './modules/user/pages/SignInPage'
 import SignUpPage from './modules/user/pages/SignUpPage'
 
 export default function App() {
-  const { darkMode } = useUserStore()
+  const { darkMode, initializeAuth } = useUserStore()
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', !darkMode)
   }, [darkMode])
 
+  useEffect(() => {
+    initializeAuth()
+  }, [initializeAuth])
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/admin/login" element={<LoginPage />} />
-        {/* user auth */}
-        <Route path="/" element={<SignInPage />} />
+        {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
+        <Route path="/" element={<RootRoute />} />
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/logout" element={<LogoutPage />} />
         {/* redirect legacy login to admin login */}
         <Route path="/login" element={<Navigate to="/admin/login" replace />} />
 
-        <Route path="/*" element={<AppShell />}>
-          {/* removed auto-redirect so landing stays visible until user navigates or logs in */}
-          <Route path="home" element={<HomePage />} />
-          <Route path="tasks" element={<TasksPage />} />
-          <Route path="create" element={<CreatePage />} />
-          <Route path="wallet" element={<WalletPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="user/:userId" element={<UserProfilePage />} />
-          <Route path="terms" element={<TermsConditionsPage />} />
-          <Route path="privacy" element={<PrivacyPolicyPage />} />
-          <Route path="guidelines" element={<CommunityGuidelinesPage />} />
+        {/* User app: only role "User" can access; admins use /admin */}
+        <Route element={<ProtectedRoute allowedRoles={['User']} />}>
+          <Route path="/*" element={<AppShell />}>
+            <Route path="home" element={<HomePage />} />
+            <Route path="tasks" element={<TasksPage />} />
+            <Route path="tasks/:taskId" element={<TasksPage />} />
+            <Route path="campaigns" element={<Navigate to="/tasks" replace />} />
+            <Route path="create" element={<CreatePage />} />
+            <Route path="wallet" element={<WalletPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="user/:userId" element={<UserProfilePage />} />
+            <Route path="terms" element={<TermsConditionsPage />} />
+            <Route path="privacy" element={<PrivacyPolicyPage />} />
+            <Route path="guidelines" element={<CommunityGuidelinesPage />} />
+          </Route>
         </Route>
 
-        {/* Admin Routes */}
-        <Route element={<ProtectedRoute />}>
+        {/* Admin Routes: only admin roles; users with role "User" are redirected to /admin/login */}
+        <Route element={<ProtectedRoute allowedRoles={['SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
@@ -122,6 +132,7 @@ export default function App() {
             <Route path="settings/security" element={<SecurityAccess />} />
             <Route path="settings/network" element={<NetworkConfig />} />
             <Route path="transparency" element={<AuditLogs />} />
+            <Route path="profile" element={<AdminProfilePage />} />
           </Route>
         </Route>
 

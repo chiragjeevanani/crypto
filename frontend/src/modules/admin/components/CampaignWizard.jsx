@@ -12,8 +12,13 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
         brand: '',
         budget: '',
         endDate: '',
+        campaignType: 'brand_task',
         tasks: [],
         assets: [],
+        blockchainNetwork: 'polygon',
+        nftPriceMin: 1,
+        nftPriceMax: 20,
+        commissionRate: 10,
         targetAudience: 'all',
         audienceSegment: '',
         maxParticipants: '',
@@ -38,8 +43,13 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
             brand: '',
             budget: '',
             endDate: '',
+            campaignType: 'brand_task',
             tasks: [],
             assets: [],
+            blockchainNetwork: 'polygon',
+            nftPriceMin: 1,
+            nftPriceMax: 20,
+            commissionRate: 10,
             targetAudience: 'all',
             audienceSegment: '',
             maxParticipants: '',
@@ -75,7 +85,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
             <div className="p-6 border-b border-surface flex items-center justify-between bg-surface2/50">
                 <div>
                     <h2 className="text-lg font-bold text-text uppercase tracking-tighter">
-                        Create Campaign Protocol
+                        Create Campaign
                     </h2>
                     <p className="text-[10px] text-muted uppercase tracking-wider mt-1">
                         Step {step} of {steps.length}
@@ -134,7 +144,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
 
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                        Mandate Title *
+                                        Campaign Title *
                                     </label>
                                     <input
                                         type="text"
@@ -148,7 +158,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                            Brand Authority *
+                                            Brand Name *
                                         </label>
                                         <input
                                             type="text"
@@ -160,7 +170,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                            Allocated Budget (₹) *
+                                            Prize Pool / Budget (INR) *
                                         </label>
                                         <input
                                             type="number"
@@ -176,6 +186,21 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
 
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                        Campaign Type
+                                    </label>
+                                    <select
+                                        value={formData.campaignType}
+                                        onChange={e => handleInputChange('campaignType', e.target.value)}
+                                        className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                    >
+                                        <option value="brand_task">Brand Task</option>
+                                        <option value="nft_launch">NFT Launch</option>
+                                        <option value="mixed">Mixed (Task + NFT)</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
                                         Campaign End Date *
                                     </label>
                                     <input
@@ -185,6 +210,73 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                         className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
                                     />
                                 </div>
+
+                                {(formData.campaignType === 'nft_launch' || formData.campaignType === 'mixed') && (
+                                    <div className="space-y-4 rounded-xl border border-surface bg-bg/60 p-4">
+                                        <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest">
+                                            NFT & Blockchain Settings
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[9px] font-bold text-muted uppercase tracking-widest">
+                                                    Blockchain Network
+                                                </label>
+                                                <select
+                                                    value={formData.blockchainNetwork}
+                                                    onChange={e => handleInputChange('blockchainNetwork', e.target.value)}
+                                                    className="w-full bg-bg border border-surface rounded-lg py-2 px-3 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                                >
+                                                    <option value="polygon">Polygon</option>
+                                                    <option value="ethereum">Ethereum</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[9px] font-bold text-muted uppercase tracking-widest">
+                                                    Platform Commission (%)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.1"
+                                                    value={formData.commissionRate}
+                                                    onChange={e => handleInputChange('commissionRate', parseFloat(e.target.value) || 0)}
+                                                    className="w-full bg-bg border border-surface rounded-lg py-2 px-3 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[9px] font-bold text-muted uppercase tracking-widest">
+                                                    NFT Min Price (USD)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max={Number(formData.nftPriceMax || 20)}
+                                                    step="0.01"
+                                                    value={formData.nftPriceMin}
+                                                    onChange={e => handleInputChange('nftPriceMin', parseFloat(e.target.value) || 1)}
+                                                    className="w-full bg-bg border border-surface rounded-lg py-2 px-3 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[9px] font-bold text-muted uppercase tracking-widest">
+                                                    NFT Max Price (USD)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min={Number(formData.nftPriceMin || 1)}
+                                                    max="20"
+                                                    step="0.01"
+                                                    value={formData.nftPriceMax}
+                                                    onChange={e => handleInputChange('nftPriceMax', parseFloat(e.target.value) || 20)}
+                                                    className="w-full bg-bg border border-surface rounded-lg py-2 px-3 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
 
@@ -227,13 +319,13 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                 className="space-y-6"
                             >
                                 <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
-                                    Targeting Rules
+                                    Targeting
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                            Audience Scope
-                                        </label>
+                                            <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Audience
+                                            </label>
                                         <select
                                             value={formData.targetAudience}
                                             onChange={e => handleInputChange('targetAudience', e.target.value)}
@@ -246,7 +338,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                     {formData.targetAudience === 'segment' && (
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                                Segment Identifier
+                                                Audience Segment
                                             </label>
                                             <input
                                                 type="text"
@@ -274,7 +366,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                            Blacklist Users (comma-separated IDs)
+                                            Excluded Users (comma-separated IDs)
                                         </label>
                                         <input
                                             type="text"
@@ -297,7 +389,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                 className="space-y-6"
                             >
                                 <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
-                                    Review &amp; Deploy
+                                    Review &amp; Create
                                 </h3>
                                 <pre className="bg-bg p-4 rounded-lg text-[10px] overflow-x-auto">
                                     {JSON.stringify(formData, null, 2)}
@@ -330,7 +422,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                             onClick={handleSubmit}
                             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-600 transition-all"
                         >
-                            Deploy
+                            Create Campaign
                         </button>
                     )}
                 </div>
