@@ -10,23 +10,8 @@ const adminUserRoutes = require("./routes/admin/userRoutes");
 
 const app = express();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.FRONTEND_URL,
-  process.env.FRONTEND_URL_2
-].filter(Boolean);
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow non-browser tools (no Origin header) and any explicitly allowed origin
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, false);
-    }
-  })
-);
+// Temporarily allow all origins (wildcard CORS). Do NOT use this in production without tightening it.
+app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
