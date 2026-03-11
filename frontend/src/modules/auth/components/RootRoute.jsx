@@ -2,13 +2,11 @@ import { Navigate } from 'react-router-dom';
 import { useUserStore } from '../../user/store/useUserStore';
 import SignInPage from '../../user/pages/SignInPage';
 
-const ADMIN_ROLES = ['SuperNode', 'Admin', 'super_admin', 'Developer'];
-
 /**
- * Handles "/" so the user module never shows admin:
- * - Logged-in User → redirect to /home (home page)
- * - Logged-in admin → redirect to /admin (admin area only)
- * - Not logged in → show user SignIn page (no admin login here)
+ * Handles "/" as the User module entry point only (never redirects to admin):
+ * - Logged-in User → redirect to /home (user home page)
+ * - Not logged in (or any other role e.g. admin) → show user SignIn page
+ * Admins must use /admin or /admin/login directly; "/" stays safe for users.
  */
 export default function RootRoute() {
     const authChecked = useUserStore(state => state.authChecked);
@@ -16,7 +14,6 @@ export default function RootRoute() {
     const isAuthenticated = useUserStore(state => state.isAuthenticated);
     const user = useUserStore(state => state.user);
     const role = user?.role;
-    const isAdminSession = ADMIN_ROLES.includes(role);
 
     if (!authChecked || authLoading) {
         return (
@@ -26,13 +23,11 @@ export default function RootRoute() {
         );
     }
 
-    if (isAuthenticated && isAdminSession) {
-        return <Navigate to="/admin" replace />;
-    }
-
+    // Only redirect to user home when logged in as a regular User
     if (isAuthenticated && role === 'User') {
         return <Navigate to="/home" replace />;
     }
 
+    // Not logged in, or admin/other role: show user sign-in (never send to admin from "/")
     return <SignInPage />;
 }

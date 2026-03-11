@@ -9,18 +9,29 @@ exports.getPosts = async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const statusFilter = req.query.status;
+    const creatorId = req.query.creator;
+    const isNFT = req.query.isNFT;
     let query = Post.find();
     if (statusFilter) query = query.where("status").equals(statusFilter);
+    if (creatorId) query = query.where("creator").equals(creatorId);
+    if (isNFT === "true" || isNFT === "1") query = query.where("isNFT").equals(true);
     const posts = await populateCreator(query).sort({ createdAt: -1 }).limit(500).exec();
-    const adminList = posts.map((p) => ({
-      id: p._id.toString(),
-      author: p.creator?.handle || p.creator?.name || "unknown",
-      type: p.media?.type === "video" ? "Video" : p.media?.type === "audio" ? "Audio" : "Image",
-      content: (p.caption || "").slice(0, 80),
-      flagReason: p.status === "flagged" ? "Flagged" : "Pending review",
-      status: p.status === "approved" ? "Approved" : p.status === "rejected" ? "Rejected" : "Pending",
-      thumbnail: mediaUrlFromPost(p, baseUrl)
-    }));
+    const adminList = posts.map((p) => {
+      const url = mediaUrlFromPost(p, baseUrl);
+      const type = p.media?.type === "video" ? "Video" : p.media?.type === "audio" ? "Audio" : "Image";
+      return {
+        id: p._id.toString(),
+        author: p.creator?.handle || p.creator?.name || "unknown",
+        type,
+        content: (p.caption || "").slice(0, 80),
+        caption: p.caption || "",
+        flagReason: p.status === "flagged" ? "Flagged" : "Pending review",
+        status: p.status === "approved" ? "Approved" : p.status === "rejected" ? "Rejected" : "Pending",
+        thumbnail: url,
+        mediaUrl: url,
+        isNFT: Boolean(p.isNFT)
+      };
+    });
     return res.status(200).json({ success: true, posts: adminList });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

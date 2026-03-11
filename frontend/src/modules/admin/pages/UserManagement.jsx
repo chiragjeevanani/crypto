@@ -160,7 +160,7 @@ export default function UserManagement() {
                 <div className="xl:col-span-2 space-y-6">
                     <AdminDataTable
                         title="User Directory"
-                        columns={["Identity", "Role", "KYC", "Rating", "Actions"]}
+                        columns={["Identity", "Role", "Posts", "Followers", "KYC", "Rating", "Actions"]}
                         data={usersData.users.map(user => ({
                             id: user.id,
                             cells: [
@@ -168,7 +168,7 @@ export default function UserManagement() {
                                     <img src={user.avatar} className="w-8 h-8 rounded-lg border border-surface" alt="" />
                                     <div>
                                         <button
-                                            onClick={() => navigate(`/admin/users/edit/${user.id}`)}
+                                            onClick={() => navigate(`/admin/users/view/${user.id}`)}
                                             className="text-xs font-bold text-text hover:text-primary transition-colors"
                                         >
                                             @{user.name}
@@ -177,6 +177,8 @@ export default function UserManagement() {
                                     </div>
                                 </div>,
                                 <span className="text-[10px] font-bold text-muted uppercase">{user.role}</span>,
+                                <span className="text-[10px] font-bold text-text">{user.postsCount ?? 0}</span>,
+                                <span className="text-[10px] font-bold text-text">{user.followersCount ?? 0}</span>,
                                 <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold border ${user.kycVerified ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                                     {user.kycVerified ? 'VERIFIED' : 'PENDING'}
                                 </span>,
@@ -315,7 +317,12 @@ export default function UserManagement() {
                                     <div className="w-20 h-20 rounded-2xl bg-surface2 mx-auto mb-4 border border-surface p-1 shadow-lg">
                                         <img src={userDetail.avatar} className="w-full h-full object-cover rounded-xl" alt="" />
                                     </div>
-                                    <h3 className="text-base font-bold text-text leading-none mb-1">@{userDetail.name}</h3>
+                                    <button
+                                        onClick={() => navigate(`/admin/users/view/${userDetail.id}`)}
+                                        className="text-base font-bold text-text leading-none mb-1 hover:text-primary transition-colors text-left"
+                                    >
+                                        @{userDetail.name}
+                                    </button>
                                     <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">{userDetail.email}</p>
                                     <button
                                         onClick={() => navigate(`/admin/users/edit/${userDetail.id}`)}

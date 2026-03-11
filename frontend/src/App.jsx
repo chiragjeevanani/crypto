@@ -32,6 +32,7 @@ import SecurityAccess from './modules/admin/pages/SecurityAccess'
 import NetworkConfig from './modules/admin/pages/NetworkConfig'
 import WalletOverview from './modules/admin/pages/WalletOverview'
 import EditUser from './modules/admin/pages/EditUser'
+import UserDetailPage from './modules/admin/pages/UserDetailPage'
 import EditSettlement from './modules/admin/pages/EditSettlement'
 import EditCampaign from './modules/admin/pages/EditCampaign'
 import GiftTrash from './modules/admin/pages/GiftTrash'
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="users/view/:userId" element={<UserDetailPage />} />
             <Route path="users/edit/:userId" element={<EditUser />} />
             <Route path="users/new" element={<UserCreatePage />} />
             <Route path="content" element={<ContentControl />} />

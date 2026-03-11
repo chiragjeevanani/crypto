@@ -7,8 +7,13 @@ const getAuthHeaders = () => {
 };
 
 export const moderationService = {
-    async fetchPosts() {
-        const res = await fetch(ADMIN_CONTENT, { headers: getAuthHeaders() });
+    async fetchPosts(params = {}) {
+        const q = new URLSearchParams();
+        if (params.creator) q.set("creator", params.creator);
+        if (params.status) q.set("status", params.status);
+        if (params.isNFT === true || params.isNFT === "true") q.set("isNFT", "true");
+        const url = q.toString() ? `${ADMIN_CONTENT}?${q.toString()}` : ADMIN_CONTENT;
+        const res = await fetch(url, { headers: getAuthHeaders() });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.message || "Failed to load content");
         return data.posts || [];

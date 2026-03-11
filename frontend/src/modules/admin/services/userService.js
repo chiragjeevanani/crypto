@@ -44,6 +44,24 @@ export const userService = {
         return data.user;
     },
 
+    fetchUserFollowers: async (userId) => {
+        const response = await fetch(`${ADMIN_USERS}/${userId}/followers`, {
+            headers: getAuthHeaders(),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.message || "Failed to load followers");
+        return { count: data.count ?? 0, followers: data.followers ?? [] };
+    },
+
+    fetchUserFollowing: async (userId) => {
+        const response = await fetch(`${ADMIN_USERS}/${userId}/following`, {
+            headers: getAuthHeaders(),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.message || "Failed to load following");
+        return { count: data.count ?? 0, following: data.following ?? [] };
+    },
+
     toggleBan: async (id) => {
         await delay(1000);
         const user = mockUsers.find(u => u.id === id);
