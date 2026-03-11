@@ -1,7 +1,11 @@
 const Post = require("../../models/Post");
 const User = require("../../models/User");
 const Comment = require("../../models/Comment");
+const fs = require("fs");
+const path = require("path");
 const { getBaseUrl, formatPostForUserFeed, populateCreator } = require("../../utils/postHelpers");
+const { UPLOAD_DIR } = require("../../utils/upload");
+const { cloudinary } = require("../../utils/cloudinary");
 
 /**
  * User module: create post. Requires token (protect) and role User (authorize).
@@ -18,9 +22,35 @@ exports.createPost = async (req, res) => {
     let mediaType = "image";
 
     if (file) {
-      mediaUrl = `/uploads/${file.filename}`;
-      if (file.mimetype.startsWith("video/")) mediaType = "video";
-      else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+      const localPath = path.join(UPLOAD_DIR, file.filename);
+      const useCloudinary = Boolean(
+        cloudinary &&
+          process.env.CLOUDINARY_CLOUD_NAME &&
+          process.env.CLOUDINARY_API_KEY &&
+          process.env.CLOUDINARY_API_SECRET
+      );
+
+      if (useCloudinary) {
+        const resourceType = file.mimetype.startsWith("video/")
+          ? "video"
+          : file.mimetype.startsWith("audio/")
+          ? "video" // Cloudinary treats long audio via video resource_type
+          : "image";
+        const uploadResult = await cloudinary.uploader.upload(localPath, {
+          resource_type: "auto",
+          folder: "crypto-app/posts"
+        });
+        mediaUrl = uploadResult.secure_url;
+        if (file.mimetype.startsWith("video/")) mediaType = "video";
+        else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+
+        // best-effort cleanup
+        fs.unlink(localPath, () => {});
+      } else {
+        mediaUrl = `/uploads/${file.filename}`;
+        if (file.mimetype.startsWith("video/")) mediaType = "video";
+        else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+      }
     }
 
     const body = req.body || {};
@@ -67,6 +97,40 @@ exports.getPosts = async (req, res) => {
       Post.find({ status: "approved" }).sort({ createdAt: -1 }).limit(200)
     ).exec();
     const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId));
+
+    if (!list.length) {
+      const demoPost = {
+        id: "demo-post-1",
+        creator: {
+          id: "",
+          username: "Welcome to Crypto App",
+          handle: "@crypto_app",
+          avatar: null,
+          isFollowing: false
+        },
+        media: {
+          type: "image",
+          url:
+            "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&w=800&q=80",
+          aspectRatio: "4/3"
+        },
+        caption:
+          "There are no posts yet. Create your first post to start earning from tasks, campaigns, and gifts.",
+        postType: "regular",
+        allowGifts: false,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        earnings: 0,
+        isLiked: false,
+        createdAt: new Date(),
+        status: "approved",
+        category: "General",
+        musicTrackId: "none"
+      };
+      return res.status(200).json({ success: true, posts: [demoPost] });
+    }
+
     return res.status(200).json({ success: true, posts: list });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

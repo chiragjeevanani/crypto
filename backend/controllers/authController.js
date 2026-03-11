@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
-const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "15m";
+const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "1d";
 const refreshExpiry = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 
 const resolveLocaleFromCountry = (countryInput) => {
