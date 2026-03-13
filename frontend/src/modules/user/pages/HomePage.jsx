@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Search, Bell } from 'lucide-react'
 import { useFeedStore } from '../store/useFeedStore'
 import PostCard from '../components/feed/PostCard'
@@ -8,6 +8,7 @@ import Stories from '../components/feed/Stories'
 
 export default function HomePage() {
     const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts } = useFeedStore()
+    const navigate = useNavigate()
     useEffect(() => { loadPosts() }, [loadPosts])
     const [searchParams] = useSearchParams()
     const [query, setQuery] = useState('')
@@ -15,12 +16,26 @@ export default function HomePage() {
     const [postFilter, setPostFilter] = useState('all')
     const [activePostIndex, setActivePostIndex] = useState(null)
     const view = searchParams.get('view')
+    const currentPostId = searchParams.get('post')
     const isExplore = view === 'explore'
+    const isReels = view === 'reels'
 
     const feedPosts = useMemo(() => {
         if (postFilter === 'all') return posts
         return posts.filter((post) => post.postType === postFilter)
     }, [posts, postFilter])
+
+    const videoPosts = useMemo(
+        () => posts.filter((post) => post.media?.type === 'video'),
+        [posts],
+    )
+
+    const reelsStartIndex = useMemo(() => {
+        if (!isReels || videoPosts.length === 0) return null
+        if (!currentPostId) return 0
+        const idx = videoPosts.findIndex((post) => post.id === currentPostId)
+        return idx >= 0 ? idx : 0
+    }, [isReels, videoPosts, currentPostId])
 
     const filteredExplore = useMemo(() => {
         if (!query.trim()) return posts
@@ -36,6 +51,14 @@ export default function HomePage() {
     const openPostFeed = (postId) => {
         const idx = filteredExplore.findIndex((post) => post.id === postId)
         if (idx >= 0) setActivePostIndex(idx)
+    }
+
+    const handleOpenFromFeed = (postId) => {
+        const post = posts.find((p) => p.id === postId)
+        if (post?.media?.type === 'video') {
+            // Navigate into reels tab when a video is tapped from home feed
+            navigate(`/home?view=reels&post=${postId}`)
+        }
     }
 
     return (
@@ -89,9 +112,9 @@ export default function HomePage() {
             </div>
 
             {/* Stories Section (Instagram-like) */}
-            {!isExplore && <Stories />}
+            {!isExplore && !isReels && <Stories />}
 
-            {!isExplore ? (
+            {!isExplore && !isReels ? (
                 <div className="desktop-feed-grid">
                     <div className="mx-3 mt-3 mb-1 rounded-xl border px-2 py-2 flex gap-2 overflow-x-auto hide-scrollbar"
                         style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
@@ -116,10 +139,10 @@ export default function HomePage() {
                         ))}
                     </div>
                     {feedPosts.map((post) => (
-                        <PostCard key={post.id} post={post} />
+                        <PostCard key={post.id} post={post} onOpen={handleOpenFromFeed} />
                     ))}
                 </div>
-            ) : (
+            ) : isExplore ? (
                 <div className="px-4 pt-4 pb-6">
                     <div
                         className="flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4"
@@ -157,11 +180,32 @@ export default function HomePage() {
                         ))}
                     </div>
                 </div>
+            ) : (
+                // Reels tab: content is handled by full-screen PostFeedModal below
+                <div className="px-4 pt-4 pb-6">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        Reels
+                    </p>
+                    {videoPosts.length === 0 && (
+                        <p className="mt-2 text-sm" style={{ color: 'var(--color-muted)' }}>
+                            No video posts yet.
+                        </p>
+                    )}
+                </div>
             )}
 
             {/* Bottom padding */}
             <div style={{ height: 16 }} />
-            <PostFeedModal posts={filteredExplore} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            {isExplore && (
+                <PostFeedModal posts={filteredExplore} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            )}
+            {isReels && reelsStartIndex !== null && (
+                <PostFeedModal
+                    posts={videoPosts}
+                    startIndex={reelsStartIndex}
+                    onClose={() => navigate('/home', { replace: true })}
+                />
+            )}
         </div>
     )
 }

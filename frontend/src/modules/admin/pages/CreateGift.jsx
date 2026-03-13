@@ -83,7 +83,7 @@ export default function CreateGift() {
                                 </div>
                                 <div className="space-y-2.5">
                                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Visual Icon (Emoji)</label>
-                                    <div className="relative">
+                                    <div className="relative space-y-3">
                                         <input
                                             required
                                             type="text"
@@ -91,6 +91,22 @@ export default function CreateGift() {
                                             onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
                                             className="w-full bg-bg border border-surface rounded-xl p-4 text-center text-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                         />
+                                        <div className="flex flex-wrap gap-2">
+                                            {['❤️', '💛', '💎', '🌹', '💜', '🔥', '⭐', '🎁'].map((emoji) => (
+                                                <button
+                                                    key={emoji}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, icon: emoji })}
+                                                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-xl border transition-all ${
+                                                        formData.icon === emoji
+                                                            ? 'bg-primary/20 border-primary text-primary'
+                                                            : 'bg-bg border-surface hover:border-primary/40'
+                                                    }`}
+                                                >
+                                                    {emoji}
+                                                </button>
+                                            ))}
+                                        </div>
                                         <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
                                             <Gift className="w-5 h-5" />
                                         </div>

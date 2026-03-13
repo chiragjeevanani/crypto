@@ -20,7 +20,7 @@ export default function LoginPage() {
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
     const [formData, setFormData] = useState({
-        email: 'admin@socialearn.io',
+        email: '',
         password: ''
     });
 
@@ -55,7 +55,9 @@ export default function LoginPage() {
                         <ShieldCheck className="text-black w-8 h-8" />
                     </div>
                     <h1 className="text-xl font-bold tracking-tight text-text">SocialEarn</h1>
-                    {/* <p className="text-[10px] text-muted font-semibold uppercase tracking-[0.2em] mt-2 opacity-60">Authentication Protocol v4.0</p> */}
+                    <p className="text-[10px] text-muted font-semibold uppercase tracking-[0.2em] mt-2 opacity-70">
+                        Admin Login
+                    </p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-5">

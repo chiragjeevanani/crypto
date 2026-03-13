@@ -10,6 +10,7 @@ import {
     LogOut,
     PlusSquare,
     Trophy,
+    PlayCircle,
 } from 'lucide-react'
 import BottomNavbar from '../components/shared/BottomNavbar'
 import CoinRain from '../components/shared/CoinRain'
@@ -26,6 +27,7 @@ import { getAdminCampaignsFromStorage, mapAdminCampaignToUserTask } from '../../
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
     { label: 'Explore', to: '/home?view=explore', icon: Compass, key: 'explore' },
+    { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
     { label: 'Brand Tasks', to: '/tasks', icon: BriefcaseBusiness, key: 'brandTasks' },
     { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
     { label: 'Wallet', to: '/wallet', icon: Wallet, key: 'wallet' },
@@ -77,8 +79,9 @@ export default function AppShell() {
     const todayEarningsLabel = formatCurrency(todayEarnings || 120, currencySymbol)
 
     const isItemActive = (item) => {
-        if (item.key === 'home') return location.pathname === '/home' && view !== 'explore'
+        if (item.key === 'home') return location.pathname === '/home' && !view
         if (item.key === 'explore') return location.pathname === '/home' && view === 'explore'
+        if (item.key === 'reels') return location.pathname === '/home' && view === 'reels'
         if (item.key === 'brandTasks') return location.pathname === '/tasks' && view !== 'nft'
         if (item.key === 'nftMarket') return location.pathname === '/tasks' && view === 'nft'
         return location.pathname === item.to

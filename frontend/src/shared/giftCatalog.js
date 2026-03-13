@@ -50,12 +50,22 @@ export function saveGiftCatalog(items) {
 }
 
 export function syncGiftCatalogFromAdminGifts(adminGifts) {
-    const mapped = (adminGifts || []).map((gift, idx) => normalizeGift({
-        id: `gift_${gift.id || idx + 1}`,
-        emoji: gift.icon,
-        name: gift.name,
-        price: gift.price,
-        status: gift.status,
-    }, idx))
+    const mapped = (adminGifts || []).map((gift, idx) => {
+        const emoji = gift.icon || '🎁'
+        let canonicalId = `gift_${gift.id || idx + 1}`
+        // Map common emojis to canonical ids so existing sounds/effects work
+        if (emoji === '🌹') canonicalId = 'rose'
+        if (emoji === '🥚') canonicalId = 'egg'
+        if (emoji === '🍅') canonicalId = 'tomato'
+        if (emoji === '💛' || emoji === '❤️' || emoji === '💖') canonicalId = 'heart'
+
+        return normalizeGift({
+            id: canonicalId,
+            emoji,
+            name: gift.name,
+            price: gift.price,
+            status: gift.status,
+        }, idx)
+    })
     saveGiftCatalog(mapped)
 }

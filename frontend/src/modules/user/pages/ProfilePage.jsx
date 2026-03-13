@@ -231,7 +231,12 @@ export default function ProfilePage() {
                     {activeTab === 'Posts' && (
                         <div className="grid grid-cols-3 gap-0.5 p-0.5">
                             {profilePosts.map((post) => (
-                                <div key={post.id} className="relative cursor-pointer overflow-hidden" style={{ aspectRatio: '1' }} onClick={() => setActivePostIndex(profilePosts.findIndex((item) => item.id === post.id))}>
+                                <div
+                                    key={post.id}
+                                    className="relative cursor-pointer overflow-hidden"
+                                    style={{ aspectRatio: '1' }}
+                                    onClick={() => setActivePostIndex(profilePosts.findIndex((item) => item.id === post.id))}
+                                >
                                     {post.media?.type === 'video' ? (
                                         <>
                                             <video

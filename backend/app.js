@@ -5,8 +5,10 @@ const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userPostRoutes = require("./routes/user/postRoutes");
 const userFollowRoutes = require("./routes/user/followRoutes");
+const userStoryRoutes = require("./routes/user/storyRoutes");
 const adminModerationRoutes = require("./routes/admin/moderationRoutes");
 const adminUserRoutes = require("./routes/admin/userRoutes");
+const adminGiftRoutes = require("./routes/admin/giftRoutes");
 
 const app = express();
 
@@ -23,8 +25,10 @@ app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/user/posts", userPostRoutes);
 app.use("/api/user/follow", userFollowRoutes);
+app.use("/api/user/stories", userStoryRoutes);
 app.use("/api/admin/content", adminModerationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
+app.use("/api/admin/gifts", adminGiftRoutes);
 
 // 404 — must be after all routes so unmatched requests get a clear JSON response
 app.use((req, res) => {

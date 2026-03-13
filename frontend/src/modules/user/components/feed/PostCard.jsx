@@ -185,7 +185,7 @@ export default function PostCard({ post, onOpen }) {
             {/* Media */}
             <div
                 className={`w-full relative bg-black/5 ${onOpen ? 'cursor-pointer' : ''}`}
-                style={{ aspectRatio: post.media?.type === 'audio' ? 'auto' : '4/3' }}
+                style={{ aspectRatio: post.media?.type === 'audio' ? 'auto' : '4/5' }}
                 onClick={() => onOpen?.(post.id)}
             >
                 {post.media?.type === 'video' ? (
