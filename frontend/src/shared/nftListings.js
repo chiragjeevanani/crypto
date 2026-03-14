@@ -1,10 +1,13 @@
 const NFT_LISTINGS_KEY = 'socialearn_user_nft_listings_v1'
 
 function normalizeListing(item, idx = 0) {
+    const mediaType = String(item?.mediaType || item?.media?.type || item?.type || '')
+    const mediaUrl = String(item?.mediaUrl || item?.media?.url || item?.videoUrl || item?.url || '')
+    const thumbnail = String(item?.thumbnail || item?.previewUrl || '')
     return {
         id: String(item?.id || `user_nft_${Date.now()}_${idx}`),
         title: String(item?.title || 'Untitled NFT'),
-        thumbnail: String(item?.thumbnail || ''),
+        thumbnail,
         price: Math.max(1, Math.round(Number(item?.price || 1))),
         currency: 'INR',
         status: String(item?.status || 'listed'),
@@ -16,6 +19,8 @@ function normalizeListing(item, idx = 0) {
         creatorId: String(item?.creatorId || 'me'),
         creatorName: String(item?.creatorName || 'Creator'),
         creatorHandle: String(item?.creatorHandle || '@creator'),
+        mediaType,
+        mediaUrl,
         source: 'user',
     }
 }

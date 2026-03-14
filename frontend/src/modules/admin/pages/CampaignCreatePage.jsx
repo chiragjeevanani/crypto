@@ -20,23 +20,32 @@ export default function CampaignCreatePage() {
 
         await createCampaign({
             title: formData.title || 'Untitled Campaign',
-            brand: formData.brand || 'Brand',
-            budget: Number(formData.budget || 0),
+            description: formData.description || 'Campaign description',
+            brandName: formData.brand || 'Brand',
+            bannerUrl: backgroundImage,
+            startDate: formData.startDate || new Date().toISOString().slice(0, 10),
             endDate: formData.endDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-            backgroundImage,
+            participationType: formData.participationType || 'free',
+            taskInstructions: formData.taskInstructions || 'Follow the campaign steps',
+            rewardDetails: formData.rewardDetails || 'Reward to be announced',
+            numberOfWinners: Number(formData.numberOfWinners || 1),
+            votingEnabled: Boolean(formData.votingEnabled),
+            tasks: formData.tasks || [],
+            assets: formData.assets || [],
             campaignType,
             blockchainNetwork: useNftSettings ? (formData.blockchainNetwork || 'polygon') : '',
             nftPriceMin: useNftSettings ? normalizedNftPriceMin : 0,
             nftPriceMax: useNftSettings ? normalizedNftPriceMax : 0,
             commissionRate: useNftSettings ? Math.max(0, Math.min(100, Number(formData.commissionRate || 0))) : 0,
             status: 'Active',
+            budget: Number(formData.budget || 0),
         });
         navigate('/admin/campaigns');
     };
 
     return (
-        <div className="w-full min-h-[calc(100vh-80px)] flex justify-center items-center p-6 rounded-2xl border border-surface bg-bg">
-            <div className="w-full max-w-4xl p-1 rounded-3xl shadow-2xl border border-surface bg-surface">
+        <div className="w-full min-h-[calc(100vh-80px)] flex justify-center items-start md:items-center p-3 sm:p-4 md:p-6 rounded-2xl border border-surface bg-bg">
+            <div className="w-full max-w-4xl p-0 sm:p-1 rounded-2xl sm:rounded-3xl shadow-none md:shadow-2xl border border-surface bg-surface">
                 <CampaignWizard
                     mode="page"
                     onClose={() => navigate('/admin/campaigns')}

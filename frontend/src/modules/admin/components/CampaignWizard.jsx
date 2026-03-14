@@ -9,9 +9,16 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         title: '',
+        description: '',
         brand: '',
         budget: '',
+        rewardDetails: '',
+        numberOfWinners: 1,
+        votingEnabled: true,
+        participationType: 'free',
+        startDate: '',
         endDate: '',
+        taskInstructions: '',
         campaignType: 'brand_task',
         tasks: [],
         assets: [],
@@ -40,9 +47,16 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
         // reset state
         setFormData({
             title: '',
+            description: '',
             brand: '',
             budget: '',
+            rewardDetails: '',
+            numberOfWinners: 1,
+            votingEnabled: true,
+            participationType: 'free',
+            startDate: '',
             endDate: '',
+            taskInstructions: '',
             campaignType: 'brand_task',
             tasks: [],
             assets: [],
@@ -71,18 +85,50 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
     ];
 
     const containerClasses = mode === 'page'
-        ? 'bg-surface border border-surface w-[min(100%,1120px)] max-h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-lg'
+        ? 'bg-surface border border-surface w-full max-w-4xl rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col shadow-none md:shadow-lg'
         : 'bg-surface border border-surface w-full max-w-2xl max-h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-xl';
 
-    const WizardBody = () => (
-        <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className={containerClasses}
-        >
+    const renderWizardShell = (children) => {
+        if (mode === 'page') {
+            return <div className={containerClasses}>{children}</div>
+        }
+        return (
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className={containerClasses}
+            >
+                {children}
+            </motion.div>
+        )
+    }
+
+    const renderStepWrap = (stepKey, children) => {
+        if (mode === 'page') {
+            return <div key={stepKey}>{children}</div>
+        }
+        return (
+            <motion.div
+                key={stepKey}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+            >
+                {children}
+            </motion.div>
+        )
+    }
+
+    const renderPresence = (children) => {
+        if (mode === 'page') return <>{children}</>
+        return <AnimatePresence mode="wait">{children}</AnimatePresence>
+    }
+
+    const wizardBody = renderWizardShell(
+        <>
             {/* Header */}
-            <div className="p-6 border-b border-surface flex items-center justify-between bg-surface2/50">
+            <div className="p-4 sm:p-6 border-b border-surface flex items-center justify-between bg-surface2/50">
                 <div>
                     <h2 className="text-lg font-bold text-text uppercase tracking-tighter">
                         Create Campaign
@@ -100,7 +146,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
             </div>
 
             {/* Progress Indicator */}
-            <div className="px-6 py-4 border-b border-surface flex items-center gap-3 bg-bg/50">
+            <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-surface flex items-center gap-3 bg-bg/50">
                 {steps.map((s, idx) => (
                     <div key={s.number} className="flex items-center gap-3 flex-1">
                         <div
@@ -127,17 +173,13 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto hide-scrollbar">
-                <div className="p-6 space-y-6">
-                    <AnimatePresence mode="wait">
-                        {step === 1 && (
-                            <motion.div
-                                key="step1"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
+            <div className="flex-1 overflow-y-auto md:overflow-y-auto hide-scrollbar">
+                <div className="p-4 sm:p-6 space-y-6">
+                    {renderPresence(
+                        <>
+                            {step === 1 && (
+                                renderStepWrap("step1",
+                                    <div className="space-y-6">
                                 <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
                                     Campaign Basics
                                 </h3>
@@ -155,7 +197,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
                                             Brand Name *
@@ -186,6 +228,19 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
 
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                        Campaign Description *
+                                    </label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={e => handleInputChange('description', e.target.value)}
+                                        placeholder="Short description to help creators understand the campaign"
+                                        rows="3"
+                                        className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text placeholder-muted/50 focus:ring-1 focus:ring-primary/30 outline-none resize-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
                                         Campaign Type
                                     </label>
                                     <select
@@ -199,16 +254,84 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                     </select>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
-                                        Campaign End Date *
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.endDate}
-                                        onChange={e => handleInputChange('endDate', e.target.value)}
-                                        className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Campaign Start Date *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={formData.startDate}
+                                            onChange={e => handleInputChange('startDate', e.target.value)}
+                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Campaign End Date *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={formData.endDate}
+                                            onChange={e => handleInputChange('endDate', e.target.value)}
+                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Participation Type
+                                        </label>
+                                        <select
+                                            value={formData.participationType}
+                                            onChange={e => handleInputChange('participationType', e.target.value)}
+                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                        >
+                                            <option value="free">Free for everyone</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Number of Winners *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={formData.numberOfWinners}
+                                            onChange={e => handleInputChange('numberOfWinners', parseInt(e.target.value, 10) || 1)}
+                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Voting Enabled
+                                        </label>
+                                        <select
+                                            value={formData.votingEnabled ? 'yes' : 'no'}
+                                            onChange={e => handleInputChange('votingEnabled', e.target.value === 'yes')}
+                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text outline-none focus:ring-1 focus:ring-primary/30"
+                                        >
+                                            <option value="yes">Yes</option>
+                                            <option value="no">No</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                            Prize / Reward Details *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.rewardDetails}
+                                            onChange={e => handleInputChange('rewardDetails', e.target.value)}
+                                            placeholder="e.g., ₹10,000 cash + merch pack"
+                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text placeholder-muted/50 focus:ring-1 focus:ring-primary/30 outline-none"
+                                        />
+                                    </div>
                                 </div>
 
                                 {(formData.campaignType === 'nft_launch' || formData.campaignType === 'mixed') && (
@@ -277,47 +400,47 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                         </div>
                                     </div>
                                 )}
-                            </motion.div>
-                        )}
+                                    </div>
+                                )
+                            )}
 
-                        {step === 2 && (
-                            <motion.div
-                                key="step2"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <TaskBuilder
+                            {step === 2 && (
+                                renderStepWrap("step2",
+                                    <>
+                                        <div className="space-y-2 mb-6">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">
+                                        Task Instructions (Overall) *
+                                    </label>
+                                    <textarea
+                                        value={formData.taskInstructions}
+                                        onChange={e => handleInputChange('taskInstructions', e.target.value)}
+                                        placeholder="Explain what users must do to participate"
+                                        rows="3"
+                                        className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text placeholder-muted/50 focus:ring-1 focus:ring-primary/30 outline-none resize-none"
+                                    />
+                                        </div>
+                                        <TaskBuilder
                                     tasks={formData.tasks}
                                     onChange={tasks => handleInputChange('tasks', tasks)}
                                     maxTasks={5}
                                 />
-                            </motion.div>
+                                    </>
+                            )
                         )}
 
                         {step === 3 && (
-                            <motion.div
-                                key="step3"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
+                            renderStepWrap("step3",
                                 <AssetUploader
                                     assets={formData.assets}
                                     onChange={assets => handleInputChange('assets', assets)}
                                     maxAssets={10}
                                 />
-                            </motion.div>
+                            )
                         )}
 
                         {step === 4 && (
-                            <motion.div
-                                key="step4"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
+                            renderStepWrap("step4",
+                                <div className="space-y-6">
                                 <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
                                     Targeting
                                 </h3>
@@ -377,30 +500,28 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                         />
                                     </div>
                                 </div>
-                            </motion.div>
+                                </div>
+                            )
                         )}
 
                         {step === 5 && (
-                            <motion.div
-                                key="step5"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="space-y-6"
-                            >
+                            renderStepWrap("step5",
+                                <div className="space-y-6">
                                 <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
                                     Review &amp; Create
                                 </h3>
                                 <pre className="bg-bg p-4 rounded-lg text-[10px] overflow-x-auto">
                                     {JSON.stringify(formData, null, 2)}
                                 </pre>
-                            </motion.div>
+                                </div>
+                            )
                         )}
-                    </AnimatePresence>
+                        </>
+                    )}
                 </div>
 
                 {/* Navigation Buttons */}
-                <div className="px-6 py-4 border-t border-surface flex justify-between bg-bg/50">
+                <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-surface flex justify-between bg-bg/50">
                     <button
                         onClick={handlePrev}
                         disabled={step === 1}
@@ -427,7 +548,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                     )}
                 </div>
             </div>
-        </motion.div>
+        </>
     );
 
     if (mode === 'modal') {
@@ -438,7 +559,7 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                     onClick={onClose}
                 />
                 <div className="fixed inset-0 flex items-center justify-center p-4">
-                    <WizardBody />
+                    {wizardBody}
                 </div>
             </>
         );
@@ -446,8 +567,8 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
 
     // page mode
     return (
-        <div className="w-full flex justify-center p-4">
-            <WizardBody />
+        <div className="w-full flex justify-center p-2 sm:p-4">
+            {wizardBody}
         </div>
     );
 }

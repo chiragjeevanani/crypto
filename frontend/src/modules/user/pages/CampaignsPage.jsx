@@ -1,38 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Megaphone, Trophy } from 'lucide-react'
-import { mockTasks } from '../data/mockTasks'
 import { useCampaignStore } from '../store/useCampaignStore'
-import { getAdminCampaignsFromStorage, mapAdminCampaignToUserTask } from '../../../shared/adminCampaignSync'
+import { userCampaignService } from '../services/campaignService'
 
 export default function CampaignsPage() {
     const navigate = useNavigate()
-    const { campaigns } = useCampaignStore()
-    const [adminTasks, setAdminTasks] = useState([])
+    const { campaigns: votedCampaigns } = useCampaignStore()
+    const [campaigns, setCampaigns] = useState([])
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const hydrateCampaigns = () => {
-            const fromAdmin = getAdminCampaignsFromStorage().map((campaign, idx) => mapAdminCampaignToUserTask(campaign, idx))
-            setAdminTasks(fromAdmin)
+        let mounted = true
+        const load = async () => {
+            setLoading(true)
+            try {
+                const list = await userCampaignService.listActive()
+                if (mounted) setCampaigns(list || [])
+            } finally {
+                if (mounted) setLoading(false)
+            }
         }
-        hydrateCampaigns()
-        const onUpdate = () => hydrateCampaigns()
-        const onStorage = (event) => {
-            if (event.key === 'socialearn_admin_campaigns_v1') hydrateCampaigns()
-        }
-        window.addEventListener('admin-campaigns-updated', onUpdate)
-        window.addEventListener('storage', onStorage)
-        return () => {
-            window.removeEventListener('admin-campaigns-updated', onUpdate)
-            window.removeEventListener('storage', onStorage)
-        }
+        load()
+        return () => { mounted = false }
     }, [])
-
-    const allCampaigns = useMemo(
-        () => [...adminTasks, ...mockTasks].filter((task) => task.status === 'active'),
-        [adminTasks],
-    )
-    const recentWinners = campaigns.filter((item) => item.votingStatus === 'completed' && item.winner).slice(0, 6)
+    const recentWinners = votedCampaigns.filter((item) => item.votingStatus === 'completed' && item.winner).slice(0, 6)
 
     return (
         <div className="px-4 pt-4 pb-20">
@@ -49,19 +41,41 @@ export default function CampaignsPage() {
                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Live Campaigns</p>
                 </div>
                 <div className="space-y-2.5">
-                    {allCampaigns.length === 0 && (
+                    {loading && (
+                        <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Loading campaigns...</p>
+                    )}
+                    {!loading && campaigns.length === 0 && (
                         <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>No active campaigns.</p>
                     )}
-                    {allCampaigns.map((task) => (
-                        <button
-                            key={task.id}
-                            onClick={() => navigate(`/tasks/${encodeURIComponent(task.id)}`)}
-                            className="w-full text-left rounded-xl p-3"
+                    {campaigns.map((campaign) => (
+                        <div
+                            key={campaign.id}
+                            className="w-full rounded-xl p-3 flex items-center justify-between gap-3"
                             style={{ background: 'var(--color-surface2)' }}
                         >
-                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{task.title}</p>
-                            <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{task.brand.name}</p>
-                        </button>
+                            <div className="flex items-center gap-3 min-w-0">
+                                {campaign.bannerUrl && (
+                                    <img src={campaign.bannerUrl} alt={campaign.title} className="w-14 h-14 rounded-lg object-cover" />
+                                )}
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{campaign.title}</p>
+                                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{campaign.brandName}</p>
+                                    <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>
+                                        Prize: {campaign.rewardDetails}
+                                    </p>
+                                    <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>
+                                        Ends: {String(campaign.endDate || '').slice(0, 10)}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                                className="px-3 py-1.5 rounded-full text-[11px] font-semibold"
+                                style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--color-primary)' }}
+                            >
+                                Join Campaign
+                            </button>
+                        </div>
                     ))}
                 </div>
             </div>

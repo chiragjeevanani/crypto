@@ -15,43 +15,19 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
+import { campaignService } from '../services/campaignService';
 
-// Mock data
-const mockCampaigns = [
-    {
-        id: 'C-101',
-        title: 'Summer Splash Brand Task',
-        brand: 'Pepsi Co',
-        budget: 5000,
-        participants: 1240,
-        status: 'Active',
-        endDate: '2026-09-12',
-        progress: 65,
-        color: 'emerald-500'
-    },
-    {
-        id: 'C-102',
-        title: 'Eco-Friendly Challenge',
-        brand: 'Green Earth',
-        budget: 2500,
-        participants: 850,
-        status: 'Paused',
-        endDate: '2026-10-05',
-        progress: 30,
-        color: 'amber-500'
-    },
-    {
-        id: 'C-103',
-        title: 'New App Review Blast',
-        brand: 'TechVibe',
-        budget: 10000,
-        participants: 4500,
-        status: 'Active',
-        endDate: '2026-08-28',
-        progress: 92,
-        color: 'primary'
-    }
-];
+const normalizeCampaign = (campaign) => {
+    if (!campaign) return null;
+    return {
+        ...campaign,
+        id: campaign._id || campaign.id,
+        brand: campaign.brandName || campaign.brand,
+        endDate: String(campaign.endDate || '').slice(0, 10),
+        budget: Number(campaign.budget || 0),
+        participants: campaign.participants?.length || campaign.participants || 0,
+    };
+};
 
 export default function EditCampaign() {
     const { campaignId } = useParams();
@@ -63,22 +39,41 @@ export default function EditCampaign() {
     const [showSuccess, setShowSuccess] = useState(false);
 
     useEffect(() => {
-        const campaign = mockCampaigns.find(c => c.id === campaignId);
-        if (campaign) {
-            setFormData({ ...campaign });
-        } else {
-            navigate('/admin/campaigns');
-        }
+        let mounted = true;
+        const load = async () => {
+            try {
+                const campaign = await campaignService.fetchCampaignById(campaignId);
+                if (!mounted) return;
+                const normalized = normalizeCampaign(campaign);
+                if (normalized) {
+                    setFormData({ ...normalized });
+                } else {
+                    navigate('/admin/campaigns');
+                }
+            } catch {
+                if (mounted) navigate('/admin/campaigns');
+            }
+        };
+        load();
+        return () => { mounted = false; };
     }, [campaignId, navigate]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         setIsSaving(true);
-        setTimeout(() => {
+        campaignService.updateCampaign(campaignId, {
+            title: formData.title,
+            brandName: formData.brand,
+            budget: Number(formData.budget || 0),
+            endDate: formData.endDate,
+            status: formData.status,
+        }).then(() => {
             setIsSaving(false);
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
-        }, 1000);
+        }).catch(() => {
+            setIsSaving(false);
+        });
     };
 
     if (!formData) return null;
@@ -159,12 +154,12 @@ export default function EditCampaign() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-2.5">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1">Brand Authority</label>
-                                    <input
-                                        type="text"
-                                        value={formData.brand}
-                                        onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                                        className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
-                                    />
+                                <input
+                                    type="text"
+                                    value={formData.brand}
+                                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                                    className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                />
                                 </div>
                                 <div className="space-y-2.5">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
@@ -286,11 +281,11 @@ export default function EditCampaign() {
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Current Nodes</span>
-                                <span className="text-xs font-bold text-text">{formData.participants.toLocaleString()}</span>
+                                <span className="text-xs font-bold text-text">{Number(formData.participants || 0).toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Cost/Node</span>
-                                <span className="text-xs font-bold text-text">{formatCurrency(formData.budget / formData.participants)}</span>
+                                <span className="text-xs font-bold text-text">{formatCurrency(formData.participants ? (formData.budget / formData.participants) : 0)}</span>
                             </div>
                         </div>
                     </div>

@@ -6,9 +6,12 @@ const authRoutes = require("./routes/authRoutes");
 const userPostRoutes = require("./routes/user/postRoutes");
 const userFollowRoutes = require("./routes/user/followRoutes");
 const userStoryRoutes = require("./routes/user/storyRoutes");
+const userCampaignRoutes = require("./routes/user/campaignRoutes");
+const userReelFeedRoutes = require("./routes/user/reelFeedRoutes");
 const adminModerationRoutes = require("./routes/admin/moderationRoutes");
 const adminUserRoutes = require("./routes/admin/userRoutes");
 const adminGiftRoutes = require("./routes/admin/giftRoutes");
+const adminCampaignRoutes = require("./routes/admin/campaignRoutes");
 
 const app = express();
 
@@ -26,9 +29,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user/posts", userPostRoutes);
 app.use("/api/user/follow", userFollowRoutes);
 app.use("/api/user/stories", userStoryRoutes);
+app.use("/api/user/campaigns", userCampaignRoutes);
+app.use("/api/user/reels-feed", userReelFeedRoutes);
 app.use("/api/admin/content", adminModerationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/gifts", adminGiftRoutes);
+app.use("/api/admin/campaigns", adminCampaignRoutes);
 
 // 404 — must be after all routes so unmatched requests get a clear JSON response
 app.use((req, res) => {

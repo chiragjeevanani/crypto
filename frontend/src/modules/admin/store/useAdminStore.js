@@ -225,14 +225,13 @@ export const useAdminStore = create((set, get) => ({
     // Actions - Campaigns
     loadCampaigns: () => get().execute(async () => {
         const campaigns = await campaignService.fetchCampaigns();
-        const votingState = useCampaignStore.getState().campaigns || [];
-        const closures = votingState
-            .filter((campaign) => campaign.votingStatus === 'completed')
+        const closures = campaigns
+            .filter((campaign) => campaign.status === 'Completed')
             .map((campaign) => ({
-                id: campaign.id,
+                id: campaign._id || campaign.id,
                 title: campaign.title,
-                winner: campaign.winner?.creatorHandle || 'TBD',
-                payout: campaign.myReward,
+                winner: (campaign.winners && campaign.winners.length) ? 'Winner selected' : 'TBD',
+                payout: campaign.rewardDetails || '—',
                 auditLinked: false,
             }));
         set({ campaigns, campaignClosures: closures });
@@ -250,9 +249,24 @@ export const useAdminStore = create((set, get) => ({
     setCampaignStatus: (id, status) => get().execute(async () => {
         const updated = await campaignService.updateStatus(id, status);
         set((state) => ({
-            campaigns: state.campaigns.map(c => c.id === id ? updated : c)
+            campaigns: state.campaigns.map(c => (c._id || c.id) === id ? updated : c)
         }));
     }, `Campaign shifted to ${status}.`),
+
+    updateCampaign: (id, data) => get().execute(async () => {
+        const updated = await campaignService.updateCampaign(id, data);
+        set((state) => ({
+            campaigns: state.campaigns.map(c => (c._id || c.id) === id ? updated : c)
+        }));
+        return updated;
+    }, "Campaign updated."),
+
+    deleteCampaign: (id) => get().execute(async () => {
+        await campaignService.deleteCampaign(id);
+        set((state) => ({
+            campaigns: state.campaigns.filter(c => (c._id || c.id) !== id)
+        }));
+    }, "Campaign deleted."),
 
     // Actions - Moderation
     loadPosts: () => get().execute(async () => {
@@ -433,6 +447,18 @@ export const useAdminStore = create((set, get) => ({
             ],
         }));
     }, "Campaign closure linked to immutable audit trail."),
+
+    loadCampaignSubmissions: (id) => get().execute(async () => {
+        return await campaignService.fetchSubmissions(id);
+    }),
+
+    declareCampaignWinners: (id) => get().execute(async () => {
+        return await campaignService.declareWinners(id);
+    }, "Winners declared."),
+
+    markCampaignRewardDistributed: (campaignId, submissionId) => get().execute(async () => {
+        return await campaignService.markRewardDistributed(campaignId, submissionId);
+    }, "Reward marked as distributed."),
 
     computePRDMetrics: () => get().execute(async () => {
         const voteVolume = useCampaignStore

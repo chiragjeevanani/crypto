@@ -31,6 +31,9 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
     currentUserIdStr &&
     followers.some((oid) => oid && oid.toString() === currentUserIdStr)
   );
+  const category = String(post.category || "").toLowerCase();
+  const isBrandCategory = category.includes("brand") || category.includes("campaign") || category.includes("task");
+  const postType = post.isNFT ? "nft" : (isBrandCategory ? "brand" : "regular");
   return {
     id,
     creator: {
@@ -46,7 +49,8 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
       aspectRatio: post.media?.aspectRatio || "4/3"
     },
     caption: post.caption || "",
-    postType: post.isNFT ? "nft" : "regular",
+    postType,
+    nftPriceINR: Number(post.nftPriceINR || 0),
     allowGifts: true,
     likes: post.likes || 0,
     comments: post.comments || 0,

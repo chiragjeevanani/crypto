@@ -8,8 +8,10 @@ import { useFeedStore } from '../store/useFeedStore'
 import ProfileHeader from '../components/profile/ProfileHeader'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
-import { mockNFTs } from '../data/mockNFTs'
-import { mockTasks } from '../data/mockTasks'
+import { userCampaignService } from '../services/campaignService'
+import { mapCampaignToTask } from '../utils/campaignMapper'
+import { getJoinedCampaignIds } from '../utils/campaignStorage'
+import { getUserNFTListings } from '../../../shared/nftListings'
 import { followService } from '../services/followService'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
@@ -34,6 +36,9 @@ export default function ProfilePage() {
     const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
     const [followers, setFollowers] = useState([])
     const [following, setFollowing] = useState([])
+    const [joinedCampaigns, setJoinedCampaigns] = useState([])
+    const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
+    const [nftListings, setNftListings] = useState([])
 
     const { register, handleSubmit } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
     const settingsForm = useForm({
@@ -59,6 +64,7 @@ export default function ProfilePage() {
                 bio: data.bio,
                 avatar: editAvatar || profile.avatar,
             })
+            await loadPosts()
             setEditAvatar(null)
             setEditOpen(false)
         } catch (err) {
@@ -80,6 +86,7 @@ export default function ProfilePage() {
                 phone: data.phone,
                 bio: data.bio,
             })
+            await loadPosts()
             setSettingsOpen(false)
         } catch (err) {
             setProfileSaveError(err?.message || 'Failed to save profile')
@@ -113,6 +120,53 @@ export default function ProfilePage() {
     }, [profile.id, profile.email, profile.fullName, profile.username, profile.handle, profile.phone, profile.bio])
 
     useEffect(() => { loadPosts() }, [loadPosts])
+
+    useEffect(() => {
+        const hydrate = () => setNftListings(getUserNFTListings())
+        hydrate()
+        const onUpdate = () => hydrate()
+        const onStorage = (event) => {
+            if (event.key === 'socialearn_user_nft_listings_v1') hydrate()
+        }
+        window.addEventListener('nft-listings-updated', onUpdate)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            window.removeEventListener('nft-listings-updated', onUpdate)
+            window.removeEventListener('storage', onStorage)
+        }
+    }, [])
+
+    useEffect(() => {
+        let mounted = true
+        const load = async () => {
+            setJoinedCampaignsLoading(true)
+            try {
+                const joinedIds = new Set(getJoinedCampaignIds())
+                const list = await userCampaignService.listActive()
+                const joined = (list || [])
+                    .filter((campaign) => joinedIds.has(String(campaign.id)))
+                    .map((campaign) => mapCampaignToTask(campaign, true))
+                    .filter(Boolean)
+                if (mounted) setJoinedCampaigns(joined)
+            } catch {
+                if (mounted) setJoinedCampaigns([])
+            } finally {
+                if (mounted) setJoinedCampaignsLoading(false)
+            }
+        }
+        load()
+        const onJoined = () => load()
+        const onStorage = (event) => {
+            if (event.key === 'crypto_joined_campaigns_v1') load()
+        }
+        window.addEventListener('user-campaigns-joined', onJoined)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            mounted = false
+            window.removeEventListener('user-campaigns-joined', onJoined)
+            window.removeEventListener('storage', onStorage)
+        }
+    }, [])
 
     // Load followers / following for the logged-in user from backend
     useEffect(() => {
@@ -265,9 +319,30 @@ export default function ProfilePage() {
 
                     {activeTab === 'NFTs' && (
                         <div className="px-4 py-3 flex flex-col gap-3">
-                            {mockNFTs.map((nft) => (
+                            {nftListings.length === 0 && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No NFTs listed yet.</p>
+                            )}
+                            {nftListings.map((nft) => (
                                 <div key={nft.id} className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                                    <img src={nft.thumbnail} alt={nft.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
+                                        {nft.mediaType === 'video' && nft.mediaUrl ? (
+                                            <video
+                                                src={nft.mediaUrl}
+                                                muted
+                                                loop
+                                                playsInline
+                                                autoPlay
+                                                preload="metadata"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={nft.thumbnail || (nft.mediaType === 'image' ? nft.mediaUrl : '')}
+                                                alt={nft.title}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        )}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
                                         <NFTBadge status={nft.status} price={nft.price} className="mt-1" />
@@ -280,7 +355,13 @@ export default function ProfilePage() {
 
                     {activeTab === 'Tasks' && (
                         <div className="px-4 py-3 flex flex-col gap-3">
-                            {mockTasks.filter((t) => t.joined).map((task) => (
+                            {joinedCampaignsLoading && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Loading joined campaigns...</p>
+                            )}
+                            {!joinedCampaignsLoading && joinedCampaigns.length === 0 && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No joined campaigns yet.</p>
+                            )}
+                            {joinedCampaigns.map((task) => (
                                 <div key={task.id} className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
                                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: '#FF3F6C' }}>{task.brand.name.charAt(0)}</div>
                                     <div className="flex-1 min-w-0">
@@ -299,7 +380,7 @@ export default function ProfilePage() {
             <AnimatePresence>
                 {editOpen && (
                     <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditOpen(false)}>
-                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-8" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-[calc(var(--bottom-nav-height)+16px)]" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-center mb-4"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} /></div>
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>Edit Profile</p>

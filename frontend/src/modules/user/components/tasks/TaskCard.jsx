@@ -7,10 +7,19 @@ const BRAND_COLORS = {
     Nykaa: '#FC2779', Meesho: '#9B51E0',
 }
 
-export default function TaskCard({ task, onClick }) {
+export default function TaskCard({ task, onClick, onJoin, showJoin = false }) {
     const brandColor = BRAND_COLORS[task.brand.name] || '#f59e0b'
     const deadlineText = daysLeft(task.deadline)
     const isEnding = new Date(task.deadline) - Date.now() < 3 * 86400000
+    const rewardLabel = task.rewardDetails
+        ? `Prize: ${task.rewardDetails}`
+        : task.rewardPool
+            ? `₹${task.rewardPool.toLocaleString()} pool`
+            : 'Reward TBD'
+    const endDate = task.deadline ? new Date(task.deadline) : null
+    const endsOn = endDate && !Number.isNaN(endDate.getTime()) ? endDate.toISOString().slice(0, 10) : null
+
+    const steps = Array.isArray(task.steps) ? task.steps : []
 
     return (
         <motion.article
@@ -51,7 +60,7 @@ export default function TaskCard({ task, onClick }) {
                         style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--color-primary)' }}
                     >
                         <Trophy size={10} strokeWidth={2.5} />
-                        ₹{task.rewardPool.toLocaleString()} pool
+                        {rewardLabel}
                     </span>
 
                     <span
@@ -69,11 +78,35 @@ export default function TaskCard({ task, onClick }) {
                         <Users size={10} strokeWidth={2} />
                         {formatCount(task.participants)} joined
                     </span>
+
+                    {showJoin && (
+                        <button
+                            type="button"
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                onJoin?.(task)
+                            }}
+                            className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{
+                                background: task.joined ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                color: task.joined ? 'var(--color-success)' : 'var(--color-primary)',
+                            }}
+                            disabled={task.joined}
+                        >
+                            {task.joined ? 'Joined' : 'Join'}
+                        </button>
+                    )}
                 </div>
+
+                {endsOn && (
+                    <p className="text-[10px] mt-2" style={{ color: 'var(--color-muted)' }}>
+                        Ends on {endsOn}
+                    </p>
+                )}
 
                 {/* Steps dots */}
                 <div className="flex items-center gap-1.5 mt-2">
-                    {task.steps.map((step, i) => (
+                    {steps.map((step, i) => (
                         <div
                             key={i}
                             className="w-2 h-2 rounded-full"
@@ -81,7 +114,7 @@ export default function TaskCard({ task, onClick }) {
                         />
                     ))}
                     <span className="text-[10px] ml-1" style={{ color: 'var(--color-muted)' }}>
-                        {task.steps.length} steps
+                        {steps.length} steps
                     </span>
                     {task.joined && (
                         <span

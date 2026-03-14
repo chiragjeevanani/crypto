@@ -1,54 +1,91 @@
-import { getAdminCampaignsFromStorage, syncAdminCampaignsFromService } from '../../../shared/adminCampaignSync';
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const ADMIN_CAMPAIGNS = `${API_BASE}/admin/campaigns`;
 
-let mockCampaigns = getAdminCampaignsFromStorage();
+const getAuthHeaders = () => {
+    const raw = localStorage.getItem("crypto_auth_token");
+    return raw ? { Authorization: `Bearer ${raw}` } : {};
+};
+
+const handle = async (response) => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Request failed");
+    return data;
+};
 
 export const campaignService = {
     fetchCampaigns: async () => {
-        await delay(1000);
-        mockCampaigns = getAdminCampaignsFromStorage();
-        return [...mockCampaigns];
+        const response = await fetch(ADMIN_CAMPAIGNS, { headers: getAuthHeaders() });
+        const data = await handle(response);
+        return data.campaigns || [];
+    },
+
+    fetchCampaignById: async (id) => {
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${id}`, { headers: getAuthHeaders() });
+        const data = await handle(response);
+        return data.campaign;
     },
 
     createCampaign: async (data) => {
-        await delay(1500);
-        const newCampaign = {
-            ...data,
-            id: `C-${Math.floor(Math.random() * 900) + 100}`,
-            participants: 0,
-            progress: 0,
-            color: 'primary'
-        };
-        mockCampaigns.push(newCampaign);
-        mockCampaigns = syncAdminCampaignsFromService(mockCampaigns);
-        return newCampaign;
+        const response = await fetch(ADMIN_CAMPAIGNS, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify(data)
+        });
+        const res = await handle(response);
+        return res.campaign;
     },
 
     updateStatus: async (id, status) => {
-        await delay(800);
-        const campaign = mockCampaigns.find(c => c.id === id);
-        if (campaign) {
-            campaign.status = status;
-        }
-        mockCampaigns = syncAdminCampaignsFromService(mockCampaigns);
-        return campaign;
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ status })
+        });
+        const res = await handle(response);
+        return res.campaign;
     },
 
     updateCampaign: async (id, data) => {
-        await delay(1000);
-        mockCampaigns = mockCampaigns.map(c => c.id === id ? { ...c, ...data } : c);
-        mockCampaigns = syncAdminCampaignsFromService(mockCampaigns);
-        return mockCampaigns.find(c => c.id === id);
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify(data)
+        });
+        const res = await handle(response);
+        return res.campaign;
     },
 
-    distributePrizes: async (id) => {
-        await delay(2000);
-        const campaign = mockCampaigns.find(c => c.id === id);
-        if (campaign) {
-            campaign.status = 'Completed';
-            campaign.progress = 100;
-        }
-        mockCampaigns = syncAdminCampaignsFromService(mockCampaigns);
-        return campaign;
+    deleteCampaign: async (id) => {
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders()
+        });
+        return handle(response);
+    },
+
+    fetchSubmissions: async (id) => {
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${id}/submissions`, {
+            headers: getAuthHeaders()
+        });
+        const res = await handle(response);
+        return res.submissions || [];
+    },
+
+    declareWinners: async (id) => {
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${id}/declare-winners`, {
+            method: "POST",
+            headers: getAuthHeaders()
+        });
+        const res = await handle(response);
+        return res.winners || [];
+    },
+
+    markRewardDistributed: async (campaignId, submissionId) => {
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${campaignId}/winners/${submissionId}/distribute`, {
+            method: "PATCH",
+            headers: getAuthHeaders()
+        });
+        const res = await handle(response);
+        return res.submission;
     }
 };

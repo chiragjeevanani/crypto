@@ -19,50 +19,27 @@ import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/sh
 import { formatCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
 
-const campaigns = [
-    {
-        id: 'C-101',
-        title: 'Summer Splash Brand Task',
-        brand: 'Pepsi Co',
-        budget: 5000,
-        participants: 1240,
-        status: 'Active',
-        endDate: 'Sep 12, 2026',
-        progress: 65,
-        color: 'emerald-500'
-    },
-    {
-        id: 'C-102',
-        title: 'Eco-Friendly Challenge',
-        brand: 'Green Earth',
-        budget: 2500,
-        participants: 850,
-        status: 'Paused',
-        endDate: 'Oct 05, 2026',
-        progress: 30,
-        color: 'amber-500'
-    },
-    {
-        id: 'C-103',
-        title: 'New App Review Blast',
-        brand: 'TechVibe',
-        budget: 10000,
-        participants: 4500,
-        status: 'Active',
-        endDate: 'Aug 28, 2026',
-        progress: 92,
-        color: 'primary'
-    }
-];
+const getProgress = (startDate, endDate) => {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    const now = Date.now();
+    if (!start || !end || Number.isNaN(start) || Number.isNaN(end)) return 0;
+    if (now <= start) return 0;
+    if (now >= end) return 100;
+    return Math.max(0, Math.min(100, Math.round(((now - start) / (end - start)) * 100)));
+};
 
 export default function CampaignManagement() {
-    const { campaigns, campaignClosures, loadCampaigns, setCampaignStatus, linkCampaignClosureAudit } = useAdminStore();
+    const { campaigns, campaignClosures, loadCampaigns, setCampaignStatus, linkCampaignClosureAudit, deleteCampaign, declareCampaignWinners, markCampaignRewardDistributed } = useAdminStore();
     const [selectedCampaign, setSelectedCampaign] = useState(null);
+    const [winnerList, setWinnerList] = useState([])
+    const [loadingWinners, setLoadingWinners] = useState(false)
         const navigate = useNavigate();
 
     useEffect(() => {
         loadCampaigns();
     }, [loadCampaigns]);
+
 
     const handleSuspend = (id) => {
         if (window.confirm('Broadcast suspension to all nodes? This will halt participant engagement.')) {
@@ -73,6 +50,16 @@ export default function CampaignManagement() {
     const handleResume = (id) => {
         setCampaignStatus(id, 'Active');
     };
+
+    const handleDeclareWinners = async (id) => {
+        setLoadingWinners(true)
+        try {
+            const winners = await declareCampaignWinners(id)
+            setWinnerList(winners || [])
+        } finally {
+            setLoadingWinners(false)
+        }
+    }
 
     return (
         <div className="space-y-10 pb-20">
@@ -91,9 +78,9 @@ export default function CampaignManagement() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <AdminStatCard label="Live Campaigns" value={campaigns.filter(c => c.status === 'Active').length.toString()} change="+2" icon={Activity} color="primary" />
-                <AdminStatCard label="Reward Pool" value={formatCurrency(84200)} change="USDT" icon={Trophy} color="amber-500" />
-                <AdminStatCard label="Participants" value="42.8k" change="+1.2k" icon={Users} color="blue-500" />
+                <AdminStatCard label="Live Campaigns" value={campaigns.filter(c => c.status === 'Active').length.toString()} change="Active" icon={Activity} color="primary" />
+                <AdminStatCard label="Reward Pool" value={formatCurrency(campaigns.reduce((acc, c) => acc + (Number(c.rewardAmount || c.budget || 0) || 0), 0))} change="Total" icon={Trophy} color="amber-500" />
+                <AdminStatCard label="Participants" value={campaigns.reduce((acc, c) => acc + (c.participants?.length || c.participants || 0), 0).toLocaleString()} change="Total" icon={Users} color="blue-500" />
                 <AdminStatCard label="Audit Linked" value={`${campaignClosures.filter(c => c.auditLinked).length}/${campaignClosures.length}`} change="Winner Logs" icon={Award} color="emerald-500" />
             </div>
 
@@ -102,27 +89,27 @@ export default function CampaignManagement() {
                     <AdminDataTable
                         title="Campaign List"
                         columns={["Campaign", "Allocation", "Progress", "Status", "Actions"]}
-                        onRowClick={(camp) => setSelectedCampaign(campaigns.find(c => c.id === camp.id))}
+                        onRowClick={(camp) => setSelectedCampaign(campaigns.find(c => (c._id || c.id) === camp.id))}
                         data={campaigns.map(camp => ({
-                            id: camp.id,
+                            id: camp._id || camp.id,
                             cells: [
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg bg-${camp.color}/10 text-${camp.color} border border-${camp.color}/20`}>
+                                    <div className={`p-2 rounded-lg bg-primary/10 text-primary border border-primary/20`}>
                                         <Target className="w-4 h-4" />
                                     </div>
                                     <div>
                                         <p className="text-xs font-bold text-text truncate max-w-[150px]">{camp.title}</p>
-                                        <p className="text-[9px] text-muted font-bold uppercase tracking-wider">{camp.brand}</p>
+                                        <p className="text-[9px] text-muted font-bold uppercase tracking-wider">{camp.brandName || camp.brand}</p>
                                     </div>
                                 </div>,
-                                <span className="text-[10px] font-bold text-text">{formatCurrency(camp.budget)}</span>,
+                                <span className="text-[10px] font-bold text-text">{camp.rewardDetails || formatCurrency(Number(camp.budget || 0))}</span>,
                                 <div className="w-24 space-y-1.5">
                                     <div className="flex justify-between text-[8px] font-bold uppercase tracking-tighter">
-                                        <span className="text-muted">{camp.participants} Participants</span>
-                                        <span className="text-text">{camp.progress}%</span>
+                                        <span className="text-muted">{(camp.participants?.length || camp.participants || 0)} Participants</span>
+                                        <span className="text-text">{getProgress(camp.startDate, camp.endDate)}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-bg rounded-full overflow-hidden border border-surface">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: `${camp.progress}%` }} className={`h-full bg-${camp.color}`} />
+                                        <motion.div initial={{ width: 0 }} animate={{ width: `${getProgress(camp.startDate, camp.endDate)}%` }} className="h-full bg-primary" />
                                     </div>
                                 </div>,
                                 <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold border uppercase tracking-widest ${camp.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
@@ -136,10 +123,21 @@ export default function CampaignManagement() {
                                         className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group/edit"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            navigate(`/admin/campaigns/edit/${camp.id}`);
+                                            navigate(`/admin/campaigns/edit/${camp._id || camp.id}`);
                                         }}
                                     >
                                         <Edit2 className="w-3 h-3 text-muted group-hover/edit:text-primary" />
+                                    </button>
+                                    <button
+                                        className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm('Delete this campaign?')) {
+                                                deleteCampaign(camp._id || camp.id);
+                                            }
+                                        }}
+                                    >
+                                        <X className="w-3 h-3 text-muted group-hover:text-rose-500" />
                                     </button>
                                     <button className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group">
                                         <ChevronRight className="w-3 h-3 text-muted group-hover:text-primary" />
@@ -154,7 +152,7 @@ export default function CampaignManagement() {
                     <AnimatePresence mode="wait">
                         {selectedCampaign ? (
                             <motion.div
-                                key={selectedCampaign.id}
+                                key={selectedCampaign._id || selectedCampaign.id}
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 20 }}
@@ -189,23 +187,53 @@ export default function CampaignManagement() {
                                     </div>
                                 </div>
 
+                                <div className="space-y-4">
+                                    <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
+                                        <TrendingUp className="w-3 h-3 text-primary" /> Campaign Analytics
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="p-3 bg-bg border border-surface rounded-lg">
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Impressions</p>
+                                            <p className="text-base font-bold text-text">{selectedCampaign.analytics?.impressions || 0}</p>
+                                        </div>
+                                        <div className="p-3 bg-bg border border-surface rounded-lg">
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Clicks</p>
+                                            <p className="text-base font-bold text-text">{selectedCampaign.analytics?.clicks || 0}</p>
+                                        </div>
+                                        <div className="p-3 bg-bg border border-surface rounded-lg">
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Submissions</p>
+                                            <p className="text-base font-bold text-text">{selectedCampaign.analytics?.submissions || 0}</p>
+                                        </div>
+                                        <div className="p-3 bg-bg border border-surface rounded-lg">
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Votes</p>
+                                            <p className="text-base font-bold text-text">{selectedCampaign.analytics?.votes || 0}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="pt-2 space-y-2">
                                     <button
-                                        onClick={() => navigate(`/admin/campaigns/edit/${selectedCampaign.id}`)}
+                                        onClick={() => navigate(`/admin/campaigns/edit/${selectedCampaign._id || selectedCampaign.id}`)}
                                         className="w-full flex items-center justify-between px-4 py-3 bg-primary text-black rounded-lg font-bold uppercase tracking-widest text-[9px] shadow-sm active:scale-[0.98] transition-all"
                                     >
                                         Edit Campaign <ChevronRight className="w-3.5 h-3.5" />
                                     </button>
+                                    <button
+                                        onClick={() => handleDeclareWinners(selectedCampaign._id || selectedCampaign.id)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-emerald-500/5 text-muted hover:text-emerald-500 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px]"
+                                    >
+                                        {loadingWinners ? 'Declaring...' : 'Declare Winners'}
+                                    </button>
                                     {selectedCampaign.status === 'Active' ? (
                                         <button
-                                            onClick={() => handleSuspend(selectedCampaign.id)}
+                                            onClick={() => handleSuspend(selectedCampaign._id || selectedCampaign.id)}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-rose-500/5 text-muted hover:text-rose-500 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px]"
                                         >
                                             <Pause className="w-3.5 h-3.5" /> Pause Campaign
                                         </button>
                                     ) : (
                                         <button
-                                            onClick={() => handleResume(selectedCampaign.id)}
+                                            onClick={() => handleResume(selectedCampaign._id || selectedCampaign.id)}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-emerald-500/5 text-muted hover:text-emerald-500 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px]"
                                         >
                                             <Activity className="w-3.5 h-3.5" /> Resume Campaign
@@ -219,6 +247,23 @@ export default function CampaignManagement() {
                                 >
                                     Close Details
                                 </button>
+
+                                {winnerList.length > 0 && (
+                                    <div className="pt-4 border-t border-surface space-y-2">
+                                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted">Winners</p>
+                                        {winnerList.map((winner) => (
+                                            <div key={winner._id || winner.id} className="flex items-center justify-between text-[10px]">
+                                                <span className="text-text">{winner.user?.handle || winner.user?.name || 'Winner'}</span>
+                                                <button
+                                                    onClick={() => markCampaignRewardDistributed(selectedCampaign._id || selectedCampaign.id, winner._id || winner.id)}
+                                                    className="px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider border bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                                                >
+                                                    Rewarded
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </motion.div>
                         ) : null}
                     </AnimatePresence>

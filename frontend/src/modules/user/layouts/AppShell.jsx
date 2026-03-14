@@ -1,9 +1,10 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
     Home,
     Compass,
     BriefcaseBusiness,
+    Megaphone,
     Gem,
     Wallet,
     User,
@@ -19,16 +20,16 @@ import { useWalletStore } from '../store/useWalletStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
 import { formatINR, formatCurrency, formatCount } from '../utils/formatCurrency'
-import { mockTasks } from '../data/mockTasks'
-import { mockNFTs } from '../data/mockNFTs'
 import { getKYCSubmissionByUser } from '../../../shared/kycSync'
-import { getAdminCampaignsFromStorage, mapAdminCampaignToUserTask } from '../../../shared/adminCampaignSync'
+import { mapCampaignToTask } from '../utils/campaignMapper'
+import { userCampaignService } from '../services/campaignService'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
     { label: 'Explore', to: '/home?view=explore', icon: Compass, key: 'explore' },
     { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
     { label: 'Brand Tasks', to: '/tasks', icon: BriefcaseBusiness, key: 'brandTasks' },
+    { label: 'Campaigns', to: '/campaigns', icon: Megaphone, key: 'campaigns' },
     { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
     { label: 'Wallet', to: '/wallet', icon: Wallet, key: 'wallet' },
     { label: 'Profile', to: '/profile', icon: User, key: 'profile' },
@@ -45,9 +46,17 @@ export default function AppShell() {
     const { posts, pushNotification } = useFeedStore()
     const { kyc, setKYCFromSync, user, profile } = useUserStore()
 
-    const [activeCampaigns, setActiveCampaigns] = useState(mockTasks.filter((task) => task.status === 'active').slice(0, 3))
+    const [activeCampaigns, setActiveCampaigns] = useState([])
+    const [campaignLoading, setCampaignLoading] = useState(false)
+    const [campaignError, setCampaignError] = useState('')
     const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
-    const trendingNFTs = mockNFTs.slice(0, 3)
+    const trendingNFTs = useMemo(() => {
+        const nftPosts = posts.filter((post) => post.postType === 'nft')
+        return nftPosts
+            .slice()
+            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .slice(0, 3)
+    }, [posts])
 
     const leaderboard = posts
         .reduce((acc, post) => {
@@ -83,6 +92,7 @@ export default function AppShell() {
         if (item.key === 'explore') return location.pathname === '/home' && view === 'explore'
         if (item.key === 'reels') return location.pathname === '/home' && view === 'reels'
         if (item.key === 'brandTasks') return location.pathname === '/tasks' && view !== 'nft'
+        if (item.key === 'campaigns') return location.pathname.startsWith('/campaigns')
         if (item.key === 'nftMarket') return location.pathname === '/tasks' && view === 'nft'
         return location.pathname === item.to
     }
@@ -108,42 +118,44 @@ export default function AppShell() {
 
     useEffect(() => {
         const seenCampaignKey = 'socialearn_seen_campaign_ids_v1'
-        const hydrateCampaigns = () => {
-            const localTasks = mockTasks.filter((task) => task.status === 'active')
-            const adminTasks = getAdminCampaignsFromStorage()
-                .map((campaign, idx) => mapAdminCampaignToUserTask(campaign, idx))
-                .filter((task) => task.status === 'active')
-            const merged = [...adminTasks, ...localTasks]
-            setActiveCampaigns(merged.slice(0, 3))
+        let mounted = true
+        const hydrateCampaigns = async () => {
+            setCampaignLoading(true)
+            try {
+                const list = await userCampaignService.listActive()
+                const mapped = (list || []).map((campaign) => mapCampaignToTask(campaign))
+                if (!mounted) return
+                setActiveCampaigns(mapped)
+                setCampaignError('')
 
-            const ids = merged.map((task) => String(task.adminCampaignId || task.id))
-            const seenRaw = window.localStorage.getItem(seenCampaignKey)
-            const seen = new Set(seenRaw ? JSON.parse(seenRaw) : [])
-            const newCampaigns = merged.filter((task) => !seen.has(String(task.adminCampaignId || task.id)))
+                const ids = mapped.map((task) => String(task.campaignId || task.id))
+                const seenRaw = window.localStorage.getItem(seenCampaignKey)
+                const seen = new Set(seenRaw ? JSON.parse(seenRaw) : [])
+                const newCampaigns = mapped.filter((task) => !seen.has(String(task.campaignId || task.id)))
 
-            if (seen.size > 0 && newCampaigns.length > 0) {
-                newCampaigns.slice(0, 3).forEach((task) => {
-                    pushNotification({
-                        type: 'campaign',
-                        title: 'New campaign added',
-                        subtitle: `${task.title} is now live.`,
+                if (seen.size > 0 && newCampaigns.length > 0) {
+                    newCampaigns.forEach((task) => {
+                        pushNotification({
+                            type: 'campaign',
+                            title: 'New campaign added',
+                            subtitle: `${task.title} is now live.`,
+                        })
                     })
-                })
-            }
+                }
 
-            const updatedSeen = [...new Set([...Array.from(seen), ...ids])]
-            window.localStorage.setItem(seenCampaignKey, JSON.stringify(updatedSeen))
+                const updatedSeen = [...new Set([...Array.from(seen), ...ids])]
+                window.localStorage.setItem(seenCampaignKey, JSON.stringify(updatedSeen))
+            } catch (error) {
+                if (!mounted) return
+                setActiveCampaigns([])
+                setCampaignError(error?.message || 'Failed to load campaigns')
+            } finally {
+                if (mounted) setCampaignLoading(false)
+            }
         }
         hydrateCampaigns()
-        const onUpdate = () => hydrateCampaigns()
-        const onStorage = (event) => {
-            if (event.key === 'socialearn_admin_campaigns_v1') hydrateCampaigns()
-        }
-        window.addEventListener('admin-campaigns-updated', onUpdate)
-        window.addEventListener('storage', onStorage)
         return () => {
-            window.removeEventListener('admin-campaigns-updated', onUpdate)
-            window.removeEventListener('storage', onStorage)
+            mounted = false
         }
     }, [pushNotification])
 
@@ -285,52 +297,79 @@ export default function AppShell() {
                     <section className="desktop-panel-card rounded-2xl p-4">
                         <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Campaigns</p>
                         <div className="space-y-2.5">
-                            {activeCampaigns.map((task) => (
-                                <button
-                                    key={task.id}
-                                    onClick={() => navigate(`/tasks/${encodeURIComponent(task.id)}`)}
-                                    className="w-full text-left rounded-xl p-3.5 cursor-pointer"
-                                    style={{ background: 'var(--color-surface2)' }}
-                                >
-                                    {task.backgroundImage && (
-                                        <img
-                                            src={task.backgroundImage}
-                                            alt={task.title}
-                                            className="w-full h-20 object-cover rounded-lg mb-2"
-                                        />
-                                    )}
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{task.brand.name}</p>
-                                        <p className="text-[11px] font-semibold" style={{ color: 'var(--color-primary)' }}>
-                                            {Math.round((task.participants / task.maxParticipants) * 100)}%
-                                        </p>
-                                    </div>
-                                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{task.title}</p>
-                                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'rgba(245,158,11,0.16)' }}>
-                                        <div
-                                            className="h-full rounded-full"
-                                            style={{
-                                                width: `${Math.min(100, Math.round((task.participants / task.maxParticipants) * 100))}%`,
-                                                background: 'linear-gradient(90deg, var(--color-primary), var(--color-primary2))',
-                                            }}
-                                        />
-                                    </div>
-                                </button>
-                            ))}
+                            {campaignLoading && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Loading campaigns...</p>
+                            )}
+                            {campaignError && !campaignLoading && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{campaignError}</p>
+                            )}
+                            {!campaignLoading && !campaignError && activeCampaigns.length === 0 && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No active campaigns yet.</p>
+                            )}
+                            {!campaignLoading && !campaignError && activeCampaigns.map((task) => {
+                                const participantCount = Number(task.participants || 0)
+                                const capacity = Number(task.maxParticipants || 0)
+                                const progressPct = capacity > 0
+                                    ? Math.round((participantCount / capacity) * 100)
+                                    : (participantCount > 0 ? 100 : 0)
+                                const taskLabel = task.steps?.[0]?.label || task.taskInstructions || task.description || task.title
+                                return (
+                                    <button
+                                        key={task.id}
+                                        onClick={() => navigate(`/tasks/${encodeURIComponent(task.id)}`)}
+                                        className="w-full text-left rounded-xl p-3.5 cursor-pointer"
+                                        style={{ background: 'var(--color-surface2)' }}
+                                    >
+                                        {task.backgroundImage && (
+                                            <img
+                                                src={task.backgroundImage}
+                                                alt={task.title}
+                                                className="w-full h-20 object-cover rounded-lg mb-2"
+                                            />
+                                        )}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{task.brand.name}</p>
+                                            <p className="text-[11px] font-semibold" style={{ color: 'var(--color-primary)' }}>
+                                                {Math.min(100, progressPct)}%
+                                            </p>
+                                        </div>
+                                        <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{taskLabel}</p>
+                                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'rgba(245,158,11,0.16)' }}>
+                                            <div
+                                                className="h-full rounded-full"
+                                                style={{
+                                                    width: `${Math.min(100, progressPct)}%`,
+                                                    background: 'linear-gradient(90deg, var(--color-primary), var(--color-primary2))',
+                                                }}
+                                            />
+                                        </div>
+                                    </button>
+                                )
+                            })}
                         </div>
                     </section>
 
                     <section className="desktop-panel-card rounded-2xl p-4">
                         <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Trending NFTs</p>
                         <div className="space-y-2.5">
-                            {trendingNFTs.map((nft) => (
-                                <div key={nft.id} className="rounded-xl p-2.5 transition-all duration-200 ease-out hover:-translate-y-0.5"
-                                    style={{ background: 'var(--color-surface2)' }}>
+                            {trendingNFTs.length === 0 && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No NFTs yet.</p>
+                            )}
+                            {trendingNFTs.map((post) => (
+                                <div
+                                    key={post.id}
+                                    className="rounded-xl p-2.5 transition-all duration-200 ease-out hover:-translate-y-0.5"
+                                    style={{ background: 'var(--color-surface2)' }}
+                                >
                                     <div className="flex items-center gap-3">
-                                        <img src={nft.thumbnail} alt={nft.title} className="h-11 w-11 rounded-lg object-cover" />
+                                        <img src={post.media.url} alt={post.caption || 'NFT'} className="h-11 w-11 rounded-lg object-cover" />
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
-                                            <p className="text-xs" style={{ color: 'var(--color-primary)' }}>{formatCurrency(nft.price, currencySymbol)}</p>
+                                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                {post.caption || 'NFT drop'}
+                                            </p>
+                                            <p className="text-xs" style={{ color: 'var(--color-primary)' }}>
+                                                {formatCurrency(post.nftPriceINR || 0, currencySymbol)}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

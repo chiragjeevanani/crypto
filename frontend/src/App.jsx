@@ -56,6 +56,8 @@ import UserCreatePage from './modules/admin/pages/UserCreatePage'
 // user module auth
 import SignInPage from './modules/user/pages/SignInPage'
 import SignUpPage from './modules/user/pages/SignUpPage'
+import CampaignsPage from './modules/user/pages/CampaignsPage'
+import CampaignDetailPage from './modules/user/pages/CampaignDetailPage'
 
 export default function App() {
   const { darkMode, initializeAuth } = useUserStore()
@@ -86,7 +88,8 @@ export default function App() {
             <Route path="home" element={<HomePage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="tasks/:taskId" element={<TasksPage />} />
-            <Route path="campaigns" element={<Navigate to="/tasks" replace />} />
+            <Route path="campaigns" element={<CampaignsPage />} />
+            <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
             <Route path="create" element={<CreatePage />} />
             <Route path="wallet" element={<WalletPage />} />
             <Route path="profile" element={<ProfilePage />} />

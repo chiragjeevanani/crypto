@@ -1,13 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, Megaphone, Plus, Wallet, User, PlayCircle } from 'lucide-react'
+import { Home, Megaphone, Plus, User, PlayCircle } from 'lucide-react'
 
 const navItems = [
     { to: '/home', icon: Home, label: 'Home', key: 'home' },
     { to: '/home?view=reels', icon: PlayCircle, label: 'Reels', key: 'reels' },
-    { to: '/tasks', icon: Megaphone, label: 'Campaigns', key: 'tasks' },
     { to: '/create', icon: Plus, label: 'Create', isCreate: true, key: 'create' },
-    { to: '/wallet', icon: Wallet, label: 'Wallet', key: 'wallet' },
+    { to: '/tasks', icon: Megaphone, label: 'Campaigns', key: 'tasks' },
     { to: '/profile', icon: User, label: 'Profile', key: 'profile' },
 ]
 

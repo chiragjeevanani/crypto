@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Search, Bell } from 'lucide-react'
+import { Search, Bell, Wallet } from 'lucide-react'
 import { useFeedStore } from '../store/useFeedStore'
+import { reelFeedService } from '../services/reelFeedService'
 import PostCard from '../components/feed/PostCard'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import Stories from '../components/feed/Stories'
@@ -22,6 +23,13 @@ export default function HomePage() {
 
     const feedPosts = useMemo(() => {
         if (postFilter === 'all') return posts
+        if (postFilter === 'brand') {
+            return posts.filter((post) => {
+                if (post.postType === 'brand') return true
+                const category = String(post.category || '').toLowerCase()
+                return category.includes('brand') || category.includes('campaign') || category.includes('task')
+            })
+        }
         return posts.filter((post) => post.postType === postFilter)
     }, [posts, postFilter])
 
@@ -29,13 +37,42 @@ export default function HomePage() {
         () => posts.filter((post) => post.media?.type === 'video'),
         [posts],
     )
+    const [reelFeed, setReelFeed] = useState([])
+    const [reelFeedError, setReelFeedError] = useState('')
 
     const reelsStartIndex = useMemo(() => {
-        if (!isReels || videoPosts.length === 0) return null
+        if (!isReels || reelFeed.length === 0) return null
         if (!currentPostId) return 0
-        const idx = videoPosts.findIndex((post) => post.id === currentPostId)
+        const idx = reelFeed.findIndex((item) => item.id === currentPostId)
         return idx >= 0 ? idx : 0
-    }, [isReels, videoPosts, currentPostId])
+    }, [isReels, reelFeed, currentPostId])
+
+    useEffect(() => {
+        if (!isReels) return
+        let mounted = true
+        const load = () => {
+            reelFeedService.getFeed(6)
+                .then((items) => {
+                    if (mounted) {
+                        setReelFeed(items || [])
+                        setReelFeedError('')
+                    }
+                })
+                .catch((err) => {
+                    if (mounted) {
+                        setReelFeed([])
+                        setReelFeedError(err?.message || 'Failed to load reels feed')
+                    }
+                })
+        }
+        load()
+        const onRefresh = () => load()
+        window.addEventListener('reels-feed-refresh', onRefresh)
+        return () => {
+            mounted = false
+            window.removeEventListener('reels-feed-refresh', onRefresh)
+        }
+    }, [isReels])
 
     const filteredExplore = useMemo(() => {
         if (!query.trim()) return posts
@@ -71,7 +108,15 @@ export default function HomePage() {
                 <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
                     SocialEarn
                 </span>
-                <div className="relative">
+                <div className="relative flex items-center gap-2">
+                    <button
+                        onClick={() => navigate('/wallet')}
+                        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                        aria-label="Wallet"
+                    >
+                        <Wallet size={16} />
+                    </button>
                     <button
                         onClick={() => {
                             setShowNotifications((v) => !v)
@@ -144,6 +189,32 @@ export default function HomePage() {
                 </div>
             ) : isExplore ? (
                 <div className="px-4 pt-4 pb-6">
+                    {videoPosts.length > 0 && (
+                        <div className="mb-4">
+                            <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Reels</p>
+                            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+                                {videoPosts.slice(0, 8).map((post) => (
+                                    <button
+                                        key={post.id}
+                                        onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                        className="relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-2xl"
+                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    >
+                                        <img src={post.media.url} alt={post.caption} className="h-full w-full object-cover" />
+                                        <div
+                                            className="absolute inset-0 flex items-center justify-center"
+                                            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.35))' }}
+                                        >
+                                            <div className="h-8 w-8 rounded-full flex items-center justify-center"
+                                                style={{ background: 'rgba(0,0,0,0.45)', color: '#fff' }}>
+                                                ▸
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div
                         className="flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4"
                         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
@@ -186,9 +257,14 @@ export default function HomePage() {
                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                         Reels
                     </p>
-                    {videoPosts.length === 0 && (
+                    {reelFeed.length === 0 && !reelFeedError && (
                         <p className="mt-2 text-sm" style={{ color: 'var(--color-muted)' }}>
                             No video posts yet.
+                        </p>
+                    )}
+                    {reelFeedError && (
+                        <p className="mt-2 text-sm" style={{ color: 'var(--color-muted)' }}>
+                            {reelFeedError}
                         </p>
                     )}
                 </div>
@@ -201,7 +277,7 @@ export default function HomePage() {
             )}
             {isReels && reelsStartIndex !== null && (
                 <PostFeedModal
-                    posts={videoPosts}
+                    posts={reelFeed}
                     startIndex={reelsStartIndex}
                     onClose={() => navigate('/home', { replace: true })}
                 />

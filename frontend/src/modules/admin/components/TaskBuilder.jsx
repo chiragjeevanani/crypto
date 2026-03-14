@@ -49,9 +49,8 @@ export default function TaskBuilder({ tasks = [], onChange, maxTasks = 5 }) {
 
             <div className="space-y-3">
                 {tasks.map((task, idx) => (
-                    <motion.div
+                    <div
                         key={task.id}
-                        layout
                         className="bg-bg border border-surface rounded-lg overflow-hidden"
                     >
                         <button
@@ -189,7 +188,7 @@ export default function TaskBuilder({ tasks = [], onChange, maxTasks = 5 }) {
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </motion.div>
+                    </div>
                 ))}
             </div>
 

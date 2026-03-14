@@ -300,15 +300,6 @@ export default function PostCard({ post, onOpen }) {
                     <span className="font-bold mr-2">{post.creator.username}</span>
                     <span style={{ color: 'var(--color-sub)' }}>{post.caption}</span>
                 </p>
-                <div className="mt-3 flex items-center justify-between rounded-xl px-3 py-2"
-                    style={{ background: 'rgba(99,102,241,0.07)' }}>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
-                        Earnings Summary
-                    </span>
-                    <span className="text-sm font-bold" style={{ color: 'var(--desktop-accent,var(--color-primary))' }}>
-                        {formatCurrency(post.earnings, profile?.currencySymbol || '₹')}
-                    </span>
-                </div>
             </div>
 
             {/* Gift interaction area */}
@@ -331,11 +322,7 @@ export default function PostCard({ post, onOpen }) {
                     <div className="text-xs font-medium rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
                         Gifts are disabled for brand task posts. Earn via task participation and voting.
                     </div>
-                ) : (
-                    <div className="text-xs font-medium rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
-                        You can’t send gifts to your own post.
-                    </div>
-                )}
+                ) : null}
             </div>
 
             {typeof document !== 'undefined' && createPortal(

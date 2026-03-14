@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { cn } from '../../utils/cn'
 import { useUserStore } from '../../store/useUserStore'
 
-export default function GiftButton({ gift, onGift, disabled }) {
+export default function GiftButton({ gift, onGift, disabled, count = 0, showCount = true }) {
     const { profile } = useUserStore()
     const currencySymbol = profile?.currencySymbol || '₹'
     const [popping, setPopping] = useState(false)
@@ -37,6 +37,14 @@ export default function GiftButton({ gift, onGift, disabled }) {
                     {currencySymbol}{gift.price}
                 </span>
             </motion.button>
+            {showCount && count > 0 && (
+                <span
+                    className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                    style={{ background: 'var(--color-primary)', color: '#111' }}
+                >
+                    {count}
+                </span>
+            )}
         </div>
     )
 }

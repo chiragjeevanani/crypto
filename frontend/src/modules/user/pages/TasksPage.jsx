@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Globe2, Trophy } from 'lucide-react'
-import { mockTasks } from '../data/mockTasks'
 import { mockNFTs } from '../data/mockNFTs'
 import TaskCard from '../components/tasks/TaskCard'
 import TaskDetailPage from './TaskDetailPage'
 import PostFeedModal from '../components/feed/PostFeedModal'
-import { useCampaignStore } from '../store/useCampaignStore'
 import { useWalletStore } from '../store/useWalletStore'
 import { useUserStore } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
 import { getUserNFTListings } from '../../../shared/nftListings'
-import { getAdminCampaignsFromStorage, mapAdminCampaignToUserTask } from '../../../shared/adminCampaignSync'
+import { userCampaignService } from '../services/campaignService'
+import { mapCampaignToTask } from '../utils/campaignMapper'
+import { getJoinedCampaignIds, markCampaignJoined } from '../utils/campaignStorage'
 
 const FILTERS = ['All', 'Active', 'Joined']
 const NFT_TABS = ['Discover', 'My Listings', 'Resale']
@@ -26,7 +25,9 @@ export default function TasksPage() {
 
     const [activeFilter, setActiveFilter] = useState('All')
     const [selectedTask, setSelectedTask] = useState(null)
-    const [adminTasks, setAdminTasks] = useState([])
+    const [campaignTasks, setCampaignTasks] = useState([])
+    const [campaignLoading, setCampaignLoading] = useState(true)
+    const [campaignError, setCampaignError] = useState('')
 
     const [nftTab, setNftTab] = useState('Discover')
     const [displayCurrency, setDisplayCurrency] = useState('INR')
@@ -34,7 +35,6 @@ export default function TasksPage() {
     const [nftMessage, setNftMessage] = useState('')
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
 
-    const { campaigns, voteSubmission, finalizeVoting } = useCampaignStore()
     const { buyNft, addNftEarning } = useWalletStore()
     const { profile } = useUserStore()
     const platformSettings = usePlatformSettings()
@@ -55,32 +55,41 @@ export default function TasksPage() {
     }, [])
 
     useEffect(() => {
-        const hydrateCampaigns = () => {
-            const fromAdmin = getAdminCampaignsFromStorage().map((campaign, idx) => mapAdminCampaignToUserTask(campaign, idx))
-            setAdminTasks(fromAdmin)
+        let mounted = true
+        const load = async () => {
+            setCampaignLoading(true)
+            setCampaignError('')
+            try {
+                const joinedIds = new Set(getJoinedCampaignIds())
+                const list = await userCampaignService.listActive()
+                const mapped = (list || []).map((campaign) => mapCampaignToTask(campaign, joinedIds.has(String(campaign.id))))
+                if (mounted) setCampaignTasks(mapped.filter(Boolean))
+            } catch (error) {
+                if (mounted) setCampaignError(error?.message || 'Failed to load campaigns')
+            } finally {
+                if (mounted) setCampaignLoading(false)
+            }
         }
-        hydrateCampaigns()
-        const onUpdate = () => hydrateCampaigns()
+        load()
+        const onJoined = () => load()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_admin_campaigns_v1') hydrateCampaigns()
+            if (event.key === 'crypto_joined_campaigns_v1') load()
         }
-        window.addEventListener('admin-campaigns-updated', onUpdate)
+        window.addEventListener('user-campaigns-joined', onJoined)
         window.addEventListener('storage', onStorage)
         return () => {
-            window.removeEventListener('admin-campaigns-updated', onUpdate)
+            mounted = false
+            window.removeEventListener('user-campaigns-joined', onJoined)
             window.removeEventListener('storage', onStorage)
         }
     }, [])
 
-    const allTasks = useMemo(() => [...adminTasks, ...mockTasks], [adminTasks])
+    const allTasks = useMemo(() => [...campaignTasks], [campaignTasks])
     const filtered = allTasks.filter((t) => {
         if (activeFilter === 'Joined') return t.joined
         if (activeFilter === 'Active') return t.status === 'active'
         return true
     })
-
-    const votingLive = campaigns.filter((c) => c.votingStatus === 'live').slice(0, 3)
-    const recentWinners = campaigns.filter((c) => c.votingStatus === 'completed' && c.winner).slice(0, 3)
 
     const filteredNFTs = useMemo(() => {
         if (nftTab === 'My Listings') return nftItems.filter((n) => n.status === 'listed')
@@ -144,12 +153,29 @@ export default function TasksPage() {
 
     useEffect(() => {
         if (isNFTView || !routeTaskId) return
-        const match = allTasks.find((task) => task.id === routeTaskId || task.adminCampaignId === routeTaskId)
+        const match = allTasks.find((task) => task.id === routeTaskId)
         if (match) setSelectedTask(match)
     }, [isNFTView, routeTaskId, allTasks])
 
     const openTaskDetailPage = (task) => {
         navigate(`/tasks/${encodeURIComponent(task.id)}`)
+    }
+
+    const handleJoin = async (task) => {
+        if (!task?.campaignId || task.joined) return
+        try {
+            await userCampaignService.join(task.campaignId)
+            markCampaignJoined(task.campaignId)
+            setCampaignTasks((state) =>
+                state.map((item) =>
+                    item.id === task.id
+                        ? { ...item, joined: true, participants: (item.participants || 0) + 1 }
+                        : item
+                )
+            )
+        } catch {
+            // ignore for now; detail page will show error if needed
+        }
     }
 
     if (!isNFTView && routeTaskId) {
@@ -203,70 +229,27 @@ export default function TasksPage() {
                     </div>
 
                     <div>
-                        {filtered.map((task) => (
-                            <TaskCard key={task.id} task={task} onClick={() => openTaskDetailPage(task)} />
+                        {campaignLoading && (
+                            <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>Loading campaigns...</p>
+                        )}
+                        {campaignError && !campaignLoading && (
+                            <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>{campaignError}</p>
+                        )}
+                        {!campaignLoading && !campaignError && filtered.map((task) => (
+                            <TaskCard
+                                key={task.id}
+                                task={task}
+                                onClick={() => openTaskDetailPage(task)}
+                                onJoin={handleJoin}
+                                showJoin
+                            />
                         ))}
-                        {filtered.length === 0 && (
+                        {!campaignLoading && !campaignError && filtered.length === 0 && (
                             <div className="text-center py-12">
                                 <p className="text-sm" style={{ color: 'var(--color-muted)' }}>No tasks found</p>
                             </div>
                         )}
                     </div>
-
-                    <div className="mt-4 rounded-2xl p-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                        <div className="flex items-center gap-2 mb-3">
-                            <Globe2 size={16} style={{ color: 'var(--color-primary)' }} />
-                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Public Voting</p>
-                        </div>
-                        <div className="space-y-2.5">
-                            {votingLive.map((campaign) => {
-                                const top = campaign.submissions.slice(0, 2)
-                                return (
-                                    <div key={campaign.id} className="rounded-xl p-3" style={{ background: 'var(--color-surface2)' }}>
-                                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{campaign.title}</p>
-                                        <div className="mt-2 space-y-1.5">
-                                            {top.map((entry) => (
-                                                <div key={entry.id} className="flex items-center justify-between">
-                                                    <p className="text-xs" style={{ color: 'var(--color-sub)' }}>{entry.creatorHandle} · {entry.votes} votes</p>
-                                                    <button
-                                                        onClick={() => voteSubmission(campaign.id, entry.id)}
-                                                        className="text-[11px] font-semibold px-2 py-0.5 rounded-full cursor-pointer"
-                                                        style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--color-primary)' }}
-                                                    >
-                                                        Vote
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <button
-                                            onClick={() => finalizeVoting(campaign.id)}
-                                            className="mt-2 text-[11px] font-semibold cursor-pointer"
-                                            style={{ color: 'var(--color-primary)' }}
-                                        >
-                                            Finalize Winner (Demo)
-                                        </button>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    {recentWinners.length > 0 && (
-                        <div className="mt-4 rounded-2xl p-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Trophy size={16} style={{ color: 'var(--color-success)' }} />
-                                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Recent Winners</p>
-                            </div>
-                            <div className="space-y-2">
-                                {recentWinners.map((campaign) => (
-                                    <div key={campaign.id} className="flex items-center justify-between text-xs">
-                                        <span style={{ color: 'var(--color-sub)' }}>{campaign.title}</span>
-                                        <span style={{ color: 'var(--color-success)' }}>{campaign.winner?.creatorHandle}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
                 </>
             ) : (

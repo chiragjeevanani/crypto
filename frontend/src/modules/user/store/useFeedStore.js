@@ -75,6 +75,8 @@ export const useFeedStore = create((set, get) => ({
 
     giftAnimations: {}, // postId -> { emoji, key }
     splats: {}, // postId -> { type, key }
+    giftCountsByPostId: {}, // postId -> { giftId: count }
+    earningsByPostId: {}, // postId -> total earnings from gifts
     roseTrigger: 0,
     notifications: [],
     unreadNotifications: 0,
@@ -129,6 +131,17 @@ export const useFeedStore = create((set, get) => ({
             posts: state.posts.map((p) =>
                 p.id === postId ? { ...p, earnings: p.earnings + price } : p
             ),
+            giftCountsByPostId: {
+                ...state.giftCountsByPostId,
+                [postId]: {
+                    ...(state.giftCountsByPostId[postId] || {}),
+                    [id]: ((state.giftCountsByPostId[postId] || {})[id] || 0) + 1,
+                },
+            },
+            earningsByPostId: {
+                ...state.earningsByPostId,
+                [postId]: (state.earningsByPostId[postId] || 0) + price,
+            },
             giftAnimations: {
                 ...state.giftAnimations,
                 [postId]: { emoji, key: Date.now() },

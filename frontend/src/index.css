@@ -251,6 +251,17 @@ body {
   }
 }
 
+.reels-item {
+  height: calc(100vh - var(--reels-header-height, 64px) - var(--bottom-nav-height) - var(--safe-area-bottom));
+}
+
+@media (min-width: 768px) {
+  .reels-item {
+    height: calc(100vh - var(--reels-header-height, 64px));
+  }
+}
+
+
 @keyframes desktop-fade-up {
   from {
     opacity: 0;

@@ -111,9 +111,16 @@ export default function CreatePage() {
             if (newPost) addPost(newPost)
 
             if (isNFT && nftPriceINR > 0 && nftPriceValid) {
+                const listingMediaType = newPost?.media?.type || mediaType
+                const listingMediaUrl = newPost?.media?.url || ''
+                const listingThumbnail = listingMediaType === 'video'
+                    ? listingMediaUrl
+                    : listingMediaUrl || mediaPreview || ''
                 addUserNFTListing({
                     title: caption?.trim() ? caption.trim().slice(0, 40) : 'Creator NFT',
-                    thumbnail: mediaPreview || newPost?.media?.url || '',
+                    thumbnail: listingThumbnail,
+                    mediaType: listingMediaType,
+                    mediaUrl: listingMediaUrl,
                     price: nftPriceINR,
                     creatorId: profile.id,
                     creatorName: profile.username,

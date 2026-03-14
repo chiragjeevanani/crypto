@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Heart, MessageCircle, Share2 } from 'lucide-react'
+import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp } from 'lucide-react'
 import PostCard from './PostCard'
+import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
 import { triggerCoinRain } from '../shared/CoinRain'
 import { playGiftSound } from '../../utils/giftSounds'
 import GiftBar from './GiftBar'
+import PostSplat from './PostSplat'
+import { formatCurrency } from '../../utils/formatCurrency'
 
 function ReelPost({ post }) {
-    const { toggleLike, sendGift, splats, clearSplat } = useFeedStore()
+    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
     const { profile } = useUserStore()
     const handleLike = () => {
@@ -22,6 +25,8 @@ function ReelPost({ post }) {
     }
 
     const creatorInitial = (post.creator?.username || 'U').charAt(0)
+    const splat = splats[post.id]
+    const earnings = earningsByPostId?.[post.id] ?? post.earnings ?? 0
 
     const handleGift = (gift) => {
         const spend = spendGiftFromSelectedWallet(gift.price)
@@ -36,9 +41,9 @@ function ReelPost({ post }) {
     }
 
     return (
-        <div className="relative flex flex-col h-full bg-black items-center justify-center">
-            {/* Centered 9:16 video, bounded in height so it doesn’t overflow in tab/desktop view */}
-            <div className="relative w-full max-w-sm mx-auto aspect-[9/16] overflow-hidden bg-black max-h-[80vh]">
+            <div className="relative flex flex-col h-full bg-black items-center justify-center">
+            {/* Mobile: full height/width. Desktop: 9:16 with max widths. */}
+            <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] md:max-h-[calc(100vh-56px)]">
                 <video
                     src={post.media?.url}
                     className="w-full h-full object-cover"
@@ -48,8 +53,18 @@ function ReelPost({ post }) {
                     playsInline
                 />
 
-                {/* Right-side actions */}
-                <div className="absolute right-2 bottom-20 flex flex-col items-center gap-4 text-white">
+                <AnimatePresence>
+                    {splat && (
+                        <PostSplat
+                            key={splat.key}
+                            type={splat.type}
+                            onComplete={() => clearSplat(post.id)}
+                        />
+                    )}
+                </AnimatePresence>
+
+                {/* Right-side actions (Instagram-style) */}
+                <div className="absolute right-2 bottom-24 flex flex-col items-center gap-4 text-white">
                     <button
                         type="button"
                         onClick={handleLike}
@@ -110,13 +125,19 @@ function ReelPost({ post }) {
                             <span className="text-[11px] text-white/70 truncate max-w-[140px]">
                                 {post.caption || ''}
                             </span>
+                            <div className="mt-2 max-w-[240px]">
+                                <GiftBar postId={post.id} onGift={handleGift} compact showCounts={false} />
+                            </div>
                         </div>
                     </div>
-
-                    {/* Gifts row, aligned to the right, showing cards horizontally */}
-                    <div className="flex-shrink-0 max-w-[210px]">
-                        <GiftBar postId={post.id} onGift={handleGift} />
+                    <div
+                        className="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
+                        style={{ background: 'rgba(245,158,11,0.18)', color: 'var(--color-primary)' }}
+                    >
+                        <TrendingUp size={12} />
+                        {formatCurrency(earnings, profile?.currencySymbol || '₹')}
                     </div>
+
                 </div>
             </div>
         </div>
@@ -126,12 +147,16 @@ function ReelPost({ post }) {
 export default function PostFeedModal({ posts = [], startIndex = null, onClose }) {
     const containerRef = useRef(null)
     const postRefs = useRef({})
+    const itemHeightRef = useRef(0)
+    const loopedPosts = useMemo(() => (posts.length > 1 ? [...posts, ...posts, ...posts] : posts), [posts])
 
     const isOpen = startIndex !== null && startIndex >= 0
-    const isReelsMode = useMemo(
-        () => posts.length > 0 && posts.every((p) => p.media?.type === 'video'),
-        [posts],
-    )
+    const isReelsMode = useMemo(() => {
+        if (!posts.length) return false
+        const hasTyped = posts.every((p) => p.type === 'reel' || p.type === 'campaign')
+        if (hasTyped) return true
+        return posts.every((p) => p.media?.type === 'video')
+    }, [posts])
     const safeIndex = useMemo(() => {
         if (!isOpen) return 0
         return Math.max(0, Math.min(posts.length - 1, startIndex))
@@ -153,28 +178,68 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
 
     useEffect(() => {
         if (!isOpen) return
-        const targetId = posts[safeIndex]?.id
-        if (!targetId) return
-        const node = postRefs.current[targetId]
+        const loopIndex = posts.length > 1 ? posts.length + safeIndex : safeIndex
+        const node = postRefs.current[loopIndex]
         if (node && containerRef.current) {
             node.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
-    }, [isOpen, posts, safeIndex])
+    }, [isOpen, loopedPosts, safeIndex, posts.length])
+
+    useEffect(() => {
+        if (!isOpen) return
+        const container = containerRef.current
+        if (!container) return
+        const firstItem = container.querySelector('.reels-item')
+        if (firstItem) {
+            itemHeightRef.current = firstItem.getBoundingClientRect().height || itemHeightRef.current
+        }
+    }, [isOpen, loopedPosts])
+
+    useEffect(() => {
+        if (!isOpen || posts.length <= 1) return
+        const container = containerRef.current
+        if (!container) return
+        let lock = false
+        const onScroll = () => {
+            if (lock) return
+            const itemHeight = itemHeightRef.current
+            if (!itemHeight) return
+            const loopSize = posts.length * itemHeight
+            const start = loopSize
+            const end = loopSize * 2
+            const y = container.scrollTop
+            if (y < start) {
+                lock = true
+                container.scrollTo({ top: y + loopSize, behavior: 'auto' })
+                setTimeout(() => { lock = false }, 20)
+            } else if (y >= end) {
+                lock = true
+                container.scrollTo({ top: y - loopSize, behavior: 'auto' })
+                setTimeout(() => { lock = false }, 20)
+            }
+        }
+        container.addEventListener('scroll', onScroll, { passive: true })
+        return () => container.removeEventListener('scroll', onScroll)
+    }, [isOpen, posts.length])
 
     if (!isOpen) return null
 
     return (
         <AnimatePresence>
             <motion.div
-                className="fixed inset-0 z-[65] flex flex-col"
-                style={{ background: 'var(--color-bg)' }}
+                className="fixed inset-0 z-[65] flex flex-col md:left-[84px] lg:left-[248px] lg:right-[300px] xl:right-[332px]"
+                style={{ background: 'var(--color-bg)', ['--reels-header-height']: '64px' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
                 <div
-                    className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 shrink-0"
-                    style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
+                    className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 shrink-0"
+                    style={{
+                        background: 'var(--color-bg)',
+                        borderBottom: '1px solid var(--color-border)',
+                        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)'
+                    }}
                 >
                     <button
                         onClick={onClose}
@@ -192,24 +257,28 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
                     ref={containerRef}
                     className="flex-1 overflow-y-auto overflow-x-hidden px-0 py-0 md:px-0 hide-scrollbar snap-y snap-mandatory"
                     style={{
-                        paddingBottom: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px)',
+                        paddingBottom: '0px',
                         WebkitOverflowScrolling: 'touch'
                     }}
                 >
-                    <div className="mx-auto w-full max-w-[520px]">
-                        {posts.map((post) => (
+                    <div className="mx-auto w-full md:max-w-[460px] lg:max-w-[520px]">
+                        {loopedPosts.map((post, index) => (
                             <div
-                                key={post.id}
+                                key={`${post.id}-${index}`}
                                 ref={(node) => {
-                                    if (node) postRefs.current[post.id] = node
+                                    if (node) postRefs.current[index] = node
                                 }}
-                                className="snap-start snap-always shrink-0 w-full"
-                                style={{ minHeight: 'calc(100vh - 56px)' }}
+                                className="snap-start snap-always shrink-0 w-full reels-item"
                             >
-                                {isReelsMode ? <ReelPost post={post} /> : <PostCard post={post} />}
+                                {isReelsMode
+                                    ? post.type === 'campaign'
+                                        ? <CampaignReelCard campaign={post} />
+                                        : <ReelPost post={post} />
+                                    : <PostCard post={post} />}
                             </div>
                         ))}
                     </div>
+
                 </div>
             </motion.div>
         </AnimatePresence>
