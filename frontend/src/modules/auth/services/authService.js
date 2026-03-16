@@ -3,10 +3,11 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const request = async (path, options = {}) => {
   let response;
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...(options.headers || {})
       },
       ...options
@@ -77,5 +78,15 @@ export const authService = {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data)
-    })
+    }),
+
+  uploadAvatar: (token, file) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    return request("/auth/profile/avatar", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
+  }
 };

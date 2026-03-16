@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import {
     Home,
+    Search,
     Compass,
     BriefcaseBusiness,
     Megaphone,
@@ -26,6 +27,7 @@ import { userCampaignService } from '../services/campaignService'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
+    { label: 'Search', to: '/search', icon: Search, key: 'search' },
     { label: 'Explore', to: '/home?view=explore', icon: Compass, key: 'explore' },
     { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
     { label: 'Brand Tasks', to: '/tasks', icon: BriefcaseBusiness, key: 'brandTasks' },
@@ -89,6 +91,7 @@ export default function AppShell() {
 
     const isItemActive = (item) => {
         if (item.key === 'home') return location.pathname === '/home' && !view
+        if (item.key === 'search') return location.pathname === '/search'
         if (item.key === 'explore') return location.pathname === '/home' && view === 'explore'
         if (item.key === 'reels') return location.pathname === '/home' && view === 'reels'
         if (item.key === 'brandTasks') return location.pathname === '/tasks' && view !== 'nft'

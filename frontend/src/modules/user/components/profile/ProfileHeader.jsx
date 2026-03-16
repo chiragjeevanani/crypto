@@ -70,9 +70,11 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
                     {profile.handle}
                 </p>
-                <p className="text-sm mt-1.5" style={{ color: 'var(--color-sub)' }}>
-                    {profile.bio}
-                </p>
+                {profile.bio && (
+                    <p className="text-sm mt-1.5" style={{ color: 'var(--color-sub)' }}>
+                        {profile.bio}
+                    </p>
+                )}
             </div>
 
             {/* Earnings summary */}

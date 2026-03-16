@@ -31,6 +31,7 @@ export default function ProfilePage() {
     const [settingsMode, setSettingsMode] = useState('menu')
     const [connectionsOpen, setConnectionsOpen] = useState(null)
     const [editAvatar, setEditAvatar] = useState(null)
+    const [editAvatarFile, setEditAvatarFile] = useState(null)
     const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
     const [passwordMsg, setPasswordMsg] = useState('')
     const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
@@ -40,7 +41,7 @@ export default function ProfilePage() {
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
     const [nftListings, setNftListings] = useState([])
 
-    const { register, handleSubmit } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
+    const { register, handleSubmit, reset: resetEditForm } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
     const settingsForm = useForm({
         defaultValues: {
             fullName: profile.fullName || profile.username,
@@ -62,10 +63,11 @@ export default function ProfilePage() {
             await updateProfile({
                 name: data.username || profile.fullName,
                 bio: data.bio,
-                avatar: editAvatar || profile.avatar,
+                ...(editAvatarFile ? { avatarFile: editAvatarFile } : {}),
             })
             await loadPosts()
             setEditAvatar(null)
+            setEditAvatarFile(null)
             setEditOpen(false)
         } catch (err) {
             setProfileSaveError(err?.message || 'Failed to save profile')
@@ -118,8 +120,20 @@ export default function ProfilePage() {
             bio: profile.bio,
         })
     }, [profile.id, profile.email, profile.fullName, profile.username, profile.handle, profile.phone, profile.bio])
+    useEffect(() => {
+        if (!editOpen) return
+        resetEditForm({ username: profile.username, bio: profile.bio })
+    }, [editOpen, profile.username, profile.bio, resetEditForm])
 
     useEffect(() => { loadPosts() }, [loadPosts])
+
+    useEffect(() => {
+        return () => {
+            if (editAvatar && typeof editAvatar === 'string' && editAvatar.startsWith('blob:')) {
+                URL.revokeObjectURL(editAvatar)
+            }
+        }
+    }, [editAvatar])
 
     useEffect(() => {
         const hydrate = () => setNftListings(getUserNFTListings())
@@ -235,7 +249,7 @@ export default function ProfilePage() {
     return (
         <div>
             <ProfileHeader
-                profile={{ ...profile, followers: followers.length, following: following.length }}
+                profile={{ ...profile, posts: profilePosts.length, followers: followers.length, following: following.length }}
                 onEdit={() => setEditOpen(true)}
                 onOpenFollowers={() => setConnectionsOpen('followers')}
                 onOpenFollowing={() => setConnectionsOpen('following')}
@@ -403,9 +417,11 @@ export default function ProfilePage() {
                                             onChange={(e) => {
                                                 const file = e.target.files?.[0]
                                                 if (!file) return
-                                                const reader = new FileReader()
-                                                reader.onload = (ev) => setEditAvatar(typeof ev.target?.result === 'string' ? ev.target.result : null)
-                                                reader.readAsDataURL(file)
+                                                if (editAvatar && editAvatar.startsWith('blob:')) {
+                                                    URL.revokeObjectURL(editAvatar)
+                                                }
+                                                setEditAvatarFile(file)
+                                                setEditAvatar(URL.createObjectURL(file))
                                             }}
                                         />
                                     </label>

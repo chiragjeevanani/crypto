@@ -8,6 +8,7 @@ const userFollowRoutes = require("./routes/user/followRoutes");
 const userStoryRoutes = require("./routes/user/storyRoutes");
 const userCampaignRoutes = require("./routes/user/campaignRoutes");
 const userReelFeedRoutes = require("./routes/user/reelFeedRoutes");
+const userSearchRoutes = require("./routes/user/searchRoutes");
 const adminModerationRoutes = require("./routes/admin/moderationRoutes");
 const adminUserRoutes = require("./routes/admin/userRoutes");
 const adminGiftRoutes = require("./routes/admin/giftRoutes");
@@ -17,7 +18,7 @@ const app = express();
 
 // Temporarily allow all origins (wildcard CORS). Do NOT use this in production without tightening it.
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Backend is live" });
@@ -31,6 +32,7 @@ app.use("/api/user/follow", userFollowRoutes);
 app.use("/api/user/stories", userStoryRoutes);
 app.use("/api/user/campaigns", userCampaignRoutes);
 app.use("/api/user/reels-feed", userReelFeedRoutes);
+app.use("/api/user/search", userSearchRoutes);
 app.use("/api/admin/content", adminModerationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/gifts", adminGiftRoutes);

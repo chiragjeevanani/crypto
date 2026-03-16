@@ -5,9 +5,11 @@ const {
   loginAdmin,
   refreshTokens,
   getMe,
-  updateProfile
+  updateProfile,
+  updateAvatar
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
+const { upload } = require("../utils/upload");
 
 const router = express.Router();
 
@@ -17,5 +19,6 @@ router.post("/admin/login", loginAdmin);
 router.post("/refresh", refreshTokens);
 router.get("/me", protect, getMe);
 router.patch("/profile", protect, updateProfile);
+router.patch("/profile/avatar", protect, upload.single("avatar"), updateAvatar);
 
 module.exports = router;

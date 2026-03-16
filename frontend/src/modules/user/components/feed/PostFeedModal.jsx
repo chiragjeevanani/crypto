@@ -64,7 +64,10 @@ function ReelPost({ post }) {
                 </AnimatePresence>
 
                 {/* Right-side actions (Instagram-style) */}
-                <div className="absolute right-2 bottom-24 flex flex-col items-center gap-4 text-white">
+                <div
+                    className="absolute right-2 flex flex-col items-center gap-4 text-white"
+                    style={{ bottom: 'calc(96px + var(--reels-bottom-offset, 0px))' }}
+                >
                     <button
                         type="button"
                         onClick={handleLike}
@@ -102,7 +105,10 @@ function ReelPost({ post }) {
                 </div>
 
                 {/* Bottom creator bar + gifts (gifts horizontal after profile circle) */}
-                <div className="absolute left-3 right-3 bottom-3 flex items-center justify-between gap-3">
+                <div
+                    className="absolute left-3 right-3 flex items-center justify-between gap-3"
+                    style={{ bottom: 'calc(12px + var(--reels-bottom-offset, 0px))' }}
+                >
                     {/* Profile circle + username + caption */}
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-white overflow-hidden flex items-center justify-center">
@@ -228,7 +234,11 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
         <AnimatePresence>
             <motion.div
                 className="fixed inset-0 z-[65] flex flex-col md:left-[84px] lg:left-[248px] lg:right-[300px] xl:right-[332px]"
-                style={{ background: 'var(--color-bg)', ['--reels-header-height']: '64px' }}
+                style={{
+                    background: 'var(--color-bg)',
+                    ['--reels-header-height']: '64px',
+                    ['--reels-bottom-offset']: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 8px)',
+                }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -257,7 +267,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
                     ref={containerRef}
                     className="flex-1 overflow-y-auto overflow-x-hidden px-0 py-0 md:px-0 hide-scrollbar snap-y snap-mandatory"
                     style={{
-                        paddingBottom: '0px',
+                        paddingBottom: 'var(--reels-bottom-offset)',
                         WebkitOverflowScrolling: 'touch'
                     }}
                 >

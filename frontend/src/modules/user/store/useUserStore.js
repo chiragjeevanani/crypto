@@ -307,6 +307,13 @@ export const useUserStore = create((set, get) => ({
         const token = get().token
         if (!token) return
         try {
+            let mergedUser = get().user || {}
+            if (data?.avatarFile) {
+                const uploadRes = await authService.uploadAvatar(token, data.avatarFile)
+                if (uploadRes?.user) {
+                    mergedUser = { ...mergedUser, ...uploadRes.user }
+                }
+            }
             const payload = {}
             const name = data.name ?? data.fullName ?? data.username
             if (name !== undefined) payload.name = name
@@ -315,10 +322,19 @@ export const useUserStore = create((set, get) => ({
             if (data.bio !== undefined) payload.bio = data.bio
             if (data.avatar !== undefined) payload.avatar = data.avatar
             if (data.handle !== undefined) payload.handle = data.handle?.startsWith('@') ? data.handle.slice(1) : data.handle
-            const response = await authService.updateProfile(token, payload)
-            const user = response.user
-            saveAuthToStorage({ token, user: { ...get().user, ...user } })
-            set({ user: { ...get().user, ...user }, profile: profileFromUser({ ...get().user, ...user }) })
+            let user = mergedUser
+            if (Object.keys(payload).length > 0) {
+                const response = await authService.updateProfile(token, payload)
+                user = { ...user, ...payload, ...response.user }
+            }
+            try {
+                const me = await authService.getMe(token)
+                if (me?.user) user = { ...user, ...me.user }
+            } catch {
+                // keep local update if refresh fails
+            }
+            saveAuthToStorage({ token, user })
+            set({ user, profile: profileFromUser(user) })
         } catch (err) {
             throw err
         }

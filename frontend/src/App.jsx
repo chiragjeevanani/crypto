@@ -58,6 +58,7 @@ import SignInPage from './modules/user/pages/SignInPage'
 import SignUpPage from './modules/user/pages/SignUpPage'
 import CampaignsPage from './modules/user/pages/CampaignsPage'
 import CampaignDetailPage from './modules/user/pages/CampaignDetailPage'
+import SearchPage from './modules/user/pages/SearchPage'
 
 export default function App() {
   const { darkMode, initializeAuth } = useUserStore()
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="create" element={<CreatePage />} />
             <Route path="wallet" element={<WalletPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="search" element={<SearchPage />} />
             <Route path="user/:userId" element={<UserProfilePage />} />
             <Route path="terms" element={<TermsConditionsPage />} />
             <Route path="privacy" element={<PrivacyPolicyPage />} />

@@ -1,7 +1,9 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Search, Bell, Wallet } from 'lucide-react'
+import { Search, Bell, Wallet, User } from 'lucide-react'
+import { searchService } from '../services/searchService'
 import { useFeedStore } from '../store/useFeedStore'
+import { useUserStore } from '../store/useUserStore'
 import { reelFeedService } from '../services/reelFeedService'
 import PostCard from '../components/feed/PostCard'
 import PostFeedModal from '../components/feed/PostFeedModal'
@@ -9,6 +11,7 @@ import Stories from '../components/feed/Stories'
 
 export default function HomePage() {
     const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts } = useFeedStore()
+    const { profile } = useUserStore()
     const navigate = useNavigate()
     useEffect(() => { loadPosts() }, [loadPosts])
     const [searchParams] = useSearchParams()
@@ -16,6 +19,11 @@ export default function HomePage() {
     const [showNotifications, setShowNotifications] = useState(false)
     const [postFilter, setPostFilter] = useState('all')
     const [activePostIndex, setActivePostIndex] = useState(null)
+    const [searchUsers, setSearchUsers] = useState([])
+    const [searchReels, setSearchReels] = useState([])
+    const [searchLoading, setSearchLoading] = useState(false)
+    const [searchError, setSearchError] = useState('')
+    const searchReqRef = useRef(0)
     const view = searchParams.get('view')
     const currentPostId = searchParams.get('post')
     const isExplore = view === 'explore'
@@ -74,6 +82,39 @@ export default function HomePage() {
         }
     }, [isReels])
 
+    useEffect(() => {
+        if (!isExplore) return
+        const q = query.trim()
+        if (!q) {
+            setSearchUsers([])
+            setSearchReels([])
+            setSearchLoading(false)
+            setSearchError('')
+            return
+        }
+        const handle = setTimeout(() => {
+            const reqId = ++searchReqRef.current
+            setSearchLoading(true)
+            setSearchError('')
+            searchService.search(q)
+                .then((data) => {
+                    if (reqId !== searchReqRef.current) return
+                    setSearchUsers(Array.isArray(data.users) ? data.users : [])
+                    setSearchReels(Array.isArray(data.reels) ? data.reels : [])
+                })
+                .catch((err) => {
+                    if (reqId !== searchReqRef.current) return
+                    setSearchUsers([])
+                    setSearchReels([])
+                    setSearchError(err?.message || 'Search failed')
+                })
+                .finally(() => {
+                    if (reqId === searchReqRef.current) setSearchLoading(false)
+                })
+        }, 450)
+        return () => clearTimeout(handle)
+    }, [isExplore, query])
+
     const filteredExplore = useMemo(() => {
         if (!query.trim()) return posts
         const q = query.toLowerCase()
@@ -109,6 +150,21 @@ export default function HomePage() {
                     SocialEarn
                 </span>
                 <div className="relative flex items-center gap-2">
+                    <button
+                        onClick={() => {
+                            setQuery('')
+                            navigate('/search')
+                        }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden"
+                        style={{
+                            background: 'var(--color-surface2)',
+                            color: isExplore ? 'var(--color-primary)' : 'var(--color-text)',
+                            border: isExplore ? '1px solid var(--color-primary)' : '1px solid transparent',
+                        }}
+                        aria-label="Search"
+                    >
+                        <Search size={16} />
+                    </button>
                     <button
                         onClick={() => navigate('/wallet')}
                         className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
@@ -189,32 +245,6 @@ export default function HomePage() {
                 </div>
             ) : isExplore ? (
                 <div className="px-4 pt-4 pb-6">
-                    {videoPosts.length > 0 && (
-                        <div className="mb-4">
-                            <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Reels</p>
-                            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-                                {videoPosts.slice(0, 8).map((post) => (
-                                    <button
-                                        key={post.id}
-                                        onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
-                                        className="relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-2xl"
-                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                    >
-                                        <img src={post.media.url} alt={post.caption} className="h-full w-full object-cover" />
-                                        <div
-                                            className="absolute inset-0 flex items-center justify-center"
-                                            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.35))' }}
-                                        >
-                                            <div className="h-8 w-8 rounded-full flex items-center justify-center"
-                                                style={{ background: 'rgba(0,0,0,0.45)', color: '#fff' }}>
-                                                ▸
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                     <div
                         className="flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4"
                         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
@@ -230,26 +260,171 @@ export default function HomePage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {filteredExplore.map((post) => (
-                            <div
-                                key={post.id}
-                                className="overflow-hidden rounded-2xl"
-                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                onClick={() => openPostFeed(post.id)}
-                            >
-                                <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
-                                <div className="p-2.5">
-                                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                        {post.creator.username}
-                                    </p>
-                                    <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                        {post.caption}
-                                    </p>
+                    {query.trim() ? (
+                        <div className="space-y-5">
+                            {searchLoading && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Searching...</p>
+                            )}
+                            {searchError && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{searchError}</p>
+                            )}
+
+                            {searchUsers.length > 0 && (
+                                <div>
+                                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Accounts</p>
+                                    <div className="space-y-2">
+                                        {searchUsers.map((user) => (
+                                            <button
+                                                key={user.id}
+                                                onClick={() => {
+                                                    if (String(user.id) === String(profile?.id)) {
+                                                        navigate('/profile')
+                                                    } else {
+                                                        navigate(`/user/${user.id}`)
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left"
+                                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                            >
+                                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--color-surface2)' }}>
+                                                    {user.avatar ? (
+                                                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <User size={16} style={{ color: 'var(--color-muted)' }} />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{user.username}</p>
+                                                    <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{user.handle}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
+                            )}
+
+                            {searchReels.length > 0 && (
+                                <div>
+                                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Reels</p>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {searchReels.map((post) => (
+                                            <button
+                                                key={post.id}
+                                                onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                                className="overflow-hidden rounded-2xl text-left"
+                                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                            >
+                                                <video
+                                                    src={post.media.url}
+                                                    className="w-full aspect-square object-cover"
+                                                    muted
+                                                    playsInline
+                                                    loop
+                                                    autoPlay
+                                                    preload="metadata"
+                                                    poster={post.media?.thumbnail || post.media?.poster}
+                                                />
+                                                <div className="p-2.5">
+                                                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                        {post.creator.username}
+                                                    </p>
+                                                    <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                        {post.caption}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {!searchLoading && searchUsers.length === 0 && searchReels.length === 0 && !searchError && (
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No results.</p>
+                            )}
+                        </div>
+                    ) : videoPosts.length > 0 && (
+                        <div className="mb-6">
+                            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Reels</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {videoPosts.slice(0, 6).map((post) => (
+                                    <div
+                                        key={post.id}
+                                        className="overflow-hidden rounded-2xl"
+                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                        onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                    >
+                                        <div className="relative">
+                                            <video
+                                                src={post.media.url}
+                                                className="w-full aspect-square object-cover"
+                                                muted
+                                                playsInline
+                                                loop
+                                                autoPlay
+                                                preload="metadata"
+                                                poster={post.media?.thumbnail || post.media?.poster}
+                                            />
+                                            <div
+                                                className="absolute inset-0 flex items-center justify-center"
+                                                style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.35))' }}
+                                            >
+                                                <div
+                                                    className="h-8 w-8 rounded-full flex items-center justify-center"
+                                                    style={{ background: 'rgba(0,0,0,0.45)', color: '#fff' }}
+                                                >
+                                                    ▸
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="p-2.5">
+                                            <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                {post.creator.username}
+                                            </p>
+                                            <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                {post.caption}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    )}
+
+                    {!query.trim() && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {filteredExplore.map((post) => (
+                                <div
+                                    key={post.id}
+                                    className="overflow-hidden rounded-2xl"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    onClick={() => openPostFeed(post.id)}
+                                >
+                                    {post.media?.type === 'video' ? (
+                                        <video
+                                            src={post.media.url}
+                                            className="w-full aspect-square object-cover"
+                                            muted
+                                            playsInline
+                                            loop
+                                            autoPlay
+                                            preload="metadata"
+                                            poster={post.media?.thumbnail || post.media?.poster}
+                                        />
+                                    ) : (
+                                        <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                    )}
+                                    <div className="p-2.5">
+                                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                            {post.creator.username}
+                                        </p>
+                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                            {post.caption}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             ) : (
                 // Reels tab: content is handled by full-screen PostFeedModal below

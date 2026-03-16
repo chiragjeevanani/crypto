@@ -1,6 +1,11 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const path = require("path");
+const fs = require("fs");
+const { getBaseUrl } = require("../utils/postHelpers");
+const { UPLOAD_DIR } = require("../utils/upload");
+const { cloudinary } = require("../utils/cloudinary");
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
 const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "1d";
@@ -225,6 +230,7 @@ const getMe = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
+    const baseUrl = getBaseUrl(req);
     const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode"];
     const updates = {};
     for (const key of allowed) {
@@ -243,6 +249,13 @@ const updateProfile = async (req, res) => {
           updates.countryName = locale.countryName;
           updates.currencyCode = locale.currencyCode;
           updates.currencySymbol = locale.currencySymbol;
+        } else if (key === "avatar") {
+          const raw = typeof req.body[key] === "string" ? req.body[key].trim() : req.body[key];
+          if (typeof raw === "string" && raw.startsWith("/uploads/")) {
+            updates.avatar = `${baseUrl}${raw}`;
+          } else {
+            updates.avatar = raw;
+          }
         } else {
           updates[key] = typeof req.body[key] === "string" ? req.body[key].trim() : req.body[key];
         }
@@ -265,11 +278,57 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const updateAvatar = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, message: "Avatar file is required" });
+    }
+
+    const baseUrl = getBaseUrl(req);
+    const localPath = path.join(UPLOAD_DIR, file.filename);
+    const useCloudinary = Boolean(
+      cloudinary &&
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+    );
+
+    let avatarUrl = "";
+    if (useCloudinary) {
+      const uploadResult = await cloudinary.uploader.upload(localPath, {
+        resource_type: "image",
+        folder: "crypto-app/avatars"
+      });
+      avatarUrl = uploadResult.secure_url;
+      fs.unlink(localPath, () => {});
+    } else {
+      avatarUrl = `${baseUrl}/uploads/${file.filename}`;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { avatar: avatarUrl } },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({ success: true, user: safeUser(user) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   loginAdmin,
   refreshTokens,
   getMe,
-  updateProfile
+  updateProfile,
+  updateAvatar
 };

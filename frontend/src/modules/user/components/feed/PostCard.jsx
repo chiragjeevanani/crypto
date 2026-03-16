@@ -127,10 +127,19 @@ export default function PostCard({ post, onOpen }) {
                     className="cursor-pointer"
                 >
                     <div
-                        className="w-10 h-10 lg:w-11 lg:h-11 rounded-full flex items-center justify-center flex-shrink-0 text-white text-base font-bold shadow-md"
+                        className="w-10 h-10 lg:w-11 lg:h-11 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 text-white text-base font-bold shadow-md"
                         style={{ background: avatarColor }}
                     >
-                        {post.creator.username.charAt(0)}
+                        {post.creator.avatar ? (
+                            <img
+                                src={post.creator.avatar}
+                                alt={post.creator.username}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                            />
+                        ) : (
+                            post.creator.username.charAt(0)
+                        )}
                     </div>
                 </Link>
                 <div className="flex-1 min-w-0">

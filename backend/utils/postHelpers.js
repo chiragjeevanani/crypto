@@ -9,6 +9,14 @@ const mediaUrlFromPost = (post, baseUrl) =>
     ? post.media.url
     : `${baseUrl}${post.media?.url?.startsWith("/") ? "" : "/"}${post.media?.url || ""}`;
 
+const avatarUrlFromUser = (user, baseUrl) => {
+  const avatar = user?.avatar || "";
+  if (!avatar) return null;
+  if (avatar.startsWith("http")) return avatar;
+  if (avatar.startsWith("/")) return `${baseUrl}${avatar}`;
+  return `${baseUrl}/${avatar}`;
+};
+
 /**
  * Format post for user feed. In user module we never expose admin role labels:
  * only role "User" gets real name/handle; others get "User" / "@user".
@@ -40,7 +48,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
       id: c?._id?.toString?.() || c?.id || "",
       username: displayName,
       handle: displayHandle,
-      avatar: c?.avatar || null,
+      avatar: avatarUrlFromUser(c, baseUrl),
       isFollowing
     },
     media: {
@@ -72,6 +80,7 @@ function populateCreator(query) {
 module.exports = {
   getBaseUrl,
   mediaUrlFromPost,
+  avatarUrlFromUser,
   formatPostForUserFeed,
   populateCreator
 };
