@@ -131,6 +131,12 @@ export default function HomePage() {
         if (idx >= 0) setActivePostIndex(idx)
     }
 
+    useEffect(() => {
+        if (!isExplore || !currentPostId) return
+        const idx = filteredExplore.findIndex((post) => post.id === currentPostId)
+        if (idx >= 0) setActivePostIndex(idx)
+    }, [isExplore, currentPostId, filteredExplore])
+
     const handleOpenFromFeed = (postId) => {
         const post = posts.find((p) => p.id === postId)
         if (post?.media?.type === 'video') {
@@ -333,6 +339,43 @@ export default function HomePage() {
                                                     </p>
                                                 </div>
                                             </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {searchReels.length === 0 && !searchLoading && (
+                                <div>
+                                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Suggested Reels</p>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {videoPosts.slice(0, 6).map((post) => (
+                                            <div
+                                                key={post.id}
+                                                className="overflow-hidden rounded-2xl"
+                                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                                onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                            >
+                                                <div className="relative">
+                                                    <video
+                                                        src={post.media.url}
+                                                        className="w-full aspect-square object-cover"
+                                                        muted
+                                                        playsInline
+                                                        loop
+                                                        autoPlay
+                                                        preload="metadata"
+                                                        poster={post.media?.thumbnail || post.media?.poster}
+                                                    />
+                                                </div>
+                                                <div className="p-2.5">
+                                                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                        {post.creator.username}
+                                                    </p>
+                                                    <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                        {post.caption}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>

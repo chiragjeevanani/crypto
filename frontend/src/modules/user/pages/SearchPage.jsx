@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { searchService } from '../services/searchService'
+import { postService } from '../services/postService'
 import { useUserStore } from '../store/useUserStore'
 
 export default function SearchPage() {
@@ -12,6 +13,9 @@ export default function SearchPage() {
     const [error, setError] = useState('')
     const [users, setUsers] = useState([])
     const [reels, setReels] = useState([])
+    const [suggestedReels, setSuggestedReels] = useState([])
+    const [suggestedPosts, setSuggestedPosts] = useState([])
+    const [allPosts, setAllPosts] = useState([])
     const requestIdRef = useRef(0)
 
     const trimmed = useMemo(() => query.trim(), [query])
@@ -48,6 +52,41 @@ export default function SearchPage() {
 
         return () => clearTimeout(handle)
     }, [trimmed])
+
+    useEffect(() => {
+        let mounted = true
+        const load = async () => {
+            try {
+                const res = await postService.getPosts()
+                const list = Array.isArray(res?.posts) ? res.posts : []
+                const videos = list.filter((post) => post.media?.type === 'video').slice(0, 6)
+                const images = list.filter((post) => post.media?.type !== 'video').slice(0, 6)
+                if (mounted) {
+                    setAllPosts(list)
+                    setSuggestedReels(videos)
+                    setSuggestedPosts(images)
+                }
+            } catch {
+                if (mounted) {
+                    setAllPosts([])
+                    setSuggestedReels([])
+                    setSuggestedPosts([])
+                }
+            }
+        }
+        load()
+        return () => { mounted = false }
+    }, [])
+
+    const filteredPosts = useMemo(() => {
+        if (!trimmed) return []
+        const q = trimmed.toLowerCase()
+        return allPosts.filter((post) =>
+            (post.caption || '').toLowerCase().includes(q) ||
+            (post.creator?.username || '').toLowerCase().includes(q) ||
+            (post.creator?.handle || '').toLowerCase().includes(q)
+        ).slice(0, 12)
+    }, [allPosts, trimmed])
 
     return (
         <div className="px-4 pt-4 pb-6">
@@ -107,37 +146,92 @@ export default function SearchPage() {
                 </div>
             )}
 
-            {trimmed && reels.length > 0 && (
+            {trimmed && (reels.length > 0 || filteredPosts.length > 0) && (
                 <div>
-                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Reels</p>
+                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Results</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {reels.map((post) => (
-                            <button
-                                key={post.id}
-                                onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
-                                className="overflow-hidden rounded-2xl text-left"
-                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                            >
-                                <video
-                                    src={post.media.url}
-                                    className="w-full aspect-square object-cover"
-                                    muted
-                                    playsInline
-                                    loop
-                                    autoPlay
-                                    preload="metadata"
-                                    poster={post.media?.thumbnail || post.media?.poster}
-                                />
-                                <div className="p-2.5">
-                                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                        {post.creator.username}
-                                    </p>
-                                    <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                        {post.caption}
-                                    </p>
-                                </div>
-                            </button>
-                        ))}
+                        {[...reels, ...filteredPosts].map((post) => {
+                            const isVideo = post.media?.type === 'video'
+                            const openUrl = isVideo
+                                ? `/home?view=reels&post=${post.id}`
+                                : `/home?view=explore&post=${post.id}`
+                            return (
+                                <button
+                                    key={post.id}
+                                    onClick={() => navigate(openUrl)}
+                                    className="overflow-hidden rounded-2xl text-left"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                >
+                                    {isVideo ? (
+                                        <video
+                                            src={post.media.url}
+                                            className="w-full aspect-square object-cover"
+                                            muted
+                                            playsInline
+                                            loop
+                                            autoPlay
+                                            preload="metadata"
+                                            poster={post.media?.thumbnail || post.media?.poster}
+                                        />
+                                    ) : (
+                                        <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                    )}
+                                    <div className="p-2.5">
+                                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                            {post.creator.username}
+                                        </p>
+                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                            {post.caption}
+                                        </p>
+                                    </div>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {!trimmed && (suggestedReels.length > 0 || suggestedPosts.length > 0) && (
+                <div>
+                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Suggested</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {[...suggestedReels, ...suggestedPosts].map((post) => {
+                            const isVideo = post.media?.type === 'video'
+                            const openUrl = isVideo
+                                ? `/home?view=reels&post=${post.id}`
+                                : `/home?view=explore&post=${post.id}`
+                            return (
+                                <button
+                                    key={post.id}
+                                    onClick={() => navigate(openUrl)}
+                                    className="overflow-hidden rounded-2xl text-left"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                >
+                                    {isVideo ? (
+                                        <video
+                                            src={post.media.url}
+                                            className="w-full aspect-square object-cover"
+                                            muted
+                                            playsInline
+                                            loop
+                                            autoPlay
+                                            preload="metadata"
+                                            poster={post.media?.thumbnail || post.media?.poster}
+                                        />
+                                    ) : (
+                                        <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                    )}
+                                    <div className="p-2.5">
+                                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                            {post.creator.username}
+                                        </p>
+                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                            {post.caption}
+                                        </p>
+                                    </div>
+                                </button>
+                            )
+                        })}
                     </div>
                 </div>
             )}
