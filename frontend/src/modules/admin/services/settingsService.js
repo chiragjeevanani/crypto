@@ -1,45 +1,70 @@
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-import { getPlatformSettingsFromCookie, savePlatformSettingsToCookie } from '../../../shared/platformSettings';
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-let mockSettings = getPlatformSettingsFromCookie();
+const getToken = () => localStorage.getItem("crypto_auth_token");
 
-let mockSettingsLog = [];
+const request = async (path, options = {}) => {
+    let response;
+    try {
+        response = await fetch(`${API_BASE}${path}`, {
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${getToken()}`,
+                ...(options.headers || {})
+            },
+            ...options
+        });
+    } catch (err) {
+        const msg = err?.message || "";
+        if (msg === "Failed to fetch" || err?.name === "TypeError") {
+            throw new Error("Cannot connect to server. Check that the backend is running and the API URL is correct.");
+        }
+        throw new Error(err?.message || "Network error");
+    }
+
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        if (!response.ok) {
+            throw new Error(response.status === 502 ? "Server unavailable. Try again later." : "Request failed");
+        }
+        throw new Error("Invalid response from server");
+    }
+
+    if (!response.ok) {
+        throw new Error(data?.message || "Request failed");
+    }
+    return data;
+};
+
+const mapConfigToSettings = (config) => ({
+    commission: Number(config?.platformFeePct || 0),
+    minWithdrawal: Number(config?.minWithdrawalCoins || 0),
+    coinRate: Number(config?.coinRate || 0),
+    gstPct: Number(config?.gstPct || 0),
+    referralLimit: Number(config?.referralLimit || 0)
+});
 
 export const settingsService = {
     fetchSettings: async () => {
-        await delay(500);
-        mockSettings = getPlatformSettingsFromCookie();
-        return { ...mockSettings };
+        const data = await request("/admin/config", { method: "GET" });
+        return mapConfigToSettings(data?.config);
     },
 
-    updateSettings: async (newSettings, adminRole = 'super_admin') => {
-        await delay(1200);
+    updateSettings: async (newSettings) => {
+        const payload = {};
+        if (newSettings.commission !== undefined) payload.platformFeePct = Number(newSettings.commission);
+        if (newSettings.minWithdrawal !== undefined) payload.minWithdrawalCoins = Number(newSettings.minWithdrawal);
+        if (newSettings.coinRate !== undefined) payload.coinRate = Number(newSettings.coinRate);
+        if (newSettings.gstPct !== undefined) payload.gstPct = Number(newSettings.gstPct);
+        if (newSettings.referralLimit !== undefined) payload.referralLimit = Number(newSettings.referralLimit);
 
-        if (adminRole !== 'super_admin') {
-            throw new Error('Permission Denied: Only Super Admin can modify financial parameters.');
-        }
-
-        const oldSettings = { ...mockSettings };
-        mockSettings = savePlatformSettingsToCookie({ ...mockSettings, ...newSettings });
-
-        // Log changes
-        for (const key in newSettings) {
-            if (oldSettings[key] !== newSettings[key]) {
-                mockSettingsLog.unshift({
-                    timestamp: new Date().toISOString(),
-                    parameter: key,
-                    oldValue: oldSettings[key],
-                    newValue: newSettings[key],
-                    admin: 'SuperAdmin'
-                });
-            }
-        }
-
-        return { ...mockSettings };
+        const data = await request("/admin/config", {
+            method: "PUT",
+            body: JSON.stringify(payload)
+        });
+        return mapConfigToSettings(data?.config);
     },
 
-    fetchSettingsLogs: async () => {
-        await delay(500);
-        return [...mockSettingsLog];
-    }
+    fetchSettingsLogs: async () => []
 };

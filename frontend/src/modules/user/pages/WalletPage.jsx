@@ -30,8 +30,15 @@ export default function WalletPage() {
         transferEarningsToWallet,
         addPayoutMethod,
         requestWithdrawal,
+        loadWallet,
+        loadTransactions,
+        walletLoading,
+        transactionsLoading,
+        walletError,
     } = useWalletStore()
     const { kyc, submitKYC, incrementReferralOnboarded, setKYCFromSync, profile } = useUserStore()
+    const currencySymbol = profile?.currencySymbol || '₹'
+    const currencyCode = profile?.currencyCode || 'INR'
     const platformSettings = usePlatformSettings()
     const [activeTab, setActiveTab] = useState('Transactions')
     const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -64,6 +71,11 @@ export default function WalletPage() {
         ? Boolean(withdrawUpiId.trim())
         : Boolean(withdrawAccountNumber.trim()) && Boolean(withdrawIFSC.trim())
     const canWithdraw = kyc.payoutsUnlocked && !kyc.riskFlag && hasWithdrawalAmount && hasWithdrawalDestination
+
+    useEffect(() => {
+        loadWallet()
+        loadTransactions()
+    }, [loadWallet, loadTransactions])
 
     useEffect(() => {
         const hydrate = () => {
@@ -146,6 +158,12 @@ export default function WalletPage() {
         <div className="px-4 pt-4">
             {/* Header */}
             <h1 className="text-xl font-extrabold mb-4" style={{ color: 'var(--color-text)' }}>Wallet</h1>
+            {walletError && (
+                <div className="mb-4 rounded-xl px-3 py-2 text-xs font-semibold"
+                    style={{ background: 'rgba(244,63,94,0.12)', color: 'var(--color-danger)' }}>
+                    {walletError}
+                </div>
+            )}
 
             {/* Balance hero */}
             <div
@@ -164,7 +182,7 @@ export default function WalletPage() {
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ type: 'spring', stiffness: 300 }}
                     >
-                        ₹{balance.toLocaleString()}
+                        {currencySymbol}{balance.toLocaleString()}
                     </motion.p>
                 </AnimatePresence>
                 <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
@@ -176,8 +194,8 @@ export default function WalletPage() {
                 <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Wallet Balances</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
                     <div className="rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)' }}>
-                        <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>INR Wallet</p>
-                        <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>₹{Math.round(inrWallet)}</p>
+                        <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>{currencyCode} Wallet</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{currencySymbol}{Math.round(inrWallet)}</p>
                     </div>
                     <div className="rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)' }}>
                         <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Crypto Wallet</p>
@@ -185,24 +203,24 @@ export default function WalletPage() {
                     </div>
                     <div className="rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)' }}>
                         <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Earning Wallet</p>
-                        <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>₹{Math.round(earningsWallet)}</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{currencySymbol}{Math.round(earningsWallet)}</p>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="rounded-xl p-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Add money to INR wallet</p>
+                        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Add money to {currencyCode} wallet</p>
                         <div className="flex gap-2">
                             <input
                                 type="number"
                                 value={addInrAmount}
                                 onChange={(e) => setAddInrAmount(e.target.value)}
-                                placeholder="Amount in ₹"
+                                placeholder={`Amount in ${currencyCode}`}
                                 className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
                                 style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                             />
                             <button
-                                onClick={() => {
-                                    const result = addFundsToWallet({ wallet: 'inr', amount: addInrAmount })
+                                onClick={async () => {
+                                    const result = await addFundsToWallet({ wallet: 'inr', amount: addInrAmount })
                                     runWalletAction(result, 'INR wallet updated.')
                                     if (result?.ok) setAddInrAmount('')
                                 }}
@@ -225,8 +243,8 @@ export default function WalletPage() {
                                 style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                             />
                             <button
-                                onClick={() => {
-                                    const result = addFundsToWallet({ wallet: 'crypto', amount: addCryptoAmount })
+                                onClick={async () => {
+                                    const result = await addFundsToWallet({ wallet: 'crypto', amount: addCryptoAmount })
                                     runWalletAction(result, 'Crypto wallet updated.')
                                     if (result?.ok) setAddCryptoAmount('')
                                 }}
@@ -239,7 +257,7 @@ export default function WalletPage() {
                     </div>
                 </div>
                 <div className="rounded-xl p-3 mt-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                    <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
+                        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
                         Move from earning wallet to gifting wallet
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_auto] gap-2">
@@ -247,7 +265,7 @@ export default function WalletPage() {
                             type="number"
                             value={transferAmount}
                             onChange={(e) => setTransferAmount(e.target.value)}
-                            placeholder="Amount in ₹"
+                            placeholder={`Amount in ${currencyCode}`}
                             className="px-3 py-2 rounded-lg text-xs outline-none"
                             style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                         />
@@ -257,7 +275,7 @@ export default function WalletPage() {
                             className="px-3 py-2 rounded-lg text-xs outline-none"
                             style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                         >
-                            <option value="inr">INR Wallet</option>
+                            <option value="inr">{currencyCode} Wallet</option>
                             <option value="crypto">Crypto Wallet</option>
                         </select>
                         <button
@@ -273,7 +291,7 @@ export default function WalletPage() {
                         </button>
                     </div>
                     <p className="text-[10px] mt-2" style={{ color: 'var(--color-muted)' }}>
-                        Conversion used: 1 ETH = ₹{walletRates.inrPerCrypto.toLocaleString()}
+                        Conversion used: 1 ETH = {currencySymbol}{walletRates.inrPerCrypto.toLocaleString()}
                     </p>
                 </div>
                 {walletActionMessage && (
@@ -304,7 +322,7 @@ export default function WalletPage() {
                             Level {kyc.level} · {kyc.payoutsUnlocked ? 'Payouts enabled' : 'KYC required for payouts'}
                         </p>
                         <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
-                            Platform rules: {platformSettings.commission}% fee · Min withdraw ₹{platformSettings.minWithdrawal}
+                            Platform rules: {platformSettings.commission}% fee · Min withdraw {currencySymbol}{platformSettings.minWithdrawal}
                         </p>
                     </div>
                 </div>
@@ -384,7 +402,7 @@ export default function WalletPage() {
                                 <span className="font-semibold">{earningsLedger.filter((e) => e.status === 'reconciled').length}/{earningsLedger.length} reconciled</span>
                             </div>
                             {transactions.map((tx) => (
-                                <TransactionItem key={tx.id} tx={tx} />
+                                <TransactionItem key={tx.id} tx={tx} currencySymbol={currencySymbol} />
                             ))}
                         </div>
                     )}
@@ -469,7 +487,7 @@ export default function WalletPage() {
                                 </label>
                                 <input
                                     type="number"
-                                    placeholder={`Min. ₹${platformSettings.minWithdrawal}`}
+                                    placeholder={`Min. ${currencySymbol}${platformSettings.minWithdrawal}`}
                                     value={withdrawAmount}
                                     onChange={(e) => setWithdrawAmount(e.target.value)}
                                     className="w-full px-4 py-3 rounded-xl text-sm outline-none"
@@ -536,9 +554,13 @@ export default function WalletPage() {
                             )}
                             <motion.button
                                 whileTap={{ scale: 0.96 }}
-                                onClick={() => requestWithdrawal(withdrawAmount, withdrawMethod === 'upi'
-                                    ? { type: 'upi', upiId: withdrawUpiId.trim().toLowerCase() }
-                                    : { type: 'bank', accountNumber: withdrawAccountNumber.trim(), ifscCode: withdrawIFSC.trim().toUpperCase() })}
+                                onClick={async () => {
+                                    const result = await requestWithdrawal(withdrawAmount, withdrawMethod === 'upi'
+                                        ? { type: 'upi', upiId: withdrawUpiId.trim().toLowerCase() }
+                                        : { type: 'bank', accountNumber: withdrawAccountNumber.trim(), ifscCode: withdrawIFSC.trim().toUpperCase() })
+                                    runWalletAction(result, 'Withdrawal request submitted.')
+                                    if (result?.ok) setWithdrawAmount('')
+                                }}
                                 disabled={!canWithdraw}
                                 className="w-full py-3.5 rounded-xl text-sm font-bold cursor-pointer"
                                 style={{

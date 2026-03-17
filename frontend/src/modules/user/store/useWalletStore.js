@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { mockTransactions } from '../data/mockTransactions'
 import { getPlatformSettingsFromCookie } from '../../../shared/platformSettings'
+import { walletService } from '../services/walletService'
 
 const INR_PER_CRYPTO = 60000
 
@@ -9,18 +9,21 @@ function round2(value) {
 }
 
 export const useWalletStore = create((set, get) => ({
-    inrWallet: 1800,
+    inrWallet: 0,
     cryptoWallet: 0.02,
-    earningsWallet: 2847,
-    balance: 2847, // kept for backward compatibility (withdrawable = earnings wallet)
+    earningsWallet: 0,
+    balance: 0, // kept for backward compatibility (withdrawable = earnings wallet)
     giftSpendWallet: 'inr', // inr | crypto
     walletRates: { inrPerCrypto: INR_PER_CRYPTO },
 
-    giftEarnings: 1245,
-    taskEarnings: 980,
-    nftEarnings: 622,
-    transactions: mockTransactions,
+    giftEarnings: 0,
+    taskEarnings: 0,
+    nftEarnings: 0,
+    transactions: [],
     activeTab: 'transactions',
+    walletLoading: false,
+    transactionsLoading: false,
+    walletError: '',
     earningsLedger: [
         { id: 'led_1', source: 'gift', amount: 50, status: 'reconciled', createdAt: '2026-02-26T09:14:00Z' },
         { id: 'led_2', source: 'task', amount: 500, status: 'reconciled', createdAt: '2026-02-25T18:00:00Z' },
@@ -33,12 +36,66 @@ export const useWalletStore = create((set, get) => ({
 
     setActiveTab: (tab) => set({ activeTab: tab }),
 
+    loadWallet: async () => {
+        set({ walletLoading: true, walletError: '' })
+        try {
+            const data = await walletService.getBalance()
+            const rechargeCoins = Number(data?.rechargeCoins || 0)
+            const earningCoins = Number(data?.earningCoins || 0)
+            set({
+                inrWallet: rechargeCoins,
+                earningsWallet: earningCoins,
+                balance: earningCoins,
+                walletLoading: false,
+            })
+        } catch (error) {
+            set({ walletLoading: false, walletError: error.message })
+        }
+    },
+
+    loadTransactions: async (params) => {
+        set({ transactionsLoading: true, walletError: '' })
+        try {
+            const data = await walletService.getTransactions(params || {})
+            const list = Array.isArray(data?.transactions) ? data.transactions : []
+            const mapped = list.map((tx) => {
+                const coins = Number(tx.coins || 0)
+                const isDebit = tx.type === 'gift_sent' || tx.type === 'withdrawal'
+                const sign = isDebit ? -1 : 1
+                const titleMap = {
+                    deposit: 'Wallet top-up',
+                    gift_sent: 'Gift sent',
+                    gift_received: 'Gift received',
+                    withdrawal: 'Withdrawal request',
+                }
+                const normalizedType = tx.type === 'gift_received'
+                    ? 'gift'
+                    : tx.type === 'withdrawal'
+                        ? 'withdraw'
+                        : tx.type === 'deposit'
+                            ? 'topup'
+                            : tx.type
+                return {
+                    id: tx._id || tx.id,
+                    type: normalizedType,
+                    title: titleMap[tx.type] || 'Wallet activity',
+                    amount: Math.round(sign * coins),
+                    date: tx.createdAt || new Date().toISOString(),
+                    status: tx.status === 'success' ? 'completed' : tx.status,
+                }
+            })
+            set({ transactions: mapped, transactionsLoading: false })
+        } catch (error) {
+            set({ transactionsLoading: false, walletError: error.message })
+        }
+    },
+
     setGiftSpendWallet: (wallet) => {
         const next = wallet === 'crypto' ? 'crypto' : 'inr'
         set({ giftSpendWallet: next })
     },
 
-    addFundsToWallet: ({ wallet, amount }) => {
+    addFundsToWallet: async ({ wallet, amount }) => {
         const parsed = Number(amount || 0)
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Enter valid amount.' }
         if (wallet === 'crypto') {
@@ -58,21 +115,14 @@ export const useWalletStore = create((set, get) => ({
             }))
             return { ok: true }
         }
-        set((state) => ({
-            inrWallet: round2(state.inrWallet + parsed),
-            transactions: [
-                {
-                    id: `tx_${Date.now()}`,
-                    type: 'topup',
-                    title: 'Added money to INR wallet',
-                    amount: Math.round(parsed),
-                    date: new Date().toISOString(),
-                    status: 'completed',
-                },
-                ...state.transactions,
-            ],
-        }))
-        return { ok: true }
+        try {
+            await walletService.deposit(parsed, `dep_${Date.now()}`)
+            await get().loadWallet()
+            await get().loadTransactions()
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
+        }
     },
 
     spendGiftFromSelectedWallet: (amount) => {
@@ -307,39 +357,26 @@ export const useWalletStore = create((set, get) => ({
         }
     }),
 
-    requestWithdrawal: (amount, payout) => set((state) => {
+    requestWithdrawal: async (amount, payout) => {
         const parsed = Number(amount || 0)
-        if (!Number.isFinite(parsed) || parsed < 100 || parsed > state.earningsWallet) return state
-        if (!payout || !payout.type) return state
+        const state = get()
+        if (!Number.isFinite(parsed) || parsed < 1 || parsed > state.earningsWallet) {
+            return { ok: false, message: 'Invalid withdrawal amount.' }
+        }
+        if (!payout || !payout.type) return { ok: false, message: 'Select a payout method.' }
         if (payout.type === 'bank') {
-            if (!payout.accountNumber || !payout.ifscCode) return state
+            if (!payout.accountNumber || !payout.ifscCode) return { ok: false, message: 'Bank details required.' }
         }
         if (payout.type === 'upi') {
-            if (!payout.upiId) return state
+            if (!payout.upiId) return { ok: false, message: 'UPI ID required.' }
         }
-        const accountLabel = payout.type === 'bank'
-            ? `Bank ${payout.accountNumber}`
-            : `UPI ${payout.upiId}`
-        const commission = Number(getPlatformSettingsFromCookie().commission || 0)
-        const feeAmount = Math.round((parsed * commission) / 100)
-        const payoutAmount = parsed - feeAmount
-        return {
-            earningsWallet: round2(state.earningsWallet - parsed),
-            balance: round2(state.earningsWallet - parsed),
-            transactions: [
-                {
-                    id: `tx_${Date.now()}`,
-                    type: 'withdraw',
-                    title: `Withdrawal to ${accountLabel} (Fee ${commission}% = ₹${feeAmount}, Net ₹${payoutAmount})`,
-                    amount: -parsed,
-                    date: new Date().toISOString(),
-                    status: 'pending',
-                },
-                ...state.transactions,
-            ],
-            earningsLedger: state.earningsLedger.map((entry) =>
-                entry.status === 'pending' ? { ...entry, status: 'reconciled' } : entry,
-            ),
+        try {
+            await walletService.requestWithdrawal(parsed, `wd_${Date.now()}`)
+            await get().loadWallet()
+            await get().loadTransactions()
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
         }
-    }),
+    },
 }))

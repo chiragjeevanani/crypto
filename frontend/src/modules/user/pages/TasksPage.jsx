@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { mockNFTs } from '../data/mockNFTs'
 import TaskCard from '../components/tasks/TaskCard'
 import TaskDetailPage from './TaskDetailPage'
 import PostFeedModal from '../components/feed/PostFeedModal'
@@ -31,7 +30,7 @@ export default function TasksPage() {
 
     const [nftTab, setNftTab] = useState('Discover')
     const [displayCurrency, setDisplayCurrency] = useState('INR')
-    const [nftItems, setNftItems] = useState(mockNFTs)
+    const [nftItems, setNftItems] = useState([])
     const [nftMessage, setNftMessage] = useState('')
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
 
@@ -40,7 +39,7 @@ export default function TasksPage() {
     const platformSettings = usePlatformSettings()
 
     useEffect(() => {
-        const hydrate = () => setNftItems([...mockNFTs, ...getUserNFTListings()])
+        const hydrate = () => setNftItems(getUserNFTListings())
         hydrate()
         const onUpdate = () => hydrate()
         const onStorage = (event) => {
@@ -108,8 +107,8 @@ export default function TasksPage() {
                 isFollowing: false,
             },
             media: {
-                type: 'image',
-                url: nft.thumbnail,
+                type: nft.mediaType || 'image',
+                url: nft.mediaUrl || nft.thumbnail,
                 aspectRatio: '1/1',
             },
             caption: `${nft.title} · ${nft.status === 'listed' ? 'Listed for sale' : `Owned by ${nft.buyer || 'collector'}`}`,
@@ -300,7 +299,20 @@ export default function TasksPage() {
                                         if (idx >= 0) setActiveNftPostIndex(idx)
                                     }}
                                 >
-                                    <img src={nft.thumbnail} alt={nft.title} className="w-full aspect-square object-cover" />
+                                    {nft.mediaType === 'video' && nft.mediaUrl ? (
+                                        <video
+                                            src={nft.mediaUrl}
+                                            className="w-full aspect-square object-cover"
+                                            muted
+                                            playsInline
+                                            loop
+                                            autoPlay
+                                            preload="metadata"
+                                            poster={nft.thumbnail}
+                                        />
+                                    ) : (
+                                        <img src={nft.thumbnail} alt={nft.title} className="w-full aspect-square object-cover" />
+                                    )}
                                     <div className="p-3">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
                                         <div className="mt-1 flex items-center justify-between">

@@ -12,7 +12,7 @@ const TYPE_META = {
     transfer: { icon: ArrowUpRight, color: 'var(--color-muted)', label: 'Transfer' },
 }
 
-export default function TransactionItem({ tx }) {
+export default function TransactionItem({ tx, currencySymbol = '₹' }) {
     const meta = TYPE_META[tx.type] || TYPE_META.gift
     const Icon = meta.icon
     const isCredit = tx.amount > 0
@@ -37,7 +37,7 @@ export default function TransactionItem({ tx }) {
                 className="text-sm font-bold flex-shrink-0"
                 style={{ color: isCredit ? 'var(--color-success)' : 'var(--color-danger)' }}
             >
-                {isCredit ? '+' : ''}₹{Math.abs(tx.amount)}
+                {isCredit ? '+' : ''}{currencySymbol}{Math.abs(tx.amount)}
             </span>
         </div>
     )

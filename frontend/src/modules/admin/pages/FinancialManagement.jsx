@@ -189,7 +189,7 @@ export default function FinancialManagement() {
                     <div className="space-y-6">
                         <div>
                             <div className="flex justify-between items-center mb-3">
-                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider">Commission (%)</label>
+                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider">Platform Fee (%)</label>
                                 <span className="text-sm font-bold text-primary">{settings.commission}%</span>
                             </div>
                             <input
@@ -210,6 +210,24 @@ export default function FinancialManagement() {
                                     type="number"
                                     value={settings.minWithdrawal}
                                     onChange={(e) => handleSettingChange('minWithdrawal', parseInt(e.target.value))}
+                                    className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 font-semibold text-xs text-text outline-none focus:ring-1 focus:ring-primary/20"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">Coin Rate (Coins per ₹)</label>
+                                <input
+                                    type="number"
+                                    value={settings.coinRate || 0}
+                                    onChange={(e) => handleSettingChange('coinRate', parseInt(e.target.value))}
+                                    className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 font-semibold text-xs text-text outline-none focus:ring-1 focus:ring-primary/20"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">GST (%)</label>
+                                <input
+                                    type="number"
+                                    value={settings.gstPct || 0}
+                                    onChange={(e) => handleSettingChange('gstPct', parseFloat(e.target.value))}
                                     className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 font-semibold text-xs text-text outline-none focus:ring-1 focus:ring-primary/20"
                                 />
                             </div>
@@ -242,7 +260,7 @@ export default function FinancialManagement() {
                 <div className="xl:col-span-3 space-y-6">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-2 p-1 bg-surface2 border border-surface rounded-lg">
-                            {['all', 'pending', 'processing', 'approved', 'rejected'].map((f) => (
+                            {['all', 'pending', 'approved', 'rejected'].map((f) => (
                                 <button
                                     key={f}
                                     onClick={() => setWithdrawalFilter(f)}
@@ -270,21 +288,22 @@ export default function FinancialManagement() {
                             cells: [
                                 <span className="font-mono text-muted text-[10px]">{w.id}</span>,
                                 <div className="flex items-center gap-3">
-                                    <div className="w-7 h-7 rounded-lg bg-surface2 border border-surface flex items-center justify-center text-[9px] font-bold text-text">{w.user[0]}</div>
+                                    <div className="w-7 h-7 rounded-lg bg-surface2 border border-surface flex items-center justify-center text-[9px] font-bold text-text">
+                                        {(w.user || w.userId || 'U')[0]}
+                                    </div>
                                     <div>
-                                        <p className="text-xs font-semibold text-text">{w.user}</p>
+                                        <p className="text-xs font-semibold text-text">{w.user || w.userId}</p>
                                         <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{w.date}</p>
                                     </div>
                                 </div>,
                                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">{w.method}</span>,
                                 <span className={`px-2 py-0.5 rounded-lg text-[8px] font-semibold uppercase tracking-wider border ${w.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                    w.status === 'processing' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                        w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                            'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                    w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                        'bg-rose-500/10 text-rose-500 border-rose-500/20'
                                     }`}>
                                     {w.status}
                                 </span>,
-                                <span className="text-xs font-semibold text-emerald-500">{formatCurrency(w.amount)}</span>,
+                                <span className="text-xs font-semibold text-emerald-500">{formatCurrency(w.amount)} · {w.coins} coins</span>,
                                 <div className="flex gap-2">
                                     <button
                                         onClick={(e) => {
@@ -553,13 +572,13 @@ export default function FinancialManagement() {
                             <div className="flex-1 overflow-y-auto p-6 space-y-8">
                                 <div className="p-5 bg-surface rounded-2xl border border-surface text-center">
                                     <div className="w-20 h-20 rounded-2xl bg-surface2 border border-surface mx-auto mb-4 flex items-center justify-center text-2xl font-bold text-text">
-                                        {reviewWithdrawal.user[0]}
+                                        {(reviewWithdrawal.user || reviewWithdrawal.userId || 'U')[0]}
                                     </div>
-                                    <h4 className="text-base font-bold text-text">{reviewWithdrawal.user}</h4>
+                                    <h4 className="text-base font-bold text-text">{reviewWithdrawal.user || reviewWithdrawal.userId}</h4>
                                     <div className="mt-2 flex items-center justify-center gap-2">
                                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${reviewWithdrawal.kycStatus === 'Verified' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                             }`}>
-                                            Identity: {reviewWithdrawal.kycStatus}
+                                            Identity: {reviewWithdrawal.kycStatus || 'Unknown'}
                                         </span>
                                     </div>
                                 </div>

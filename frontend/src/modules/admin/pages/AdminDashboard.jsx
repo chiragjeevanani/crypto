@@ -130,7 +130,7 @@ export default function AdminDashboard() {
 
     const totalUsers = usersData?.total ?? users.length;
     const activeMandates = campaigns.filter(c => c.status === 'Active').length;
-    const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'Pending').length;
+    const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'pending').length;
     const flaggedPostsCount = posts.filter(p => p.status === 'Flagged' || p.status === 'Urgent').length;
 
     const summaryStats = [

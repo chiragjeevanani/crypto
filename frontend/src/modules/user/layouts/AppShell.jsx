@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
     Home,
     Search,
-    Compass,
-    BriefcaseBusiness,
     Megaphone,
     Gem,
     Wallet,
@@ -24,13 +22,12 @@ import { formatINR, formatCurrency, formatCount } from '../utils/formatCurrency'
 import { getKYCSubmissionByUser } from '../../../shared/kycSync'
 import { mapCampaignToTask } from '../utils/campaignMapper'
 import { userCampaignService } from '../services/campaignService'
+import { getUserNFTListings } from '../../../shared/nftListings'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
     { label: 'Search', to: '/search', icon: Search, key: 'search' },
-    { label: 'Explore', to: '/home?view=explore', icon: Compass, key: 'explore' },
     { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
-    { label: 'Brand Tasks', to: '/tasks', icon: BriefcaseBusiness, key: 'brandTasks' },
     { label: 'Campaigns', to: '/campaigns', icon: Megaphone, key: 'campaigns' },
     { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
     { label: 'Wallet', to: '/wallet', icon: Wallet, key: 'wallet' },
@@ -52,13 +49,41 @@ export default function AppShell() {
     const [campaignLoading, setCampaignLoading] = useState(false)
     const [campaignError, setCampaignError] = useState('')
     const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
+    const [userNFTListings, setUserNFTListings] = useState([])
     const trendingNFTs = useMemo(() => {
-        const nftPosts = posts.filter((post) => post.postType === 'nft')
-        return nftPosts
+        const nftPosts = posts
+            .filter((post) => post.postType === 'nft' || post.isNFT || (post.nftPriceINR || 0) > 0)
+            .map((post) => ({
+                id: `post_${post.id}`,
+                title: post.caption || 'NFT drop',
+                price: post.nftPriceINR || 0,
+                thumbnail: post.media?.url || '',
+                likes: post.likes || 0,
+                listedAt: post.createdAt || '',
+                source: 'post',
+            }))
+
+        const nftListings = userNFTListings.map((listing) => ({
+            id: `listing_${listing.id}`,
+            title: listing.title,
+            price: listing.price,
+            thumbnail: listing.thumbnail || listing.mediaUrl || '',
+            likes: listing.views || 0,
+            listedAt: listing.listedAt,
+            source: 'listing',
+        }))
+
+        return [...nftPosts, ...nftListings]
             .slice()
-            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .sort((a, b) => {
+                const likeDiff = (b.likes || 0) - (a.likes || 0)
+                if (likeDiff !== 0) return likeDiff
+                const aTime = new Date(a.listedAt || 0).getTime() || 0
+                const bTime = new Date(b.listedAt || 0).getTime() || 0
+                return bTime - aTime
+            })
             .slice(0, 3)
-    }, [posts])
+    }, [posts, userNFTListings])
 
     const leaderboard = posts
         .reduce((acc, post) => {
@@ -92,9 +117,7 @@ export default function AppShell() {
     const isItemActive = (item) => {
         if (item.key === 'home') return location.pathname === '/home' && !view
         if (item.key === 'search') return location.pathname === '/search'
-        if (item.key === 'explore') return location.pathname === '/home' && view === 'explore'
         if (item.key === 'reels') return location.pathname === '/home' && view === 'reels'
-        if (item.key === 'brandTasks') return location.pathname === '/tasks' && view !== 'nft'
         if (item.key === 'campaigns') return location.pathname.startsWith('/campaigns')
         if (item.key === 'nftMarket') return location.pathname === '/tasks' && view === 'nft'
         return location.pathname === item.to
@@ -188,6 +211,21 @@ export default function AppShell() {
         tick()
         const timer = window.setInterval(tick, 30000)
         return () => window.clearInterval(timer)
+    }, [])
+
+    useEffect(() => {
+        const hydrate = () => setUserNFTListings(getUserNFTListings())
+        hydrate()
+        const onUpdate = () => hydrate()
+        const onStorage = (event) => {
+            if (event.key === 'socialearn_user_nft_listings_v1') hydrate()
+        }
+        window.addEventListener('nft-listings-updated', onUpdate)
+        window.addEventListener('storage', onStorage)
+        return () => {
+            window.removeEventListener('nft-listings-updated', onUpdate)
+            window.removeEventListener('storage', onStorage)
+        }
     }, [])
 
     return (
@@ -365,13 +403,13 @@ export default function AppShell() {
                                     style={{ background: 'var(--color-surface2)' }}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <img src={post.media.url} alt={post.caption || 'NFT'} className="h-11 w-11 rounded-lg object-cover" />
+                                        <img src={post.thumbnail} alt={post.title || 'NFT'} className="h-11 w-11 rounded-lg object-cover" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                                {post.caption || 'NFT drop'}
+                                                {post.title || 'NFT drop'}
                                             </p>
                                             <p className="text-xs" style={{ color: 'var(--color-primary)' }}>
-                                                {formatCurrency(post.nftPriceINR || 0, currencySymbol)}
+                                                {formatCurrency(post.price || 0, currencySymbol)}
                                             </p>
                                         </div>
                                     </div>

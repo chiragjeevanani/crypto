@@ -61,6 +61,27 @@ export default function FinancialRules() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Coin Rate (Coins per ₹)</label>
+                            <input
+                                type="number"
+                                value={formData.coinRate || 10}
+                                onChange={(e) => handleChange('coinRate', parseInt(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">GST (%)</label>
+                            <input
+                                type="number"
+                                value={formData.gstPct || 18}
+                                onChange={(e) => handleChange('gstPct', parseFloat(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Max Votes / User / Day</label>
                             <input
                                 type="number"
@@ -86,7 +107,7 @@ export default function FinancialRules() {
                 <AlertTriangle className="text-amber-500 w-5 h-5 shrink-0" />
                 <div>
                     <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider mb-1">Administrative Warning</p>
-                    <p className="text-[10px] text-amber-500/60 font-medium leading-relaxed uppercase tracking-wider">When you save, these rules are stored in browser cookies and instantly applied in user screens.</p>
+                    <p className="text-[10px] text-amber-500/60 font-medium leading-relaxed uppercase tracking-wider">When you save, these rules are stored in the admin config database and applied across the platform.</p>
                 </div>
             </div>
         </div>

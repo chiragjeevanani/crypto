@@ -63,6 +63,29 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "₹"
     },
+    rechargeCoins: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    earningCoins: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    isMonetized: {
+      type: Boolean,
+      default: false
+    },
+    referralCount: {
+      type: Number,
+      default: 0
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
     // Social graph
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
