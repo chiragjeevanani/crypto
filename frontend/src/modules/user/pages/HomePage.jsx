@@ -8,6 +8,10 @@ import { reelFeedService } from '../services/reelFeedService'
 import PostCard from '../components/feed/PostCard'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import Stories from '../components/feed/Stories'
+import SuggestedUserCard from '../components/feed/SuggestedUserCard'
+import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
+import SuggestedReelsSection from '../components/feed/SuggestedReelsSection'
+import CampaignHomeCard from '../components/feed/CampaignHomeCard'
 
 export default function HomePage() {
     const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts } = useFeedStore()
@@ -24,6 +28,9 @@ export default function HomePage() {
     const [searchLoading, setSearchLoading] = useState(false)
     const [searchError, setSearchError] = useState('')
     const searchReqRef = useRef(0)
+    const [suggestedUsers, setSuggestedUsers] = useState([])
+    const [suggestedReels, setSuggestedReels] = useState([])
+    const [suggestedLoading, setSuggestedLoading] = useState(false)
     const view = searchParams.get('view')
     const currentPostId = searchParams.get('post')
     const isExplore = view === 'explore'
@@ -54,6 +61,21 @@ export default function HomePage() {
         const idx = reelFeed.findIndex((item) => item.id === currentPostId)
         return idx >= 0 ? idx : 0
     }, [isReels, reelFeed, currentPostId])
+
+    useEffect(() => {
+        setSuggestedLoading(true)
+        Promise.all([
+            searchService.getSuggestedUsers(),
+            searchService.getSuggestedReels()
+        ]).then(([users, reels]) => {
+            setSuggestedUsers(users?.users || [])
+            setSuggestedReels(reels?.reels || [])
+        }).catch((err) => {
+            console.error('Failed to fetch suggestions:', err)
+        }).finally(() => {
+            setSuggestedLoading(false)
+        })
+    }, [])
 
     useEffect(() => {
         if (!isReels) return
@@ -245,8 +267,32 @@ export default function HomePage() {
                             </button>
                         ))}
                     </div>
-                    {feedPosts.map((post) => (
-                        <PostCard key={post.id} post={post} onOpen={handleOpenFromFeed} />
+                    {/* If feed is empty or very short, show suggestions at the top */}
+                    {(feedPosts.length === 0) && !suggestedLoading && (
+                        <div className="py-2">
+                             <SuggestedUsersSection />
+                            {suggestedReels.length > 0 && (
+                                <SuggestedReelsSection reels={suggestedReels} />
+                            )}
+                        </div>
+                    )}
+
+                    {feedPosts.map((post, index) => (
+                        <div key={post.id}>
+                            {post.postType === 'campaign_card' ? (
+                                <CampaignHomeCard campaign={post.campaign} />
+                            ) : (
+                                <PostCard post={post} onOpen={handleOpenFromFeed} />
+                            )}
+                            
+                            {/* Suggested Users - shown after the 2nd post (index 1) or after the 1st if it is the only post */}
+                            {((index === 1) || (index === 0 && feedPosts.length === 1)) &&  <SuggestedUsersSection />}
+
+                            {/* Suggested Reels - shown after the 5th post (index 4) or at the end if the feed is shorter than 5 */}
+                            {((index === 4) || (index === feedPosts.length - 1 && feedPosts.length < 5)) && suggestedReels.length > 0 && (
+                                <SuggestedReelsSection reels={suggestedReels} />
+                            )}
+                        </div>
                     ))}
                 </div>
             ) : isExplore ? (

@@ -7,6 +7,9 @@ import { useFeedStore } from '../store/useFeedStore'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { followService } from '../services/followService'
+import { searchService } from '../services/searchService'
+import SuggestedUserCard from '../components/feed/SuggestedUserCard'
+import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 
 const TABS = ['Posts', 'NFTs']
 
@@ -205,6 +208,8 @@ export default function UserProfilePage() {
                             Message
                         </motion.button>
                     </div>
+
+                    <SuggestedUsersSection />
                 </div>
 
                 {/* Tabs */}
@@ -243,7 +248,10 @@ export default function UserProfilePage() {
                                                 src={post.media?.url || post.thumbnail}
                                                 muted
                                                 playsInline
-                                                preload="metadata"
+                                                autoPlay
+                                                loop
+                                                preload="auto"
+                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

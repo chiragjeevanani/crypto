@@ -33,7 +33,9 @@ const postSchema = new mongoose.Schema(
     sharedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     shares: { type: Number, default: 0 },
     comments: { type: Number, default: 0 },
-    earnings: { type: Number, default: 0 }
+    earnings: { type: Number, default: 0 },
+    campaign: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", default: null },
+    campaignSubmission: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignSubmission", default: null }
   },
   { timestamps: true }
 );

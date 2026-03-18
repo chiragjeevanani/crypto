@@ -1,6 +1,8 @@
 const Post = require("../../models/Post");
 const User = require("../../models/User");
 const Comment = require("../../models/Comment");
+const Campaign = require("../../models/Campaign");
+const { computeStatus } = require("../../utils/campaignHelpers");
 const fs = require("fs");
 const path = require("path");
 const { getBaseUrl, formatPostForUserFeed, populateCreator } = require("../../utils/postHelpers");
@@ -86,6 +88,38 @@ exports.createPost = async (req, res) => {
 };
 
 /**
+ * Internal: Interleave campaigns every N posts.
+ */
+const injectCampaignCards = (posts, campaigns, interval) => {
+  if (!campaigns.length || interval <= 0) return posts;
+  const output = [];
+  let campaignIndex = 0;
+  for (let i = 0; i < posts.length; i += 1) {
+    output.push(posts[i]);
+    const isInsertPoint = (i + 1) % interval === 0;
+    if (isInsertPoint) {
+      const campaign = campaigns[campaignIndex % campaigns.length];
+      campaignIndex += 1;
+      // We wrap the campaign as a "post" object with postType: "campaign_card"
+      output.push({
+        id: `campaign-card-${campaign._id}`,
+        postType: "campaign_card",
+        campaign: {
+          id: campaign._id.toString(),
+          title: campaign.title,
+          brandName: campaign.brandName,
+          bannerUrl: campaign.bannerUrl,
+          rewardDetails: campaign.rewardDetails,
+          description: campaign.description
+        },
+        createdAt: new Date()
+      });
+    }
+  }
+  return output;
+};
+
+/**
  * User module: get feed (approved posts only). Requires token.
  * Returns creators with display name/handle; in user module we never expose admin labels.
  */
@@ -98,7 +132,27 @@ exports.getPosts = async (req, res) => {
     ).exec();
     const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId));
 
-    if (!list.length) {
+    // Interleave Active Campaigns
+    const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).limit(10).lean();
+    const now = new Date();
+    const activeCampaigns = campaignsRaw
+      .map((c) => ({ ...c, status: computeStatus(c) }))
+      .filter((c) => {
+        const start = c.startDate ? new Date(c.startDate) : null;
+        const end = c.endDate ? new Date(c.endDate) : null;
+        if (c.status !== "Active") return false;
+        if (start && start > now) return false;
+        if (end && end < now) return false;
+        return true;
+      })
+      .map((c) => ({
+        ...c,
+        bannerUrl: c.bannerUrl?.startsWith("http") ? c.bannerUrl : `${baseUrl}${c.bannerUrl}`
+      }));
+
+    const interleaved = injectCampaignCards(list, activeCampaigns, 5);
+
+    if (!interleaved.length) {
       const demoPost = {
         id: "demo-post-1",
         creator: {
@@ -131,7 +185,7 @@ exports.getPosts = async (req, res) => {
       return res.status(200).json({ success: true, posts: [demoPost] });
     }
 
-    return res.status(200).json({ success: true, posts: list });
+    return res.status(200).json({ success: true, posts: interleaved });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

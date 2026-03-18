@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music } from 'lucide-react'
+import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
@@ -23,6 +23,7 @@ function getColor(id) {
 export default function PostCard({ post, onOpen }) {
     const { toggleLike, sendGift, toggleFollow, addComment, loadComments, commentsByPostId, commentsLoading, sharePost, splats, clearSplat } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
+    const navigate = useNavigate()
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
     const [giftError, setGiftError] = useState('')
@@ -31,6 +32,18 @@ export default function PostCard({ post, onOpen }) {
     const [commentDraft, setCommentDraft] = useState('')
     const postComments = commentsByPostId[post.id] ?? []
     const isSelfPost = post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id)
+
+    const [isMuted, setIsMuted] = useState(true)
+    const [isSaved, setIsSaved] = useState(false)
+    const [showMuteIndicator, setShowMuteIndicator] = useState(false)
+    const videoRef = useRef(null)
+
+    const toggleMute = (e) => {
+        e.stopPropagation()
+        setIsMuted(!isMuted)
+        setShowMuteIndicator(true)
+        setTimeout(() => setShowMuteIndicator(false), 800)
+    }
 
     useEffect(() => {
         if (commentsOpen && post.id) loadComments(post.id)
@@ -41,8 +54,13 @@ export default function PostCard({ post, onOpen }) {
     const handleGift = (gift) => {
         const spend = spendGiftFromSelectedWallet(gift.price)
         if (!spend?.ok) {
-            setGiftError(spend?.message || 'Unable to send gift.')
-            setTimeout(() => setGiftError(''), 1800)
+            setGiftError(spend?.message || 'Insufficient balance.')
+            setTimeout(() => {
+                setGiftError('')
+                if (spend?.error === 'insufficient_balance') {
+                    navigate('/wallet')
+                }
+            }, 1200)
             return
         }
         sendGift(post.id, gift)
@@ -116,9 +134,18 @@ export default function PostCard({ post, onOpen }) {
 
     return (
         <article
-            className="post-card-shell mb-4 overflow-hidden transition-all duration-200 ease-out lg:mb-6"
-            style={{ background: 'var(--color-surface)' }}
+            className={`post-card-shell mb-4 overflow-hidden transition-all duration-200 ease-out lg:mb-6 relative ${post.campaign ? 'border-2 rounded-[28px]' : ''}`}
+            style={{ 
+                background: 'var(--color-surface)',
+                borderColor: post.campaign ? 'rgba(99,102,241,0.4)' : 'transparent',
+                boxShadow: post.campaign ? '0 12px 24px -10px rgba(99,102,241,0.15)' : 'none'
+            }}
         >
+            {post.campaign && (
+                <div className="absolute top-3 right-3 z-10 p-1 rounded-full bg-indigo-500 shadow-lg scale-90">
+                    <Sparkles size={14} className="text-white" />
+                </div>
+            )}
             {/* Creator row */}
             <div className="flex items-start gap-3 px-4 pt-5 pb-4 lg:px-5 lg:pt-5 lg:pb-4">
                 {/* Avatar */}
@@ -170,6 +197,13 @@ export default function PostCard({ post, onOpen }) {
                             Brand Task Post
                         </div>
                     )}
+                    {post.campaign && (
+                        <div className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                            style={{ background: 'rgba(99,102,241,0.14)', color: 'var(--desktop-accent,var(--color-primary))' }}>
+                            <Sparkles size={10} className="text-indigo-400" />
+                            Campaign Entry
+                        </div>
+                    )}
                 </div>
                 {!isSelfPost && (
                     <motion.button
@@ -191,21 +225,40 @@ export default function PostCard({ post, onOpen }) {
                 )}
             </div>
 
-            {/* Media */}
             <div
                 className={`w-full relative bg-black/5 ${onOpen ? 'cursor-pointer' : ''}`}
                 style={{ aspectRatio: post.media?.type === 'audio' ? 'auto' : '4/5' }}
                 onClick={() => onOpen?.(post.id)}
             >
                 {post.media?.type === 'video' ? (
-                    <video
-                        src={post.media.url}
-                        className="w-full h-full object-cover"
-                        controls
-                        playsInline
-                        muted
-                        onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
-                    />
+                    <div className="w-full h-full relative" onClick={toggleMute}>
+                        <video
+                            ref={videoRef}
+                            src={post.media.url}
+                            className="w-full h-full object-cover"
+                            autoPlay
+                            loop
+                            playsInline
+                            muted={isMuted}
+                            preload="auto"
+                            crossOrigin="anonymous"
+                            onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
+                        />
+                        <AnimatePresence>
+                            {showMuteIndicator && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.5 }}
+                                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+                                >
+                                    <div className="bg-black/40 p-3 rounded-full text-white">
+                                        {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 ) : post.media?.type === 'audio' ? (
                     <div className="w-full p-4 flex items-center gap-3" style={{ background: 'var(--color-surface2)' }}>
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary)', color: '#000' }}>
@@ -281,6 +334,25 @@ export default function PostCard({ post, onOpen }) {
                     </span>
                 </motion.button>
 
+                <motion.button
+                    whileTap={{ scale: 0.8 }}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setIsSaved(!isSaved)
+                    }}
+                    className="flex items-center gap-1.5 cursor-pointer transition-transform duration-200 ease-out hover:scale-[1.03]"
+                >
+                    <Bookmark
+                        size={23}
+                        strokeWidth={2}
+                        fill={isSaved ? 'var(--color-text)' : 'transparent'}
+                        style={{ color: isSaved ? 'var(--color-text)' : 'var(--color-muted)' }}
+                    />
+                    <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
+                        {isSaved ? 'Saved' : 'Save'}
+                    </span>
+                </motion.button>
+
                 {/* Earnings badge */}
                 <div
                     className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
@@ -309,6 +381,23 @@ export default function PostCard({ post, onOpen }) {
                     <span className="font-bold mr-2">{post.creator.username}</span>
                     <span style={{ color: 'var(--color-sub)' }}>{post.caption}</span>
                 </p>
+                {post.campaign && (
+                    <div className="mt-3 p-3 rounded-2xl flex items-center justify-between gap-3"
+                        style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Related Campaign</p>
+                            <p className="text-xs font-bold truncate mt-0.5" style={{ color: 'var(--color-text)' }}>{post.campaign.title}</p>
+                            <p className="text-[10px] opacity-70 truncate">{post.campaign.brandName} · {post.campaign.rewardDetails}</p>
+                        </div>
+                        <Link
+                            to={`/campaigns/${post.campaign.id || post.campaign._id}`}
+                            className="px-3 py-1.5 rounded-full text-[11px] font-bold flex-shrink-0"
+                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                        >
+                            Join & Vote
+                        </Link>
+                    </div>
+                )}
             </div>
 
             {/* Gift interaction area */}

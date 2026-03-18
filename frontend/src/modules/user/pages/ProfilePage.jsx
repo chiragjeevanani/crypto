@@ -13,6 +13,9 @@ import { mapCampaignToTask } from '../utils/campaignMapper'
 import { getJoinedCampaignIds } from '../utils/campaignStorage'
 import { getUserNFTListings } from '../../../shared/nftListings'
 import { followService } from '../services/followService'
+import { searchService } from '../services/searchService'
+import SuggestedUserCard from '../components/feed/SuggestedUserCard'
+import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
 const SETTINGS_SECTIONS = ['Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
@@ -127,13 +130,14 @@ export default function ProfilePage() {
 
     useEffect(() => { loadPosts() }, [loadPosts])
 
-    useEffect(() => {
-        return () => {
-            if (editAvatar && typeof editAvatar === 'string' && editAvatar.startsWith('blob:')) {
-                URL.revokeObjectURL(editAvatar)
-            }
+    const closeEdit = () => {
+        setEditOpen(false)
+        if (editAvatar && typeof editAvatar === 'string' && editAvatar.startsWith('blob:')) {
+            URL.revokeObjectURL(editAvatar)
         }
-    }, [editAvatar])
+        setEditAvatar(null)
+        setEditAvatarFile(null)
+    }
 
     useEffect(() => {
         const hydrate = () => setNftListings(getUserNFTListings())
@@ -277,6 +281,8 @@ export default function ProfilePage() {
                 </motion.button>
             </div>
 
+            <SuggestedUsersSection />
+
             <div className="flex border-b px-4" style={{ borderColor: 'var(--color-border)' }}>
                 {TABS.map((tab) => {
                     const active = tab === activeTab
@@ -341,12 +347,13 @@ export default function ProfilePage() {
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
                                         {nft.mediaType === 'video' && nft.mediaUrl ? (
                                             <video
-                                                src={nft.mediaUrl}
+                                                src={nft.thumbnail || (nft.mediaType === 'video' ? nft.mediaUrl : '')}
                                                 muted
                                                 loop
                                                 playsInline
                                                 autoPlay
-                                                preload="metadata"
+                                                preload="auto"
+                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
@@ -393,12 +400,12 @@ export default function ProfilePage() {
 
             <AnimatePresence>
                 {editOpen && (
-                    <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditOpen(false)}>
+                    <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeEdit}>
                         <motion.div className="rounded-t-3xl px-5 pt-4 pb-[calc(var(--bottom-nav-height)+16px)]" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-center mb-4"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} /></div>
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>Edit Profile</p>
-                                <button onClick={() => setEditOpen(false)} className="cursor-pointer"><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
+                                <button onClick={closeEdit} className="cursor-pointer"><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
                             </div>
                             <form onSubmit={handleSubmit(onEdit)} className="flex flex-col gap-4">
                                 {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}

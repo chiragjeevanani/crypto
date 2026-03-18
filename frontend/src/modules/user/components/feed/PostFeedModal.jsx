@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles } from 'lucide-react'
 import PostCard from './PostCard'
 import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
@@ -16,6 +17,7 @@ function ReelPost({ post }) {
     const { toggleLike, sendGift, splats, clearSplat, earningsByPostId } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
     const { profile } = useUserStore()
+    const navigate = useNavigate()
     const handleLike = () => {
         try {
             toggleLike(post.id)
@@ -27,11 +29,12 @@ function ReelPost({ post }) {
     const creatorInitial = (post.creator?.username || 'U').charAt(0)
     const splat = splats[post.id]
     const earnings = earningsByPostId?.[post.id] ?? post.earnings ?? 0
-
     const handleGift = (gift) => {
         const spend = spendGiftFromSelectedWallet(gift.price)
         if (!spend?.ok) {
-            // keep simple in reels; detailed errors handled in main feed
+            if (spend?.error === 'insufficient_balance') {
+                navigate('/wallet')
+            }
             return
         }
         sendGift(post.id, gift)
@@ -40,18 +43,52 @@ function ReelPost({ post }) {
         if (gift.price >= 5) triggerCoinRain()
     }
 
+    const [isMuted, setIsMuted] = useState(true)
+    const [isSaved, setIsSaved] = useState(false)
+    const [showMuteIndicator, setShowMuteIndicator] = useState(false)
+    const videoRef = useRef(null)
+
+    const toggleMute = () => {
+        setIsMuted(!isMuted)
+        setShowMuteIndicator(true)
+        setTimeout(() => setShowMuteIndicator(false), 800)
+    }
+
+    const toggleSave = () => {
+        setIsSaved(!isSaved)
+    }
+
     return (
-            <div className="relative flex flex-col h-full bg-black items-center justify-center">
+        <div className="relative flex flex-col h-full bg-black items-center justify-center">
             {/* Mobile: full height/width. Desktop: 9:16 with max widths. */}
             <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] md:max-h-[calc(100vh-56px)]">
                 <video
+                    ref={videoRef}
                     src={post.media?.url}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
                     autoPlay
                     loop
-                    muted
+                    muted={isMuted}
                     playsInline
+                    preload="auto"
+                    crossOrigin="anonymous"
+                    onClick={toggleMute}
                 />
+
+                <AnimatePresence>
+                    {showMuteIndicator && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.5 }}
+                            className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+                        >
+                            <div className="bg-black/40 p-4 rounded-full text-white">
+                                {isMuted ? <VolumeX size={32} /> : <Volume2 size={32} />}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <AnimatePresence>
                     {splat && (
@@ -74,7 +111,7 @@ function ReelPost({ post }) {
                         className="flex flex-col items-center gap-1 cursor-pointer"
                     >
                         <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
-                            <Heart size={22} />
+                            <Heart size={22} fill={post.isLiked ? 'currentColor' : 'none'} style={{ color: post.isLiked ? 'var(--color-danger)' : 'white' }} />
                         </div>
                         <span className="text-[11px] font-semibold">
                             {post.likes ?? 0}
@@ -89,6 +126,18 @@ function ReelPost({ post }) {
                         </div>
                         <span className="text-[11px] font-semibold">
                             {post.comments ?? 0}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggleSave}
+                        className="flex flex-col items-center gap-1 cursor-pointer"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
+                            <Bookmark size={22} fill={isSaved ? 'white' : 'none'} />
+                        </div>
+                        <span className="text-[11px] font-semibold">
+                            {isSaved ? 'Saved' : 'Save'}
                         </span>
                     </button>
                     <button
@@ -131,6 +180,21 @@ function ReelPost({ post }) {
                             <span className="text-[11px] text-white/70 truncate max-w-[140px]">
                                 {post.caption || ''}
                             </span>
+                            {post.campaign && (
+                                <Link
+                                    to={`/campaigns/${post.campaign.id || post.campaign._id}`}
+                                    className="block mt-2 p-2 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md"
+                                >
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <Sparkles size={11} className="text-zinc-400" />
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Related Campaign</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-bold text-white truncate max-w-[120px]">{post.campaign.title}</span>
+                                        <span className="text-[9px] font-bold bg-white text-black px-2 py-0.5 rounded-full">JOIN</span>
+                                    </div>
+                                </Link>
+                            )}
                             <div className="mt-2 max-w-[240px]">
                                 <GiftBar postId={post.id} onGift={handleGift} compact showCounts={false} />
                             </div>
@@ -159,8 +223,12 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
     const isOpen = startIndex !== null && startIndex >= 0
     const isReelsMode = useMemo(() => {
         if (!posts.length) return false
-        const hasTyped = posts.every((p) => p.type === 'reel' || p.type === 'campaign')
-        if (hasTyped) return true
+        const hasTyped = posts.every((p) => p.postType === 'brand' || p.postType === 'nft' || p.postType === 'regular')
+        if (hasTyped) {
+            // If it's a mix, check if they are mostly videos
+            const videoCount = posts.filter(p => p.media?.type === 'video').length
+            return videoCount / posts.length > 0.5
+        }
         return posts.every((p) => p.media?.type === 'video')
     }, [posts])
     const safeIndex = useMemo(() => {

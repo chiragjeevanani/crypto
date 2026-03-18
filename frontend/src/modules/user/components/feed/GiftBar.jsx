@@ -6,6 +6,7 @@ import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
 import { getActiveGiftCatalog } from '../../../../shared/giftCatalog'
 import { useFeedStore } from '../../store/useFeedStore'
+import HeartRainAnimation from './HeartRainAnimation'
 
 const EMPTY_COUNTS = {}
 
@@ -18,6 +19,8 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
     const currencySymbol = profile?.currencySymbol || '₹'
     const currencyCode = profile?.currencyCode || 'INR'
     const [giftTypes, setGiftTypes] = useState(() => getActiveGiftCatalog())
+    const [rainTrigger, setRainTrigger] = useState(0)
+    const [activeIcon, setActiveIcon] = useState('')
     const sentAtRef = useRef([])
 
     useEffect(() => {
@@ -38,6 +41,11 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
         sentAtRef.current = sentAtRef.current.filter((t) => now - t < 60000)
         if (sentAtRef.current.length >= maxGiftsPerMinute) return
         sentAtRef.current.push(now)
+        
+        // Trigger rain with specific icon
+        setActiveIcon(gift.emoji)
+        setRainTrigger(prev => prev + 1)
+        
         onGift(gift)
     }
 
@@ -77,7 +85,7 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                     </div>
                 </div>
             )}
-            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-10 -my-10">
                 {giftTypes.map((gift) => (
                     <GiftButton
                         key={gift.id}
@@ -88,6 +96,12 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                     />
                 ))}
             </div>
+            
+            <HeartRainAnimation 
+                trigger={rainTrigger} 
+                icon={activeIcon}
+                onComplete={() => {}} 
+            />
         </div>
     )
 }

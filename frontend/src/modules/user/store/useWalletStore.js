@@ -131,7 +131,9 @@ export const useWalletStore = create((set, get) => ({
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Invalid gift amount.' }
         if (state.giftSpendWallet === 'crypto') {
             const neededCrypto = parsed / state.walletRates.inrPerCrypto
-            if (state.cryptoWallet < neededCrypto) return { ok: false, message: 'Not enough Crypto wallet balance.' }
+            if (state.cryptoWallet < neededCrypto) {
+                return { ok: false, message: 'Not enough Crypto balance.', error: 'insufficient_balance' }
+            }
             set((prev) => ({
                 cryptoWallet: round2(prev.cryptoWallet - neededCrypto),
                 transactions: [
@@ -148,7 +150,9 @@ export const useWalletStore = create((set, get) => ({
             }))
             return { ok: true }
         }
-        if (state.inrWallet < parsed) return { ok: false, message: 'Not enough INR wallet balance.' }
+        if (state.inrWallet < parsed) {
+            return { ok: false, message: 'Not enough INR balance.', error: 'insufficient_balance' }
+        }
         set((prev) => ({
             inrWallet: round2(prev.inrWallet - parsed),
             transactions: [

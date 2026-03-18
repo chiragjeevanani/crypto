@@ -68,13 +68,20 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
     createdAt: post.createdAt,
     status: post.status,
     category: post.category,
-    musicTrackId: post.musicTrackId
+    musicTrackId: post.musicTrackId,
+    campaign: post.campaign || null,
+    campaignSubmission: post.campaignSubmission || null
   };
 }
 
 function populateCreator(query) {
   // Include followers so we can compute "isFollowing" in user feed
-  return query.populate("creator", "name email handle avatar role followers").lean();
+  // Also include campaign metadata
+  return query
+    .populate("creator", "name email handle avatar role followers")
+    .populate("campaign", "title brandName bannerUrl rewardDetails status isActive")
+    .populate("campaignSubmission", "votes voters")
+    .lean();
 }
 
 module.exports = {

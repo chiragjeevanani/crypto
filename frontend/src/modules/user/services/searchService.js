@@ -14,5 +14,21 @@ export const searchService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to search");
     return data;
+  },
+  async getSuggestedUsers() {
+    const response = await fetch(`${SEARCH_URL}/suggested-users`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to fetch suggested users");
+    return data;
+  },
+  async getSuggestedReels() {
+    const response = await fetch(`${SEARCH_URL}/suggested-reels`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to fetch suggested reels");
+    return data;
   }
 };

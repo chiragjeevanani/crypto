@@ -152,6 +152,8 @@ exports.submitEntry = async (req, res) => {
         media: { type: mediaType, url: mediaUrlResolved, aspectRatio },
         caption: postCaption,
         category: "Campaign",
+        campaign: campaign._id,
+        campaignSubmission: submission._id,
         status: "approved"
       });
       await CampaignSubmission.updateOne(
