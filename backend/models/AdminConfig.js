@@ -26,6 +26,11 @@ const adminConfigSchema = new mongoose.Schema(
       type: Number,
       default: 100,
       min: 0
+    },
+    businessPostPriceINR: {
+      type: Number,
+      default: 499,
+      min: 0
     }
   },
   { timestamps: true }

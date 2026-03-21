@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Search, Bell, Wallet, User } from 'lucide-react'
+import { Search, Bell, Wallet, User, MessageCircle } from 'lucide-react'
 import { searchService } from '../services/searchService'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
@@ -170,75 +170,84 @@ export default function HomePage() {
     return (
         <div>
             {/* Header */}
-            <div
-                className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
-                style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
-            >
-                <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
-                    SocialEarn
-                </span>
-                <div className="relative flex items-center gap-2">
-                    <button
-                        onClick={() => {
-                            setQuery('')
-                            navigate('/search')
-                        }}
-                        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden"
-                        style={{
-                            background: 'var(--color-surface2)',
-                            color: isExplore ? 'var(--color-primary)' : 'var(--color-text)',
-                            border: isExplore ? '1px solid var(--color-primary)' : '1px solid transparent',
-                        }}
-                        aria-label="Search"
-                    >
-                        <Search size={16} />
-                    </button>
-                    <button
-                        onClick={() => navigate('/wallet')}
-                        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
-                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
-                        aria-label="Wallet"
-                    >
-                        <Wallet size={16} />
-                    </button>
-                    <button
-                        onClick={() => {
-                            setShowNotifications((v) => !v)
-                            markNotificationsRead()
-                        }}
-                        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
-                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
-                    >
-                        <Bell size={16} />
-                        {unreadNotifications > 0 && (
-                            <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
-                                style={{ background: 'var(--color-danger)', color: '#fff' }}>
-                                {Math.min(9, unreadNotifications)}
-                            </span>
-                        )}
-                    </button>
-                    {showNotifications && (
-                        <div
-                            className="absolute right-0 mt-2 w-72 rounded-2xl p-3 z-20"
-                            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+            {!isReels && (
+                <div
+                    className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
+                    style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
+                >
+                    <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
+                        SocialEarn
+                    </span>
+                    <div className="relative flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                setQuery('')
+                                navigate('/search')
+                            }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden"
+                            style={{
+                                background: 'var(--color-surface2)',
+                                color: isExplore ? 'var(--color-primary)' : 'var(--color-text)',
+                                border: isExplore ? '1px solid var(--color-primary)' : '1px solid transparent',
+                            }}
+                            aria-label="Search"
                         >
-                            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Broadcast Alerts</p>
-                            {notifications.length === 0 ? (
-                                <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>No premium gift alerts yet.</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {notifications.slice(0, 4).map((item) => (
-                                        <div key={item.id} className="p-2 rounded-xl" style={{ background: 'var(--color-surface2)' }}>
-                                            <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.title}</p>
-                                            <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{item.subtitle}</p>
-                                        </div>
-                                    ))}
-                                </div>
+                            <Search size={16} />
+                        </button>
+                        <button
+                            onClick={() => navigate('/wallet')}
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            aria-label="Wallet"
+                        >
+                            <Wallet size={16} />
+                        </button>
+                        <button
+                            onClick={() => navigate('/messaging')}
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                        >
+                            <MessageCircle size={16} />
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowNotifications((v) => !v)
+                                markNotificationsRead()
+                            }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                        >
+                            <Bell size={16} />
+                            {unreadNotifications > 0 && (
+                                <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+                                    style={{ background: 'var(--color-danger)', color: '#fff' }}>
+                                    {Math.min(9, unreadNotifications)}
+                                </span>
                             )}
-                        </div>
-                    )}
+                        </button>
+                        {showNotifications && (
+                            <div
+                                className="absolute right-0 mt-2 w-72 rounded-2xl p-3 z-20"
+                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                            >
+                                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Broadcast Alerts</p>
+                                {notifications.length === 0 ? (
+                                    <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>No premium gift alerts yet.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {notifications.slice(0, 4).map((item) => (
+                                            <div key={item.id} className="p-2 rounded-xl" style={{ background: 'var(--color-surface2)' }}>
+                                                <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.title}</p>
+                                                <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{item.subtitle}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Stories Section (Instagram-like) */}
             {!isExplore && !isReels && <Stories />}
@@ -374,6 +383,7 @@ export default function HomePage() {
                                                     loop
                                                     autoPlay
                                                     preload="metadata"
+                                                    crossOrigin="anonymous"
                                                     poster={post.media?.thumbnail || post.media?.poster}
                                                 />
                                                 <div className="p-2.5">
@@ -410,6 +420,7 @@ export default function HomePage() {
                                                         loop
                                                         autoPlay
                                                         preload="metadata"
+                                                        crossOrigin="anonymous"
                                                         poster={post.media?.thumbnail || post.media?.poster}
                                                     />
                                                 </div>
@@ -451,6 +462,7 @@ export default function HomePage() {
                                                 loop
                                                 autoPlay
                                                 preload="metadata"
+                                                crossOrigin="anonymous"
                                                 poster={post.media?.thumbnail || post.media?.poster}
                                             />
                                             <div
@@ -497,6 +509,7 @@ export default function HomePage() {
                                             loop
                                             autoPlay
                                             preload="metadata"
+                                            crossOrigin="anonymous"
                                             poster={post.media?.thumbnail || post.media?.poster}
                                         />
                                     ) : (

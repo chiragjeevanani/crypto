@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles } from 'lucide-react'
+import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles, ChevronRight } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
@@ -21,7 +21,11 @@ function getColor(id) {
 }
 
 export default function PostCard({ post, onOpen }) {
-    const { toggleLike, sendGift, toggleFollow, addComment, loadComments, commentsByPostId, commentsLoading, sharePost, splats, clearSplat } = useFeedStore()
+    const { 
+        toggleLike, sendGift, toggleFollow, addComment, loadComments, 
+        commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
+        savedPostIds, toggleSavePost 
+    } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
     const navigate = useNavigate()
     const { profile } = useUserStore()
@@ -34,7 +38,7 @@ export default function PostCard({ post, onOpen }) {
     const isSelfPost = post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id)
 
     const [isMuted, setIsMuted] = useState(true)
-    const [isSaved, setIsSaved] = useState(false)
+    const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const videoRef = useRef(null)
 
@@ -132,6 +136,18 @@ export default function PostCard({ post, onOpen }) {
         setShareOpen(false)
     }
 
+    const handleCTAClick = (e) => {
+        e.stopPropagation()
+        if (post.redirectType === 'whatsapp' && post.whatsappNumber) {
+            const number = post.whatsappNumber.replace(/\D/g, '')
+            const text = encodeURIComponent("I am interested in your product")
+            window.open(`https://wa.me/${number}?text=${text}`, '_blank')
+        } else if (post.redirectType === 'internal') {
+            console.log("Redirect to internal messaging")
+            // Logic for future internal messaging
+        }
+    }
+
     return (
         <article
             className={`post-card-shell mb-4 overflow-hidden transition-all duration-200 ease-out lg:mb-6 relative ${post.campaign ? 'border-2 rounded-[28px]' : ''}`}
@@ -197,6 +213,13 @@ export default function PostCard({ post, onOpen }) {
                             Brand Task Post
                         </div>
                     )}
+                    {post.isBusiness && (
+                        <div className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                            style={{ background: 'rgba(59,130,246,0.14)', color: 'var(--color-blue)' }}>
+                            <TrendingUp size={10} />
+                            Sponsored
+                        </div>
+                    )}
                     {post.campaign && (
                         <div className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                             style={{ background: 'rgba(99,102,241,0.14)', color: 'var(--desktop-accent,var(--color-primary))' }}>
@@ -236,11 +259,12 @@ export default function PostCard({ post, onOpen }) {
                             ref={videoRef}
                             src={post.media.url}
                             className="w-full h-full object-cover"
+                            style={{ filter: post.filter || 'none' }}
                             autoPlay
                             loop
                             playsInline
                             muted={isMuted}
-                            preload="auto"
+                            preload="metadata"
                             crossOrigin="anonymous"
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
@@ -271,6 +295,7 @@ export default function PostCard({ post, onOpen }) {
                         src={post.media?.url}
                         alt="post media"
                         className="w-full h-full object-cover"
+                        style={{ filter: post.filter || 'none' }}
                         loading="lazy"
                         onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                     />
@@ -287,6 +312,21 @@ export default function PostCard({ post, onOpen }) {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Business CTA Section - Screenshot Style */}
+            {post.isBusiness && post.ctaType && post.ctaType !== 'none' && (
+                <div 
+                    onClick={handleCTAClick}
+                    className="w-full flex items-center justify-between px-5 py-3.5 cursor-pointer transition-all active:brightness-90 hover:brightness-105"
+                    style={{ 
+                        background: '#e11d48', // Prominent Red like the screenshot
+                        color: '#fff',
+                    }}
+                >
+                    <span className="font-bold text-[13px] tracking-tight">{post.ctaType}</span>
+                    <ChevronRight size={18} strokeWidth={3} />
+                </div>
+            )}
 
             {/* Actions & Stats Bar */}
             <div className="flex items-center gap-5 lg:gap-6 px-4 lg:px-5 pt-4 lg:pt-5 pb-2 lg:pb-3">
@@ -338,7 +378,7 @@ export default function PostCard({ post, onOpen }) {
                     whileTap={{ scale: 0.8 }}
                     onClick={(e) => {
                         e.stopPropagation()
-                        setIsSaved(!isSaved)
+                        toggleSavePost(post.id)
                     }}
                     className="flex items-center gap-1.5 cursor-pointer transition-transform duration-200 ease-out hover:scale-[1.03]"
                 >
@@ -381,6 +421,23 @@ export default function PostCard({ post, onOpen }) {
                     <span className="font-bold mr-2">{post.creator.username}</span>
                     <span style={{ color: 'var(--color-sub)' }}>{post.caption}</span>
                 </p>
+                {post.musicData && (
+                    <div className="mt-2.5 flex items-center gap-2 overflow-hidden px-1">
+                        <div className="flex-shrink-0 animate-spin-slow">
+                            <Music size={12} className="text-zinc-400" />
+                        </div>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                            <div className="whitespace-nowrap animate-scroll-text inline-block">
+                                <span className="text-[11px] font-medium text-zinc-500 mr-4">
+                                    {post.musicData.title} · {post.musicData.artist}
+                                </span>
+                                <span className="text-[11px] font-medium text-zinc-500 mr-4">
+                                    {post.musicData.title} · {post.musicData.artist}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {post.campaign && (
                     <div className="mt-3 p-3 rounded-2xl flex items-center justify-between gap-3"
                         style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
@@ -524,6 +581,17 @@ export default function PostCard({ post, onOpen }) {
                                         >
                                             <MessageCircle size={16} />
                                             WhatsApp
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                navigate('/messaging');
+                                                setShareOpen(false);
+                                            }}
+                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
+                                            style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.35)' }}
+                                        >
+                                            <Send size={16} />
+                                            Message
                                         </button>
                                         <button
                                             onClick={() => handleShare('instagram_story')}

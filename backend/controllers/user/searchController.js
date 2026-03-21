@@ -62,14 +62,15 @@ exports.getSuggestedUsers = async (req, res) => {
   try {
     const userId = req.user?.userId;
     const baseUrl = getBaseUrl(req);
-    const currentUser = userId ? await User.findById(userId).select("following followers").lean() : null;
+    const currentUser = userId ? await User.findById(userId).select("following followers dismissedSuggestions").lean() : null;
     const following = currentUser?.following || [];
     const followers = currentUser?.followers || [];
+    const dismissed = currentUser?.dismissedSuggestions || [];
 
-    // Suggestions: Users with role "User", not the current user, not already followed, AND not already following me.
+    // Suggestions: Users with role "User", not the current user, not already followed, not following me, and NOT dismissed.
     const query = {
       role: "User",
-      _id: { $ne: userId, $nin: [...following, ...followers] }
+      _id: { $ne: userId, $nin: [...following, ...followers, ...dismissed] }
     };
 
     const users = await User.find(query)
@@ -145,6 +146,24 @@ exports.getSuggestedReels = async (req, res) => {
     console.log(`Found ${posts.length} suggested reels for user ${currentUserId}`);
     const reels = posts.map((post) => formatPostForUserFeed(post, baseUrl, null, currentUserId));
     return res.status(200).json({ success: true, reels });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.dismissSuggestedUser = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const targetUserId = req.params.id;
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, message: "Target User ID is required" });
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { dismissedSuggestions: targetUserId }
+    });
+
+    return res.status(200).json({ success: true, message: "Suggestion dismissed" });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

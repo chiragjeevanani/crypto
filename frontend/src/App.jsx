@@ -10,6 +10,7 @@ import TermsConditionsPage from './modules/user/pages/TermsConditionsPage'
 import PrivacyPolicyPage from './modules/user/pages/PrivacyPolicyPage'
 import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPage'
 import { useUserStore } from './modules/user/store/useUserStore'
+import { useFeedStore } from './modules/user/store/useFeedStore'
 import { useEffect } from 'react'
 
 // Admin Modules
@@ -40,6 +41,7 @@ import CreateGift from './modules/admin/pages/CreateGift'
 import CampaignCreatePage from './modules/admin/pages/CampaignCreatePage'
 import AdvertiserPanel from './modules/admin/pages/AdvertiserPanel'
 import AdminProfilePage from './modules/admin/pages/AdminProfilePage'
+import MusicManagement from './modules/admin/pages/MusicManagement'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -59,9 +61,11 @@ import SignUpPage from './modules/user/pages/SignUpPage'
 import CampaignsPage from './modules/user/pages/CampaignsPage'
 import CampaignDetailPage from './modules/user/pages/CampaignDetailPage'
 import SearchPage from './modules/user/pages/SearchPage'
+import MessagingPage from './modules/user/pages/messaging/MessagingPage'
 
 export default function App() {
-  const { darkMode, initializeAuth } = useUserStore()
+  const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
+  const { fetchSavedPostIds } = useFeedStore()
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', !darkMode)
@@ -70,6 +74,12 @@ export default function App() {
   useEffect(() => {
     initializeAuth()
   }, [initializeAuth])
+
+  useEffect(() => {
+    if (authChecked && isAuthenticated) {
+      fetchSavedPostIds()
+    }
+  }, [authChecked, isAuthenticated, fetchSavedPostIds])
 
   return (
     <BrowserRouter>
@@ -95,6 +105,7 @@ export default function App() {
             <Route path="wallet" element={<WalletPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="search" element={<SearchPage />} />
+            <Route path="messaging" element={<MessagingPage />} />
             <Route path="user/:userId" element={<UserProfilePage />} />
             <Route path="terms" element={<TermsConditionsPage />} />
             <Route path="privacy" element={<PrivacyPolicyPage />} />
@@ -140,6 +151,7 @@ export default function App() {
             <Route path="settings/network" element={<NetworkConfig />} />
             <Route path="transparency" element={<AuditLogs />} />
             <Route path="profile" element={<AdminProfilePage />} />
+            <Route path="music" element={<MusicManagement />} />
           </Route>
         </Route>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles } from 'lucide-react'
+import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music } from 'lucide-react'
 import PostCard from './PostCard'
 import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
@@ -13,8 +13,8 @@ import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
 import { formatCurrency } from '../../utils/formatCurrency'
 
-function ReelPost({ post }) {
-    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId } = useFeedStore()
+function ReelPost({ post, active }) {
+    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
@@ -44,9 +44,10 @@ function ReelPost({ post }) {
     }
 
     const [isMuted, setIsMuted] = useState(true)
-    const [isSaved, setIsSaved] = useState(false)
+    const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const videoRef = useRef(null)
+    const audioRef = useRef(null)
 
     const toggleMute = () => {
         setIsMuted(!isMuted)
@@ -54,8 +55,32 @@ function ReelPost({ post }) {
         setTimeout(() => setShowMuteIndicator(false), 800)
     }
 
-    const toggleSave = () => {
-        setIsSaved(!isSaved)
+    useEffect(() => {
+        if (!videoRef.current) return
+        if (active) {
+            const playVideo = videoRef.current.play()
+            if (playVideo !== undefined) {
+                playVideo.catch(() => { /* Autoplay block */ })
+            }
+            if (audioRef.current) {
+                const playAudio = audioRef.current.play()
+                if (playAudio !== undefined) {
+                    playAudio.catch(() => {})
+                }
+            }
+        } else {
+            videoRef.current.pause()
+            videoRef.current.currentTime = 0
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current.currentTime = 0
+            }
+        }
+    }, [active])
+
+    const toggleSave = (e) => {
+        e.stopPropagation()
+        toggleSavePost(post.id)
     }
 
     return (
@@ -66,11 +91,11 @@ function ReelPost({ post }) {
                     ref={videoRef}
                     src={post.media?.url}
                     className="w-full h-full object-cover cursor-pointer"
-                    autoPlay
+                    style={{ filter: post.filter || 'none' }}
                     loop
                     muted={isMuted}
                     playsInline
-                    preload="auto"
+                    preload="metadata"
                     crossOrigin="anonymous"
                     onClick={toggleMute}
                 />
@@ -142,6 +167,7 @@ function ReelPost({ post }) {
                     </button>
                     <button
                         type="button"
+                        onClick={() => navigate('/messaging')}
                         className="flex flex-col items-center gap-1 cursor-pointer"
                     >
                         <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
@@ -208,7 +234,34 @@ function ReelPost({ post }) {
                         {formatCurrency(earnings, profile?.currencySymbol || '₹')}
                     </div>
 
+                    {post.musicData && (
+                        <div className="absolute left-0 -bottom-8 flex items-center gap-2 overflow-hidden bg-white/10 backdrop-blur-md rounded-lg px-2 py-1 w-fit max-w-[140px]">
+                            <Music size={10} className="text-white animate-spin-slow" />
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                                <div className="whitespace-nowrap animate-scroll-text inline-block">
+                                    <span className="text-[9px] font-bold text-white mr-4">
+                                        {post.musicData.title} · {post.musicData.artist}
+                                    </span>
+                                    <span className="text-[9px] font-bold text-white mr-4">
+                                        {post.musicData.title} · {post.musicData.artist}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {post.musicData && (
+                    <audio
+                        ref={audioRef}
+                        src={post.musicData.audioUrl}
+                        loop
+                        muted={isMuted}
+                        onPlay={(e) => {
+                            if (post.musicStartTime) e.target.currentTime = post.musicStartTime
+                        }}
+                    />
+                )}
             </div>
         </div>
     )
@@ -217,6 +270,7 @@ function ReelPost({ post }) {
 export default function PostFeedModal({ posts = [], startIndex = null, onClose }) {
     const containerRef = useRef(null)
     const postRefs = useRef({})
+    const [activeReelIndex, setActiveReelIndex] = useState(null)
     const itemHeightRef = useRef(0)
     const loopedPosts = useMemo(() => (posts.length > 1 ? [...posts, ...posts, ...posts] : posts), [posts])
 
@@ -256,6 +310,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
         const node = postRefs.current[loopIndex]
         if (node && containerRef.current) {
             node.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setActiveReelIndex(loopIndex)
         }
     }, [isOpen, loopedPosts, safeIndex, posts.length])
 
@@ -269,6 +324,36 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
         }
     }, [isOpen, loopedPosts])
 
+    useEffect(() => {
+        if (!isOpen || !isReelsMode) return
+        
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    const ratio = entry.intersectionRatio
+                    if (entry.isIntersecting && ratio > 0.6) {
+                        const index = parseInt(entry.target.getAttribute('data-index'))
+                        if (!isNaN(index)) {
+                            setActiveReelIndex(index)
+                        }
+                    }
+                })
+            },
+            {
+                root: containerRef.current,
+                threshold: [0, 0.5, 0.6, 0.7, 0.8, 1.0], 
+            }
+        )
+
+        const container = containerRef.current
+        if (container) {
+            const items = container.querySelectorAll('.reels-item')
+            items.forEach((item) => observer.observe(item))
+        }
+
+        return () => observer.disconnect()
+    }, [isOpen, isReelsMode, loopedPosts])
+    
     useEffect(() => {
         if (!isOpen || posts.length <= 1) return
         const container = containerRef.current
@@ -303,55 +388,59 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
             <motion.div
                 className="fixed inset-0 z-[65] flex flex-col md:left-[84px] lg:left-[248px] lg:right-[300px] xl:right-[332px]"
                 style={{
-                    background: 'var(--color-bg)',
-                    ['--reels-header-height']: '64px',
-                    ['--reels-bottom-offset']: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 8px)',
+                    background: isReelsMode ? '#000' : 'var(--color-bg)',
+                    '--reels-header-height': '64px',
+                    '--reels-bottom-offset': 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 8px)',
+                    '--reels-viewport-height': isReelsMode ? '100svh' : 'auto'
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
                 <div
-                    className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 shrink-0"
+                    className={`${isReelsMode ? 'absolute top-0 left-0 right-0' : 'sticky top-0'} z-20 flex items-center gap-3 px-4 py-4 shrink-0 ${isReelsMode ? 'pointer-events-none' : ''}`}
                     style={{
-                        background: 'var(--color-bg)',
-                        borderBottom: '1px solid var(--color-border)',
-                        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)'
+                        background: isReelsMode ? 'transparent' : 'var(--color-bg)',
+                        borderBottom: isReelsMode ? 'none' : '1px solid var(--color-border)',
+                        paddingTop: isReelsMode ? 'calc(env(safe-area-inset-top, 0px) + 16px)' : 'calc(env(safe-area-inset-top, 0px) + 12px)'
                     }}
                 >
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer"
-                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                        className="w-10 h-10 flex items-center justify-center cursor-pointer pointer-events-auto"
+                        style={{ color: isReelsMode ? '#fff' : 'var(--color-text)' }}
                     >
-                        <ArrowLeft size={18} />
+                        <ArrowLeft size={isReelsMode ? 28 : 20} strokeWidth={isReelsMode ? 2.5 : 2} />
                     </button>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                        {isReelsMode ? 'Reels' : 'Posts'}
-                    </p>
+                    {!isReelsMode && (
+                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                            Posts
+                        </p>
+                    )}
                 </div>
 
                 <div
                     ref={containerRef}
                     className="flex-1 overflow-y-auto overflow-x-hidden px-0 py-0 md:px-0 hide-scrollbar snap-y snap-mandatory"
                     style={{
-                        paddingBottom: 'var(--reels-bottom-offset)',
+                        paddingBottom: isReelsMode ? 0 : 'var(--reels-bottom-offset)',
                         WebkitOverflowScrolling: 'touch'
                     }}
                 >
                     <div className="mx-auto w-full md:max-w-[460px] lg:max-w-[520px]">
                         {loopedPosts.map((post, index) => (
-                            <div
-                                key={`${post.id}-${index}`}
-                                ref={(node) => {
-                                    if (node) postRefs.current[index] = node
-                                }}
-                                className="snap-start snap-always shrink-0 w-full reels-item"
-                            >
+                                <div
+                                    key={`${post.id}-${index}`}
+                                    ref={(node) => {
+                                        if (node) postRefs.current[index] = node
+                                    }}
+                                    className="snap-start snap-always shrink-0 w-full reels-item"
+                                    data-index={index}
+                                >
                                 {isReelsMode
                                     ? post.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} />
-                                        : <ReelPost post={post} />
+                                        : <ReelPost post={post} active={activeReelIndex === index} />
                                     : <PostCard post={post} />}
                             </div>
                         ))}

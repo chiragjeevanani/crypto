@@ -219,6 +219,23 @@ body {
   }
 }
 
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 6s linear infinite;
+}
+
+@keyframes scroll-text {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-scroll-text {
+  display: inline-block;
+  animation: scroll-text 15s linear infinite;
+}
+
 /* Mobile card baseline */
 .post-card-shell {
   border-bottom: 8px solid var(--color-surface2);
@@ -252,12 +269,12 @@ body {
 }
 
 .reels-item {
-  height: calc(100vh - var(--reels-header-height, 64px) - var(--bottom-nav-height) - var(--safe-area-bottom));
+  height: var(--reels-viewport-height, 100%);
 }
 
 @media (min-width: 768px) {
   .reels-item {
-    height: calc(100vh - var(--reels-header-height, 64px));
+    height: var(--reels-viewport-height, calc(100vh - 40px));
   }
 }
 

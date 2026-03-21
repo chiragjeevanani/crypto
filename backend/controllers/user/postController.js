@@ -68,6 +68,14 @@ exports.createPost = async (req, res) => {
     }
 
     const user = await User.findById(userId).select("name handle avatar role").lean();
+    
+    // Business fields
+    const isBusiness = body.isBusiness === true || body.isBusiness === "true";
+    const ctaType = body.ctaType || "none";
+    const redirectType = body.redirectType || "none";
+    const whatsappNumber = body.whatsappNumber || "";
+    const externalLink = body.externalLink || "";
+
     const post = await Post.create({
       creator: userId,
       media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3" },
@@ -77,7 +85,16 @@ exports.createPost = async (req, res) => {
       musicTrackId,
       isNFT,
       nftPriceINR,
-      status: "approved"
+      status: "approved", // Temporarily auto-approve all posts
+      isBusiness,
+      ctaType,
+      redirectType,
+      whatsappNumber,
+      externalLink,
+      paymentStatus: "paid", // Temporarily mark all as paid
+      isPublished: true, // Temporarily auto-publish all
+      musicId: body.musicId || null,
+      musicStartTime: Number(body.musicStartTime) || 0
     });
 
     const forFeed = formatPostForUserFeed(post, baseUrl, { ...user, _id: user?._id });
@@ -102,7 +119,7 @@ const injectCampaignCards = (posts, campaigns, interval) => {
       campaignIndex += 1;
       // We wrap the campaign as a "post" object with postType: "campaign_card"
       output.push({
-        id: `campaign-card-${campaign._id}`,
+        id: `campaign-card-${campaign._id}-${i}`,
         postType: "campaign_card",
         campaign: {
           id: campaign._id.toString(),

@@ -10,11 +10,14 @@ const userCampaignRoutes = require("./routes/user/campaignRoutes");
 const userReelFeedRoutes = require("./routes/user/reelFeedRoutes");
 const userSearchRoutes = require("./routes/user/searchRoutes");
 const userWalletRoutes = require("./routes/user/walletRoutes");
+const userSavedPostRoutes = require("./routes/user/savedPostRoutes");
 const adminModerationRoutes = require("./routes/admin/moderationRoutes");
 const adminUserRoutes = require("./routes/admin/userRoutes");
 const adminGiftRoutes = require("./routes/admin/giftRoutes");
 const adminCampaignRoutes = require("./routes/admin/campaignRoutes");
 const adminConfigRoutes = require("./routes/admin/configRoutes");
+const businessRoutes = require("./routes/user/businessRoutes");
+const musicRoutes = require("./routes/musicRoutes");
 const adminWithdrawalRoutes = require("./routes/admin/withdrawalRoutes");
 
 const app = express();
@@ -38,6 +41,11 @@ app.use("/api/user/reels-feed", userReelFeedRoutes);
 app.use("/api/user/search", userSearchRoutes);
 app.use("/api/user/wallet", userWalletRoutes);
 app.use("/api/wallet", userWalletRoutes);
+app.use("/api/saved", userSavedPostRoutes);
+app.use("/api/business", businessRoutes);
+app.use("/api/music", musicRoutes);
+app.use("/api/admin/music", musicRoutes);
+app.use("/api/user/business", businessRoutes); // alias
 app.use("/api/admin/content", adminModerationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/gifts", adminGiftRoutes);

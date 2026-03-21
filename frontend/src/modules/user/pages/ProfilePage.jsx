@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
@@ -17,8 +17,10 @@ import { searchService } from '../services/searchService'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 
+import { savedPostService } from '../services/savedPostService'
+
 const TABS = ['Posts', 'NFTs', 'Tasks']
-const SETTINGS_SECTIONS = ['Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
+const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
 export default function ProfilePage() {
     const navigate = useNavigate()
@@ -43,6 +45,8 @@ export default function ProfilePage() {
     const [joinedCampaigns, setJoinedCampaigns] = useState([])
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
     const [nftListings, setNftListings] = useState([])
+    const [savedPosts, setSavedPosts] = useState([])
+    const [savedLoading, setSavedLoading] = useState(false)
 
     const { register, handleSubmit, reset: resetEditForm } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
     const settingsForm = useForm({
@@ -187,6 +191,24 @@ export default function ProfilePage() {
     }, [])
 
     // Load followers / following for the logged-in user from backend
+    useEffect(() => {
+        if (settingsTab !== 'Saved Posts' || !profile.id || !settingsOpen) return
+        let mounted = true
+        const load = async () => {
+            setSavedLoading(true)
+            try {
+                const res = await savedPostService.getSavedPosts(profile.id)
+                if (mounted) setSavedPosts(res.data || [])
+            } catch (err) {
+                console.error("Failed to load saved posts:", err)
+            } finally {
+                if (mounted) setSavedLoading(false)
+            }
+        }
+        load()
+        return () => { mounted = false }
+    }, [settingsTab, profile.id, settingsOpen])
+
     useEffect(() => {
         const userId = profile?.id
         if (!userId) return
@@ -388,15 +410,21 @@ export default function ProfilePage() {
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{task.title}</p>
                                         <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{task.brand.name}</p>
-                                    </div>
+                                     </div>
                                     <span className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>+₹{task.myReward}</span>
                                 </div>
                             ))}
                         </div>
                     )}
+
+                    {/* Saved Tab removed from main profile */}
                 </motion.div>
             </AnimatePresence>
-            <PostFeedModal posts={profilePosts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            <PostFeedModal 
+                posts={settingsTab === 'Saved Posts' && settingsOpen ? savedPosts : profilePosts} 
+                startIndex={activePostIndex} 
+                onClose={() => setActivePostIndex(null)} 
+            />
 
             <AnimatePresence>
                 {editOpen && (
@@ -492,9 +520,7 @@ export default function ProfilePage() {
                                         </p>
                                     </div>
                                     <button onClick={() => setSettingsOpen(false)}><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
-                                </div>
-
-                                {settingsMode === 'menu' && (
+                                </div>                                 {settingsMode === 'menu' && (
                                     <div className="space-y-2 mb-2">
                                         {SETTINGS_SECTIONS.map((section) => (
                                             <button
@@ -506,10 +532,62 @@ export default function ProfilePage() {
                                                 className="w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm font-semibold"
                                                 style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                                             >
-                                                <span>{section}</span>
+                                                <div className="flex items-center gap-2">
+                                                    {section === 'Saved Posts' && <Bookmark size={15} style={{ color: 'var(--color-primary)' }} />}
+                                                    <span>{section}</span>
+                                                </div>
                                                 <ChevronRight size={15} style={{ color: 'var(--color-muted)' }} />
                                             </button>
                                         ))}
+                                    </div>
+                                )}
+
+                                {settingsMode === 'detail' && settingsTab === 'Saved Posts' && (
+                                    <div className="min-h-[200px] -mx-4 -mb-4">
+                                        {savedLoading && (
+                                            <div className="grid grid-cols-3 gap-0.5">
+                                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                                    <div key={i} className="aspect-square bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
+                                                ))}
+                                            </div>
+                                        )}
+                                        {!savedLoading && savedPosts.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center py-20 px-8">
+                                                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: 'var(--color-surface2)' }}>
+                                                    <Bookmark size={30} style={{ color: 'var(--color-muted)' }} />
+                                                </div>
+                                                <p className="text-sm font-bold text-center" style={{ color: 'var(--color-text)' }}>No saved posts yet</p>
+                                                <p className="text-xs text-center mt-1" style={{ color: 'var(--color-muted)' }}>When you save posts and reels, they'll appear here.</p>
+                                            </div>
+                                        )}
+                                        {!savedLoading && savedPosts.length > 0 && (
+                                            <div className="grid grid-cols-3 gap-0.5">
+                                                {savedPosts.map((post) => (
+                                                    <div
+                                                        key={post.id}
+                                                        className="relative cursor-pointer overflow-hidden aspect-square"
+                                                        onClick={() => setActivePostIndex(savedPosts.findIndex((item) => item.id === post.id))}
+                                                    >
+                                                        {post.media?.type === 'video' ? (
+                                                            <>
+                                                                <video
+                                                                    src={post.media?.url}
+                                                                    muted
+                                                                    playsInline
+                                                                    preload="metadata"
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                    <Play size={20} className="text-white opacity-90" fill="white" />
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <img src={post.media?.url} alt="saved post" className="w-full h-full object-cover" loading="lazy" />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { postService } from '../services/postService'
 import { followService } from '../services/followService'
+import { savedPostService } from '../services/savedPostService'
 
 const getStoredCurrencySymbol = () => {
     try {
@@ -38,6 +39,7 @@ export const useFeedStore = create((set, get) => ({
     postsError: null,
     commentsByPostId: {},
     commentsLoading: {},
+    savedPostIds: new Set(),
 
     addPost: (post) => set((state) => ({
         posts: [post, ...state.posts],
@@ -274,4 +276,39 @@ export const useFeedStore = create((set, get) => ({
     }),
 
     markNotificationsRead: () => set({ unreadNotifications: 0 }),
+
+    fetchSavedPostIds: async () => {
+        try {
+            const res = await savedPostService.getSavedPostIds()
+            set({ savedPostIds: new Set(res.ids || []) })
+        } catch (err) {
+            console.error('Failed to fetch saved post IDs:', err)
+        }
+    },
+
+    toggleSavePost: async (postId) => {
+        const idStr = String(postId)
+        const isCurrentlySaved = get().savedPostIds.has(idStr)
+        
+        // Optimistic update
+        const newSet = new Set(get().savedPostIds)
+        if (isCurrentlySaved) newSet.delete(idStr)
+        else newSet.add(idStr)
+        set({ savedPostIds: newSet })
+
+        try {
+            const res = await savedPostService.toggleSave(postId)
+            const syncedSet = new Set(get().savedPostIds)
+            if (res.isSaved) syncedSet.add(idStr)
+            else syncedSet.delete(idStr)
+            set({ savedPostIds: syncedSet })
+        } catch (err) {
+            // Revert on error
+            const revertedSet = new Set(get().savedPostIds)
+            if (isCurrentlySaved) revertedSet.add(idStr)
+            else revertedSet.delete(idStr)
+            set({ savedPostIds: revertedSet })
+            throw err
+        }
+    },
 }))

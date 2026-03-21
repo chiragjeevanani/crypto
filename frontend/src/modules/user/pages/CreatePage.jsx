@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye, Music, Check } from 'lucide-react'
+import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye, Music, Check, Search, ChevronRight, X } from 'lucide-react'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { postService } from '../services/postService'
+import { businessService } from '../services/businessService'
 import { getSelectablePostCategories } from '../../../shared/postCategories'
 import { addUserNFTListing } from '../../../shared/nftListings'
+import MusicSelectionModal from '../components/feed/MusicSelectionModal'
+import { musicService } from '../services/musicService'
 
 const STEPS = [
     { id: 1, label: 'Upload Media', icon: Image },
@@ -30,13 +33,7 @@ const FILTERS = [
     { name: 'Crema', value: 'sepia(0.5) contrast(1.25)' },
 ]
 
-const AUDIO_TRACKS = [
-    { id: 'none', title: 'Original Audio', duration: '--:--' },
-    { id: '1', title: 'Trending - Neon Dreams', duration: '0:30' },
-    { id: '2', title: 'LoFi Chill Beats', duration: '1:00' },
-    { id: '3', title: 'Upbeat Pop 2026', duration: '0:45' },
-    { id: '4', title: 'Acoustic Sunset', duration: '0:50' },
-]
+
 
 export default function CreatePage() {
     const navigate = useNavigate()
@@ -48,10 +45,31 @@ export default function CreatePage() {
     const [mediaFile, setMediaFile] = useState(null)
     const [mediaType, setMediaType] = useState('image')
     const [activeFilter, setActiveFilter] = useState('none')
-    const [selectedMusic, setSelectedMusic] = useState('none')
+    const [selectedMusic, setSelectedMusic] = useState(null)
+    const [musicStartTime, setMusicStartTime] = useState(0)
+    const [isMusicModalOpen, setIsMusicModalOpen] = useState(false)
     const [published, setPublished] = useState(false)
     const [publishError, setPublishError] = useState('')
     const [publishing, setPublishing] = useState(false)
+
+    // Business states
+    const [isBusiness, setIsBusiness] = useState(false)
+    const [ctaType, setCtaType] = useState('Shop Now')
+    const [redirectType, setRedirectType] = useState('whatsapp')
+    const [whatsappNumber, setWhatsappNumber] = useState('')
+    const [externalLink, setExternalLink] = useState('')
+    const [businessPrice, setBusinessPrice] = useState(499)
+
+    const STEPS = [
+        { id: 1, label: 'Upload Media', icon: Image },
+        { id: 2, label: 'Edit', icon: Image },
+        { id: 3, label: 'Caption', icon: FileText },
+        { id: 4, label: 'Promotion', icon: ToggleRight },
+        { id: 5, label: 'NFT & Price', icon: ToggleLeft },
+        { id: 6, label: 'Category', icon: Eye },
+        { id: 7, label: 'Preview', icon: Eye },
+    ]
+
     const { register, watch, handleSubmit } = useForm({ defaultValues: { caption: '', price: '' } })
     const { kyc, profile } = useUserStore()
     const addPost = useFeedStore((s) => s.addPost)
@@ -78,9 +96,24 @@ export default function CreatePage() {
         }
     }, [])
 
+    useEffect(() => {
+        // Cleanup function for blob object URLs
+        return () => {
+            if (mediaPreview && mediaPreview.startsWith('blob:')) {
+                URL.revokeObjectURL(mediaPreview)
+            }
+        }
+    }, [mediaPreview])
+
     const handleMediaChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
+        
+        // Revoke previous URL if any
+        if (mediaPreview && mediaPreview.startsWith('blob:')) {
+            URL.revokeObjectURL(mediaPreview)
+        }
+        
         setMediaFile(file)
         setMediaPreview(URL.createObjectURL(file))
         if (file.type.startsWith('video/')) setMediaType('video')
@@ -101,16 +134,56 @@ export default function CreatePage() {
             formData.append('caption', caption?.trim() || '')
             formData.append('category', selectedCategory || 'General')
             formData.append('filter', activeFilter || 'none')
-            formData.append('musicTrackId', selectedMusic || 'none')
+            formData.append('musicId', selectedMusic?.id || '')
+            formData.append('musicStartTime', String(musicStartTime))
             formData.append('isNFT', isNFT ? 'true' : 'false')
             formData.append('nftPriceINR', String(isNFT ? nftPriceINR : 0))
             formData.append('aspectRatio', '4/3')
+            
+            // Add business fields
+            formData.append('isBusiness', isBusiness ? 'true' : 'false')
+            if (isBusiness) {
+                formData.append('ctaType', ctaType)
+                formData.append('redirectType', redirectType)
+                formData.append('whatsappNumber', whatsappNumber)
+                formData.append('externalLink', externalLink)
+            }
 
             const res = await postService.createPost(formData)
             const newPost = res?.post
-            if (newPost) addPost(newPost)
+            
+            // If business, proceed to payment simulation (non-blocking for now)
+            if (isBusiness && newPost?.id) {
+                try {
+                    // 1. Initiate payment
+                    const initRes = await businessService.initiatePayment(newPost.id)
+                    const orderId = initRes.data?.orderId; // Safe check
+
+                    if (orderId) {
+                        // 2. Simulate delay 
+                        await new Promise(r => setTimeout(r, 800)); 
+                        
+                        const verifyRes = await businessService.verifyPayment({
+                            postId: newPost.id,
+                            paymentId: `sim_pay_${Date.now()}`,
+                            orderId: orderId
+                        });
+
+                        if (verifyRes.success) {
+                            if (verifyRes.post) addPost(verifyRes.post) // Use the updated post if available
+                        }
+                    }
+                } catch (payErr) {
+                    console.warn("Payment flow bypassed/failed:", payErr.message);
+                    // We don't block the user, backend already set isPublished=true temporarily
+                    if (newPost) addPost(newPost);
+                }
+            } else if (newPost) {
+                addPost(newPost)
+            }
 
             if (isNFT && nftPriceINR > 0 && nftPriceValid) {
+                // ... NFT logic remains same
                 const listingMediaType = newPost?.media?.type || mediaType
                 const listingMediaUrl = newPost?.media?.url || ''
                 const listingThumbnail = listingMediaType === 'video'
@@ -138,8 +211,10 @@ export default function CreatePage() {
                 setMediaPreview(null)
                 setMediaFile(null)
                 setActiveFilter('none')
-                setSelectedMusic('none')
+                setSelectedMusic(null)
+                setMusicStartTime(0)
                 setIsNFT(false)
+                setIsBusiness(false) // Reset business state
                 navigate('/home')
             }, 1500)
         } catch (err) {
@@ -251,7 +326,7 @@ export default function CreatePage() {
                                 {mediaPreview && (
                                     <div className="w-full rounded-2xl overflow-hidden mb-6 border border-surface" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
                                         {mediaType === 'video' ? (
-                                            <video src={mediaPreview} className="w-full h-full object-cover" controls muted />
+                                            <video src={mediaPreview} className="w-full h-full object-cover" style={{ filter: activeFilter }} controls muted />
                                         ) : mediaType === 'audio' ? (
                                             <div className="p-4 flex flex-col items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
                                                 <Music size={32} style={{ color: 'var(--color-primary)' }} />
@@ -262,7 +337,7 @@ export default function CreatePage() {
                                         )}
                                     </div>
                                 )}
-                                {mediaType === 'image' && (
+                                {(mediaType === 'image' || mediaType === 'video') && (
                                 <div className="overflow-x-auto hide-scrollbar pb-2">
                                     <div className="flex gap-3 px-1 w-max">
                                         {FILTERS.map(f => (
@@ -274,12 +349,21 @@ export default function CreatePage() {
                                                 <div
                                                     className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeFilter === f.value ? 'border-primary scale-105' : 'border-transparent'}`}
                                                 >
-                                                    <img
-                                                        src={mediaPreview || "https://i.pravatar.cc/150"}
-                                                        className="w-full h-full object-cover"
-                                                        style={{ filter: f.value }}
-                                                        alt={f.name}
-                                                    />
+                                                    {mediaType === 'video' ? (
+                                                        <video
+                                                            src={mediaPreview}
+                                                            className="w-full h-full object-cover"
+                                                            style={{ filter: f.value }}
+                                                            muted
+                                                        />
+                                                    ) : (
+                                                        <img
+                                                            src={mediaPreview || "https://i.pravatar.cc/150"}
+                                                            className="w-full h-full object-cover"
+                                                            style={{ filter: f.value }}
+                                                            alt={f.name}
+                                                        />
+                                                    )}
                                                 </div>
                                                 <span className="text-[10px] font-semibold" style={{ color: activeFilter === f.value ? 'var(--color-primary)' : 'var(--color-text)' }}>
                                                     {f.name}
@@ -294,28 +378,56 @@ export default function CreatePage() {
                                     <p className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
                                         <Music size={16} /> Add Music
                                     </p>
-                                    <div className="flex flex-col gap-2">
-                                        {AUDIO_TRACKS.map(track => (
-                                            <div
-                                                key={track.id}
-                                                onClick={() => setSelectedMusic(track.id)}
-                                                className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200"
-                                                style={{
-                                                    background: selectedMusic === track.id ? 'var(--color-primary)' : 'var(--color-surface)',
-                                                    color: selectedMusic === track.id ? '#000' : 'var(--color-text)',
-                                                    border: `1px solid ${selectedMusic === track.id ? 'var(--color-primary)' : 'var(--color-border)'}`
-                                                }}
-                                            >
-                                                <div>
-                                                    <p className="text-sm font-bold">{track.title}</p>
-                                                    <p className="text-[10px] opacity-80" style={{ color: selectedMusic === track.id ? '#000' : 'var(--color-muted)' }}>
-                                                        {track.duration}
-                                                    </p>
-                                                </div>
-                                                {selectedMusic === track.id && <Check size={18} />}
-                                            </div>
-                                        ))}
-                                    </div>
+                                    {!selectedMusic ? (
+                                         <button 
+                                             type="button"
+                                             onClick={() => setIsMusicModalOpen(true)}
+                                             className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed transition-all text-sm font-semibold"
+                                             style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+                                         >
+                                             <Music size={18} />
+                                             Select Background Track
+                                         </button>
+                                     ) : (
+                                         <div 
+                                             className="p-4 rounded-2xl relative group"
+                                             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-primary)' }}
+                                         >
+                                             <div className="flex items-center gap-3">
+                                                 <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)', color: '#000' }}>
+                                                     {selectedMusic.thumbnail ? <img src={selectedMusic.thumbnail} className="w-full h-full rounded-lg object-cover" /> : <Music size={20} />}
+                                                  </div>
+                                                 <div className="flex-1 min-w-0">
+                                                     <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{selectedMusic.title}</p>
+                                                     <p className="text-[10px] truncate" style={{ color: 'var(--color-muted)' }}>{selectedMusic.artist}</p>
+                                                 </div>
+                                                 <button 
+                                                     type="button"
+                                                     onClick={() => setSelectedMusic(null)}
+                                                     className="p-1.5 rounded-full"
+                                                     style={{ color: 'var(--color-muted)' }}
+                                                 >
+                                                     <X size={16} />
+                                                 </button>
+                                             </div>
+                                             
+                                             <div className="mt-4">
+                                                 <div className="flex items-center justify-between mb-1.5">
+                                                     <span className="text-[10px] font-bold" style={{ color: 'var(--color-muted)' }}>Start Time</span>
+                                                     <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>{Math.floor(musicStartTime)}s</span>
+                                                 </div>
+                                                 <input 
+                                                     type="range"
+                                                     min="0"
+                                                     max={Math.max(0, (selectedMusic.duration || 0) - 15)}
+                                                     value={musicStartTime}
+                                                     onChange={(e) => setMusicStartTime(Number(e.target.value))}
+                                                     className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                     style={{ background: 'var(--color-border)' }}
+                                                 />
+                                             </div>
+                                         </div>
+                                     )}
                                 </div>
 
                             </div>
@@ -359,8 +471,132 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 4: NFT Toggle */}
+                        {/* Step 4: Promotion */}
                         {step === 4 && (
+                            <div>
+                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Promote Content</p>
+                                <div
+                                    className="flex items-center justify-between p-4 rounded-xl mb-6"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                >
+                                    <div>
+                                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Enable Promotion</p>
+                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                                            Boost your content to the business feed
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setIsBusiness(!isBusiness)} className="cursor-pointer">
+                                        {isBusiness ? (
+                                            <ToggleRight size={32} style={{ color: 'var(--color-primary)' }} />
+                                        ) : (
+                                            <ToggleLeft size={32} style={{ color: 'var(--color-muted)' }} />
+                                        )}
+                                    </button>
+                                </div>
+
+                                <AnimatePresence>
+                                    {isBusiness && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="space-y-4"
+                                        >
+                                            <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl mb-4">
+                                                <p className="text-[11px] text-amber-500 font-medium">
+                                                    Promotional posts require a one-time payment of ₹{businessPrice} to be published.
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--color-sub)' }}>
+                                                    CTA Button Text
+                                                </label>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {['Shop Now', 'Order Now', 'Contact Us'].map(cta => (
+                                                        <button
+                                                            key={cta}
+                                                            onClick={() => setCtaType(cta)}
+                                                            className={`py-2 px-1 rounded-lg text-[10px] font-bold border transition-all ${ctaType === cta ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted'}`}
+                                                        >
+                                                            {cta}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--color-sub)' }}>
+                                                    Redirect To
+                                                </label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {[
+                                                        { id: 'whatsapp', label: 'WhatsApp' },
+                                                        { id: 'internal', label: 'In-App Direct' }
+                                                    ].map(type => (
+                                                        <button
+                                                            key={type.id}
+                                                            onClick={() => setRedirectType(type.id)}
+                                                            className={`py-2 rounded-lg text-xs font-bold border transition-all ${redirectType === type.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted'}`}
+                                                        >
+                                                            {type.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {redirectType === 'whatsapp' && (
+                                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
+                                                        WhatsApp Number
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={whatsappNumber}
+                                                        onChange={(e) => setWhatsappNumber(e.target.value)}
+                                                        placeholder="e.g. +91 9876543210"
+                                                        className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                                                        style={{
+                                                            background: 'var(--color-surface)',
+                                                            color: 'var(--color-text)',
+                                                            border: '1px solid var(--color-border)',
+                                                        }}
+                                                    />
+                                                </motion.div>
+                                            )}
+
+                                            <div>
+                                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
+                                                    Optional Link (Future Ready)
+                                                </label>
+                                                <input
+                                                    type="url"
+                                                    value={externalLink}
+                                                    onChange={(e) => setExternalLink(e.target.value)}
+                                                    placeholder="https://example.com"
+                                                    className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                                                    style={{
+                                                        background: 'var(--color-surface)',
+                                                        color: 'var(--color-text)',
+                                                        border: '1px solid var(--color-border)',
+                                                    }}
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                {!isBusiness && (
+                                    <div className="mt-8 p-4 rounded-2xl bg-surface2 border border-border">
+                                        <p className="text-xs text-muted leading-relaxed">
+                                            Turning on promotion will allow you to add a Call-To-Action button to your post and reach a wider audience interested in your products or services.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Step 5: NFT Toggle */}
+                        {step === 5 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>List as NFT</p>
                                 <div
@@ -416,8 +652,8 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 5: Category */}
-                        {step === 5 && (
+                        {/* Step 6: Category */}
+                        {step === 6 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Select Category</p>
                                 <div className="grid grid-cols-2 gap-2">
@@ -443,15 +679,15 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 6: Preview */}
-                        {step === 6 && (
+                        {/* Step 7: Preview */}
+                        {step === 7 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Preview & Publish</p>
-                                {publishError && <p className="text-xs text-red-500 mb-2">{publishError}</p>}
+                                {publishError && <p className="text-xs text-red-500 mb-2 font-medium">{publishError}</p>}
                                 <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
                                     {mediaPreview && (
                                         mediaType === 'video' ? (
-                                            <video src={mediaPreview} className="w-full object-cover" style={{ aspectRatio: '4/3' }} muted />
+                                            <video src={mediaPreview} className="w-full object-cover" style={{ aspectRatio: '4/3', filter: activeFilter }} muted />
                                         ) : mediaType === 'audio' ? (
                                             <div className="p-4 flex items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
                                                 <Music size={28} style={{ color: 'var(--color-primary)' }} />
@@ -465,24 +701,36 @@ export default function CreatePage() {
                                         <p className="text-sm" style={{ color: 'var(--color-sub)' }}>
                                             {caption || 'No caption added'}
                                         </p>
-                                        <div className="flex items-center gap-2 mt-3">
+                                        <div className="flex flex-wrap items-center gap-2 mt-3">
                                             <span
                                                 className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                 style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--color-primary)' }}
                                             >
                                                 {selectedCategory}
                                             </span>
+                                            {isBusiness && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                                    style={{ background: 'rgba(59,130,246,0.12)', color: 'var(--color-blue)' }}>
+                                                    Business Post (₹{businessPrice})
+                                                </span>
+                                            )}
+                                            {isBusiness && ctaType !== 'none' && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                                    style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}>
+                                                    CTA: {ctaType}
+                                                </span>
+                                            )}
                                             {isNFT && (
                                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                     style={{ background: 'rgba(168,85,247,0.12)', color: 'var(--color-purple)' }}>
                                                     NFT Listed
                                                 </span>
                                             )}
-                                            {selectedMusic !== 'none' && (
+                                            {selectedMusic && (
                                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1"
                                                     style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}>
                                                     <Music size={10} />
-                                                    {AUDIO_TRACKS.find(t => t.id === selectedMusic)?.title}
+                                                    {selectedMusic.title}
                                                 </span>
                                             )}
                                         </div>
@@ -509,7 +757,7 @@ export default function CreatePage() {
                         <ChevronLeft size={16} /> Previous
                     </motion.button>
                 )}
-                {step < 6 ? (
+                {step < 7 ? (
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setStep(step + 1)}
@@ -532,10 +780,19 @@ export default function CreatePage() {
                             color: '#fff',
                         }}
                     >
-                        {publishing ? 'Publishing...' : '🚀 Publish'}
+                        {publishing ? (isBusiness ? 'Processing Payment...' : 'Publishing...') : (isBusiness ? `Pay ₹${businessPrice} & Publish` : '🚀 Publish')}
                     </motion.button>
                 )}
             </div>
+            <AnimatePresence>
+                {isMusicModalOpen && (
+                    <MusicSelectionModal 
+                        onClose={() => setIsMusicModalOpen(false)}
+                        onSelect={(m) => { setSelectedMusic(m); setIsMusicModalOpen(false); }}
+                        currentSelected={selectedMusic}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     )
 }

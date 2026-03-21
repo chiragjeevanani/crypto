@@ -7,7 +7,7 @@ export default function CampaignReelCard({ campaign }) {
 
     return (
         <div className="relative flex flex-col h-full items-center justify-center bg-black">
-            <div className="relative w-full max-w-sm mx-auto aspect-[9/16] overflow-hidden bg-black max-h-[80vh]">
+            <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] lg:max-h-[calc(100vh-56px)]">
                 <div className="absolute inset-0">
                     {campaign.bannerUrl ? (
                         <img src={campaign.bannerUrl} alt={campaign.title} className="w-full h-full object-cover opacity-90" />

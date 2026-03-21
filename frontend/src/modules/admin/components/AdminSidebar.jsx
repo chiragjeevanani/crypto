@@ -11,6 +11,7 @@ import {
     Send,
     History,
     Gift,
+    Music,
     ShieldAlert,
     Terminal,
     Globe,
@@ -54,6 +55,7 @@ const menuGroups = [
             { icon: Tags, label: 'Categories', path: '/admin/categories' },
             { icon: Box, label: 'NFT Review', path: '/admin/nfts' },
             { icon: Vote, label: 'Voting', path: '/admin/voting' },
+            { icon: Music, label: 'Music', path: '/admin/music' },
         ]
     },
     {

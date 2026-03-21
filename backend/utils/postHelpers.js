@@ -41,7 +41,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
   );
   const category = String(post.category || "").toLowerCase();
   const isBrandCategory = category.includes("brand") || category.includes("campaign") || category.includes("task");
-  const postType = post.isNFT ? "nft" : (isBrandCategory ? "brand" : "regular");
+  const postType = post.isNFT ? "nft" : (post.isBusiness ? "business" : (isBrandCategory ? "brand" : "regular"));
   return {
     id,
     creator: {
@@ -57,6 +57,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
       aspectRatio: post.media?.aspectRatio || "4/3"
     },
     caption: post.caption || "",
+    filter: post.filter || "none",
     postType,
     nftPriceINR: Number(post.nftPriceINR || 0),
     allowGifts: true,
@@ -70,7 +71,25 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
     category: post.category,
     musicTrackId: post.musicTrackId,
     campaign: post.campaign || null,
-    campaignSubmission: post.campaignSubmission || null
+    campaignSubmission: post.campaignSubmission || null,
+    // Business extensions
+    isBusiness: Boolean(post.isBusiness),
+    ctaType: post.ctaType || "none",
+    redirectType: post.redirectType || "none",
+    whatsappNumber: post.whatsappNumber || "",
+    externalLink: post.externalLink || "",
+    paymentStatus: post.paymentStatus || "pending",
+    isPublished: Boolean(post.isPublished),
+    musicId: post.musicId ? post.musicId._id || post.musicId : null,
+    musicData: post.musicId && typeof post.musicId === "object" ? {
+      id: post.musicId._id,
+      title: post.musicId.title,
+      artist: post.musicId.artist,
+      audioUrl: post.musicId.audioUrl,
+      duration: post.musicId.duration,
+      thumbnail: post.musicId.thumbnail
+    } : null,
+    musicStartTime: post.musicStartTime || 0
   };
 }
 
@@ -81,6 +100,7 @@ function populateCreator(query) {
     .populate("creator", "name email handle avatar role followers")
     .populate("campaign", "title brandName bannerUrl rewardDetails status isActive")
     .populate("campaignSubmission", "votes voters")
+    .populate("musicId", "title artist audioUrl duration thumbnail")
     .lean();
 }
 

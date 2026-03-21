@@ -30,5 +30,14 @@ export const searchService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to fetch suggested reels");
     return data;
+  },
+  async dismissSuggestedUser(userId) {
+    const response = await fetch(`${SEARCH_URL}/suggested-users/dismiss/${userId}`, {
+      method: "POST",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to dismiss user");
+    return data;
   }
 };

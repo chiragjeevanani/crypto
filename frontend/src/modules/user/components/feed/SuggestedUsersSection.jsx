@@ -32,7 +32,10 @@ export default function SuggestedUsersSection({ title = "Suggested for you" }) {
                     <SuggestedUserCard 
                         key={user.id} 
                         user={user} 
-                        onRemove={(id) => setSuggestedUsers(prev => prev.filter(u => u.id !== id))}
+                        onRemove={(id) => {
+                            setSuggestedUsers(prev => prev.filter(u => u.id !== id))
+                            searchService.dismissSuggestedUser(id).catch(err => console.error("Dismiss failed", err))
+                        }}
                     />
                 ))}
             </div>

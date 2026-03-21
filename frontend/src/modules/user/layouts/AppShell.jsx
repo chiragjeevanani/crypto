@@ -11,6 +11,7 @@ import {
     PlusSquare,
     Trophy,
     PlayCircle,
+    MessageCircle,
 } from 'lucide-react'
 import BottomNavbar from '../components/shared/BottomNavbar'
 import CoinRain from '../components/shared/CoinRain'
@@ -32,6 +33,7 @@ const SIDEBAR_ITEMS = [
     { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
     { label: 'Wallet', to: '/wallet', icon: Wallet, key: 'wallet' },
     { label: 'Profile', to: '/profile', icon: User, key: 'profile' },
+    { label: 'Messages', to: '/messaging', icon: MessageCircle, key: 'messaging' },
     { label: 'Logout', to: '/logout', icon: LogOut, key: 'logout' },
 ]
 
@@ -87,6 +89,7 @@ export default function AppShell() {
 
     const leaderboard = posts
         .reduce((acc, post) => {
+            if (!post?.creator?.id) return acc
             const existing = acc.get(post.creator.id) || {
                 id: post.creator.id,
                 username: post.creator.username,
@@ -94,8 +97,8 @@ export default function AppShell() {
                 earnings: 0,
                 likes: 0,
             }
-            existing.earnings += post.earnings
-            existing.likes += post.likes
+            existing.earnings += (post.earnings || 0)
+            existing.likes += (post.likes || 0)
             acc.set(post.creator.id, existing)
             return acc
         }, new Map())
@@ -302,9 +305,9 @@ export default function AppShell() {
 
                     <section className="desktop-panel-card overflow-hidden rounded-2xl p-0">
                         <div className="px-5 py-4" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.16), rgba(249,115,22,0.10))' }}>
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-primary)' }}>
-                                    Wallet Summary
-                                </p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-primary)' }}>
+                                Wallet Summary
+                            </p>
                             <p className="mt-1 text-3xl font-extrabold tracking-tight" style={{ color: 'var(--color-text)' }}>
                                 {formatCurrency(earningsWallet, currencySymbol)}
                             </p>

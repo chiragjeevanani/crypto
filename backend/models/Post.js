@@ -35,7 +35,29 @@ const postSchema = new mongoose.Schema(
     comments: { type: Number, default: 0 },
     earnings: { type: Number, default: 0 },
     campaign: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", default: null },
-    campaignSubmission: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignSubmission", default: null }
+    campaignSubmission: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignSubmission", default: null },
+    // Business content extensions
+    isBusiness: { type: Boolean, default: false },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending"
+    },
+    ctaType: {
+      type: String,
+      enum: ["Shop Now", "Order Now", "Contact Us", "none"],
+      default: "none"
+    },
+    redirectType: {
+      type: String,
+      enum: ["whatsapp", "internal", "none"],
+      default: "none"
+    },
+    whatsappNumber: { type: String, trim: true, default: "" },
+    externalLink: { type: String, trim: true, default: "" },
+    isPublished: { type: Boolean, default: false },
+    musicId: { type: mongoose.Schema.Types.ObjectId, ref: "Music", default: null },
+    musicStartTime: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

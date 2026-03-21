@@ -38,6 +38,14 @@ export default function Stories() {
     const [uploadError, setUploadError] = useState('');
     const [imageScale, setImageScale] = useState(1);
     const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+    
+    useEffect(() => {
+        return () => {
+            if (storyMedia && storyMedia.startsWith('blob:')) {
+                URL.revokeObjectURL(storyMedia);
+            }
+        };
+    }, [storyMedia]);
 
     const loadStories = async () => {
         try {
@@ -711,6 +719,9 @@ export default function Stories() {
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
+                                            if (storyMedia && storyMedia.startsWith('blob:')) {
+                                                URL.revokeObjectURL(storyMedia);
+                                            }
                                             const url = URL.createObjectURL(file);
                                             setStoryMedia(url);
                                             setStoryFile(file);
