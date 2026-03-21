@@ -87,35 +87,42 @@ export default function AppShell() {
             .slice(0, 3)
     }, [posts, userNFTListings])
 
-    const leaderboard = posts
-        .reduce((acc, post) => {
-            if (!post?.creator?.id) return acc
-            const existing = acc.get(post.creator.id) || {
-                id: post.creator.id,
-                username: post.creator.username,
-                handle: post.creator.handle,
-                earnings: 0,
-                likes: 0,
-            }
-            existing.earnings += (post.earnings || 0)
-            existing.likes += (post.likes || 0)
-            acc.set(post.creator.id, existing)
-            return acc
-        }, new Map())
-        .values()
+    const leaderboardItems = useMemo(() => {
+        return posts
+            .reduce((acc, post) => {
+                if (!post?.creator?.id) return acc
+                const existing = acc.get(post.creator.id) || {
+                    id: post.creator.id,
+                    username: post.creator.username,
+                    handle: post.creator.handle,
+                    earnings: 0,
+                    likes: 0,
+                }
+                existing.earnings += (post.earnings || 0)
+                existing.likes += (post.likes || 0)
+                acc.set(post.creator.id, existing)
+                return acc
+            }, new Map())
+            .values()
+    }, [posts])
 
-    const topCreators = Array.from(leaderboard)
-        .sort((a, b) => b.earnings - a.earnings)
-        .slice(0, 4)
+    const topCreators = useMemo(() => {
+        return Array.from(leaderboardItems)
+            .sort((a, b) => b.earnings - a.earnings)
+            .slice(0, 4)
+    }, [leaderboardItems])
 
     const cryptoBalance = Number(cryptoWallet || 0).toFixed(4)
     const today = new Date().toISOString().slice(0, 10)
     const currencySymbol = profile?.currencySymbol || '₹'
 
-    const todayEarnings = posts
-        .filter((post) => String(post.createdAt || '').slice(0, 10) === today)
-        .reduce((sum, post) => sum + (post.earnings || 0), 0)
-    const todayEarningsLabel = formatCurrency(todayEarnings || 120, currencySymbol)
+    const todayEarnings = useMemo(() => {
+        return posts
+            .filter((post) => String(post.createdAt || '').slice(0, 10) === today)
+            .reduce((sum, post) => sum + (post.earnings || 0), 0)
+    }, [posts, today])
+
+    const todayEarningsLabel = formatCurrency(todayEarnings || 0, currencySymbol)
 
     const isItemActive = (item) => {
         if (item.key === 'home') return location.pathname === '/home' && !view

@@ -16,11 +16,13 @@ import { playGiftSound } from '../../utils/giftSounds'
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
 function getColor(id) {
-    const idx = parseInt(id.replace(/\D/g, ''), 10) % AVATAR_COLORS.length
+    if (!id) return '#f59e0b'
+    const idx = parseInt(String(id).replace(/\D/g, ''), 10) % AVATAR_COLORS.length
     return AVATAR_COLORS[idx] || '#f59e0b'
 }
 
 export default function PostCard({ post, onOpen }) {
+    if (!post) return null
     const { 
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
@@ -50,6 +52,24 @@ export default function PostCard({ post, onOpen }) {
     }
 
     useEffect(() => {
+        if (!videoRef.current) return undefined
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    videoRef.current.play().catch(() => {
+                        // Autoplay often blocked by browsers unless muted
+                    })
+                } else {
+                    videoRef.current.pause()
+                }
+            },
+            { threshold: 0.5 }
+        )
+        observer.observe(videoRef.current)
+        return () => observer.disconnect()
+    }, [])
+
+    useEffect(() => {
         if (commentsOpen && post.id) loadComments(post.id)
     }, [commentsOpen, post.id, loadComments])
 
@@ -69,14 +89,14 @@ export default function PostCard({ post, onOpen }) {
         }
         sendGift(post.id, gift)
         playGiftSound(gift.id)
-        if (post.creator.id === profile.id) addGiftEarning(gift.price)
+        if (post.creator?.id === profile?.id) addGiftEarning(gift.price)
         setGiftError('')
         setEarningsFlash(true)
         setTimeout(() => setEarningsFlash(false), 600)
         if (gift.price >= 5) triggerCoinRain()
     }
 
-    const avatarColor = getColor(post.creator.id)
+    const avatarColor = getColor(post.creator?.id || '0')
     const isNFTPost = post.postType === 'nft'
     const isBrandPost = post.postType === 'brand'
 
@@ -94,7 +114,7 @@ export default function PostCard({ post, onOpen }) {
     const handleShare = async (channel) => {
         sharePost(post.id, channel)
         const shareLink = `${window.location.origin}/home?post=${post.id}`
-        const shareText = `${post.creator.username}'s post on SocialEarn`
+        const shareText = `${post.creator?.username || 'User'}'s post on SocialEarn`
 
         if (channel === 'copy_link' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
             try {
@@ -166,14 +186,14 @@ export default function PostCard({ post, onOpen }) {
             <div className="flex items-start gap-3 px-4 pt-5 pb-4 lg:px-5 lg:pt-5 lg:pb-4">
                 {/* Avatar */}
                 <Link
-                    to={isSelfPost ? '/profile' : `/user/${post.creator.id}`}
+                    to={isSelfPost ? '/profile' : `/user/${post.creator?.id || ''}`}
                     className="cursor-pointer"
                 >
                     <div
                         className="w-10 h-10 lg:w-11 lg:h-11 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 text-white text-base font-bold shadow-md"
                         style={{ background: avatarColor }}
                     >
-                        {post.creator.avatar ? (
+                        {post.creator?.avatar ? (
                             <img
                                 src={post.creator.avatar}
                                 alt={post.creator.username}
@@ -181,21 +201,21 @@ export default function PostCard({ post, onOpen }) {
                                 onError={(e) => { e.currentTarget.style.display = 'none' }}
                             />
                         ) : (
-                            post.creator.username.charAt(0)
+                            post.creator?.username?.charAt(0) || 'U'
                         )}
                     </div>
                 </Link>
                 <div className="flex-1 min-w-0">
                     <Link
-                        to={isSelfPost ? '/profile' : `/user/${post.creator.id}`}
+                        to={isSelfPost ? '/profile' : `/user/${post.creator?.id || ''}`}
                         className="cursor-pointer"
                     >
                         <p className="text-sm lg:text-[15px] font-bold truncate hover:text-[var(--desktop-accent,var(--color-primary))] transition-colors" style={{ color: 'var(--color-text)' }}>
-                            {post.creator.username}
+                            {post.creator?.username || 'User'}
                         </p>
                     </Link>
                     <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                        {post.creator.handle} · {timeAgo(post.createdAt)}
+                        {post.creator?.handle || '@user'} · {timeAgo(post.createdAt)}
                     </p>
                     {isNFTPost && (
                         <div className="mt-1.5">
@@ -231,15 +251,15 @@ export default function PostCard({ post, onOpen }) {
                 {!isSelfPost && (
                     <motion.button
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => toggleFollow(post.creator.id)}
+                        onClick={() => toggleFollow(post.creator?.id)}
                         className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold cursor-pointer flex-shrink-0 transition-all duration-200"
                         style={
-                            post.creator.isFollowing
+                            post.creator?.isFollowing
                                 ? { background: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }
                                 : { background: 'transparent', color: 'var(--desktop-accent,var(--color-primary))', border: '1px solid var(--desktop-accent,var(--color-primary))' }
                         }
                     >
-                        {post.creator.isFollowing ? (
+                        {post.creator?.isFollowing ? (
                             <><Check size={12} strokeWidth={3} /> Following</>
                         ) : (
                             <><UserPlus size={12} strokeWidth={3} /> Follow</>
@@ -257,10 +277,9 @@ export default function PostCard({ post, onOpen }) {
                     <div className="w-full h-full relative" onClick={toggleMute}>
                         <video
                             ref={videoRef}
-                            src={post.media.url}
+                            src={post.media?.url}
                             className="w-full h-full object-cover"
                             style={{ filter: post.filter || 'none' }}
-                            autoPlay
                             loop
                             playsInline
                             muted={isMuted}
@@ -288,7 +307,7 @@ export default function PostCard({ post, onOpen }) {
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary)', color: '#000' }}>
                             <Music size={24} />
                         </div>
-                        <audio src={post.media.url} controls className="flex-1 min-w-0" />
+                        <audio src={post.media?.url} controls className="flex-1 min-w-0" />
                     </div>
                 ) : (
                     <img
@@ -418,7 +437,7 @@ export default function PostCard({ post, onOpen }) {
             {/* Caption */}
             <div className="px-4 lg:px-5 pb-4">
                 <p className="text-sm" style={{ color: 'var(--color-text)', lineHeight: '1.6' }}>
-                    <span className="font-bold mr-2">{post.creator.username}</span>
+                    <span className="font-bold mr-2">{post.creator?.username || 'User'}</span>
                     <span style={{ color: 'var(--color-sub)' }}>{post.caption}</span>
                 </p>
                 {post.musicData && (

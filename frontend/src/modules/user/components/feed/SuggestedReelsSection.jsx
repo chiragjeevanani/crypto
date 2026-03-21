@@ -29,12 +29,11 @@ export default function SuggestedReelsSection({ reels = [] }) {
                         onClick={() => navigate(`/home?view=reels&post=${reel.id}`)}
                     >
                         <video 
-                            src={reel.media.url}
+                            src={reel.media?.url}
                             className="w-full h-full object-cover transition-transform group-hover:scale-105"
                             muted
                             playsInline
                             loop
-                            autoPlay
                             preload="metadata"
                             crossOrigin="anonymous"
                             poster={reel.media?.thumbnail || reel.media?.poster}

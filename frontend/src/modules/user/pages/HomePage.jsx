@@ -368,34 +368,36 @@ export default function HomePage() {
                                 <div>
                                     <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Reels</p>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {searchReels.map((post) => (
-                                            <button
-                                                key={post.id}
-                                                onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
-                                                className="overflow-hidden rounded-2xl text-left"
-                                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                            >
-                                                <video
-                                                    src={post.media.url}
-                                                    className="w-full aspect-square object-cover"
-                                                    muted
-                                                    playsInline
-                                                    loop
-                                                    autoPlay
-                                                    preload="metadata"
-                                                    crossOrigin="anonymous"
-                                                    poster={post.media?.thumbnail || post.media?.poster}
-                                                />
-                                                <div className="p-2.5">
-                                                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                                        {post.creator.username}
-                                                    </p>
-                                                    <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                                        {post.caption}
-                                                    </p>
-                                                </div>
-                                            </button>
-                                        ))}
+                                        {searchReels.map((post) => {
+                                            if (!post) return null
+                                            return (
+                                                <button
+                                                    key={post.id}
+                                                    onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                                    className="overflow-hidden rounded-2xl text-left"
+                                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                                >
+                                                    <video
+                                                        src={post.media?.url}
+                                                        className="w-full aspect-square object-cover"
+                                                        muted
+                                                        playsInline
+                                                        loop
+                                                        preload="metadata"
+                                                        crossOrigin="anonymous"
+                                                        poster={post.media?.thumbnail || post.media?.poster}
+                                                    />
+                                                    <div className="p-2.5">
+                                                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                            {post.creator?.username}
+                                                        </p>
+                                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                            {post.caption}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -404,36 +406,43 @@ export default function HomePage() {
                                 <div>
                                     <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Suggested Reels</p>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {videoPosts.slice(0, 6).map((post) => (
-                                            <div
-                                                key={post.id}
-                                                className="overflow-hidden rounded-2xl"
-                                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                                onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
-                                            >
-                                                <div className="relative">
-                                                    <video
-                                                        src={post.media.url}
-                                                        className="w-full aspect-square object-cover"
-                                                        muted
-                                                        playsInline
-                                                        loop
-                                                        autoPlay
-                                                        preload="metadata"
-                                                        crossOrigin="anonymous"
-                                                        poster={post.media?.thumbnail || post.media?.poster}
-                                                    />
+                                        {videoPosts.slice(0, 6).map((post) => {
+                                            if (!post) return null
+                                            return (
+                                                <div
+                                                    key={post.id}
+                                                    className="overflow-hidden rounded-2xl"
+                                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                                    onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                                >
+                                                    <div className="relative">
+                                                        <video
+                                                            src={post.media?.url}
+                                                            className="w-full aspect-square object-cover"
+                                                            muted
+                                                            playsInline
+                                                            loop
+                                                            preload="metadata"
+                                                            crossOrigin="anonymous"
+                                                            poster={post.media?.thumbnail || post.media?.poster}
+                                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                            onMouseLeave={(e) => {
+                                                                e.target.pause()
+                                                                e.target.currentTime = 0
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="p-2.5">
+                                                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                            {post.creator?.username}
+                                                        </p>
+                                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                            {post.caption}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div className="p-2.5">
-                                                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                                        {post.creator.username}
-                                                    </p>
-                                                    <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                                        {post.caption}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -446,85 +455,88 @@ export default function HomePage() {
                         <div className="mb-6">
                             <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Reels</p>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                {videoPosts.slice(0, 6).map((post) => (
-                                    <div
-                                        key={post.id}
-                                        className="overflow-hidden rounded-2xl"
-                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                        onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
-                                    >
-                                        <div className="relative">
-                                            <video
-                                                src={post.media.url}
-                                                className="w-full aspect-square object-cover"
-                                                muted
-                                                playsInline
-                                                loop
-                                                autoPlay
-                                                preload="metadata"
-                                                crossOrigin="anonymous"
-                                                poster={post.media?.thumbnail || post.media?.poster}
-                                            />
-                                            <div
-                                                className="absolute inset-0 flex items-center justify-center"
-                                                style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.35))' }}
-                                            >
-                                                <div
-                                                    className="h-8 w-8 rounded-full flex items-center justify-center"
-                                                    style={{ background: 'rgba(0,0,0,0.45)', color: '#fff' }}
-                                                >
-                                                    ▸
-                                                </div>
+                                {videoPosts.slice(0, 6).map((post) => {
+                                    if (!post) return null
+                                    return (
+                                        <div
+                                            key={post.id}
+                                            className="overflow-hidden rounded-2xl"
+                                            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                            onClick={() => navigate(`/home?view=reels&post=${post.id}`)}
+                                        >
+                                            <div className="relative">
+                                                <video
+                                                    src={post.media?.url}
+                                                    className="w-full aspect-square object-cover"
+                                                    muted
+                                                    playsInline
+                                                    loop
+                                                    preload="metadata"
+                                                    crossOrigin="anonymous"
+                                                    poster={post.media?.thumbnail || post.media?.poster}
+                                                    onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                    onMouseLeave={(e) => {
+                                                        e.target.pause()
+                                                        e.target.currentTime = 0
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="p-2.5">
+                                                <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                    {post.creator?.username}
+                                                </p>
+                                                <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                    {post.caption}
+                                                </p>
                                             </div>
                                         </div>
-                                        <div className="p-2.5">
-                                            <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                                {post.creator.username}
-                                            </p>
-                                            <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                                {post.caption}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     )}
 
                     {!query.trim() && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {filteredExplore.map((post) => (
-                                <div
-                                    key={post.id}
-                                    className="overflow-hidden rounded-2xl"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                    onClick={() => openPostFeed(post.id)}
-                                >
-                                    {post.media?.type === 'video' ? (
-                                        <video
-                                            src={post.media.url}
-                                            className="w-full aspect-square object-cover"
-                                            muted
-                                            playsInline
-                                            loop
-                                            autoPlay
-                                            preload="metadata"
-                                            crossOrigin="anonymous"
-                                            poster={post.media?.thumbnail || post.media?.poster}
-                                        />
-                                    ) : (
-                                        <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
-                                    )}
-                                    <div className="p-2.5">
-                                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {post.creator.username}
-                                        </p>
-                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                            {post.caption}
-                                        </p>
+                            {filteredExplore.map((post) => {
+                                if (!post) return null
+                                return (
+                                    <div
+                                        key={post.id}
+                                        className="overflow-hidden rounded-2xl"
+                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                        onClick={() => openPostFeed(post.id)}
+                                    >
+                                        {post.media?.type === 'video' ? (
+                                            <video
+                                                src={post.media?.url}
+                                                className="w-full aspect-square object-cover"
+                                                muted
+                                                playsInline
+                                                loop
+                                                preload="metadata"
+                                                crossOrigin="anonymous"
+                                                poster={post.media?.thumbnail || post.media?.poster}
+                                                onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                onMouseLeave={(e) => {
+                                                    e.target.pause()
+                                                    e.target.currentTime = 0
+                                                }}
+                                            />
+                                        ) : (
+                                            <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                        )}
+                                        <div className="p-2.5">
+                                            <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                {post.creator?.username}
+                                            </p>
+                                            <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
+                                                {post.caption}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     )}
                 </div>
@@ -557,6 +569,7 @@ export default function HomePage() {
                     posts={reelFeed}
                     startIndex={reelsStartIndex}
                     onClose={() => navigate('/home', { replace: true })}
+                    forceReels={true}
                 />
             )}
         </div>

@@ -267,7 +267,7 @@ function ReelPost({ post, active }) {
     )
 }
 
-export default function PostFeedModal({ posts = [], startIndex = null, onClose }) {
+export default function PostFeedModal({ posts = [], startIndex = null, onClose, forceReels = false }) {
     const containerRef = useRef(null)
     const postRefs = useRef({})
     const [activeReelIndex, setActiveReelIndex] = useState(null)
@@ -276,6 +276,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
 
     const isOpen = startIndex !== null && startIndex >= 0
     const isReelsMode = useMemo(() => {
+        if (forceReels) return true
         if (!posts.length) return false
         const hasTyped = posts.every((p) => p.postType === 'brand' || p.postType === 'nft' || p.postType === 'regular')
         if (hasTyped) {
@@ -284,7 +285,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
             return videoCount / posts.length > 0.5
         }
         return posts.every((p) => p.media?.type === 'video')
-    }, [posts])
+    }, [posts, forceReels])
     const safeIndex = useMemo(() => {
         if (!isOpen) return 0
         return Math.max(0, Math.min(posts.length - 1, startIndex))
@@ -438,10 +439,10 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose }
                                     data-index={index}
                                 >
                                 {isReelsMode
-                                    ? post.type === 'campaign'
+                                    ? post?.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} />
                                         : <ReelPost post={post} active={activeReelIndex === index} />
-                                    : <PostCard post={post} />}
+                                    : post && <PostCard post={post} />}
                             </div>
                         ))}
                     </div>

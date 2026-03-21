@@ -151,6 +151,7 @@ export default function SearchPage() {
                     <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Results</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {[...reels, ...filteredPosts].map((post) => {
+                            if (!post) return null
                             const isVideo = post.media?.type === 'video'
                             const openUrl = isVideo
                                 ? `/home?view=reels&post=${post.id}`
@@ -164,21 +165,25 @@ export default function SearchPage() {
                                 >
                                     {isVideo ? (
                                         <video
-                                            src={post.media.url}
+                                            src={post.media?.url}
                                             className="w-full aspect-square object-cover"
                                             muted
                                             playsInline
                                             loop
-                                            autoPlay
                                             preload="metadata"
                                             poster={post.media?.thumbnail || post.media?.poster}
+                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                            onMouseLeave={(e) => {
+                                                e.target.pause()
+                                                e.target.currentTime = 0
+                                            }}
                                         />
                                     ) : (
-                                        <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" />
                                     )}
                                     <div className="p-2.5">
                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {post.creator.username}
+                                            {post.creator?.username}
                                         </p>
                                         <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
                                             {post.caption}
@@ -196,6 +201,7 @@ export default function SearchPage() {
                     <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Suggested</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {[...suggestedReels, ...suggestedPosts].map((post) => {
+                            if (!post) return null
                             const isVideo = post.media?.type === 'video'
                             const openUrl = isVideo
                                 ? `/home?view=reels&post=${post.id}`
@@ -209,21 +215,25 @@ export default function SearchPage() {
                                 >
                                     {isVideo ? (
                                         <video
-                                            src={post.media.url}
+                                            src={post.media?.url}
                                             className="w-full aspect-square object-cover"
                                             muted
                                             playsInline
                                             loop
-                                            autoPlay
                                             preload="metadata"
                                             poster={post.media?.thumbnail || post.media?.poster}
+                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                            onMouseLeave={(e) => {
+                                                e.target.pause()
+                                                e.target.currentTime = 0
+                                            }}
                                         />
                                     ) : (
-                                        <img src={post.media.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" />
                                     )}
                                     <div className="p-2.5">
                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {post.creator.username}
+                                            {post.creator?.username}
                                         </p>
                                         <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
                                             {post.caption}
