@@ -8,9 +8,10 @@ export default function CampaignCreatePage() {
     const { createCampaign } = useAdminStore();
 
     const handleWizardSubmit = async (formData) => {
-        const primaryImage = (formData.assets || []).find((asset) => asset?.isPrimary && asset?.type === 'image');
-        const firstImage = (formData.assets || []).find((asset) => asset?.type === 'image');
-        const backgroundImage = primaryImage?.url || firstImage?.url || '';
+        const primaryAsset = (formData.assets || []).find((asset) => asset?.isPrimary);
+        const firstAsset = (formData.assets || [])[0];
+        const bannerUrl = primaryAsset?.url || firstAsset?.url || '';
+        const bannerType = primaryAsset?.type || firstAsset?.type || 'image';
         const campaignType = formData.campaignType || 'brand_task';
         const useNftSettings = campaignType === 'nft_launch' || campaignType === 'mixed';
         const nftPriceMin = Number(formData.nftPriceMin || 1);
@@ -22,7 +23,8 @@ export default function CampaignCreatePage() {
             title: formData.title || 'Untitled Campaign',
             description: formData.description || 'Campaign description',
             brandName: formData.brand || 'Brand',
-            bannerUrl: backgroundImage,
+            bannerUrl,
+            bannerType,
             startDate: formData.startDate || new Date().toISOString().slice(0, 10),
             endDate: formData.endDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
             participationType: formData.participationType || 'free',

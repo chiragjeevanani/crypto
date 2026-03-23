@@ -89,6 +89,15 @@ export default function CampaignDetailPage() {
         )
     }
 
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const BACKEND_URL = API_BASE.replace(/\/api\/?$/, '');
+    const bannerUrlRaw = String(campaign.bannerUrl || '').trim();
+    const resolvedBannerUrl = bannerUrlRaw ? (
+        /^https?:\/\//i.test(bannerUrlRaw) || /^data:/i.test(bannerUrlRaw)
+            ? bannerUrlRaw 
+            : `${BACKEND_URL}${bannerUrlRaw.startsWith('/') ? '' : '/'}${bannerUrlRaw}`
+    ) : null;
+
     return (
         <div className="px-4 pt-4 pb-10">
             <button
@@ -101,8 +110,16 @@ export default function CampaignDetailPage() {
             </button>
 
             <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
-                {campaign.bannerUrl ? (
-                    <img src={campaign.bannerUrl} alt={campaign.title} className="w-full h-56 object-cover" />
+                {resolvedBannerUrl ? (
+                    campaign.bannerType === 'video' ? (
+                        <video 
+                            src={resolvedBannerUrl} 
+                            controls 
+                            className="w-full h-56 object-cover" 
+                        />
+                    ) : (
+                        <img src={resolvedBannerUrl} alt={campaign.title} className="w-full h-56 object-cover" />
+                    )
                 ) : (
                     <div className="w-full h-56" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.22), rgba(249,115,22,0.12))' }} />
                 )}

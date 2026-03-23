@@ -1,4 +1,4 @@
-const { getBaseUrl } = require("./postHelpers");
+const { getBaseUrl, resolveUrl } = require("./postHelpers");
 
 const normalizeStatus = (status) => {
   const value = String(status || "").trim();
@@ -20,14 +20,13 @@ const computeStatus = (campaign) => {
 const formatCampaignForUser = (campaign, req) => {
   if (!campaign) return null;
   const baseUrl = getBaseUrl(req);
-  const bannerUrl = campaign.bannerUrl?.startsWith("http") || campaign.bannerUrl?.startsWith("data:")
-    ? campaign.bannerUrl
-    : `${baseUrl}${campaign.bannerUrl}`;
+  const bannerUrl = resolveUrl(campaign.bannerUrl, baseUrl);
   return {
     id: campaign._id.toString(),
     title: campaign.title,
     description: campaign.description,
     bannerUrl,
+    bannerType: campaign.bannerType || "image",
     brandName: campaign.brandName,
     startDate: campaign.startDate,
     endDate: campaign.endDate,

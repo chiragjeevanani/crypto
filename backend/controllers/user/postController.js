@@ -2,10 +2,10 @@ const Post = require("../../models/Post");
 const User = require("../../models/User");
 const Comment = require("../../models/Comment");
 const Campaign = require("../../models/Campaign");
-const { computeStatus } = require("../../utils/campaignHelpers");
+const { computeStatus, formatCampaignForUser } = require("../../utils/campaignHelpers");
 const fs = require("fs");
 const path = require("path");
-const { getBaseUrl, formatPostForUserFeed, populateCreator } = require("../../utils/postHelpers");
+const { getBaseUrl, formatPostForUserFeed, populateCreator, resolveUrl } = require("../../utils/postHelpers");
 const { UPLOAD_DIR } = require("../../utils/upload");
 const { cloudinary } = require("../../utils/cloudinary");
 
@@ -106,6 +106,7 @@ exports.createPost = async (req, res) => {
 
 /**
  * Internal: Interleave campaigns every N posts.
+ * campaigns: array of already-formatted campaign objects (via formatCampaignForUser)
  */
 const injectCampaignCards = (posts, campaigns, interval) => {
   if (!campaigns.length || interval <= 0) return posts;
@@ -119,16 +120,9 @@ const injectCampaignCards = (posts, campaigns, interval) => {
       campaignIndex += 1;
       // We wrap the campaign as a "post" object with postType: "campaign_card"
       output.push({
-        id: `campaign-card-${campaign._id}-${i}`,
+        id: `campaign-card-${campaign.id}-${i}`,
         postType: "campaign_card",
-        campaign: {
-          id: campaign._id.toString(),
-          title: campaign.title,
-          brandName: campaign.brandName,
-          bannerUrl: campaign.bannerUrl,
-          rewardDetails: campaign.rewardDetails,
-          description: campaign.description
-        },
+        campaign: campaign,
         createdAt: new Date()
       });
     }
@@ -162,10 +156,7 @@ exports.getPosts = async (req, res) => {
         if (end && end < now) return false;
         return true;
       })
-      .map((c) => ({
-        ...c,
-        bannerUrl: c.bannerUrl?.startsWith("http") ? c.bannerUrl : `${baseUrl}${c.bannerUrl}`
-      }));
+      .map((c) => formatCampaignForUser(c, req));
 
     const interleaved = injectCampaignCards(list, activeCampaigns, 5);
 

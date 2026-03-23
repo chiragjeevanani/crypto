@@ -507,12 +507,88 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                         {step === 5 && (
                             renderStepWrap("step5",
                                 <div className="space-y-6">
-                                <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
-                                    Review &amp; Create
-                                </h3>
-                                <pre className="bg-bg p-4 rounded-lg text-[10px] overflow-x-auto">
-                                    {JSON.stringify(formData, null, 2)}
-                                </pre>
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">
+                                            Final Review
+                                        </h3>
+                                        <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded text-[8px] font-bold uppercase tracking-wider">Ready to Launch</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-4">
+                                            <div className="p-4 rounded-xl border border-surface bg-bg/40 space-y-3">
+                                                <div className="aspect-video rounded-lg overflow-hidden border border-surface bg-surface shadow-inner relative">
+                                                    {(() => {
+                                                        const primary = formData.assets.find(a => a.isPrimary) || formData.assets[0];
+                                                        if (!primary) return <div className="w-full h-full flex items-center justify-center text-[9px] text-muted">No banner image</div>;
+                                                        return primary.type === 'video' ? (
+                                                            <video src={primary.url} controls className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <img src={primary.url} className="w-full h-full object-cover" />
+                                                        );
+                                                    })()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{formData.brand || 'No Brand'}</p>
+                                                    <h4 className="text-sm font-extrabold text-text mt-1">{formData.title || 'Untitled Campaign'}</h4>
+                                                    <p className="text-xs text-muted mt-2 line-clamp-3 leading-relaxed">{formData.description || 'No description provided'}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="p-3 rounded-xl border border-surface bg-bg/40">
+                                                    <p className="text-[8px] font-bold text-muted uppercase tracking-widest">Start Date</p>
+                                                    <p className="text-[10px] font-bold text-text mt-1">{formData.startDate || 'TBD'}</p>
+                                                </div>
+                                                <div className="p-3 rounded-xl border border-surface bg-bg/40">
+                                                    <p className="text-[8px] font-bold text-muted uppercase tracking-widest">End Date</p>
+                                                    <p className="text-[10px] font-bold text-text mt-1">{formData.endDate || 'TBD'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="p-4 rounded-xl border border-surface bg-bg/40">
+                                                <h5 className="text-[9px] font-bold text-muted uppercase tracking-widest mb-3 flex items-center justify-between">
+                                                    Tasks Checklist
+                                                    <span className="text-primary">{formData.tasks.length} Steps</span>
+                                                </h5>
+                                                <div className="space-y-2">
+                                                    {formData.tasks.length > 0 ? formData.tasks.map((t, i) => (
+                                                        <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-surface/40 border border-surface/50">
+                                                            <div className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[8px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                                                {i + 1}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] font-bold text-text">{t.name || 'Untitled Task'}</p>
+                                                                <p className="text-[9px] text-muted mt-0.5">{t.instructions || t.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    )) : (
+                                                        <p className="text-[9px] text-muted italic">No specific tasks added.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 rounded-xl border border-surface bg-bg/40">
+                                                <h5 className="text-[9px] font-bold text-muted uppercase tracking-widest mb-3">Rewards & Targeting</h5>
+                                                <div className="space-y-2 text-[10px]">
+                                                    <div className="flex justify-between p-2 rounded-lg bg-surface/20">
+                                                        <span className="text-muted">Reward Details</span>
+                                                        <span className="font-bold text-text">{formData.rewardDetails || 'N/A'}</span>
+                                                    </div>
+                                                    <div className="flex justify-between p-2 rounded-lg bg-surface/20">
+                                                        <span className="text-muted">Winners</span>
+                                                        <span className="font-bold text-text">{formData.numberOfWinners} Users</span>
+                                                    </div>
+                                                    <div className="flex justify-between p-2 rounded-lg bg-surface/20">
+                                                        <span className="text-muted">Targeting</span>
+                                                        <span className="font-bold text-text capitalize">{formData.targetAudience === 'all' ? 'All Users' : formData.audienceSegment}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )
                         )}

@@ -4,10 +4,15 @@ const getBaseUrl = (req) => {
   return `${protocol}://${host}`;
 };
 
-const mediaUrlFromPost = (post, baseUrl) =>
-  post.media?.url?.startsWith("http")
-    ? post.media.url
-    : `${baseUrl}${post.media?.url?.startsWith("/") ? "" : "/"}${post.media?.url || ""}`;
+const resolveUrl = (url, baseUrl) => {
+  if (!url) return null;
+  if (typeof url !== "string") return null;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${baseUrl}${path}`;
+};
+
+const mediaUrlFromPost = (post, baseUrl) => resolveUrl(post.media?.url, baseUrl);
 
 const avatarUrlFromUser = (user, baseUrl) => {
   const avatar = user?.avatar || "";
@@ -106,6 +111,7 @@ function populateCreator(query) {
 
 module.exports = {
   getBaseUrl,
+  resolveUrl,
   mediaUrlFromPost,
   avatarUrlFromUser,
   formatPostForUserFeed,

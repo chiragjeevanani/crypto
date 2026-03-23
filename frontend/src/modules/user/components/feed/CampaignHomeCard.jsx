@@ -1,10 +1,23 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function CampaignHomeCard({ campaign }) {
     const navigate = useNavigate()
+    const [imgError, setImgError] = useState(false)
+
     if (!campaign) return null
+
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const BACKEND_URL = API_BASE.replace(/\/api\/?$/, '');
+
+    const bannerUrlRaw = String(campaign.bannerUrl || '').trim();
+    const resolvedBannerUrl = bannerUrlRaw ? (
+        /^https?:\/\//i.test(bannerUrlRaw) || /^data:/i.test(bannerUrlRaw)
+            ? bannerUrlRaw 
+            : `${BACKEND_URL}${bannerUrlRaw.startsWith('/') ? '' : '/'}${bannerUrlRaw}`
+    ) : null;
 
     return (
         <motion.div
@@ -19,14 +32,43 @@ export default function CampaignHomeCard({ campaign }) {
             }}
         >
             <div className="relative aspect-[16/9] overflow-hidden">
-                {campaign.bannerUrl ? (
-                    <img 
-                        src={campaign.bannerUrl} 
-                        alt={campaign.title} 
-                        className="w-full h-full object-cover" 
-                    />
+                {resolvedBannerUrl ? (
+                    campaign.bannerType === 'video' ? (
+                        <video 
+                            src={resolvedBannerUrl} 
+                            className="w-full h-full object-cover" 
+                            muted
+                            playsInline
+                            loop
+                            onMouseEnter={(e) => e.target.play().catch(() => {})}
+                            onMouseLeave={(e) => {
+                                e.target.pause()
+                                e.target.currentTime = 0
+                            }}
+                        />
+                    ) : (
+                        <img 
+                            src={resolvedBannerUrl} 
+                            alt={campaign.title} 
+                            className="w-full h-full object-cover" 
+                            onError={(e) => {
+                                // Double check if it fails even after resolution
+                                if (!imgError) {
+                                  console.error("Campaign image failed to load:", resolvedBannerUrl);
+                                  setImgError(true);
+                                }
+                            }}
+                        />
+                    )
                 ) : (
-                    <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }} />
+                    <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                        <Sparkles size={40} className="text-white/20" />
+                    </div>
+                )}
+                {imgError && resolvedBannerUrl && (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                      <Sparkles size={40} className="text-white/20" />
+                  </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 

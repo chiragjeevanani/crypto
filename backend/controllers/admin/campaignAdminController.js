@@ -43,6 +43,7 @@ exports.createCampaign = async (req, res) => {
       title: body.title,
       description: body.description,
       bannerUrl: body.bannerUrl,
+      bannerType: body.bannerType || "image",
       brandName: body.brandName,
       startDate,
       endDate,

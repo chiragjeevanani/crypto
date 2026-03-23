@@ -26,6 +26,9 @@ export default function CampaignsPage() {
     }, [])
     const recentWinners = votedCampaigns.filter((item) => item.votingStatus === 'completed' && item.winner).slice(0, 6)
 
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const BACKEND_URL = API_BASE.replace(/\/api\/?$/, '');
+
     return (
         <div className="px-4 pt-4 pb-20">
             <div className="mb-4">
@@ -47,15 +50,23 @@ export default function CampaignsPage() {
                     {!loading && campaigns.length === 0 && (
                         <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>No active campaigns.</p>
                     )}
-                    {campaigns.map((campaign) => (
+                    {campaigns.map((campaign) => {
+                        const bannerUrlRaw = String(campaign.bannerUrl || '').trim();
+                        const resolvedUrl = bannerUrlRaw ? (
+                            /^https?:\/\//i.test(bannerUrlRaw) || /^data:/i.test(bannerUrlRaw)
+                                ? bannerUrlRaw 
+                                : `${BACKEND_URL}${bannerUrlRaw.startsWith('/') ? '' : '/'}${bannerUrlRaw}`
+                        ) : null;
+                        
+                        return (
                         <div
                             key={campaign.id}
                             className="w-full rounded-xl p-3 flex items-center justify-between gap-3"
                             style={{ background: 'var(--color-surface2)' }}
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                {campaign.bannerUrl && (
-                                    <img src={campaign.bannerUrl} alt={campaign.title} className="w-14 h-14 rounded-lg object-cover" />
+                                {resolvedUrl && (
+                                    <img src={resolvedUrl} alt={campaign.title} className="w-14 h-14 rounded-lg object-cover" />
                                 )}
                                 <div className="min-w-0">
                                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{campaign.title}</p>
@@ -76,7 +87,7 @@ export default function CampaignsPage() {
                                 Join Campaign
                             </button>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
 
