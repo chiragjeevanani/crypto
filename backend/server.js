@@ -3,6 +3,7 @@ const dns = require("dns");
 const app = require("./app");
 const connectDB = require("./utils/db");
 const seedAdmin = require("./utils/seedAdmin");
+const initSocket = require("./utils/socket");
 
 const BASE_PORT = Number(process.env.PORT) || 5000;
 const MAX_PORT_RETRIES = Number(process.env.MAX_PORT_RETRIES) || 10;
@@ -41,7 +42,8 @@ const startServer = async () => {
   try {
     await connectDB();
     await seedAdmin();
-    const { port } = await listenWithFallback(BASE_PORT, MAX_PORT_RETRIES);
+    const { server, port } = await listenWithFallback(BASE_PORT, MAX_PORT_RETRIES);
+    initSocket(server);
     console.log(`Server running on port ${port}`);
   } catch (error) {
     console.error("Failed to start server:", error.message);

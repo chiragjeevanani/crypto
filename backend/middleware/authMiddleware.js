@@ -24,7 +24,10 @@ const protect = (req, res, next) => {
 
 const authorize = (...roles) => (req, res, next) => {
   if (!req.user || !roles.includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: "Forbidden" });
+    return res.status(403).json({ 
+      success: false, 
+      message: `Forbidden: Role '${req.user?.role}' not authorized. Required: ${roles.join(", ")}` 
+    });
   }
   return next();
 };

@@ -276,12 +276,14 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                     <div className="w-8 h-8 rounded-lg bg-bg border border-surface flex items-center justify-center font-bold text-[10px] text-primary shrink-0">
                         {(user?.name || getRoleLabel(user?.role)).slice(0, 2).toUpperCase()}
                     </div>
-                    {!isCollapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold truncate text-text uppercase tracking-wider leading-none mb-1">{getRoleLabel(user?.role)}</p>
-                            <p className="text-[8px] text-muted truncate uppercase font-medium">{getRoleHandle(user, profile)} · Active</p>
+                            <p className="text-[10px] font-extrabold truncate text-primary uppercase tracking-wider leading-none mb-1">
+                                {user?.role || 'User'}
+                            </p>
+                            <p className="text-[8px] text-muted truncate uppercase font-bold">
+                                {user?.name || 'Admin'} · Active
+                            </p>
                         </div>
-                    )}
                 </div>
             </div>
         </motion.div>

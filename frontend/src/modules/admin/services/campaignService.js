@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const ADMIN_CAMPAIGNS = `${API_BASE}/admin/campaigns`;
+const ADMIN_MEDIA = `${API_BASE}/admin/media`;
 
 const getAuthHeaders = () => {
     const raw = localStorage.getItem("crypto_auth_token");
@@ -13,6 +14,16 @@ const handle = async (response) => {
 };
 
 export const campaignService = {
+    uploadMedia: async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch(`${ADMIN_MEDIA}/upload`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: formData
+        });
+        return handle(response);
+    },
     fetchCampaigns: async () => {
         const response = await fetch(ADMIN_CAMPAIGNS, { headers: getAuthHeaders() });
         const data = await handle(response);

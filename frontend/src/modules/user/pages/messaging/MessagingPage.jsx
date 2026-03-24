@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Search, MoreVertical, Send, Image as ImageIcon, Smile, Paperclip } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import ConversationList from './ConversationList'
 import ChatWindow from './ChatWindow'
 import { useUserStore } from '../../store/useUserStore'
 
 export default function MessagingPage() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { profile } = useUserStore()
     const [selectedChat, setSelectedChat] = useState(null)
     const [showChatMobile, setShowChatMobile] = useState(false)
@@ -18,6 +19,31 @@ export default function MessagingPage() {
         window.addEventListener('resize', handleResize)
         return () => window.removeEventListener('resize', handleResize)
     }, [])
+
+    const [sharingPost, setSharingPost] = useState(null)
+
+    useEffect(() => {
+        const state = location.state
+        if (state?.openChat) {
+            // Map the user object to the chat format used by ChatWindow
+            setSelectedChat({
+                id: null, // New conversation might not have an ID yet
+                user: state.openChat,
+                lastMessage: { text: '', timestamp: '' },
+                isOnline: false
+            })
+            if (isMobile) {
+                setShowChatMobile(true)
+            }
+            // Clear state after reading to prevent re-opening on refresh
+            navigate(location.pathname, { replace: true, state: null })
+        }
+        if (state?.sharePost) {
+            setSharingPost(state.sharePost)
+            // Clear state after reading
+            navigate(location.pathname, { replace: true, state: null })
+        }
+    }, [location.state, isMobile, location.pathname, navigate])
 
     const handleSelectChat = (chat) => {
         setSelectedChat(chat)
@@ -38,12 +64,16 @@ export default function MessagingPage() {
                     <div className="w-80 border-r" style={{ borderColor: 'var(--color-border)' }}>
                         <ConversationList 
                             onSelectChat={handleSelectChat} 
-                            selectedChatId={selectedChat?.id} 
+                            selectedChatId={selectedChat?.user?.id} 
                         />
                     </div>
                     <div className="flex-1 flex flex-col">
                         {selectedChat ? (
-                            <ChatWindow chat={selectedChat} />
+                            <ChatWindow 
+                                chat={selectedChat} 
+                                sharingPost={sharingPost} 
+                                clearSharingPost={() => setSharingPost(null)} 
+                            />
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                                 <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4" 
@@ -79,10 +109,10 @@ export default function MessagingPage() {
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="absolute inset-0 w-full h-full"
                             >
-                                <ConversationList 
-                                    onSelectChat={handleSelectChat} 
-                                    selectedChatId={selectedChat?.id} 
-                                />
+                        <ConversationList 
+                            onSelectChat={handleSelectChat} 
+                            selectedChatId={selectedChat?.user?.id} 
+                        />
                             </motion.div>
                         ) : (
                             <motion.div
@@ -93,7 +123,12 @@ export default function MessagingPage() {
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="absolute inset-0 w-full h-full z-10"
                             >
-                                <ChatWindow chat={selectedChat} onBack={handleBackToList} />
+                                <ChatWindow 
+                                    chat={selectedChat} 
+                                    onBack={handleBackToList} 
+                                    sharingPost={sharingPost} 
+                                    clearSharingPost={() => setSharingPost(null)} 
+                                />
                             </motion.div>
                         )}
                     </AnimatePresence>

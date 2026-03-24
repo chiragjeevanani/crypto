@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, X, Music, Check, Camera, Image as ImageIcon, Type, Sparkles } from 'lucide-react';
+import { Plus, X, Music, Check, Camera, Image as ImageIcon, Type, Sparkles, Volume2, VolumeX, Play, Pause, ArrowRight, MoreVertical, Download, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { storyService } from '../../services/storyService';
+import { musicService } from '../../services/musicService';
 import { useUserStore } from '../../store/useUserStore';
 
 const STORY_AUDIO_TRACKS = [
@@ -21,13 +22,24 @@ export default function Stories() {
     const [feedStories, setFeedStories] = useState([]);
     const [selectedStory, setSelectedStory] = useState(null);
     const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+
+    const [musicList, setMusicList] = useState([]);
+    const viewerAudioRef = useRef(null);
+    const lastAudioId = useRef(null);
+    const previewAudioRef = useRef(null);
+    const [isMuted, setIsMuted] = useState(false);
     const [isCreatingStory, setIsCreatingStory] = useState(false);
     const [storyMedia, setStoryMedia] = useState(null);
     const [storyFile, setStoryFile] = useState(null);
     const [storyMusic, setStoryMusic] = useState(null);
     const [showMusicPicker, setShowMusicPicker] = useState(false);
+    const [isPlayingViewer, setIsPlayingViewer] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [storyCaption, setStoryCaption] = useState('');
+    const [storyMusicStartTime, setStoryMusicStartTime] = useState(0);
+    const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [storyFilter, setStoryFilter] = useState('none');
     const [isVideoPreview, setIsVideoPreview] = useState(false);
     const [isTextMode, setIsTextMode] = useState(false);
@@ -47,6 +59,20 @@ export default function Stories() {
         };
     }, [storyMedia]);
 
+    useEffect(() => {
+        const currentStory = selectedStory?.stories?.[activeStoryIndex];
+        if (currentStory && currentStory.musicData && viewerAudioRef.current) {
+            const audio = viewerAudioRef.current;
+            const targetTime = currentStory.musicStartTime || 0;
+            
+            // Re-sync if it's a new audio source or new story
+            audio.currentTime = targetTime;
+            if (isPlayingViewer) {
+                audio.play().catch(() => {});
+            }
+        }
+    }, [selectedStory, activeStoryIndex, isPlayingViewer]);
+
     const loadStories = async () => {
         try {
             const feed = await storyService.getFeedStories();
@@ -64,6 +90,8 @@ export default function Stories() {
                 mediaType: s.media?.type || 'image',
                 caption: s.caption || '',
                 captionStyle: s.captionStyle || null,
+                musicData: s.musicData || null,
+                musicStartTime: s.musicStartTime || 0,
                 createdAt: s.createdAt,
             }));
 
@@ -112,84 +140,57 @@ export default function Stories() {
         }
     };
 
+    const loadMusic = async () => {
+        try {
+            const data = await musicService.getActiveMusic();
+            setMusicList(data.music || []);
+        } catch { /* ignore */ }
+    }
+
     useEffect(() => {
         loadStories();
+        loadMusic();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile?.id, profile?.avatar]);
 
     const handleStoryClick = (story) => {
+        // Find ALL stories for this user
+        let userStories = [];
+        let isMe = false;
+        
         if (story.isMe) {
-            if (feedStories.length) {
-                const mineStories = feedStories
-                    .filter((s) => s.isMe)
-                    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-                if (mineStories.length) {
-                    const first = mineStories[0];
-                    setSelectedStory({
-                        user: {
-                            username: first.user.username || first.user.handle || 'User',
-                            avatar: first.user.avatar || (profile?.avatar || NO_IMAGE_AVATAR),
-                            isMe: true,
-                        },
-                        stories: mineStories.map((s) => ({
-                            id: s.id,
-                            mediaUrl: s.media?.url,
-                            mediaType: s.media?.type || 'image',
-                            caption: s.caption || '',
-                            captionStyle: s.captionStyle || null,
-                            createdAt: s.createdAt,
-                        })),
-                    });
-                    setActiveStoryIndex(0);
-                } else {
-                    setIsCreatingStory(true);
-                }
-            } else {
-                setIsCreatingStory(true);
-            }
+            userStories = feedStories.filter((s) => s.isMe);
+            isMe = true;
         } else {
-            if (!story.userId || !feedStories.length) {
-                setSelectedStory({
-                    user: {
-                        username: story.username,
-                        avatar: story.avatar || NO_IMAGE_AVATAR,
-                        isMe: false,
-                    },
-                    stories: [
-                        {
-                            id: story.id,
-                            mediaUrl: story.mediaUrl,
-                            mediaType: 'image',
-                            caption: story.caption || '',
-                            captionStyle: story.captionStyle || null,
-                            createdAt: story.createdAt,
-                        },
-                    ],
-                });
-                setActiveStoryIndex(0);
-                return;
-            }
+            userStories = feedStories.filter((s) => s.user.id === story.userId || s.userId === story.userId);
+            isMe = story.isMe || userStories.some(s => s.isMe);
+        }
 
-            const userStories = feedStories
-                .filter((s) => s.user.id === story.userId)
-                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        // Sort by date oldest to newest
+        userStories.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-            if (!userStories.length) return;
+        if (!userStories.length && story.isMe) {
+            setIsCreatingStory(true);
+            return;
+        }
 
+        if (userStories.length) {
             const first = userStories[0];
             setSelectedStory({
                 user: {
-                    username: first.user.username || first.user.handle || 'User',
-                    avatar: first.user.avatar || NO_IMAGE_AVATAR,
-                    isMe: false,
+                    id: first.user?.id || first.userId,
+                    username: first.user?.username || first.user?.handle || (isMe ? 'You' : 'User'),
+                    avatar: first.user?.avatar || first.avatar || NO_IMAGE_AVATAR,
+                    isMe: isMe
                 },
                 stories: userStories.map((s) => ({
                     id: s.id,
-                    mediaUrl: s.media?.url,
-                    mediaType: s.media?.type || 'image',
+                    mediaUrl: s.media?.url || s.mediaUrl,
+                    mediaType: s.media?.type || s.mediaType || 'image',
                     caption: s.caption || '',
                     captionStyle: s.captionStyle || null,
+                    musicData: s.musicData || null,
+                    musicStartTime: s.musicStartTime || 0,
                     createdAt: s.createdAt,
                 })),
             });
@@ -205,7 +206,9 @@ export default function Stories() {
             await storyService.createStory({
                 file: storyFile,
                 caption: storyCaption,
-                musicTrackId: storyMusic?.id,
+                musicId: storyMusic?._id || storyMusic?.id,
+                musicTrackId: storyMusic?.title || 'none',
+                musicStartTime: storyMusicStartTime,
                 captionPosX: captionPos.x,
                 captionPosY: captionPos.y,
                 captionTextColor,
@@ -217,6 +220,7 @@ export default function Stories() {
             setStoryMusic(null);
             setStoryFile(null);
             setStoryCaption('');
+            setStoryMusicStartTime(0);
             setStoryFilter('none');
             setIsVideoPreview(false);
             setIsTextMode(false);
@@ -233,18 +237,39 @@ export default function Stories() {
     const handleDeleteStory = async () => {
         const current = selectedStory?.stories?.[activeStoryIndex];
         if (!current?.id) return;
-        // Simple confirmation like Instagram's prompt
-        // (you can swap this for a nicer custom modal later)
-        const confirmed = window.confirm('Delete this story?');
-        if (!confirmed) return;
+        setIsDeleting(true);
         try {
             await storyService.deleteStory(current.id);
             setSelectedStory(null);
             setActiveStoryIndex(0);
+            setIsMoreMenuOpen(false);
+            setIsDeleting(false);
             await loadStories();
         } catch {
             setSelectedStory(null);
             setActiveStoryIndex(0);
+            setIsMoreMenuOpen(false);
+            setIsDeleting(false);
+        }
+    };
+
+    const handleDownload = async () => {
+        const current = selectedStory?.stories?.[activeStoryIndex];
+        if (!current?.mediaUrl) return;
+        try {
+            const response = await fetch(current.mediaUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `story-${current.id}.${current.mediaType === 'video' ? 'mp4' : 'jpg'}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            setIsMoreMenuOpen(false);
+        } catch (err) {
+            console.error('Download failed', err);
         }
     };
 
@@ -354,30 +379,38 @@ export default function Stories() {
                                 />
                             </div>
 
-                            {/* Story Content Background */}
-                            {selectedStory.stories?.[activeStoryIndex] && (
-                                selectedStory.stories[activeStoryIndex].mediaType === 'video' ? (
-                                    <video
-                                        src={
-                                            selectedStory.stories[activeStoryIndex].mediaUrl ||
-                                            ''
-                                        }
-                                        className="w-full h-full object-cover"
-                                        autoPlay
-                                        muted
-                                        loop
-                                    />
-                                ) : (
-                                    <img
-                                        src={
-                                            selectedStory.stories[activeStoryIndex].mediaUrl ||
-                                            `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop&w=800&q=80`
-                                        }
-                                        alt="Story Content"
-                                        className="w-full h-full object-cover opacity-80"
-                                    />
-                                )
-                            )}
+                             {/* Story Content Background */}
+                             {selectedStory.stories?.[activeStoryIndex] && (
+                                <>
+                                    {selectedStory.stories[activeStoryIndex].musicData && (
+                                        <audio
+                                            key={`story-audio-${selectedStory.stories[activeStoryIndex].id}`}
+                                            ref={viewerAudioRef}
+                                            src={selectedStory.stories[activeStoryIndex].musicData.audioUrl}
+                                            muted={isMuted}
+                                            loop
+                                        />
+                                    )}
+                                    {selectedStory.stories[activeStoryIndex].mediaType === 'video' ? (
+                                        <video
+                                            key={`story-video-${selectedStory.stories[activeStoryIndex].id}`}
+                                            src={selectedStory.stories[activeStoryIndex].mediaUrl || ''}
+                                            className="w-full h-full object-cover"
+                                            autoPlay
+                                            muted={isMuted || !!selectedStory.stories[activeStoryIndex].musicData}
+                                            loop
+                                            playsInline
+                                        />
+                                    ) : (
+                                        <img
+                                            key={`story-img-${selectedStory.stories[activeStoryIndex].id}`}
+                                            src={selectedStory.stories[activeStoryIndex].mediaUrl || ''}
+                                            alt="Story Content"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    )}
+                                </>
+                             )}
 
                             {/* Story Progress Bar */}
                             <div className="absolute top-2 left-2 right-2 flex gap-1">
@@ -435,15 +468,122 @@ export default function Stories() {
                                     {selectedStory.user?.username}
                                 </span>
                                 <span className="text-white/70 text-xs ml-2">Story</span>
-                                {selectedStory.user?.isMe && (
-                                    <button
-                                        onClick={handleDeleteStory}
-                                        className="ml-auto text-[10px] font-bold uppercase tracking-wider text-red-400"
-                                    >
-                                        Delete
-                                    </button>
-                                )}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsMuted(!isMuted);
+                                    }}
+                                    className="ml-3 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                                >
+                                    {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsPlayingViewer(!isPlayingViewer);
+                                    }}
+                                    className="ml-2 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                                >
+                                    {isPlayingViewer ? <Pause size={14} /> : <Play size={14} />}
+                                </button>
+
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsMoreMenuOpen(true);
+                                    }}
+                                    className="ml-auto p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                                >
+                                    <MoreVertical size={14} />
+                                </button>
                             </div>
+
+                            {/* Options Menu Modal */}
+                            <AnimatePresence>
+                                {isMoreMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 100 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 100 }}
+                                        className="absolute inset-0 z-[60] bg-black/60 flex items-end"
+                                        onClick={() => setIsMoreMenuOpen(false)}
+                                    >
+                                        <div 
+                                            className="w-full bg-surface2 rounded-t-3xl overflow-hidden pb-8"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div className="w-12 h-1 bg-muted/20 rounded-full mx-auto my-3" />
+                                            <div className="flex flex-col">
+                                                <button
+                                                    onClick={handleDownload}
+                                                    className="w-full py-4 px-6 flex items-center gap-4 hover:bg-white/5 text-white border-b border-white/5 active:bg-white/10"
+                                                >
+                                                    <Download size={20} />
+                                                    <span className="font-semibold text-sm">Download Content</span>
+                                                </button>
+                                                {selectedStory.user?.isMe && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsMoreMenuOpen(false);
+                                                            setIsDeleting(true);
+                                                        }}
+                                                        className="w-full py-4 px-6 flex items-center gap-4 hover:bg-red-500/10 text-red-400 active:bg-red-500/20"
+                                                    >
+                                                        <Trash2 size={20} />
+                                                        <span className="font-semibold text-sm">Delete Story</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setIsMoreMenuOpen(false)}
+                                                    className="w-full py-4 px-6 flex items-center justify-center font-bold text-sm text-muted uppercase tracking-widest mt-2"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Delete Confirmation Modal */}
+                            <AnimatePresence>
+                                {isDeleting && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="absolute inset-0 z-[70] bg-black/80 flex items-center justify-center p-6"
+                                        onClick={() => setIsDeleting(false)}
+                                    >
+                                        <motion.div
+                                            initial={{ scale: 0.9, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            className="bg-surface2 w-full max-w-sm rounded-3xl p-6 text-center"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div className="w-16 h-16 bg-red-400/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                                                <Trash2 size={32} />
+                                            </div>
+                                            <h3 className="text-white font-bold text-lg mb-2">Delete Story?</h3>
+                                            <p className="text-muted text-sm mb-6">This action cannot be undone. Your story will be permanently removed.</p>
+                                            <div className="flex flex-col gap-3">
+                                                <button
+                                                    onClick={handleDeleteStory}
+                                                    className="w-full py-3 bg-red-500 text-white rounded-xl font-bold text-sm hover:bg-red-600 transition-colors"
+                                                >
+                                                    Yes, Delete
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsDeleting(false)}
+                                                    className="w-full py-3 bg-white/5 text-muted rounded-xl font-bold text-sm hover:bg-white/10 transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Close hint */}
                             <div className="absolute bottom-4 left-0 right-0 text-center">
@@ -539,9 +679,25 @@ export default function Stories() {
                                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
                                         <Music size={14} />
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-bold truncate max-w-[120px]">{storyMusic.title}</p>
-                                        <p className="text-[10px] opacity-70">SocialEarn Audio</p>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-bold truncate max-w-[120px]">{storyMusic.title}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[9px] font-bold text-black/50">{Math.floor(storyMusicStartTime)}s</span>
+                                            <input 
+                                                type="range"
+                                                min="0"
+                                                max={Math.max(0, (storyMusic.duration || 60) - 15)}
+                                                value={storyMusicStartTime}
+                                                onChange={(e) => {
+                                                    const val = Number(e.target.value);
+                                                    setStoryMusicStartTime(val);
+                                                    if (isPlayingPreview && previewAudioRef.current) {
+                                                        previewAudioRef.current.currentTime = val;
+                                                    }
+                                                }}
+                                                className="flex-1 h-1 bg-black/10 rounded-full appearance-none accent-black"
+                                            />
+                                        </div>
                                     </div>
                                 </motion.div>
                             )}
@@ -671,34 +827,75 @@ export default function Stories() {
                                         <div className="w-12 h-1 bg-white/30 rounded-full mx-auto mb-4" />
                                         <h3 className="text-white font-bold text-center mb-4">Choose Audio</h3>
                                         <div className="flex flex-col gap-2 overflow-y-auto hide-scrollbar pb-20">
-                                            {STORY_AUDIO_TRACKS.map(track => (
-                                                <button
-                                                    key={track.id}
+                                            {musicList.map(track => (
+                                                <div
+                                                    key={track._id || track.id}
                                                     onClick={() => {
                                                         setStoryMusic(track);
+                                                        setStoryMusicStartTime(0);
                                                         setShowMusicPicker(false);
+                                                        if (previewAudioRef.current) previewAudioRef.current.pause();
+                                                        setIsPlayingPreview(false);
                                                     }}
-                                                    className="flex items-center justify-between p-4 bg-white/10 rounded-2xl text-left"
+                                                    className="flex items-center justify-between p-4 bg-white/10 rounded-2xl text-left hover:bg-white/20 transition-all cursor-pointer group border border-transparent hover:border-white/10"
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 bg-gradient-to-tr from-pink-500 to-orange-500 rounded-lg flex items-center justify-center text-white">
-                                                            <Music size={18} />
+                                                        <div 
+                                                            className="relative group/play shrink-0" 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const isThisPlaying = isPlayingPreview && previewAudioRef.current?.src === track.audioUrl;
+                                                                if (isThisPlaying) {
+                                                                    previewAudioRef.current.pause();
+                                                                    setIsPlayingPreview(false);
+                                                                } else {
+                                                                    previewAudioRef.current.src = track.audioUrl;
+                                                                    previewAudioRef.current.play().catch(() => {});
+                                                                    setIsPlayingPreview(true);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {track.thumbnail ? (
+                                                                <img src={track.thumbnail} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                                                            ) : (
+                                                                <div className="w-10 h-10 bg-gradient-to-tr from-pink-500 to-orange-500 rounded-lg flex items-center justify-center text-white">
+                                                                    <Music size={18} />
+                                                                </div>
+                                                            )}
+                                                            <div className={`absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 text-white transition-opacity ${(isPlayingPreview && previewAudioRef.current?.src === track.audioUrl) ? 'opacity-100' : 'opacity-0 group-hover/play:opacity-100'}`}>
+                                                                {(isPlayingPreview && previewAudioRef.current?.src === track.audioUrl) ? <Pause size={14} fill="white" /> : <Play size={14} fill="white" />}
+                                                            </div>
                                                         </div>
-                                                        <p className="text-white font-semibold text-sm">{track.title}</p>
+                                                        <div>
+                                                            <p className="text-white font-semibold text-sm">{track.title}</p>
+                                                            <p className="text-white/50 text-[10px]">{track.artist}</p>
+                                                        </div>
                                                     </div>
-                                                    {storyMusic?.id === track.id && <Check className="text-white" />}
-                                                </button>
+                                                    <div className="flex items-center gap-2">
+                                                        {(storyMusic?._id === track._id || storyMusic?.id === track.id) ? (
+                                                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
+                                                                <Check size={16} strokeWidth={3} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <ArrowRight size={14} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             ))}
                                             <button
                                                 onClick={() => {
                                                     setStoryMusic(null);
                                                     setShowMusicPicker(false);
+                                                    if (previewAudioRef.current) previewAudioRef.current.pause();
                                                 }}
                                                 className="p-4 bg-white/5 rounded-2xl text-white text-sm text-center font-semibold mt-2"
                                             >
                                                 Remove Audio
                                             </button>
                                         </div>
+                                        <audio ref={previewAudioRef} onEnded={() => setIsPlayingPreview(false)} className="hidden" loop />
                                     </motion.div>
                                 )}
                             </AnimatePresence>

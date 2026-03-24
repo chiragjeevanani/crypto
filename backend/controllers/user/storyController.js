@@ -36,6 +36,15 @@ const formatStoryForClient = (story, currentUserId) => {
         }
       : null,
     musicTrackId: story.musicTrackId || "none",
+    musicData: story.musicId && typeof story.musicId === "object" ? {
+      id: story.musicId._id,
+      title: story.musicId.title,
+      artist: story.musicId.artist,
+      audioUrl: story.musicId.audioUrl,
+      duration: story.musicId.duration,
+      thumbnail: story.musicId.thumbnail
+    } : null,
+    musicStartTime: story.musicStartTime || 0,
     createdAt: story.createdAt,
     isMe
   };
@@ -104,7 +113,9 @@ exports.createStory = async (req, res) => {
       media: { type: mediaType, url: mediaUrl },
       caption,
       captionStyle,
-      musicTrackId
+      musicTrackId,
+      musicId: body.musicId || null,
+      musicStartTime: Number(body.musicStartTime) || 0
     });
 
     const user = await User.findById(userId).select("name handle avatar").lean();
@@ -137,6 +148,7 @@ exports.getFeedStories = async (req, res) => {
       deletedAt: null
     })
       .populate("user", "name handle avatar")
+      .populate("musicId", "title artist audioUrl duration thumbnail")
       .sort({ createdAt: -1 })
       .limit(100)
       .exec();

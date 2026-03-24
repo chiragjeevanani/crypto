@@ -40,11 +40,7 @@ export default function CampaignHomeCard({ campaign }) {
                             muted
                             playsInline
                             loop
-                            onMouseEnter={(e) => e.target.play().catch(() => {})}
-                            onMouseLeave={(e) => {
-                                e.target.pause()
-                                e.target.currentTime = 0
-                            }}
+                            autoPlay
                         />
                     ) : (
                         <img 

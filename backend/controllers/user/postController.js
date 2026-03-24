@@ -109,16 +109,25 @@ exports.createPost = async (req, res) => {
  * campaigns: array of already-formatted campaign objects (via formatCampaignForUser)
  */
 const injectCampaignCards = (posts, campaigns, interval) => {
-  if (!campaigns.length || interval <= 0) return posts;
+  if (!campaigns.length) return posts;
   const output = [];
   let campaignIndex = 0;
+
+  // Always show one at the very top if available
+  output.push({
+    id: `campaign-card-top-${campaigns[0].id}`,
+    postType: "campaign_card",
+    campaign: campaigns[0],
+    createdAt: new Date()
+  });
+  campaignIndex = 1;
+
   for (let i = 0; i < posts.length; i += 1) {
     output.push(posts[i]);
     const isInsertPoint = (i + 1) % interval === 0;
-    if (isInsertPoint) {
+    if (isInsertPoint && campaigns[campaignIndex % campaigns.length]) {
       const campaign = campaigns[campaignIndex % campaigns.length];
       campaignIndex += 1;
-      // We wrap the campaign as a "post" object with postType: "campaign_card"
       output.push({
         id: `campaign-card-${campaign.id}-${i}`,
         postType: "campaign_card",
@@ -149,11 +158,18 @@ exports.getPosts = async (req, res) => {
     const activeCampaigns = campaignsRaw
       .map((c) => ({ ...c, status: computeStatus(c) }))
       .filter((c) => {
+        if (c.status !== "Active") return false;
+        const now = new Date();
         const start = c.startDate ? new Date(c.startDate) : null;
         const end = c.endDate ? new Date(c.endDate) : null;
-        if (c.status !== "Active") return false;
+        
         if (start && start > now) return false;
-        if (end && end < now) return false;
+        if (end) {
+          // Set end time to 23:59:59.999 of that day to ensure it lasts the whole day
+          const endOfDay = new Date(end);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (endOfDay < now) return false;
+        }
         return true;
       })
       .map((c) => formatCampaignForUser(c, req));

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye, Music, Check, Search, ChevronRight, X } from 'lucide-react'
+import { Upload, Image, FileText, Video, ToggleLeft, ToggleRight, ChevronLeft, ArrowRight, Eye, Music, Check, Search, ChevronRight, X, Play, Pause } from 'lucide-react'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { postService } from '../services/postService'
@@ -51,6 +51,8 @@ export default function CreatePage() {
     const [published, setPublished] = useState(false)
     const [publishError, setPublishError] = useState('')
     const [publishing, setPublishing] = useState(false)
+    const [isPlayingMusic, setIsPlayingMusic] = useState(false)
+    const previewMusicRef = useRef(null)
 
     // Business states
     const [isBusiness, setIsBusiness] = useState(false)
@@ -402,32 +404,60 @@ export default function CreatePage() {
                                                      <p className="text-[10px] truncate" style={{ color: 'var(--color-muted)' }}>{selectedMusic.artist}</p>
                                                  </div>
                                                  <button 
-                                                     type="button"
-                                                     onClick={() => setSelectedMusic(null)}
-                                                     className="p-1.5 rounded-full"
-                                                     style={{ color: 'var(--color-muted)' }}
-                                                 >
-                                                     <X size={16} />
-                                                 </button>
-                                             </div>
-                                             
-                                             <div className="mt-4">
-                                                 <div className="flex items-center justify-between mb-1.5">
-                                                     <span className="text-[10px] font-bold" style={{ color: 'var(--color-muted)' }}>Start Time</span>
-                                                     <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>{Math.floor(musicStartTime)}s</span>
-                                                 </div>
-                                                 <input 
-                                                     type="range"
-                                                     min="0"
-                                                     max={Math.max(0, (selectedMusic.duration || 0) - 15)}
-                                                     value={musicStartTime}
-                                                     onChange={(e) => setMusicStartTime(Number(e.target.value))}
-                                                     className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
-                                                     style={{ background: 'var(--color-border)' }}
-                                                 />
-                                             </div>
-                                         </div>
-                                     )}
+                                                      type="button"
+                                                      onClick={() => {
+                                                          if (isPlayingMusic) {
+                                                              previewMusicRef.current.pause();
+                                                              setIsPlayingMusic(false);
+                                                          } else {
+                                                              previewMusicRef.current.src = selectedMusic.audioUrl;
+                                                              previewMusicRef.current.currentTime = musicStartTime;
+                                                              previewMusicRef.current.play();
+                                                              setIsPlayingMusic(true);
+                                                          }
+                                                      }}
+                                                      className={`p-2 rounded-full ${isPlayingMusic ? 'bg-primary text-black' : 'bg-surface2 text-muted'}`}
+                                                  >
+                                                      {isPlayingMusic ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                                                  </button>
+                                                  <button 
+                                                      type="button"
+                                                      onClick={() => {
+                                                          setSelectedMusic(null);
+                                                          setIsPlayingMusic(false);
+                                                          if (previewMusicRef.current) previewMusicRef.current.pause();
+                                                      }}
+                                                      className="p-1.5 rounded-full"
+                                                      style={{ color: 'var(--color-muted)' }}
+                                                  >
+                                                      <X size={16} />
+                                                  </button>
+                                              </div>
+                                              
+                                              <div className="mt-4">
+                                                  <div className="flex items-center justify-between mb-1.5">
+                                                      <span className="text-[10px] font-bold" style={{ color: 'var(--color-muted)' }}>Start Time</span>
+                                                      <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>{Math.floor(musicStartTime)}s</span>
+                                                  </div>
+                                                  <input 
+                                                      type="range"
+                                                      min="0"
+                                                      max={Math.max(0, (selectedMusic.duration || 0) - 15)}
+                                                      value={musicStartTime}
+                                                      onChange={(e) => {
+                                                          const val = Number(e.target.value);
+                                                          setMusicStartTime(val);
+                                                          if (isPlayingMusic && previewMusicRef.current) {
+                                                              previewMusicRef.current.currentTime = val;
+                                                          }
+                                                      }}
+                                                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                      style={{ background: 'var(--color-border)' }}
+                                                  />
+                                              </div>
+                                          </div>
+                                      )}
+                                      <audio ref={previewMusicRef} onEnded={() => setIsPlayingMusic(false)} className="hidden" loop />
                                 </div>
 
                             </div>

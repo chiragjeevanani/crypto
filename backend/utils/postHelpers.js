@@ -59,6 +59,9 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
     media: {
       type: post.media?.type || "image",
       url: mediaUrlFromPost(post, baseUrl),
+      thumbnail: (post.media?.type === "video" && mediaUrlFromPost(post, baseUrl)?.includes('cloudinary'))
+        ? mediaUrlFromPost(post, baseUrl).replace(/\.[^/.]+$/, ".jpg")
+        : mediaUrlFromPost(post, baseUrl),
       aspectRatio: post.media?.aspectRatio || "4/3"
     },
     caption: post.caption || "",

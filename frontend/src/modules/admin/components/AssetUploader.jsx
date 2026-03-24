@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Upload, Trash2, Eye, CheckCircle2, Image as ImageIcon, Play } from 'lucide-react';
+import { Upload, Trash2, Eye, CheckCircle2, Image as ImageIcon, Play, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { campaignService } from '../services/campaignService';
 
 export default function AssetUploader({ assets = [], onChange, maxAssets = 10 }) {
     const [dragActive, setDragActive] = useState(false);
     const [previewAsset, setPreviewAsset] = useState(null);
+    const [uploading, setUploading] = useState(false);
 
     const handleDrag = (e) => {
         e.preventDefault();
@@ -30,30 +32,48 @@ export default function AssetUploader({ assets = [], onChange, maxAssets = 10 })
         handleFiles(files);
     };
 
-    const handleFiles = (files) => {
+    const handleFiles = async (files) => {
         const validFiles = files.filter(file => {
             const isImage = file.type.startsWith('image/');
             const isVideo = file.type.startsWith('video/');
-            return (isImage || isVideo) && file.size < 50 * 1024 * 1024; // 50MB limit
+            return (isImage || isVideo) && file.size < 100 * 1024 * 1024; // 100MB limit
         });
 
-        validFiles.forEach(file => {
-            if (assets.length < maxAssets) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const newAsset = {
-                        id: Date.now() + Math.random(),
-                        name: file.name,
-                        type: file.type.startsWith('image/') ? 'image' : 'video',
-                        url: e.target.result,
-                        size: file.size,
-                        isPrimary: assets.length === 0, // First asset is primary
-                    };
-                    onChange([...assets, newAsset]);
-                };
-                reader.readAsDataURL(file);
+        if (validFiles.length === 0) return;
+
+        setUploading(true);
+        const newAssets = [...assets];
+
+        for (const file of validFiles) {
+            if (newAssets.length < maxAssets) {
+                try {
+                    // Show a local placeholder/preview first
+                    const tempId = Date.now() + Math.random();
+                    const reader = new FileReader();
+                    
+                    // We upload to server immediately
+                    const res = await campaignService.uploadMedia(file);
+                    
+                    if (res.success) {
+                        const newAsset = {
+                            id: tempId,
+                            name: file.name,
+                            type: res.type || (file.type.startsWith('image/') ? 'image' : 'video'),
+                            url: res.url,
+                            size: file.size,
+                            isPrimary: newAssets.length === 0,
+                        };
+                        newAssets.push(newAsset);
+                    }
+                } catch (err) {
+                    console.error('File upload failed:', err);
+                    alert(`Failed to upload ${file.name}: ${err.message}`);
+                }
             }
-        });
+        }
+        
+        onChange(newAssets);
+        setUploading(false);
     };
 
     const deleteAsset = (id) => {
@@ -100,18 +120,19 @@ export default function AssetUploader({ assets = [], onChange, maxAssets = 10 })
                     multiple
                     accept="image/*,video/*"
                     onChange={handleInput}
+                    disabled={uploading}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                 />
                 <div className="flex flex-col items-center justify-center text-center gap-3">
                     <div className="p-3 bg-primary/10 rounded-lg text-primary">
-                        <Upload className="w-6 h-6" />
+                        {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
                     </div>
                     <div>
                         <p className="text-[10px] font-bold text-text uppercase tracking-wider">
-                            Drag files here or click to upload
+                            {uploading ? 'Negotiating with Server...' : 'Drag files here or click to upload'}
                         </p>
                         <p className="text-[9px] text-muted mt-1">
-                            Images (JPG, PNG, WebP) or Videos (MP4, WebM) • Max 50MB
+                            Images (JPG, PNG, WebP) or Videos (MP4, WebM) • Max 100MB
                         </p>
                     </div>
                 </div>

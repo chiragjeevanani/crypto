@@ -16,10 +16,12 @@ export const storyService = {
     return data.stories || [];
   },
 
-  async createStory({ file, caption, musicTrackId, captionPosX, captionPosY, captionTextColor, captionBgColor }) {
+  async createStory({ file, caption, musicTrackId, musicId, musicStartTime, captionPosX, captionPosY, captionTextColor, captionBgColor }) {
     const form = new FormData();
     if (file) form.append("media", file);
     if (caption) form.append("caption", caption);
+    if (musicId) form.append("musicId", musicId);
+    if (musicStartTime) form.append("musicStartTime", String(musicStartTime));
     if (musicTrackId) form.append("musicTrackId", musicTrackId);
     if (typeof captionPosX === "number") form.append("captionPosX", String(captionPosX));
     if (typeof captionPosY === "number") form.append("captionPosY", String(captionPosY));

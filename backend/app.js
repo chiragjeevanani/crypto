@@ -19,6 +19,8 @@ const adminConfigRoutes = require("./routes/admin/configRoutes");
 const businessRoutes = require("./routes/user/businessRoutes");
 const musicRoutes = require("./routes/musicRoutes");
 const adminWithdrawalRoutes = require("./routes/admin/withdrawalRoutes");
+const adminMediaRoutes = require("./routes/admin/mediaRoutes");
+const userMessageRoutes = require("./routes/user/messageRoutes");
 
 const app = express();
 
@@ -52,17 +54,28 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/gifts", adminGiftRoutes);
 app.use("/api/admin/campaigns", adminCampaignRoutes);
 app.use("/api/admin/config", adminConfigRoutes);
+app.use("/api/admin/media", adminMediaRoutes);
 app.use("/api/admin/withdrawals", adminWithdrawalRoutes);
-app.use("/api/admin/withdraw", adminWithdrawalRoutes);
+app.use("/api/user/messages", userMessageRoutes);
 
-// 404 — must be after all routes so unmatched requests get a clear JSON response
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-    path: req.originalUrl,
-    method: req.method
-  });
+// 404 handler
+app.use((req, res, next) => {
+    res.status(404).json({
+        success: false,
+        message: "Route not found",
+        path: req.originalUrl,
+        method: req.method
+    });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error("[Global Error Handled]", err);
+    res.status(500).json({ 
+        success: false, 
+        message: "Internal Server Error", 
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    });
 });
 
 module.exports = app;

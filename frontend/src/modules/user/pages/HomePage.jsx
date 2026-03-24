@@ -12,9 +12,11 @@ import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import SuggestedReelsSection from '../components/feed/SuggestedReelsSection'
 import CampaignHomeCard from '../components/feed/CampaignHomeCard'
+import { messageService } from '../../../services/messageService'
+import { getSocket } from '../../../socket'
 
 export default function HomePage() {
-    const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts } = useFeedStore()
+    const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost } = useFeedStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
     useEffect(() => { loadPosts() }, [loadPosts])
@@ -31,6 +33,7 @@ export default function HomePage() {
     const [suggestedUsers, setSuggestedUsers] = useState([])
     const [suggestedReels, setSuggestedReels] = useState([])
     const [suggestedLoading, setSuggestedLoading] = useState(false)
+    const [unreadTotal, setUnreadTotal] = useState(0)
     const view = searchParams.get('view')
     const currentPostId = searchParams.get('post')
     const isExplore = view === 'explore'
@@ -40,7 +43,7 @@ export default function HomePage() {
         if (postFilter === 'all') return posts
         if (postFilter === 'brand') {
             return posts.filter((post) => {
-                if (post.postType === 'brand') return true
+                if (post.postType === 'brand' || post.postType === 'campaign_card') return true
                 const category = String(post.category || '').toLowerCase()
                 return category.includes('brand') || category.includes('campaign') || category.includes('task')
             })
@@ -137,6 +140,44 @@ export default function HomePage() {
         return () => clearTimeout(handle)
     }, [isExplore, query])
 
+    useEffect(() => {
+        messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+
+        const socket = getSocket()
+        const handleMsg = () => messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+        const handleSeen = () => messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+
+        socket.on('receive_message', handleMsg)
+        socket.on('messages_seen_update', handleSeen)
+
+        return () => {
+            socket.off('receive_message', handleMsg)
+            socket.off('messages_seen_update', handleSeen)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!currentPostId) return
+        if (isReels) {
+            const idx = reelFeed.findIndex((p) => String(p.id) === String(currentPostId))
+            if (idx === -1) {
+                // Not in current list, fetch it
+                fetchSinglePost(currentPostId).then((p) => {
+                    if (p) setReelFeed(prev => [p, ...prev])
+                })
+            }
+        } else {
+            const idx = posts.findIndex((post) => String(post.id) === String(currentPostId))
+            if (idx >= 0) {
+                setActivePostIndex(idx)
+            } else {
+                fetchSinglePost(currentPostId).then((p) => {
+                    if (p) setActivePostIndex(0)
+                })
+            }
+        }
+    }, [currentPostId, posts.length, isReels, fetchSinglePost, reelFeed.length])
+
     const filteredExplore = useMemo(() => {
         if (!query.trim()) return posts
         const q = query.toLowerCase()
@@ -202,12 +243,18 @@ export default function HomePage() {
                         >
                             <Wallet size={16} />
                         </button>
-                        <button
+                         <button
                             onClick={() => navigate('/messaging')}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer relative"
                             style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
                         >
                             <MessageCircle size={16} />
+                            {unreadTotal > 0 && (
+                                <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+                                    style={{ background: '#3b82f6', color: '#fff' }}>
+                                    {unreadTotal}
+                                </span>
+                            )}
                         </button>
                         <button
                             onClick={() => {
@@ -561,8 +608,19 @@ export default function HomePage() {
 
             {/* Bottom padding */}
             <div style={{ height: 16 }} />
-            {isExplore && (
-                <PostFeedModal posts={filteredExplore} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            {/* Modals for opening posts/reels */}
+            {(isExplore || activePostIndex !== null) && (
+                <PostFeedModal 
+                    posts={filteredExplore} 
+                    startIndex={activePostIndex} 
+                    onClose={() => {
+                        setActivePostIndex(null)
+                        if (!isExplore && !isReels) {
+                            // If we opened a post from a link while on Home page, clear the param on close
+                            navigate('/home', { replace: true })
+                        }
+                    }} 
+                />
             )}
             {isReels && reelsStartIndex !== null && (
                 <PostFeedModal

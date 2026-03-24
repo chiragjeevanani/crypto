@@ -23,9 +23,9 @@ const normalizeCampaign = (campaign) => {
         ...campaign,
         id: campaign._id || campaign.id,
         brand: campaign.brandName || campaign.brand,
-        endDate: String(campaign.endDate || '').slice(0, 10),
+        endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().slice(0, 10) : '',
         budget: Number(campaign.budget || 0),
-        participants: campaign.participants?.length || campaign.participants || 0,
+        participantsLength: campaign.participants?.length || 0,
     };
 };
 
@@ -47,10 +47,12 @@ export default function EditCampaign() {
                 const normalized = normalizeCampaign(campaign);
                 if (normalized) {
                     setFormData({ ...normalized });
+                    setCreativePreview(normalized.bannerUrl || '');
                 } else {
                     navigate('/admin/campaigns');
                 }
-            } catch {
+            } catch (err) {
+                console.error("Failed to load campaign:", err);
                 if (mounted) navigate('/admin/campaigns');
             }
         };
@@ -59,20 +61,25 @@ export default function EditCampaign() {
     }, [campaignId, navigate]);
 
     const handleSubmit = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setIsSaving(true);
         campaignService.updateCampaign(campaignId, {
+            ...formData,
             title: formData.title,
             brandName: formData.brand,
             budget: Number(formData.budget || 0),
             endDate: formData.endDate,
             status: formData.status,
+            bannerUrl: creativePreview,
+            bannerType: formData.bannerType || (creativePreview.includes('video') ? 'video' : 'image'),
         }).then(() => {
             setIsSaving(false);
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
-        }).catch(() => {
+        }).catch((err) => {
+            console.error("Failed to update campaign:", err);
             setIsSaving(false);
+            alert("Update failed: " + (err.message || "Unknown error"));
         });
     };
 
@@ -181,28 +188,56 @@ export default function EditCampaign() {
                                 <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1">Campaign Creative</label>
                                 <div className="p-4 bg-bg border border-surface rounded-xl">
                                     {creativePreview ? (
-                                        <img src={creativePreview} alt="Campaign creative preview" className="w-full max-h-56 object-cover rounded-lg mb-3" />
+                                        formData.bannerType === 'video' || creativePreview.includes('video') ? (
+                                            <video src={creativePreview} controls className="w-full max-h-56 object-cover rounded-lg mb-3" />
+                                        ) : (
+                                            <img src={creativePreview} alt="Campaign creative preview" className="w-full max-h-56 object-cover rounded-lg mb-3" />
+                                        )
                                     ) : (
                                         <p className="text-[10px] text-muted uppercase tracking-wider mb-3">No file selected</p>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={() => creativeInputRef.current?.click()}
-                                        className="px-3 py-2 bg-primary/10 text-primary rounded-lg text-[10px] font-bold uppercase tracking-wider"
-                                    >
-                                        Upload Image
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => creativeInputRef.current?.click()}
+                                            className="px-3 py-2 bg-primary/10 text-primary rounded-lg text-[10px] font-bold uppercase tracking-wider"
+                                        >
+                                            Change Asset
+                                        </button>
+                                        <select 
+                                            value={formData.bannerType || 'image'}
+                                            onChange={(e) => setFormData({ ...formData, bannerType: e.target.value })}
+                                            className="bg-bg border border-surface rounded-lg px-2 text-[10px] font-bold uppercase tracking-wider text-text outline-none"
+                                        >
+                                            <option value="image">Image</option>
+                                            <option value="video">Video</option>
+                                        </select>
+                                    </div>
                                     <input
                                         ref={creativeInputRef}
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/*,video/*"
                                         className="hidden"
-                                        onChange={(e) => {
+                                        onChange={async (e) => {
                                             const file = e.target.files?.[0];
                                             if (!file) return;
-                                            const reader = new FileReader();
-                                            reader.onload = (ev) => setCreativePreview(ev.target.result);
-                                            reader.readAsDataURL(file);
+                                            
+                                            setIsSaving(true);
+                                            try {
+                                                const res = await campaignService.uploadMedia(file);
+                                                if (res.success) {
+                                                    setCreativePreview(res.url);
+                                                    setFormData(prev => ({ 
+                                                        ...prev, 
+                                                        bannerUrl: res.url, 
+                                                        bannerType: res.type || (file.type.startsWith('video/') ? 'video' : 'image') 
+                                                    }));
+                                                }
+                                            } catch (err) {
+                                                alert("Upload failed: " + err.message);
+                                            } finally {
+                                                setIsSaving(false);
+                                            }
                                         }}
                                     />
                                 </div>
@@ -281,11 +316,11 @@ export default function EditCampaign() {
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
                                 <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Current Nodes</span>
-                                <span className="text-xs font-bold text-text">{Number(formData.participants || 0).toLocaleString()}</span>
+                                <span className="text-xs font-bold text-text">{Number(formData.participantsLength || 0).toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Cost/Node</span>
-                                <span className="text-xs font-bold text-text">{formatCurrency(formData.participants ? (formData.budget / formData.participants) : 0)}</span>
+                                <span className="text-xs font-bold text-text">{formatCurrency((formData.participantsLength && formData.participantsLength > 0) ? (formData.budget / formData.participantsLength) : 0)}</span>
                             </div>
                         </div>
                     </div>

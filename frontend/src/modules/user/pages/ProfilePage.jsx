@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
@@ -490,11 +490,21 @@ export default function ProfilePage() {
                             <div className="space-y-2">
                                 {(connectionsOpen === 'followers' ? followers : following).map((item) => (
                                     <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
-                                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'var(--color-primary)' }}>{item.name.charAt(0)}</div>
-                                        <div>
+                                        <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{item.name}</p>
                                             <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{item.handle}</p>
                                         </div>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setConnectionsOpen(null);
+                                                navigate('/messaging', { state: { openChat: { id: item.id, username: item.name, handle: item.handle, avatar: item.avatar } } });
+                                            }}
+                                            className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+                                            style={{ color: 'var(--color-primary)' }}
+                                        >
+                                            <Send size={16} />
+                                        </button>
                                     </div>
                                 ))}
                             </div>

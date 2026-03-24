@@ -24,6 +24,8 @@ import { getKYCSubmissionByUser } from '../../../shared/kycSync'
 import { mapCampaignToTask } from '../utils/campaignMapper'
 import { userCampaignService } from '../services/campaignService'
 import { getUserNFTListings } from '../../../shared/nftListings'
+import { messageService } from '../../../services/messageService'
+import { getSocket } from '../../../socket'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
@@ -52,6 +54,7 @@ export default function AppShell() {
     const [campaignError, setCampaignError] = useState('')
     const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
     const [userNFTListings, setUserNFTListings] = useState([])
+    const [unreadTotal, setUnreadTotal] = useState(0)
     const trendingNFTs = useMemo(() => {
         const nftPosts = posts
             .filter((post) => post.postType === 'nft' || post.isNFT || (post.nftPriceINR || 0) > 0)
@@ -237,6 +240,31 @@ export default function AppShell() {
             window.removeEventListener('storage', onStorage)
         }
     }, [])
+    useEffect(() => {
+        if (!user) return
+        messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+
+        const socket = getSocket()
+        if (!socket.connected) socket.connect()
+
+        const handleNewMessage = () => {
+            // When ANY new message arrives, if we're not inside that specific chat,
+            // we should probably just re-fetch the total for simplicity
+            messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+        }
+
+        const handleSeenUpdate = () => {
+            messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+        }
+
+        socket.on('receive_message', handleNewMessage)
+        socket.on('messages_seen_update', handleSeenUpdate)
+
+        return () => {
+            socket.off('receive_message', handleNewMessage)
+            socket.off('messages_seen_update', handleSeenUpdate)
+        }
+    }, [user])
 
     return (
         <div
@@ -272,6 +300,13 @@ export default function AppShell() {
                             >
                                 <Icon size={19} />
                                 <span className="hidden lg:inline text-sm">{item.label}</span>
+                                {item.key === 'messaging' && unreadTotal > 0 && (
+                                    <span 
+                                        className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold text-white bg-blue-500"
+                                    >
+                                        {unreadTotal}
+                                    </span>
+                                )}
                             </Link>
                         )
                     })}

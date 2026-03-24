@@ -59,6 +59,24 @@ export const useFeedStore = create((set, get) => ({
         }
     },
 
+    fetchSinglePost: async (postId) => {
+        if (!postId) return null
+        try {
+            const res = await postService.getPostById(postId)
+            if (res?.post) {
+                set((state) => {
+                    const exists = state.posts.find(p => p.id === res.post.id)
+                    if (exists) return { ...state }
+                    return { posts: [res.post, ...state.posts] }
+                })
+                return res.post
+            }
+        } catch (err) {
+            console.error('Failed to fetch single post:', err)
+        }
+        return null
+    },
+
     loadComments: async (postId) => {
         set((state) => ({ commentsLoading: { ...state.commentsLoading, [postId]: true } }))
         try {

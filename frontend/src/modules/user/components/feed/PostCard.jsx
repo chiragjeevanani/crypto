@@ -43,31 +43,38 @@ export default function PostCard({ post, onOpen }) {
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const videoRef = useRef(null)
+    const audioRef = useRef(null)
 
     const toggleMute = (e) => {
         e.stopPropagation()
-        setIsMuted(!isMuted)
+        const nextMuted = !isMuted
+        setIsMuted(nextMuted)
+        if (audioRef.current) audioRef.current.muted = nextMuted
         setShowMuteIndicator(true)
         setTimeout(() => setShowMuteIndicator(false), 800)
     }
 
     useEffect(() => {
-        if (!videoRef.current) return undefined
+        // Observer to play/pause media when in view
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
-                    videoRef.current.play().catch(() => {
-                        // Autoplay often blocked by browsers unless muted
-                    })
+                    if (videoRef.current) videoRef.current.play().catch(() => {})
+                    if (audioRef.current) {
+                        audioRef.current.currentTime = post.musicStartTime || 0
+                        audioRef.current.play().catch(() => {})
+                    }
                 } else {
-                    videoRef.current.pause()
+                    if (videoRef.current) videoRef.current.pause()
+                    if (audioRef.current) audioRef.current.pause()
                 }
             },
             { threshold: 0.5 }
         )
-        observer.observe(videoRef.current)
+        const target = videoRef.current || audioRef.current
+        if (target) observer.observe(target)
         return () => observer.disconnect()
-    }, [])
+    }, [post.id, post.musicStartTime])
 
     useEffect(() => {
         if (commentsOpen && post.id) loadComments(post.id)
@@ -275,6 +282,15 @@ export default function PostCard({ post, onOpen }) {
             >
                 {post.media?.type === 'video' ? (
                     <div className="w-full h-full relative" onClick={toggleMute}>
+                        {post.musicData?.audioUrl && (
+                            <audio 
+                                ref={audioRef}
+                                src={post.musicData.audioUrl}
+                                loop
+                                muted={isMuted}
+                                className="hidden"
+                            />
+                        )}
                         <video
                             ref={videoRef}
                             src={post.media?.url}
@@ -310,14 +326,45 @@ export default function PostCard({ post, onOpen }) {
                         <audio src={post.media?.url} controls className="flex-1 min-w-0" />
                     </div>
                 ) : (
-                    <img
-                        src={post.media?.url}
-                        alt="post media"
-                        className="w-full h-full object-cover"
-                        style={{ filter: post.filter || 'none' }}
-                        loading="lazy"
-                        onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
-                    />
+                    <div className="w-full h-full relative" onClick={toggleMute}>
+                        {post.musicData?.audioUrl && (
+                            <audio 
+                                ref={audioRef}
+                                src={post.musicData.audioUrl}
+                                loop
+                                muted={isMuted}
+                                className="hidden"
+                            />
+                        )}
+                        <img
+                            src={post.media?.url}
+                            alt="post media"
+                            className="w-full h-full object-cover"
+                            style={{ filter: post.filter || 'none' }}
+                            loading="lazy"
+                            onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
+                        />
+                        <AnimatePresence>
+                            {showMuteIndicator && post.musicData && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.5 }}
+                                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+                                >
+                                    <div className="bg-black/40 p-3 rounded-full text-white">
+                                        {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        {post.musicData && (
+                            <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1.5 border border-white/10 max-w-[140px]">
+                                <Music size={10} className="text-primary animate-pulse" />
+                                <span className="text-[9px] font-bold text-white truncate">{post.musicData.title}</span>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Enhanced Animations Overlay */}
@@ -603,7 +650,7 @@ export default function PostCard({ post, onOpen }) {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                navigate('/messaging');
+                                                navigate('/messaging', { state: { sharePost: post } });
                                                 setShareOpen(false);
                                             }}
                                             className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"

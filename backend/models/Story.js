@@ -31,6 +31,15 @@ const storySchema = new mongoose.Schema(
       trim: true,
       default: "none"
     },
+    musicId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Music",
+      default: null
+    },
+    musicStartTime: {
+      type: Number,
+      default: 0
+    },
     deletedAt: {
       type: Date,
       default: null

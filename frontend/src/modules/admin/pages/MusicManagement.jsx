@@ -33,6 +33,7 @@ export default function MusicManagement() {
         title: '',
         artist: '',
         audioFile: null,
+        audioPreviewUrl: '',
         thumbnailFile: null
     });
 
@@ -71,6 +72,9 @@ export default function MusicManagement() {
         setError('');
         setSuccess('');
 
+        // Ensure we stop any playing preview
+        if (audioRef.current) audioRef.current.pause();
+
         try {
             const token = localStorage.getItem('crypto_auth_token');
             const formData = new FormData();
@@ -99,6 +103,7 @@ export default function MusicManagement() {
         } catch (err) {
             setError('System error during upload');
         } finally {
+            if (newTrack.audioPreviewUrl) URL.revokeObjectURL(newTrack.audioPreviewUrl);
             setUploading(false);
         }
     };
@@ -332,13 +337,43 @@ export default function MusicManagement() {
                                                 accept="audio/*" 
                                                 required
                                                 className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                                onChange={(e) => setNewTrack({ ...newTrack, audioFile: e.target.files[0] })}
+                                                onChange={(e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+                                                    if (newTrack.audioPreviewUrl) URL.revokeObjectURL(newTrack.audioPreviewUrl);
+                                                    setNewTrack({ 
+                                                        ...newTrack, 
+                                                        audioFile: file,
+                                                        audioPreviewUrl: URL.createObjectURL(file)
+                                                    });
+                                                }}
                                             />
                                             <div className="w-full bg-bg border-2 border-dashed border-surface p-4 rounded-xl flex flex-col items-center gap-2 group-hover:border-primary transition-all">
                                                 <Music2 size={24} className="text-muted group-hover:text-primary" />
                                                 <span className="text-[10px] font-bold text-muted truncate max-w-full">
                                                     {newTrack.audioFile ? newTrack.audioFile.name : 'Choose File'}
                                                 </span>
+                                                {newTrack.audioPreviewUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            if (playingId === 'preview') {
+                                                                audioRef.current.pause();
+                                                                setPlayingId(null);
+                                                            } else {
+                                                                audioRef.current.src = newTrack.audioPreviewUrl;
+                                                                audioRef.current.play();
+                                                                setPlayingId('preview');
+                                                            }
+                                                        }}
+                                                        className="mt-2 px-3 py-1 bg-primary/20 text-primary rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                                                    >
+                                                        {playingId === 'preview' ? <Pause size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
+                                                        {playingId === 'preview' ? 'Pause Preview' : 'Listen Now'}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
