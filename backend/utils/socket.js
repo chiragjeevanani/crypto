@@ -6,9 +6,10 @@ const Post = require("../models/Post");
 const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: "*", // Adjust for production
+      origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    transports: ["websocket"]
   });
 
   const onlineUsers = new Map(); // userId -> socketId
@@ -101,7 +102,7 @@ const initSocket = (server) => {
             try {
                 await Post.findByIdAndUpdate(payload.id, { 
                     $inc: { shares: 1 },
-                    $addToSet: { sharedBy: senderObj } 
+                    $push: { sharedBy: senderObj } 
                 });
             } catch (err) {
                 console.error("[Socket] Failed to increment share count:", err);

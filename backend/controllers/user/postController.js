@@ -343,14 +343,10 @@ exports.sharePost = async (req, res) => {
     if (!postId) return res.status(400).json({ success: false, message: "Post id is required" });
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
-    const sharedBy = Array.isArray(post.sharedBy) ? post.sharedBy : [];
-    const idStr = userId.toString();
-    const alreadyShared = sharedBy.some((oid) => oid && oid.toString() === idStr);
-    if (!alreadyShared) {
-      post.sharedBy = [...sharedBy, userId];
-      post.shares = post.sharedBy.length;
-      await post.save();
-    }
+    post.sharedBy.push(userId);
+    post.shares = (post.shares || 0) + 1;
+    await post.save();
+
     const sharesCount = Number(post.shares) || 0;
     return res.status(200).json({
       success: true,
