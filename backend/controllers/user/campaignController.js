@@ -98,59 +98,66 @@ exports.submitEntry = async (req, res) => {
     }
 
     const caption = typeof req.body?.caption === "string" ? req.body.caption.trim() : "";
-    const file = req.file;
-    let mediaUrl = req.body?.mediaUrl ? String(req.body.mediaUrl) : "";
-    let mediaType = req.body?.mediaType || "image";
+    const files = req.files || {};
+    const baseUrl = getBaseUrl(req);
+    const useCloudinary = Boolean(
+      cloudinary &&
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+    );
 
-    if (file) {
+    const processFile = async (field) => {
+      const file = files[field]?.[0];
+      if (!file) return "";
       const localPath = path.join(UPLOAD_DIR, file.filename);
-      const useCloudinary = Boolean(
-        cloudinary &&
-          process.env.CLOUDINARY_CLOUD_NAME &&
-          process.env.CLOUDINARY_API_KEY &&
-          process.env.CLOUDINARY_API_SECRET
-      );
+      let url = "";
       if (useCloudinary) {
         const uploadResult = await cloudinary.uploader.upload(localPath, {
           resource_type: "auto",
-          folder: "crypto-app/campaigns"
+          folder: `crypto-app/campaigns/${field}`
         });
-        mediaUrl = uploadResult.secure_url;
-        mediaType = file.mimetype.startsWith("video/") ? "video" : "image";
+        url = uploadResult.secure_url;
         fs.unlink(localPath, () => {});
       } else {
-        mediaUrl = `/uploads/${file.filename}`;
-        mediaType = file.mimetype.startsWith("video/") ? "video" : "image";
+        url = `${baseUrl}/uploads/${file.filename}`;
       }
-    }
+      return url;
+    };
 
-    if (!mediaUrl) {
-      return res.status(400).json({ success: false, message: "Submission media is required" });
-    }
+    const [billUrl, productUrl, selfieUrl, reelUrl] = await Promise.all([
+      processFile("bill"),
+      processFile("product"),
+      processFile("selfie"),
+      processFile("reel")
+    ]);
 
-    const baseUrl = getBaseUrl(req);
-    const mediaUrlResolved = mediaUrl.startsWith("http") || mediaUrl.startsWith("data:")
-      ? mediaUrl
-      : `${baseUrl}${mediaUrl}`;
+    if (!billUrl || !productUrl || !selfieUrl || !reelUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing mandatory media. Please upload bill, product image, selfie, and reel video."
+      });
+    }
 
     const submission = await CampaignSubmission.create({
       campaign: campaign._id,
       user: userId,
-      media: { type: mediaType, url: mediaUrlResolved },
+      reel: { type: "video", url: reelUrl },
+      billImage: billUrl,
+      productImage: productUrl,
+      userSelfie: selfieUrl,
       caption
     });
 
     campaign.analytics.submissions = (campaign.analytics?.submissions || 0) + 1;
     await campaign.save();
 
-    // Best-effort: create a post so campaign entries appear in reels/profile feeds.
+    // Create a public post from the reel (public part of campaign)
     try {
-      const aspectRatio = mediaType === "video" ? "9/16" : "4/3";
-      const postCaption = caption || `Campaign submission: ${campaign.title}`;
       const post = await Post.create({
         creator: userId,
-        media: { type: mediaType, url: mediaUrlResolved, aspectRatio },
-        caption: postCaption,
+        media: { type: "video", url: reelUrl, aspectRatio: "9/16" },
+        caption: caption || `Campaign reel: ${campaign.title}`,
         category: "Campaign",
         campaign: campaign._id,
         campaignSubmission: submission._id,
@@ -161,7 +168,7 @@ exports.submitEntry = async (req, res) => {
         { $set: { post: post._id } }
       );
     } catch (postError) {
-      // Do not fail the submission if the post creation fails.
+      console.error("Post creation failed for campaign submission:", postError);
     }
 
     return res.status(201).json({ success: true, submission });
@@ -172,11 +179,30 @@ exports.submitEntry = async (req, res) => {
 
 exports.getSubmissions = async (req, res) => {
   try {
+    const currentUserId = req.user?.userId;
+    const currentUserRole = req.user?.role || "";
+    const isAdmin = ["Admin", "SuperNode", "super_admin", "Developer"].includes(currentUserRole);
+
     const submissions = await CampaignSubmission.find({ campaign: req.params.id })
       .populate("user", "name handle avatar role")
       .sort({ votes: -1, createdAt: -1 })
       .lean();
-    return res.status(200).json({ success: true, submissions });
+
+    // Filter sensitive fields for regular users
+    const filtered = submissions.map((s) => {
+      const isOwner = currentUserId && s.user?._id?.toString() === currentUserId.toString();
+      if (isAdmin || isOwner) return s;
+
+      // Hide verification media for anyone else
+      return {
+        ...s,
+        billImage: undefined,
+        productImage: undefined,
+        userSelfie: undefined
+      };
+    });
+
+    return res.status(200).json({ success: true, submissions: filtered });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

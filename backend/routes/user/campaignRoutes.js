@@ -16,7 +16,12 @@ const router = express.Router();
 router.get("/", protect, getCampaigns);
 router.get("/:id", protect, getCampaignById);
 router.post("/:id/join", protect, authorize("User"), joinCampaign);
-router.post("/:id/submissions", protect, authorize("User"), upload.single("media"), submitEntry);
+router.post("/:id/submissions", protect, authorize("User"), upload.fields([
+  { name: "bill", maxCount: 1 },
+  { name: "product", maxCount: 1 },
+  { name: "selfie", maxCount: 1 },
+  { name: "reel", maxCount: 1 }
+]), submitEntry);
 router.get("/:id/submissions", protect, getSubmissions);
 router.post("/:id/submissions/:submissionId/vote", protect, authorize("User"), voteSubmission);
 router.post("/:id/track", protect, trackCampaign);

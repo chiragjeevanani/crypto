@@ -14,13 +14,17 @@ import PostSplat from './PostSplat'
 import { formatCurrency } from '../../utils/formatCurrency'
 
 function ReelPost({ post, active }) {
-    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost } = useFeedStore()
+    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
     const handleLike = () => {
         try {
-            toggleLike(post.id)
+            if (post.category === 'Campaign' && post.campaign && post.campaignSubmission) {
+                voteCampaignSubmission(post.campaign.id || post.campaign._id, post.campaignSubmission, post.id)
+            } else {
+                toggleLike(post.id)
+            }
         } catch {
             // ignore errors for now
         }
@@ -95,7 +99,7 @@ function ReelPost({ post, active }) {
                     loop
                     muted={isMuted}
                     playsInline
-                    preload="metadata"
+                    preload={active ? "auto" : "none"}
                     crossOrigin="anonymous"
                     onClick={toggleMute}
                 />

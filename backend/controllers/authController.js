@@ -8,8 +8,8 @@ const { UPLOAD_DIR } = require("../utils/upload");
 const { cloudinary } = require("../utils/cloudinary");
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
-const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "1d";
-const refreshExpiry = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "7d";
+const refreshExpiry = process.env.JWT_REFRESH_EXPIRES_IN || "60d";
 
 const resolveLocaleFromCountry = (countryInput) => {
   const code = String(countryInput || "").trim().toUpperCase();

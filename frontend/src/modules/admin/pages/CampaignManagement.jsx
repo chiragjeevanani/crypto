@@ -29,10 +29,13 @@ const getProgress = (startDate, endDate) => {
     return Math.max(0, Math.min(100, Math.round(((now - start) / (end - start)) * 100)));
 };
 
+import CampaignSubmissionsReview from '../components/CampaignSubmissionsReview';
+
 export default function CampaignManagement() {
     const { campaigns, campaignClosures, loadCampaigns, setCampaignStatus, linkCampaignClosureAudit, deleteCampaign, declareCampaignWinners, markCampaignRewardDistributed } = useAdminStore();
     const [selectedCampaign, setSelectedCampaign] = useState(null);
-    const [winnerList, setWinnerList] = useState([])
+    const [showSubmissionsReview, setShowSubmissionsReview] = useState(false);
+    const [winnerList, setWinnerList] = useState([]);
     const [loadingWinners, setLoadingWinners] = useState(false)
         const navigate = useNavigate();
 
@@ -247,6 +250,36 @@ export default function CampaignManagement() {
                                 >
                                     Close Details
                                 </button>
+
+                                <div className="pt-4 border-t border-surface space-y-3">
+                                    <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
+                                        <Users className="w-3 h-3" /> Participation Control
+                                    </h4>
+                                    <button
+                                        onClick={() => setShowSubmissionsReview(true)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-surface2 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px] text-text"
+                                    >
+                                        Review Submissions
+                                    </button>
+                                </div>
+
+                                {showSubmissionsReview && (
+                                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
+                                        <motion.div 
+                                            initial={{ scale: 0.95, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            className="bg-surface border border-surface rounded-[32px] w-full max-w-4xl h-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl shadow-primary/10"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                                                <CampaignSubmissionsReview 
+                                                    campaign={selectedCampaign} 
+                                                    onClose={() => setShowSubmissionsReview(false)} 
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    </div>
+                                )}
 
                                 {winnerList.length > 0 && (
                                     <div className="pt-4 border-t border-surface space-y-2">

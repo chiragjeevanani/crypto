@@ -19,6 +19,7 @@ const injectCampaigns = (reels, campaigns, interval) => {
         title: campaign.title,
         description: campaign.description,
         bannerUrl: campaign.bannerUrl,
+        bannerType: campaign.bannerType, // Include bannerType to correctly render video vs image
         brandName: campaign.brandName,
         endDate: campaign.endDate,
         rewardDetails: campaign.rewardDetails,

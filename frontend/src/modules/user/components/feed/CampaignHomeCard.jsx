@@ -24,85 +24,87 @@ export default function CampaignHomeCard({ campaign }) {
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mx-4 my-6 rounded-3xl overflow-hidden shadow-xl"
+            onClick={() => navigate(`/campaigns/${campaign.id}`)}
+            className="mx-4 my-6 rounded-[32px] overflow-hidden shadow-2xl relative cursor-pointer group"
             style={{ 
                 background: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
-                boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)'
+                height: '320px'
             }}
         >
-            <div className="relative aspect-[16/9] overflow-hidden">
+            {/* Full Background Media */}
+            <div className="absolute inset-0 z-0 bg-bg/50">
                 {resolvedBannerUrl ? (
-                    campaign.bannerType === 'video' ? (
-                        <video 
-                            src={resolvedBannerUrl} 
-                            className="w-full h-full object-cover" 
-                            muted
-                            playsInline
-                            loop
-                            autoPlay
-                        />
-                    ) : (
-                        <img 
-                            src={resolvedBannerUrl} 
-                            alt={campaign.title} 
-                            className="w-full h-full object-cover" 
-                            onError={(e) => {
-                                // Double check if it fails even after resolution
-                                if (!imgError) {
-                                  console.error("Campaign image failed to load:", resolvedBannerUrl);
-                                  setImgError(true);
-                                }
-                            }}
-                        />
-                    )
+                    <>
+                        {campaign.bannerType === 'video' ? (
+                            <video 
+                                src={resolvedBannerUrl} 
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                muted
+                                playsInline
+                                loop
+                                autoPlay
+                                preload="metadata"
+                                crossOrigin="anonymous"
+                            />
+                        ) : (
+                            <img 
+                                src={resolvedBannerUrl} 
+                                alt={campaign.title} 
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                loading="lazy"
+                                onError={() => setImgError(true)}
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
                         <Sparkles size={40} className="text-white/20" />
                     </div>
                 )}
+                
+                {/* Fallback for error */}
                 {imgError && resolvedBannerUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+                  <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
                       <Sparkles size={40} className="text-white/20" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md"
-                    style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}>
-                    <Sparkles size={12} className="text-yellow-400" />
-                    Recommended Campaign
-                </div>
+
+                {/* Darker Overlays for Text Legibility */}
+                <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
             </div>
 
-            <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1" style={{ color: 'var(--color-text)' }}>
-                            {campaign.brandName}
-                        </p>
-                        <h3 className="text-lg font-extrabold leading-tight mb-2" style={{ color: 'var(--color-text)' }}>
-                            {campaign.title}
-                        </h3>
-                        <p className="text-xs line-clamp-2 opacity-80" style={{ color: 'var(--color-sub)' }}>
-                            {campaign.description}
-                        </p>
-                    </div>
+            {/* Status Tags */}
+            <div className="absolute top-5 left-5 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-xl bg-black/40 border border-white/10 text-white shadow-lg">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                Featured Campaign
+            </div>
+
+            {/* Reward Badge */}
+            <div className="absolute top-5 right-5 z-20 px-3 py-1.5 rounded-xl backdrop-blur-xl bg-white/10 border border-white/20 text-white shadow-lg">
+                <p className="text-[8px] uppercase tracking-widest font-black opacity-70">Reward Pool</p>
+                <p className="text-sm font-black text-emerald-400">{campaign.rewardDetails}</p>
+            </div>
+
+            {/* Bottom Content (Glassmorphism Overlay) */}
+            <div className="absolute bottom-0 inset-x-0 z-20 p-6 pt-10">
+                <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary drop-shadow-md">
+                        {campaign.brandName}
+                    </p>
+                    <h3 className="text-2xl font-black leading-tight text-white drop-shadow-xl line-clamp-2">
+                        {campaign.title}
+                    </h3>
+                    <p className="text-xs text-white/70 line-clamp-2 leading-relaxed max-w-[90%] font-medium">
+                        {campaign.description}
+                    </p>
                 </div>
 
-                <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
-                    <div>
-                        <p className="text-[10px] uppercase tracking-wider opacity-50 font-bold">Reward</p>
-                        <p className="text-sm font-black" style={{ color: 'var(--color-primary)' }}>{campaign.rewardDetails}</p>
+                <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-white">Join Now</span>
+                        <ArrowRight size={14} className="text-white translate-x-0 group-hover:translate-x-1 transition-transform" />
                     </div>
-                    <button
-                        onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all hover:scale-105 active:scale-95"
-                        style={{ background: 'var(--color-primary)', color: '#fff' }}
-                    >
-                        Participate Now
-                        <ArrowRight size={14} />
-                    </button>
                 </div>
             </div>
         </motion.div>

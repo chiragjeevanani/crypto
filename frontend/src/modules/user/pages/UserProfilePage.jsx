@@ -248,9 +248,9 @@ export default function UserProfilePage() {
                                                 src={post.media?.url || post.thumbnail}
                                                 muted
                                                 playsInline
-                                                autoPlay
                                                 loop
-                                                preload="auto"
+                                                preload="none"
+                                                poster={post.media?.thumbnail || post.thumbnail}
                                                 crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />

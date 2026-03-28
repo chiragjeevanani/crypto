@@ -320,6 +320,7 @@ export default function Stories() {
                                         src={story.avatar}
                                         alt={story.username}
                                         className="w-full h-full object-cover"
+                                        loading="lazy"
                                     />
                                 </div>
                             </div>

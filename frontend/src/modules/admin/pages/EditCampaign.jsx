@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { campaignService } from '../services/campaignService';
+import { useModalStore } from '../../user/store/useModalStore';
 
 const normalizeCampaign = (campaign) => {
     if (!campaign) return null;
@@ -32,6 +33,9 @@ const normalizeCampaign = (campaign) => {
 export default function EditCampaign() {
     const { campaignId } = useParams();
     const navigate = useNavigate();
+    const { showAlert } = useModalStore();
+    const [loading, setLoading] = useState(true);
+
     const [formData, setFormData] = useState(null);
     const [creativePreview, setCreativePreview] = useState('');
     const creativeInputRef = useRef(null);
@@ -49,16 +53,22 @@ export default function EditCampaign() {
                     setFormData({ ...normalized });
                     setCreativePreview(normalized.bannerUrl || '');
                 } else {
+                    showAlert("Campaign Not Found", "The campaign you are trying to edit does not exist.", "error");
                     navigate('/admin/campaigns');
                 }
             } catch (err) {
                 console.error("Failed to load campaign:", err);
-                if (mounted) navigate('/admin/campaigns');
+                if (mounted) {
+                    showAlert("Load Failed", err.message || "Failed to load campaign details.", "error");
+                    navigate('/admin/campaigns');
+                }
+            } finally {
+                if (mounted) setLoading(false);
             }
         };
         load();
         return () => { mounted = false; };
-    }, [campaignId, navigate]);
+    }, [campaignId, navigate, showAlert]);
 
     const handleSubmit = (e) => {
         if (e) e.preventDefault();

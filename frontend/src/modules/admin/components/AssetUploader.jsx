@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Upload, Trash2, Eye, CheckCircle2, Image as ImageIcon, Play, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { campaignService } from '../services/campaignService';
+import { useModalStore } from '../../user/store/useModalStore';
 
 export default function AssetUploader({ assets = [], onChange, maxAssets = 10 }) {
     const [dragActive, setDragActive] = useState(false);
     const [previewAsset, setPreviewAsset] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const { showAlert } = useModalStore();
 
     const handleDrag = (e) => {
         e.preventDefault();
@@ -129,11 +131,20 @@ export default function AssetUploader({ assets = [], onChange, maxAssets = 10 })
                     </div>
                     <div>
                         <p className="text-[10px] font-bold text-text uppercase tracking-wider">
-                            {uploading ? 'Negotiating with Server...' : 'Drag files here or click to upload'}
+                            {uploading ? 'Finalizing Upload...' : 'Drag files here or click to upload'}
                         </p>
                         <p className="text-[9px] text-muted mt-1">
                             Images (JPG, PNG, WebP) or Videos (MP4, WebM) • Max 100MB
                         </p>
+                        <div className="mt-2 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+                            <p className="text-[9px] font-bold text-primary uppercase tracking-wider">
+                                💡 Recommended for Banners
+                            </p>
+                            <p className="text-[8px] text-muted mt-0.5">
+                                Aspect Ratio: 16:9 or 2:1 (e.g., 1280x720px) <br/>
+                                This ensures your campaign looks perfect on mobile and desktop.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </motion.div>

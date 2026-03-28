@@ -22,7 +22,6 @@ export default function HomePage() {
     useEffect(() => { loadPosts() }, [loadPosts])
     const [searchParams] = useSearchParams()
     const [query, setQuery] = useState('')
-    const [showNotifications, setShowNotifications] = useState(false)
     const [postFilter, setPostFilter] = useState('all')
     const [activePostIndex, setActivePostIndex] = useState(null)
     const [searchUsers, setSearchUsers] = useState([])
@@ -213,7 +212,7 @@ export default function HomePage() {
             {/* Header */}
             {!isReels && (
                 <div
-                    className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
+                    className="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
                     <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
@@ -258,10 +257,9 @@ export default function HomePage() {
                         </button>
                         <button
                             onClick={() => {
-                                setShowNotifications((v) => !v)
-                                markNotificationsRead()
+                                navigate('/notifications')
                             }}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer relative"
                             style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
                         >
                             <Bell size={16} />
@@ -272,26 +270,6 @@ export default function HomePage() {
                                 </span>
                             )}
                         </button>
-                        {showNotifications && (
-                            <div
-                                className="absolute right-0 mt-2 w-72 rounded-2xl p-3 z-20"
-                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                            >
-                                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Broadcast Alerts</p>
-                                {notifications.length === 0 ? (
-                                    <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>No premium gift alerts yet.</p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {notifications.slice(0, 4).map((item) => (
-                                            <div key={item.id} className="p-2 rounded-xl" style={{ background: 'var(--color-surface2)' }}>
-                                                <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.title}</p>
-                                                <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{item.subtitle}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 </div>
             )}
@@ -430,7 +408,7 @@ export default function HomePage() {
                                                         muted
                                                         playsInline
                                                         loop
-                                                        preload="metadata"
+                                                        preload="none"
                                                         crossOrigin="anonymous"
                                                         poster={post.media?.thumbnail || post.media?.poster}
                                                     />
@@ -469,7 +447,7 @@ export default function HomePage() {
                                                             muted
                                                             playsInline
                                                             loop
-                                                            preload="metadata"
+                                                            preload="none"
                                                             crossOrigin="anonymous"
                                                             poster={post.media?.thumbnail || post.media?.poster}
                                                             onMouseEnter={(e) => e.target.play().catch(() => {})}
@@ -518,7 +496,7 @@ export default function HomePage() {
                                                     muted
                                                     playsInline
                                                     loop
-                                                    preload="metadata"
+                                                    preload="none"
                                                     crossOrigin="anonymous"
                                                     poster={post.media?.thumbnail || post.media?.poster}
                                                     onMouseEnter={(e) => e.target.play().catch(() => {})}
@@ -561,7 +539,7 @@ export default function HomePage() {
                                                 muted
                                                 playsInline
                                                 loop
-                                                preload="metadata"
+                                                preload="none"
                                                 crossOrigin="anonymous"
                                                 poster={post.media?.thumbnail || post.media?.poster}
                                                 onMouseEnter={(e) => e.target.play().catch(() => {})}

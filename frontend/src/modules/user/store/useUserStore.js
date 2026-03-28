@@ -124,8 +124,14 @@ export const useUserStore = create((set, get) => ({
                 set({ token, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
                 return
             }
-        } catch (_) {
-            // access token invalid or expired; try refresh
+        } catch (err) {
+            // If it's a network/server error, DON'T log out. Keep the current state and set authChecked.
+            const msg = err?.message || ""
+            if (msg.includes("Cannot connect") || msg.includes("Network error") || msg.includes("Server unavailable")) {
+               set({ authChecked: true, authLoading: false })
+               return
+            }
+            // token probably invalid, proceed to refresh
         }
 
         if (refreshToken) {
@@ -137,21 +143,30 @@ export const useUserStore = create((set, get) => ({
                 saveAuthToStorage({ token: newToken, refreshToken: newRefresh, user })
                 set({ token: newToken, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
                 return
-            } catch (_) {
-                // refresh failed
+            } catch (err) {
+                const msg = err?.message || ""
+                if (msg.includes("Cannot connect") || msg.includes("Network error") || msg.includes("Server unavailable")) {
+                    set({ authChecked: true, authLoading: false })
+                    return
+                }
+                // refresh failed (token expired/invalid), will clear below
             }
         }
 
-        clearAuthStorage()
-        set({
-            token: null,
-            user: null,
-            profile: defaultProfile,
-            isAuthenticated: false,
-            authChecked: true,
-            authLoading: false,
-            authError: ''
-        })
+        if (get().token || getStoredToken()) {
+            clearAuthStorage()
+            set({
+                token: null,
+                user: null,
+                profile: defaultProfile,
+                isAuthenticated: false,
+                authChecked: true,
+                authLoading: false,
+                authError: ''
+            })
+        } else {
+            set({ authChecked: true, authLoading: false })
+        }
     },
 
     loginUser: async ({ email, password }) => {

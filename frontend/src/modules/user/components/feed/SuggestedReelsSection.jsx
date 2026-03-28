@@ -34,7 +34,7 @@ export default function SuggestedReelsSection({ reels = [] }) {
                             muted
                             playsInline
                             loop
-                            preload="metadata"
+                            preload="none"
                             crossOrigin="anonymous"
                             poster={reel.media?.thumbnail || reel.media?.poster}
                         />

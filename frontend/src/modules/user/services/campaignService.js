@@ -33,24 +33,21 @@ export const userCampaignService = {
         return handle(response);
     },
 
-    async submit(id, { file, caption, mediaUrl, mediaType }) {
-        if (file) {
-            const formData = new FormData();
-            formData.append("media", file);
-            if (caption) formData.append("caption", caption);
-            const response = await fetch(`${USER_CAMPAIGNS}/${id}/submissions`, {
-                method: "POST",
-                headers: getAuthHeaders(),
-                body: formData
-            });
-            return handle(response);
+    async submit(id, body) {
+        let fetchOptions = {
+            method: "POST",
+            headers: getAuthHeaders()
+        };
+
+        if (body instanceof FormData) {
+            fetchOptions.body = body;
+            // No need to set Content-Type, fetch does it for FormData
+        } else {
+            fetchOptions.headers["Content-Type"] = "application/json";
+            fetchOptions.body = JSON.stringify(body);
         }
 
-        const response = await fetch(`${USER_CAMPAIGNS}/${id}/submissions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-            body: JSON.stringify({ caption, mediaUrl, mediaType })
-        });
+        const response = await fetch(`${USER_CAMPAIGNS}/${id}/submissions`, { ...fetchOptions });
         return handle(response);
     },
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles, ChevronRight } from 'lucide-react'
+import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles, ChevronRight, Vote } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
@@ -299,7 +299,8 @@ export default function PostCard({ post, onOpen }) {
                             loop
                             playsInline
                             muted={isMuted}
-                            preload="metadata"
+                            preload="none"
+                            poster={post.media?.thumbnail || post.media?.poster}
                             crossOrigin="anonymous"
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
@@ -398,18 +399,35 @@ export default function PostCard({ post, onOpen }) {
             <div className="flex items-center gap-5 lg:gap-6 px-4 lg:px-5 pt-4 lg:pt-5 pb-2 lg:pb-3">
                 <motion.button
                     whileTap={{ scale: 0.8 }}
-                    onClick={() => toggleLike(post.id)}
+                    onClick={() => {
+                        if (post.category === 'Campaign' && post.campaign && post.campaignSubmission) {
+                            voteCampaignSubmission(post.campaign.id || post.campaign._id, post.campaignSubmission, post.id)
+                        } else {
+                            toggleLike(post.id)
+                        }
+                    }}
                     className="flex items-center gap-1.5 cursor-pointer transition-transform duration-200 ease-out hover:scale-[1.03]"
                 >
-                    <Heart
-                        size={23}
-                        strokeWidth={post.isLiked ? 0 : 2}
-                        fill={post.isLiked ? 'var(--color-danger)' : 'transparent'}
-                        style={{ color: post.isLiked ? 'var(--color-danger)' : 'var(--color-muted)' }}
-                    />
+                    {(post.category === 'Campaign' && post.campaignSubmission) ? (
+                        <Vote
+                            size={23}
+                            strokeWidth={2}
+                            style={{ color: (post.hasVoted || post.isLiked) ? 'var(--color-primary)' : 'var(--color-muted)' }}
+                        />
+                    ) : (
+                        <Heart
+                            size={23}
+                            strokeWidth={post.isLiked ? 0 : 2}
+                            fill={post.isLiked ? 'var(--color-danger)' : 'transparent'}
+                            style={{ color: post.isLiked ? 'var(--color-danger)' : 'var(--color-muted)' }}
+                        />
+                    )}
                     <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
-                        {formatCount(post.likes)}
+                        {formatCount((post.category === 'Campaign' && post.campaignSubmission) ? (post.votes || post.likes || 0) : post.likes)}
                     </span>
+                    {(post.category === 'Campaign' && post.campaignSubmission) && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-0.5" style={{ color: 'var(--color-primary)' }}>Vote</span>
+                    )}
                 </motion.button>
 
                 <motion.button

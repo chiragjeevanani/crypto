@@ -12,9 +12,9 @@ const dnsServers = (process.env.DNS_SERVERS || "1.1.1.1,8.8.8.8")
   .map((item) => item.trim())
   .filter(Boolean);
 
-// if (dnsServers.length > 0) {
-//   dns.setServers(dnsServers);
-// }
+if (dnsServers.length > 0) {
+  dns.setServers(dnsServers);
+}
 
 const listenWithFallback = (startPort, retries) =>
   new Promise((resolve, reject) => {
@@ -24,6 +24,7 @@ const listenWithFallback = (startPort, retries) =>
           resolve({ server, port });
         })
         .on("error", (error) => {
+          const isAddressInUse = error.code === 'EADDRINUSE';
           if (!isAddressInUse || attemptsLeft <= 0 || !!process.env.PORT) {
             reject(error);
             return;

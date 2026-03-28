@@ -131,7 +131,7 @@ export default function SearchPage() {
                             >
                                 <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--color-surface2)' }}>
                                     {user.avatar ? (
-                                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" loading="lazy" />
                                     ) : (
                                         <User size={16} style={{ color: 'var(--color-muted)' }} />
                                     )}
@@ -170,7 +170,7 @@ export default function SearchPage() {
                                             muted
                                             playsInline
                                             loop
-                                            preload="metadata"
+                                            preload="none"
                                             poster={post.media?.thumbnail || post.media?.poster}
                                             onMouseEnter={(e) => e.target.play().catch(() => {})}
                                             onMouseLeave={(e) => {
@@ -179,7 +179,7 @@ export default function SearchPage() {
                                             }}
                                         />
                                     ) : (
-                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" loading="lazy" />
                                     )}
                                     <div className="p-2.5">
                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
@@ -220,7 +220,7 @@ export default function SearchPage() {
                                             muted
                                             playsInline
                                             loop
-                                            preload="metadata"
+                                            preload="none"
                                             poster={post.media?.thumbnail || post.media?.poster}
                                             onMouseEnter={(e) => e.target.play().catch(() => {})}
                                             onMouseLeave={(e) => {
@@ -229,7 +229,7 @@ export default function SearchPage() {
                                             }}
                                         />
                                     ) : (
-                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" loading="lazy" />
                                     )}
                                     <div className="p-2.5">
                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>

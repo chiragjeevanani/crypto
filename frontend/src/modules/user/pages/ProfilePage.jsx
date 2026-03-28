@@ -339,7 +339,8 @@ export default function ProfilePage() {
                                                 src={post.media?.url || post.thumbnail}
                                                 muted
                                                 playsInline
-                                                preload="metadata"
+                                                preload="none"
+                                                poster={post.media?.thumbnail || post.thumbnail}
                                                 className="w-full h-full object-cover"
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -373,8 +374,7 @@ export default function ProfilePage() {
                                                 muted
                                                 loop
                                                 playsInline
-                                                autoPlay
-                                                preload="auto"
+                                                preload="none"
                                                 crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />
@@ -584,7 +584,8 @@ export default function ProfilePage() {
                                                                     src={post.media?.url}
                                                                     muted
                                                                     playsInline
-                                                                    preload="metadata"
+                                                                    preload="none"
+                                                                    poster={post.media?.thumbnail || post.media?.poster}
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

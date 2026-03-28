@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { postService } from '../services/postService'
 import { followService } from '../services/followService'
 import { savedPostService } from '../services/savedPostService'
+import { userCampaignService } from '../services/campaignService'
 
 const getStoredCurrencySymbol = () => {
     try {
@@ -197,13 +198,13 @@ export const useFeedStore = create((set, get) => ({
             const followerCount = typeof res.followerCount === 'number' ? res.followerCount : null
             set((state) => ({
                 posts: state.posts.map((p) =>
-                    p.creator.id === creatorId
+                    p.creator?.id === creatorId
                         ? {
                             ...p,
                             creator: {
                                 ...p.creator,
                                 isFollowing,
-                                followers: followerCount !== null ? followerCount : p.creator.followers,
+                                followers: followerCount !== null ? followerCount : p.creator?.followers,
                             },
                         }
                         : p
@@ -214,12 +215,12 @@ export const useFeedStore = create((set, get) => ({
             // Fallback: optimistic toggle in UI only
             set((state) => ({
                 posts: state.posts.map((p) =>
-                    p.creator.id === creatorId
+                    p.creator?.id === creatorId
                         ? {
                             ...p,
                             creator: {
                                 ...p.creator,
-                                isFollowing: !p.creator.isFollowing,
+                                isFollowing: !p.creator?.isFollowing,
                             },
                         }
                         : p
@@ -327,6 +328,24 @@ export const useFeedStore = create((set, get) => ({
             else revertedSet.delete(idStr)
             set({ savedPostIds: revertedSet })
             throw err
+        }
+    },
+
+    voteCampaignSubmission: async (campaignId, submissionId, postId) => {
+        try {
+            const res = await userCampaignService.vote(campaignId, submissionId)
+            if (res.success) {
+                set((state) => ({
+                    posts: state.posts.map((p) =>
+                        String(p.id) === String(postId)
+                            ? { ...p, votes: res.votes, hasVoted: true }
+                            : p
+                    ),
+                }))
+            }
+            return res
+        } catch (error) {
+            throw error
         }
     },
 }))

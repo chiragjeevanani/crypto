@@ -62,6 +62,8 @@ import CampaignsPage from './modules/user/pages/CampaignsPage'
 import CampaignDetailPage from './modules/user/pages/CampaignDetailPage'
 import SearchPage from './modules/user/pages/SearchPage'
 import MessagingPage from './modules/user/pages/messaging/MessagingPage'
+import NotificationsPage from './modules/user/pages/NotificationsPage'
+import GlobalModal from './modules/user/components/common/GlobalModal'
 
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
@@ -82,7 +84,9 @@ export default function App() {
   }, [authChecked, isAuthenticated, fetchSavedPostIds])
 
   return (
-    <BrowserRouter>
+    <>
+      <GlobalModal />
+      <BrowserRouter>
       <Routes>
         <Route path="/admin/login" element={<LoginPage />} />
         {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
@@ -106,6 +110,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="messaging" element={<MessagingPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="user/:userId" element={<UserProfilePage />} />
             <Route path="terms" element={<TermsConditionsPage />} />
             <Route path="privacy" element={<PrivacyPolicyPage />} />
@@ -164,5 +169,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+  </>
   )
 }
