@@ -34,22 +34,11 @@ export default function SignInPage() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-[920px] bg-surface border rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-2xl"
+                className="w-full max-w-[440px] bg-surface border rounded-2xl overflow-hidden shadow-2xl"
                 style={{ borderColor: 'var(--color-border)' }}
             >
-                {/* image side */}
-                <div
-                    className="hidden md:block md:w-1/2 flex items-center justify-center p-6"
-                    style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(249,115,22,0.10))' }}
-                >
-                    <img 
-                        src="https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=900&auto=format"
-                        alt="Sign In" 
-                        className="w-full h-full object-cover rounded-xl"
-                    />
-                </div>
                 {/* form side */}
-                <div className="w-full md:w-1/2 p-8">
+                <div className="w-full p-8">
                     <div className="text-center mb-8">
                         <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4">
                             <ShieldCheck className="text-white w-8 h-8" />

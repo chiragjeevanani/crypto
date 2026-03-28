@@ -6,6 +6,7 @@ import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
 import { reelFeedService } from '../services/reelFeedService'
 import PostCard from '../components/feed/PostCard'
+import PostSkeleton from '../components/feed/PostSkeleton'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import Stories from '../components/feed/Stories'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
@@ -16,7 +17,7 @@ import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
 
 export default function HomePage() {
-    const { posts, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost } = useFeedStore()
+    const { posts, postsLoading, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost } = useFeedStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
     useEffect(() => { loadPosts() }, [loadPosts])
@@ -308,6 +309,20 @@ export default function HomePage() {
                             {suggestedReels.length > 0 && (
                                 <SuggestedReelsSection reels={suggestedReels} />
                             )}
+                        </div>
+                    )}
+
+                    {postsLoading && (
+                        <div className="space-y-4">
+                            {[1, 2, 3].map((n) => (
+                                <PostSkeleton key={n} />
+                            ))}
+                        </div>
+                    )}
+                    
+                    {!postsLoading && feedPosts.length === 0 && !suggestedLoading && (
+                        <div className="py-2 text-center text-muted text-sm italic">
+                             No posts found.
                         </div>
                     )}
 

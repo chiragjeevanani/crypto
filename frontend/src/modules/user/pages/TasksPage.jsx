@@ -306,9 +306,13 @@ export default function TasksPage() {
                                             muted
                                             playsInline
                                             loop
-                                            autoPlay
-                                            preload="metadata"
+                                            preload="none"
                                             poster={nft.thumbnail}
+                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                            onMouseLeave={(e) => {
+                                                e.target.pause();
+                                                e.target.currentTime = 0;
+                                            }}
                                         />
                                     ) : (
                                         <img src={nft.thumbnail} alt={nft.title} className="w-full aspect-square object-cover" />
