@@ -46,7 +46,6 @@ const initiateRecharge = async (req, res) => {
                 idempotencyKey: order.id,
                 referenceType: "payment_gateway",
                 meta: { 
-                    coinRate,
                     country: user.countryCode,
                     currency: user.currencyCode,
                     orderId: order.id
