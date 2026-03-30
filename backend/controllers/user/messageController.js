@@ -50,14 +50,15 @@ exports.getConversations = async (req, res) => {
           ]
         }
       },
-      { $sort: { createdAt: -1 } },
-      {
-        $group: {
-          _id: "$roomId",
-          lastMessage: { $first: "$$ROOT" }
-        }
-      }
-    ]);
+        { $sort: { createdAt: -1 } },
+        {
+          $group: {
+            _id: "$roomId",
+            lastMessage: { $first: "$$ROOT" }
+          }
+        },
+        { $sort: { "lastMessage.createdAt": -1 } }
+      ]);
 
     const result = await Promise.all(
       messages.map(async (m) => {

@@ -147,7 +147,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                                 exit={{ opacity: 0, x: -10 }}
                                 className="overflow-hidden whitespace-nowrap"
                             >
-                                <h2 className="text-sm font-bold tracking-tight text-text">SocialEarn</h2>
+                                <h2 className="text-sm font-bold tracking-tight text-text">K & Q Reels</h2>
                                 <p className="text-[9px] text-muted font-semibold uppercase tracking-widest mt-0.5 opacity-60">Admin Panel</p>
                             </motion.div>
                         )}

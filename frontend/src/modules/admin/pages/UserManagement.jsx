@@ -60,7 +60,7 @@ export default function UserManagement() {
     useEffect(() => {
         const sync = () => loadKYCQueue()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_kyc_sync_v1') sync()
+            if (event.key === 'K & Q Reels_kyc_sync_v1') sync()
         }
         window.addEventListener('kyc-sync-updated', sync)
         window.addEventListener('storage', onStorage)

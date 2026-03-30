@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 export default function SuggestedReelsSection({ reels = [] }) {
     const navigate = useNavigate()
@@ -29,7 +30,7 @@ export default function SuggestedReelsSection({ reels = [] }) {
                         onClick={() => navigate(`/home?view=reels&post=${reel.id}`)}
                     >
                         <video 
-                            src={reel.media?.url}
+                            src={optimizeCloudinaryUrl(reel.media?.url, { isVideo: true, width: 400, quality: '50' })}
                             className="w-full h-full object-cover transition-transform group-hover:scale-105"
                             muted
                             playsInline

@@ -171,7 +171,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 pb-20">
             <AdminPageHeader
                 title="Strategic Control Center"
-                subtitle="High-fidelity telemetry for the SocialEarn reward ecosystem."
+                subtitle="High-fidelity telemetry for the K & Q Reels reward ecosystem."
                 actions={
                     <button
                         onClick={() => window.location.reload()}

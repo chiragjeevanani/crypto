@@ -145,7 +145,7 @@ export default function AppShell() {
         hydrate()
         const onSync = () => hydrate()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_kyc_sync_v1') hydrate()
+            if (event.key === 'K & Q Reels_kyc_sync_v1') hydrate()
         }
         window.addEventListener('kyc-sync-updated', onSync)
         window.addEventListener('storage', onStorage)
@@ -156,7 +156,7 @@ export default function AppShell() {
     }, [kyc.syncUserId, setKYCFromSync])
 
     useEffect(() => {
-        const seenCampaignKey = 'socialearn_seen_campaign_ids_v1'
+        const seenCampaignKey = 'K & Q Reels_seen_campaign_ids_v1'
         let mounted = true
         const hydrateCampaigns = async () => {
             setCampaignLoading(true)
@@ -199,7 +199,7 @@ export default function AppShell() {
     }, [pushNotification])
 
     useEffect(() => {
-        const key = 'socialearn_screen_time_start_v1'
+        const key = 'K & Q Reels_screen_time_start_v1'
         const todayKey = new Date().toISOString().slice(0, 10)
         const startValue = window.localStorage.getItem(key)
         const parsed = startValue ? JSON.parse(startValue) : null
@@ -231,7 +231,7 @@ export default function AppShell() {
         hydrate()
         const onUpdate = () => hydrate()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_user_nft_listings_v1') hydrate()
+            if (event.key === 'K & Q Reels_user_nft_listings_v1') hydrate()
         }
         window.addEventListener('nft-listings-updated', onUpdate)
         window.addEventListener('storage', onStorage)
@@ -277,7 +277,7 @@ export default function AppShell() {
             >
                 <div className="flex items-center justify-center lg:justify-start lg:px-2 mb-7">
                     <span className="text-xl font-extrabold tracking-tight" style={{ color: 'var(--color-primary)' }}>
-                        <span className="hidden lg:inline">SocialEarn</span>
+                        <span className="hidden lg:inline">K & Q Reels</span>
                         <span className="lg:hidden">SE</span>
                     </span>
                 </div>

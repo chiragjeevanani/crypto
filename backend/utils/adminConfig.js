@@ -1,7 +1,7 @@
 const AdminConfig = require("../models/AdminConfig");
 
 const DEFAULTS = {
-  coinRate: 10,
+  coinRate: 1,
   platformFeePct: 10,
   gstPct: 18,
   referralLimit: 0,

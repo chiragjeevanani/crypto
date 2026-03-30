@@ -39,22 +39,29 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
 
         const handleNewMessage = (msg) => {
             setConversations(prev => {
-                const index = prev.findIndex(c => c.user.id === msg.senderId)
+                // Find the user who sent it (receiver in own_message case)
+                const targetUserId = msg.senderId
+                const index = prev.findIndex(c => c.user.id === targetUserId)
+                
                 if (index !== -1) {
                     const updated = [...prev]
-                    const isNowActive = selectedChatId === (updated[index].id || updated[index].user.id)
-                    updated[index] = {
-                        ...updated[index],
+                    const c = updated[index]
+                    const isNowActive = selectedChatId === (c.id || c.user.id)
+                    
+                    const newItem = {
+                        ...c,
                         lastMessage: {
                             text: msg.text,
-                            timestamp: msg.timestamp,
-                            unreadCount: isNowActive ? 0 : (updated[index].lastMessage.unreadCount || 0) + 1
+                            timestamp: msg.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                            unreadCount: isNowActive ? 0 : (msg.isOwn ? 0 : (c.lastMessage?.unreadCount || 0) + 1)
                         }
                     }
-                    // Bring to top
-                    const item = updated.splice(index, 1)[0]
-                    return [item, ...updated]
+                    
+                    // Remove from old position and add to top
+                    const filtered = updated.filter((_, i) => i !== index)
+                    return [newItem, ...filtered]
                 } else {
+                    // Refresh if not in list
                     fetchConversations()
                     return prev
                 }
@@ -68,17 +75,17 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
         }
 
         const handleSeenUpdate = ({ roomId, userId }) => {
-            // If the other user (userId) marked messages from us as seen
-            // (Not strictly needed for local unread count which is for messages RECEIVED)
-            // But we can reset our own unread count if WE are the one who saw it
+            // Update seen status
         }
 
         socket.on('receive_message', handleNewMessage)
+        socket.on('own_message_sent', (msg) => handleNewMessage({ ...msg, isOwn: true }))
         socket.on('user_status_changed', handleStatusChanged)
         socket.on('messages_seen_update', handleSeenUpdate)
 
         return () => {
             socket.off('receive_message', handleNewMessage)
+            socket.off('own_message_sent')
             socket.off('user_status_changed', handleStatusChanged)
             socket.off('messages_seen_update', handleSeenUpdate)
         }
@@ -119,6 +126,21 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
 
         return () => clearTimeout(timer)
     }, [searchQuery])
+
+    // Clear unread count when a chat is selected
+    useEffect(() => {
+        if (selectedChatId) {
+            setConversations(prev => prev.map(c => {
+                if ((c.id || c.user.id) === selectedChatId && c.lastMessage?.unreadCount > 0) {
+                    return {
+                        ...c,
+                        lastMessage: { ...c.lastMessage, unreadCount: 0 }
+                    }
+                }
+                return c
+            }))
+        }
+    }, [selectedChatId])
 
     const displayList = useMemo(() => {
         if (searchQuery.trim()) {

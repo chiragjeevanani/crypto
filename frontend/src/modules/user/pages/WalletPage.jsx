@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react'
 import { useWalletStore } from '../store/useWalletStore'
 import { useUserStore } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
@@ -35,7 +36,11 @@ export default function WalletPage() {
         walletLoading,
         transactionsLoading,
         walletError,
+        initiateRecharge,
+        verifyPayment,
     } = useWalletStore()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false)
     const { kyc, submitKYC, incrementReferralOnboarded, setKYCFromSync, profile } = useUserStore()
     const currencySymbol = profile?.currencySymbol || '₹'
     const currencyCode = profile?.currencyCode || 'INR'
@@ -78,6 +83,84 @@ export default function WalletPage() {
     }, [loadWallet, loadTransactions])
 
     useEffect(() => {
+        const verify = async () => {
+            const gateway = searchParams.get('gateway')
+            const trx = searchParams.get('trx')
+            const status = searchParams.get('status') || 'success'
+            
+            if (gateway && trx) {
+                setWalletActionMessage('Verifying payment...')
+                const res = await verifyPayment(trx, status)
+                if (res.ok) {
+                    setWalletActionMessage('Payment Successful!')
+                    setTimeout(() => setWalletActionMessage(''), 5000)
+                } else {
+                    setWalletActionMessage(res.message || 'Payment Verification Failed.')
+                }
+                setSearchParams({}, { replace: true })
+            }
+        }
+        verify()
+    }, [searchParams, verifyPayment, setSearchParams])
+
+    const handleQuickAdd = async (amount) => {
+        const parsed = Number(amount)
+        if (!parsed || parsed <= 0) return
+        setIsProcessingPayment(true)
+        setWalletActionMessage('Connecting to Secure Gateway...')
+        const result = await initiateRecharge(parsed)
+        
+        if (result?.ok && result.orderId) {
+            const options = {
+                key: result.keyId,
+                amount: result.amount,
+                currency: result.currency,
+                name: "K & Q Reels",
+                description: "Wallet Recharge",
+                order_id: result.orderId,
+                handler: async function (response) {
+                    setWalletActionMessage('Verifying payment...')
+                    const verification = await verifyPayment(result.transactionId, {
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature
+                    });
+
+                    if (verification.ok) {
+                        setWalletActionMessage('Payment Successful!');
+                        setTimeout(() => setWalletActionMessage(''), 5000);
+                        // Refresh wallet balance
+                        loadWallet();
+                        loadTransactions();
+                    } else {
+                        setWalletActionMessage(verification.message || 'Verification Failed');
+                    }
+                    setIsProcessingPayment(false);
+                },
+                modal: {
+                    ondismiss: function() {
+                        setIsProcessingPayment(false);
+                        setWalletActionMessage('Payment cancelled.');
+                    }
+                },
+                prefill: {
+                    name: profile.fullName || profile.username,
+                    email: profile.email || '',
+                    contact: profile.phone || ''
+                },
+                theme: {
+                    color: "#f59e0b"
+                }
+            };
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        } else {
+            setWalletActionMessage(result?.message || 'Gateway unavailable.');
+            setIsProcessingPayment(false);
+        }
+    }
+
+    useEffect(() => {
         const hydrate = () => {
             const synced = getKYCSubmissionByUser(kyc.syncUserId)
             if (synced) {
@@ -88,7 +171,7 @@ export default function WalletPage() {
         hydrate()
         const onSync = () => hydrate()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_kyc_sync_v1') hydrate()
+            if (event.key === 'K & Q Reels_kyc_sync_v1') hydrate()
         }
         window.addEventListener('kyc-sync-updated', onSync)
         window.addEventListener('storage', onStorage)
@@ -171,7 +254,7 @@ export default function WalletPage() {
                 style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(249,115,22,0.08))', border: '1px solid rgba(245,158,11,0.2)' }}
             >
                 <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-primary)' }}>
-                    Total Balance
+                    Total Assets
                 </p>
                 <AnimatePresence mode="popLayout">
                     <motion.p
@@ -191,7 +274,12 @@ export default function WalletPage() {
             </div>
 
             <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Wallet Balances</p>
+                <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-black" style={{ color: 'var(--color-text)' }}>Wallet Details</p>
+                    <div className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                        1 Coin = {currencySymbol}1.00
+                    </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
                     <div className="rounded-xl px-3 py-2" style={{ background: 'var(--color-surface2)' }}>
                         <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>{currencyCode} Wallet</p>
@@ -209,25 +297,42 @@ export default function WalletPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="rounded-xl p-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
                         <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Add money to {currencyCode} wallet</p>
+                        
+                        {/* Quick Add Chips */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {[10, 50, 100, 200, 500].map(amt => (
+                                <button
+                                    key={amt}
+                                    disabled={isProcessingPayment}
+                                    onClick={() => handleQuickAdd(amt)}
+                                    className="px-4 py-2 rounded-xl text-[11px] font-bold transition-all border shadow-sm active:scale-95"
+                                    style={{ 
+                                        background: 'var(--color-surface)', 
+                                        color: 'var(--color-primary)',
+                                        borderColor: 'var(--color-border)'
+                                    }}
+                                >
+                                    +{currencySymbol}{amt}
+                                </button>
+                            ))}
+                        </div>
+
                         <div className="flex gap-2">
                             <input
                                 type="number"
                                 value={addInrAmount}
                                 onChange={(e) => setAddInrAmount(e.target.value)}
-                                placeholder={`Amount in ${currencyCode}`}
+                                placeholder="Custom"
                                 className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
                                 style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                             />
                             <button
-                                onClick={async () => {
-                                    const result = await addFundsToWallet({ wallet: 'inr', amount: addInrAmount })
-                                    runWalletAction(result, 'INR wallet updated.')
-                                    if (result?.ok) setAddInrAmount('')
-                                }}
-                                className="px-3 py-2 rounded-lg text-xs font-semibold"
+                                disabled={isProcessingPayment || !addInrAmount}
+                                onClick={() => handleQuickAdd(addInrAmount)}
+                                className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-50 flex items-center gap-1"
                                 style={{ background: 'var(--color-primary)', color: '#fff' }}
                             >
-                                Add
+                                {isProcessingPayment ? <Loader2 size={12} className="animate-spin" /> : 'Add'}
                             </button>
                         </div>
                     </div>

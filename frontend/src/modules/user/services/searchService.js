@@ -39,5 +39,13 @@ export const searchService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to dismiss user");
     return data;
+  },
+  async getUserById(userId) {
+    const response = await fetch(`${SEARCH_URL}/${userId}`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to fetch user");
+    return data;
   }
 };

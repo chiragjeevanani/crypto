@@ -12,6 +12,7 @@ import { playGiftSound } from '../../utils/giftSounds'
 import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
 import { formatCurrency } from '../../utils/formatCurrency'
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 function ReelPost({ post, active }) {
     const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission } = useFeedStore()
@@ -93,7 +94,7 @@ function ReelPost({ post, active }) {
             <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] md:max-h-[calc(100vh-56px)]">
                 <video
                     ref={videoRef}
-                    src={post.media?.url}
+                    src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '60' })}
                     className="w-full h-full object-cover cursor-pointer"
                     style={{ filter: post.filter || 'none' }}
                     loop
@@ -193,7 +194,7 @@ function ReelPost({ post, active }) {
                         <div className="w-9 h-9 rounded-full bg-white overflow-hidden flex items-center justify-center">
                             {post.creator?.avatar ? (
                                 <img
-                                    src={post.creator.avatar}
+                                    src={optimizeCloudinaryUrl(post.creator.avatar, { width: 150 })}
                                     alt={post.creator.username}
                                     className="w-full h-full object-cover"
                                 />

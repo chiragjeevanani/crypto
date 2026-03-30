@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { storyService } from '../../services/storyService';
 import { musicService } from '../../services/musicService';
 import { useUserStore } from '../../store/useUserStore';
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization';
 
 const STORY_AUDIO_TRACKS = [
     { id: '1', title: 'Trending Now' },
@@ -317,7 +318,7 @@ export default function Stories() {
                             >
                                 <div className="w-full h-full rounded-full border-2 border-black overflow-hidden bg-black">
                                     <img
-                                        src={story.avatar}
+                                        src={optimizeCloudinaryUrl(story.avatar, { width: 120 })}
                                         alt={story.username}
                                         className="w-full h-full object-cover"
                                         loading="lazy"
@@ -395,7 +396,7 @@ export default function Stories() {
                                     {selectedStory.stories[activeStoryIndex].mediaType === 'video' ? (
                                         <video
                                             key={`story-video-${selectedStory.stories[activeStoryIndex].id}`}
-                                            src={selectedStory.stories[activeStoryIndex].mediaUrl || ''}
+                                            src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { isVideo: true, width: 720, quality: '60' })}
                                             className="w-full h-full object-cover"
                                             autoPlay
                                             muted={isMuted || !!selectedStory.stories[activeStoryIndex].musicData}
@@ -405,7 +406,7 @@ export default function Stories() {
                                     ) : (
                                         <img
                                             key={`story-img-${selectedStory.stories[activeStoryIndex].id}`}
-                                            src={selectedStory.stories[activeStoryIndex].mediaUrl || ''}
+                                            src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { width: 1080, quality: '80' })}
                                             alt="Story Content"
                                             className="w-full h-full object-cover"
                                         />

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import TaskCard from '../components/tasks/TaskCard'
+import CampaignSkeleton from '../components/feed/CampaignSkeleton'
+import ReelSkeleton from '../components/feed/ReelSkeleton'
 import TaskDetailPage from './TaskDetailPage'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { useWalletStore } from '../store/useWalletStore'
@@ -43,7 +45,7 @@ export default function TasksPage() {
         hydrate()
         const onUpdate = () => hydrate()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_user_nft_listings_v1') hydrate()
+            if (event.key === 'K & Q Reels_user_nft_listings_v1') hydrate()
         }
         window.addEventListener('nft-listings-updated', onUpdate)
         window.addEventListener('storage', onStorage)
@@ -229,7 +231,11 @@ export default function TasksPage() {
 
                     <div>
                         {campaignLoading && (
-                            <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>Loading campaigns...</p>
+                            <div className="space-y-4">
+                                {[1, 2, 3].map((n) => (
+                                    <CampaignSkeleton key={n} />
+                                ))}
+                            </div>
                         )}
                         {campaignError && !campaignLoading && (
                             <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>{campaignError}</p>

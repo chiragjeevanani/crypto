@@ -1,4 +1,4 @@
-const CATEGORY_KEY = 'socialearn_post_categories_v2'
+const CATEGORY_KEY = 'K & Q Reels_post_categories_v2'
 
 const DEFAULT_TREE = [
     {

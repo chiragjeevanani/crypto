@@ -94,6 +94,9 @@ const initSocket = (server) => {
         // Broadcast to others in the room
         socket.to(roomId).emit("receive_message", formattedMsg);
         
+        // Notify sender to update their own ConversationList
+        socket.emit("own_message_sent", { ...formattedMsg, senderId: receiver.toString(), receiverId: sender.toString() });
+
         // Notify sender about delivery (status update)
         socket.emit("message_status_sent", { id: formattedMsg.id, status: newMessage.status });
 

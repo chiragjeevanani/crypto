@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -88,7 +88,7 @@ export default function CreatePage() {
         }
         sync()
         const onStorage = (event) => {
-            if (event.key === 'socialearn_post_categories_v2') sync()
+            if (event.key === 'K & Q Reels_post_categories_v2') sync()
         }
         window.addEventListener('post-categories-updated', sync)
         window.addEventListener('storage', onStorage)
@@ -106,6 +106,27 @@ export default function CreatePage() {
             }
         }
     }, [mediaPreview])
+
+    useEffect(() => {
+        if (selectedMusic && previewMusicRef.current) {
+            const audio = previewMusicRef.current;
+            // Play in Step 2 (Selection/Edit) AND Step 7 (Final Preview)
+            if (step === 2 || step === 7) {
+                if (audio.src !== selectedMusic.audioUrl) {
+                    audio.src = selectedMusic.audioUrl;
+                }
+                audio.currentTime = musicStartTime;
+                audio.play().catch(() => {});
+                setIsPlayingMusic(true);
+            } else {
+                audio.pause();
+                setIsPlayingMusic(false);
+            }
+        } else if (previewMusicRef.current) {
+            previewMusicRef.current.pause();
+            setIsPlayingMusic(false);
+        }
+    }, [step, selectedMusic, musicStartTime])
 
     const handleMediaChange = (e) => {
         const file = e.target.files?.[0]
@@ -457,7 +478,6 @@ export default function CreatePage() {
                                               </div>
                                           </div>
                                       )}
-                                      <audio ref={previewMusicRef} onEnded={() => setIsPlayingMusic(false)} className="hidden" loop />
                                 </div>
 
                             </div>
@@ -823,6 +843,7 @@ export default function CreatePage() {
                     />
                 )}
             </AnimatePresence>
+            <audio ref={previewMusicRef} onEnded={() => setIsPlayingMusic(false)} className="hidden" loop />
         </div>
     )
 }

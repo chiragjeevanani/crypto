@@ -47,7 +47,7 @@ export default function ContentControl() {
     useEffect(() => {
         const sync = () => setCategories(getPostCategories())
         const onStorage = (event) => {
-            if (event.key === 'socialearn_post_categories_v2') sync()
+            if (event.key === 'K & Q Reels_post_categories_v2') sync()
         }
         window.addEventListener('post-categories-updated', sync)
         window.addEventListener('storage', onStorage)

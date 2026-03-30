@@ -29,7 +29,7 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
     useEffect(() => {
         const sync = () => setGiftTypes(getActiveGiftCatalog())
         const onStorage = (event) => {
-            if (event.key === 'socialearn_gift_catalog_v1') sync()
+            if (event.key === 'K & Q Reels_gift_catalog_v1') sync()
         }
         window.addEventListener('gift-catalog-updated', sync)
         window.addEventListener('storage', onStorage)

@@ -168,3 +168,39 @@ exports.dismissSuggestedUser = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.getUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const baseUrl = getBaseUrl(req);
+    const user = await User.findById(id).select("name handle avatar bio followers following role").lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const rawHandle = user.handle || "";
+    const handle = rawHandle
+      ? (rawHandle.startsWith("@") ? rawHandle : `@${rawHandle}`)
+      : `@${(user.name || "user").replace(/\s+/g, "").toLowerCase()}`;
+
+    const currentUserId = req.user?.userId;
+    const isFollowing = user.followers?.some(f => f.toString() === currentUserId?.toString()) || false;
+
+    const mappedUser = {
+      id: user._id?.toString() || "",
+      username: user.name || "User",
+      handle,
+      avatar: avatarUrlFromUser(user, baseUrl),
+      bio: user.bio || "",
+      followersCount: Array.isArray(user.followers) ? user.followers.length : 0,
+      followingCount: Array.isArray(user.following) ? user.following.length : 0,
+      isFollowing,
+      role: user.role
+    };
+
+    return res.status(200).json({ success: true, user: mappedUser });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -7,6 +7,7 @@ import { useUserStore } from '../store/useUserStore'
 import { reelFeedService } from '../services/reelFeedService'
 import PostCard from '../components/feed/PostCard'
 import PostSkeleton from '../components/feed/PostSkeleton'
+import ReelSkeleton from '../components/feed/ReelSkeleton'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import Stories from '../components/feed/Stories'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
@@ -217,7 +218,7 @@ export default function HomePage() {
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
                     <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
-                        SocialEarn
+                        K & Q Reels
                     </span>
                     <div className="relative flex items-center gap-2">
                         <button
@@ -364,7 +365,11 @@ export default function HomePage() {
                     {query.trim() ? (
                         <div className="space-y-5">
                             {searchLoading && (
-                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Searching...</p>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                                        <ReelSkeleton key={n} />
+                                    ))}
+                                </div>
                             )}
                             {searchError && (
                                 <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{searchError}</p>

@@ -29,27 +29,37 @@ export default function UserProfilePage() {
     const [connectionsOpen, setConnectionsOpen] = useState(null)
     const [followers, setFollowers] = useState([])
     const [following, setFollowing] = useState([])
+    const [profileUser, setProfileUser] = useState(null)
+    const [profileLoading, setProfileLoading] = useState(true)
 
     useEffect(() => { loadPosts() }, [loadPosts])
 
-    // Load followers / following for this profile from backend
+    // Load user profile details and connections
     useEffect(() => {
         const id = userId
         if (!id) return
         let cancelled = false
         const load = async () => {
+            setProfileLoading(true)
             try {
-                const [fRes, gRes] = await Promise.all([
+                const [fRes, gRes, uRes] = await Promise.all([
                     followService.getFollowers(id),
                     followService.getFollowing(id),
+                    searchService.getUserById(id),
                 ])
                 if (cancelled) return
                 setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
                 setFollowing(Array.isArray(gRes.following) ? gRes.following : [])
-            } catch {
+                if (uRes.success) {
+                    setProfileUser(uRes.user)
+                }
+                setProfileLoading(false)
+            } catch (err) {
+                console.error("Failed to load user profile:", err)
                 if (!cancelled) {
                     setFollowers([])
                     setFollowing([])
+                    setProfileLoading(false)
                 }
             }
         }
@@ -64,17 +74,20 @@ export default function UserProfilePage() {
         return posts.filter((p) => String(p.creator?.id) === String(userId))
     }, [posts, userId])
 
-    // Find user from first post or fallback
+    // Find user from fetched profile, then first post, or fallback
     const user = useMemo(() => {
+        if (profileUser) return profileUser
+
         const post = posts.find((p) => String(p.creator?.id) === String(userId))
         if (post?.creator) return post.creator
         return {
             id: userId,
-            username: 'Unknown User',
-            handle: '@unknown',
-            isFollowing: false
+            username: profileLoading ? 'Loading...' : 'Unknown User',
+            handle: profileLoading ? '...' : '@unknown',
+            isFollowing: false,
+            bio: 'Digital Creator & NFT Collector. Sharing daily vibes and exclusive content. 📸✨'
         }
-    }, [userId, posts])
+    }, [userId, posts, profileUser, profileLoading])
 
     const avatarColor = getColor(userId)
 
@@ -82,12 +95,14 @@ export default function UserProfilePage() {
         try {
             await toggleFollow(user.id)
             // Refresh followers/following so counts and lists stay in sync with DB
-            const [fRes, gRes] = await Promise.all([
+            const [fRes, gRes, uRes] = await Promise.all([
                 followService.getFollowers(user.id),
                 followService.getFollowing(user.id),
+                searchService.getUserById(user.id),
             ])
             setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
             setFollowing(Array.isArray(gRes.following) ? gRes.following : [])
+            if (uRes.success) setProfileUser(uRes.user)
         } catch {
             // error handling not critical for UI here; state already optimistically toggled
         }
@@ -124,10 +139,14 @@ export default function UserProfilePage() {
                             style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))' }}
                         >
                             <div
-                                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-xl"
+                                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-xl overflow-hidden"
                                 style={{ background: avatarColor }}
                             >
-                                {user.username.charAt(0)}
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                                ) : (
+                                    user.username.charAt(0)
+                                )}
                             </div>
                         </div>
 
@@ -135,8 +154,8 @@ export default function UserProfilePage() {
                         <div className="flex-1 grid grid-cols-3 gap-2 pt-4">
                             {[
                                 { label: 'Posts', value: String(userPosts.length), onClick: null },
-                                { label: 'Followers', value: String(followers.length), onClick: () => setConnectionsOpen('followers') },
-                                { label: 'Following', value: String(following.length), onClick: () => setConnectionsOpen('following') },
+                                { label: 'Followers', value: String(user.followersCount !== undefined ? user.followersCount : followers.length), onClick: () => setConnectionsOpen('followers') },
+                                { label: 'Following', value: String(user.followingCount !== undefined ? user.followingCount : following.length), onClick: () => setConnectionsOpen('following') },
                             ].map((stat) => (
                                 <div key={stat.label} className="flex flex-col items-center">
                                     <button
@@ -174,7 +193,7 @@ export default function UserProfilePage() {
                             {user.handle}
                         </p>
                         <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--color-sub)' }}>
-                            Digital Creator & NFT Collector. Sharing daily vibes and exclusive content. 📸✨
+                            {user.bio || 'Digital Creator & NFT Collector. Sharing daily vibes and exclusive content. 📸✨'}
                         </p>
                     </div>
 
@@ -202,6 +221,7 @@ export default function UserProfilePage() {
                         </motion.button>
                         <motion.button
                             whileTap={{ scale: 0.96 }}
+                            onClick={() => navigate('/messaging', { state: { openChat: { id: user.id, username: user.username, handle: user.handle, avatar: user.avatar } } })}
                             className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
                             style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                         >

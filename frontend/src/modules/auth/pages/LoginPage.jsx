@@ -54,7 +54,7 @@ export default function LoginPage() {
                     <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-6">
                         <ShieldCheck className="text-black w-8 h-8" />
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight text-text">SocialEarn</h1>
+                    <h1 className="text-xl font-bold tracking-tight text-text">K & Q Reels</h1>
                     <p className="text-[10px] text-muted font-semibold uppercase tracking-[0.2em] mt-2 opacity-70">
                         Admin Login
                     </p>

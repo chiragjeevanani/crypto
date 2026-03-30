@@ -21,6 +21,7 @@ const musicRoutes = require("./routes/musicRoutes");
 const adminWithdrawalRoutes = require("./routes/admin/withdrawalRoutes");
 const adminMediaRoutes = require("./routes/admin/mediaRoutes");
 const userMessageRoutes = require("./routes/user/messageRoutes");
+const userPaymentRoutes = require("./routes/user/paymentRoutes");
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api/admin/config", adminConfigRoutes);
 app.use("/api/admin/media", adminMediaRoutes);
 app.use("/api/admin/withdrawals", adminWithdrawalRoutes);
 app.use("/api/user/messages", userMessageRoutes);
+app.use("/api/payment", userPaymentRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

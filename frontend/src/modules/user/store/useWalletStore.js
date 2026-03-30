@@ -125,6 +125,39 @@ export const useWalletStore = create((set, get) => ({
         }
     },
 
+    initiateRecharge: async (amount) => {
+        const parsed = Number(amount || 0)
+        if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Invalid amount.' }
+        try {
+            const data = await walletService.initiateRecharge(parsed)
+            if (data?.success) {
+                return { 
+                    ok: true, 
+                    orderId: data.orderId, 
+                    amount: data.amount, 
+                    currency: data.currency, 
+                    keyId: data.keyId,
+                    transactionId: data.transactionId 
+                }
+            }
+            return { ok: false, message: data?.message || 'Could not get payment link.' }
+        } catch (error) {
+            return { ok: false, message: error.message }
+        }
+    },
+
+    verifyPayment: async (transactionId, razorpayData) => {
+        try {
+            await walletService.verifyPayment(transactionId, razorpayData)
+            await get().loadWallet()
+            await get().loadTransactions()
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
+        }
+    },
+
+
     spendGiftFromSelectedWallet: (amount) => {
         const parsed = Number(amount || 0)
         const state = get()

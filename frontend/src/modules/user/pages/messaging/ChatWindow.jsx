@@ -386,7 +386,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         {chat.user.avatar ? <img src={chat.user.avatar} alt={chat.user.username} className="w-full h-full object-cover" /> : <div className="text-xl font-bold">{chat.user.username[0].toUpperCase()}</div>}
                     </div>
                     <h5 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{chat.user.username}</h5>
-                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; Instagram</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; K & Q Reels</p>
                     <button 
                         onClick={() => navigate(`/user/${chat.user.id}`)}
                         className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
@@ -451,7 +451,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     className="px-4 py-2 rounded-lg text-xs font-bold"
                                     style={{ background: 'var(--color-primary)', color: '#fff' }}
                                 >
-                                    Share
+                                    K & Q Reels
                                 </button>
                             </div>
                         </motion.div>

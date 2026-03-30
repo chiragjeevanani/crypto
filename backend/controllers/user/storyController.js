@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { UPLOAD_DIR } = require("../../utils/upload");
 const { cloudinary } = require("../../utils/cloudinary");
+const { getBaseUrl, resolveUrl, avatarUrlFromUser } = require("../../utils/postHelpers");
 
 // Helper: 24h window
 const getExpiryThreshold = () => {
@@ -11,7 +12,7 @@ const getExpiryThreshold = () => {
   return new Date(now.getTime() - 24 * 60 * 60 * 1000);
 };
 
-const formatStoryForClient = (story, currentUserId) => {
+const formatStoryForClient = (story, currentUserId, baseUrl) => {
   const u = story.user || {};
   const isMe = currentUserId && u._id && u._id.toString() === currentUserId.toString();
   return {
@@ -20,11 +21,11 @@ const formatStoryForClient = (story, currentUserId) => {
       id: u._id?.toString?.() || "",
       username: u.name || "User",
       handle: u.handle || "",
-      avatar: u.avatar || ""
+      avatar: avatarUrlFromUser(u, baseUrl)
     },
     media: {
       type: story.media?.type || "image",
-      url: story.media?.url || ""
+      url: resolveUrl(story.media?.url, baseUrl)
     },
     caption: story.caption || "",
     captionStyle: story.captionStyle
@@ -40,7 +41,7 @@ const formatStoryForClient = (story, currentUserId) => {
       id: story.musicId._id,
       title: story.musicId.title,
       artist: story.musicId.artist,
-      audioUrl: story.musicId.audioUrl,
+      audioUrl: story.musicId.audioUrl, // Music audio usually already fully resolved in DB or through separate logic
       duration: story.musicId.duration,
       thumbnail: story.musicId.thumbnail
     } : null,
@@ -119,9 +120,10 @@ exports.createStory = async (req, res) => {
     });
 
     const user = await User.findById(userId).select("name handle avatar").lean();
+    const baseUrl = getBaseUrl(req);
     return res.status(201).json({
       success: true,
-      story: formatStoryForClient({ ...story.toObject(), user }, userId)
+      story: formatStoryForClient({ ...story.toObject(), user }, userId, baseUrl)
     });
   } catch (error) {
     console.error("[Story] createStory error:", error?.message || error);
@@ -153,7 +155,8 @@ exports.getFeedStories = async (req, res) => {
       .limit(100)
       .exec();
 
-    const list = stories.map((s) => formatStoryForClient(s, currentUserId));
+    const baseUrl = getBaseUrl(req);
+    const list = stories.map((s) => formatStoryForClient(s, currentUserId, baseUrl));
     return res.status(200).json({ success: true, stories: list });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

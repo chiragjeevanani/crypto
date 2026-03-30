@@ -12,6 +12,7 @@ import PostSplat from './PostSplat'
 import NFTBadge from '../shared/NFTBadge'
 import { formatCount, formatCurrency, timeAgo } from '../../utils/formatCurrency'
 import { playGiftSound } from '../../utils/giftSounds'
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
@@ -121,7 +122,7 @@ export default function PostCard({ post, onOpen }) {
     const handleShare = async (channel) => {
         sharePost(post.id, channel)
         const shareLink = `${window.location.origin}/home?post=${post.id}`
-        const shareText = `${post.creator?.username || 'User'}'s post on SocialEarn`
+        const shareText = `${post.creator?.username || 'User'}'s post on K & Q Reels`
 
         if (channel === 'copy_link' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
             try {
@@ -141,7 +142,7 @@ export default function PostCard({ post, onOpen }) {
         if (channel === 'instagram_story' || channel === 'instagram_dm') {
             if (typeof navigator !== 'undefined' && navigator.share) {
                 try {
-                    await navigator.share({ title: 'SocialEarn', text: shareText, url: shareLink })
+                    await navigator.share({ title: 'K & Q Reels', text: shareText, url: shareLink })
                 } catch {
                     // ignore cancellation
                 }
@@ -155,7 +156,7 @@ export default function PostCard({ post, onOpen }) {
         }
         if (channel === 'more' && typeof navigator !== 'undefined' && navigator.share) {
             try {
-                await navigator.share({ title: 'SocialEarn', text: shareText, url: shareLink })
+                await navigator.share({ title: 'K & Q Reels', text: shareText, url: shareLink })
             } catch {
                 // ignore cancellation
             }
@@ -202,7 +203,7 @@ export default function PostCard({ post, onOpen }) {
                     >
                         {post.creator?.avatar ? (
                             <img
-                                src={post.creator.avatar}
+                                src={optimizeCloudinaryUrl(post.creator.avatar, { width: 150 })}
                                 alt={post.creator.username}
                                 className="w-full h-full object-cover"
                                 onError={(e) => { e.currentTarget.style.display = 'none' }}
@@ -293,7 +294,7 @@ export default function PostCard({ post, onOpen }) {
                         )}
                         <video
                             ref={videoRef}
-                            src={post.media?.url}
+                            src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '60' })}
                             className="w-full h-full object-cover"
                             style={{ filter: post.filter || 'none' }}
                             loop
@@ -338,7 +339,7 @@ export default function PostCard({ post, onOpen }) {
                             />
                         )}
                         <img
-                            src={post.media?.url}
+                            src={optimizeCloudinaryUrl(post.media?.url, { width: 1080, quality: '80' })}
                             alt="post media"
                             className="w-full h-full object-cover"
                             style={{ filter: post.filter || 'none' }}

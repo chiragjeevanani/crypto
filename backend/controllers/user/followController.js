@@ -87,7 +87,7 @@ exports.getFollowers = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const followers = (user.followers || []).map((f) => ({
+    const followers = (user.followers || []).filter(f => f).map((f) => ({
       id: f._id.toString(),
       name: f.name || "User",
       handle: f.handle || "",
@@ -122,7 +122,7 @@ exports.getFollowing = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const following = (user.following || []).map((f) => ({
+    const following = (user.following || []).filter(f => f).map((f) => ({
       id: f._id.toString(),
       name: f.name || "User",
       handle: f.handle || "",

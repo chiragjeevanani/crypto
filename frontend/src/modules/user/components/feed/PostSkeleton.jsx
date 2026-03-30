@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 export default function PostSkeleton() {
     return (
-        <div className="rounded-3xl bg-surface/50 border border-surface2/30 overflow-hidden mb-6">
+        <div className="rounded-3xl bg-zinc-100/50 dark:bg-zinc-800/40 shadow-sm overflow-hidden mb-6">
             {/* Header */}
             <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">

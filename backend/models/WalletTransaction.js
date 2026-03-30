@@ -47,7 +47,7 @@ const walletTransactionSchema = new mongoose.Schema(
     },
     idempotencyKey: {
       type: String,
-      default: null
+      index: true
     },
     meta: {
       type: mongoose.Schema.Types.Mixed,
@@ -58,9 +58,6 @@ const walletTransactionSchema = new mongoose.Schema(
 );
 
 walletTransactionSchema.index({ userId: 1, createdAt: -1 });
-walletTransactionSchema.index(
-  { userId: 1, type: 1, idempotencyKey: 1 },
-  { unique: true, sparse: true }
-);
 
 module.exports = mongoose.model("WalletTransaction", walletTransactionSchema);
+

@@ -60,5 +60,16 @@ export const walletService = {
             method: "POST",
             headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
             body: JSON.stringify({ coins })
+        }),
+    initiateRecharge: (amount) =>
+        request("/payment/recharge", {
+            method: "POST",
+            body: JSON.stringify({ amount })
+        }),
+    verifyPayment: (transactionId, razorpayData) =>
+        request("/payment/verify", {
+            method: "POST",
+            body: JSON.stringify({ transactionId, ...razorpayData })
         })
 };
+

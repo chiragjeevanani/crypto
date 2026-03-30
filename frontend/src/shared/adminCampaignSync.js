@@ -1,4 +1,4 @@
-const ADMIN_CAMPAIGNS_KEY = 'socialearn_admin_campaigns_v1'
+const ADMIN_CAMPAIGNS_KEY = 'K & Q Reels_admin_campaigns_v1'
 
 const DEFAULT_ADMIN_CAMPAIGNS = [
     {
