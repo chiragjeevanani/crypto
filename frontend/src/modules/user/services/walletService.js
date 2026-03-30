@@ -70,6 +70,11 @@ export const walletService = {
         request("/payment/verify", {
             method: "POST",
             body: JSON.stringify({ transactionId, ...razorpayData })
+        }),
+    sendGift: (giftId, receiverId, postId, reelId) =>
+        request("/wallet/gift", {
+            method: "POST",
+            body: JSON.stringify({ giftId, receiverId, postId, reelId })
         })
 };
 

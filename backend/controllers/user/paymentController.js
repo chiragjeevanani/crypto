@@ -16,9 +16,7 @@ const initiateRecharge = async (req, res) => {
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-        const config = await getAdminConfig();
-        const coinRate = Number(config.coinRate);
-        const coins = Math.round(amount * coinRate);
+        const coins = Number(amount); // Enforce 1:1 ratio for real amount display
 
         // Razorpay Instance
         const instance = new Razorpay({

@@ -10,10 +10,10 @@ function round2(value) {
 
 export const useWalletStore = create((set, get) => ({
     inrWallet: 0,
-    cryptoWallet: 0.02,
+    cryptoWallet: 0,
     earningsWallet: 0,
-    balance: 0, // kept for backward compatibility (withdrawable = earnings wallet)
-    giftSpendWallet: 'inr', // inr | crypto
+    balance: 0, 
+    giftSpendWallet: 'inr', 
     walletRates: { inrPerCrypto: INR_PER_CRYPTO },
 
     giftEarnings: 0,
@@ -45,7 +45,7 @@ export const useWalletStore = create((set, get) => ({
             set({
                 inrWallet: rechargeCoins,
                 earningsWallet: earningCoins,
-                balance: earningCoins,
+                balance: rechargeCoins + earningCoins,
                 walletLoading: false,
             })
         } catch (error) {

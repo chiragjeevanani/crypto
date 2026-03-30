@@ -94,6 +94,19 @@ const initSocket = (server) => {
         // Broadcast to others in the room
         socket.to(roomId).emit("receive_message", formattedMsg);
         
+        // Notify the receiver privately if they are online but NOT necessarily in the room
+        const receiverSocketId = onlineUsers.get(receiver.toString());
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("new_message_alert", {
+                roomId,
+                message: formattedMsg,
+                chat: {
+                   id: sender.toString(),
+                   username: "Other" // Placeholder, client usually knows who sent it or fetches updated list
+                }
+            });
+        }
+        
         // Notify sender to update their own ConversationList
         socket.emit("own_message_sent", { ...formattedMsg, senderId: receiver.toString(), receiverId: sender.toString() });
 

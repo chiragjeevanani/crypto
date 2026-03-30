@@ -57,6 +57,7 @@ export default function HomePage() {
         [posts],
     )
     const [reelFeed, setReelFeed] = useState([])
+    const [reelFeedLoading, setReelFeedLoading] = useState(false)
     const [reelFeedError, setReelFeedError] = useState('')
 
     const reelsStartIndex = useMemo(() => {
@@ -85,6 +86,7 @@ export default function HomePage() {
         if (!isReels) return
         let mounted = true
         const load = () => {
+            setReelFeedLoading(true)
             reelFeedService.getFeed(6)
                 .then((items) => {
                     if (mounted) {
@@ -97,6 +99,9 @@ export default function HomePage() {
                         setReelFeed([])
                         setReelFeedError(err?.message || 'Failed to load reels feed')
                     }
+                })
+                .finally(() => {
+                    if (mounted) setReelFeedLoading(false)
                 })
         }
         load()
@@ -591,12 +596,20 @@ export default function HomePage() {
                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                         Reels
                     </p>
-                    {reelFeed.length === 0 && !reelFeedError && (
+                    {reelFeedLoading ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <ReelSkeleton />
+                            <ReelSkeleton />
+                            <ReelSkeleton />
+                            <ReelSkeleton />
+                            <ReelSkeleton />
+                            <ReelSkeleton />
+                        </div>
+                    ) : reelFeed.length === 0 && !reelFeedError ? (
                         <p className="mt-2 text-sm" style={{ color: 'var(--color-muted)' }}>
                             No video posts yet.
                         </p>
-                    )}
-                    {reelFeedError && (
+                    ) : reelFeedError && (
                         <p className="mt-2 text-sm" style={{ color: 'var(--color-muted)' }}>
                             {reelFeedError}
                         </p>

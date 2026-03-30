@@ -38,9 +38,8 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
         if (!socket.connected) socket.connect()
 
         const handleNewMessage = (msg) => {
+            const targetUserId = msg.senderId
             setConversations(prev => {
-                // Find the user who sent it (receiver in own_message case)
-                const targetUserId = msg.senderId
                 const index = prev.findIndex(c => c.user.id === targetUserId)
                 
                 if (index !== -1) {
@@ -54,18 +53,29 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                             text: msg.text,
                             timestamp: msg.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
                             unreadCount: isNowActive ? 0 : (msg.isOwn ? 0 : (c.lastMessage?.unreadCount || 0) + 1)
-                        }
+                        },
+                        isTyping: false
                     }
                     
-                    // Remove from old position and add to top
                     const filtered = updated.filter((_, i) => i !== index)
                     return [newItem, ...filtered]
                 } else {
-                    // Refresh if not in list
                     fetchConversations()
                     return prev
                 }
             })
+        }
+
+        const handleTyping = ({ roomId, userId }) => {
+            setConversations(prev => prev.map(c => 
+                c.user.id === userId ? { ...c, isTyping: true } : c
+            ))
+        }
+
+        const handleStopTyping = ({ roomId, userId }) => {
+            setConversations(prev => prev.map(c => 
+                c.user.id === userId ? { ...c, isTyping: false } : c
+            ))
         }
 
         const handleStatusChanged = ({ userId, status }) => {
@@ -74,20 +84,20 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
             ))
         }
 
-        const handleSeenUpdate = ({ roomId, userId }) => {
-            // Update seen status
-        }
-
         socket.on('receive_message', handleNewMessage)
+        socket.on('new_message_alert', (data) => handleNewMessage(data.message))
         socket.on('own_message_sent', (msg) => handleNewMessage({ ...msg, isOwn: true }))
         socket.on('user_status_changed', handleStatusChanged)
-        socket.on('messages_seen_update', handleSeenUpdate)
+        socket.on('user_typing', handleTyping)
+        socket.on('user_stop_typing', handleStopTyping)
 
         return () => {
             socket.off('receive_message', handleNewMessage)
+            socket.off('new_message_alert')
             socket.off('own_message_sent')
             socket.off('user_status_changed', handleStatusChanged)
-            socket.off('messages_seen_update', handleSeenUpdate)
+            socket.off('user_typing', handleTyping)
+            socket.off('user_stop_typing', handleStopTyping)
         }
     }, [fetchConversations, selectedChatId])
 
@@ -234,7 +244,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                                 </div>
                                 <div className="flex items-center justify-between mt-0.5">
                                     <p className={`text-xs truncate ${conv.lastMessage?.unreadCount > 0 ? 'font-bold' : ''}`} style={{ color: conv.lastMessage?.unreadCount > 0 ? 'var(--color-text)' : 'var(--color-muted)' }}>
-                                        {conv.lastMessage?.text}
+                                        {conv.isTyping ? <span className="text-blue-500 italic">Typing...</span> : conv.lastMessage?.text}
                                     </p>
                                     {conv.lastMessage?.unreadCount > 0 && (
                                         <div 

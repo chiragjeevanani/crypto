@@ -64,6 +64,7 @@ import SearchPage from './modules/user/pages/SearchPage'
 import MessagingPage from './modules/user/pages/messaging/MessagingPage'
 import NotificationsPage from './modules/user/pages/NotificationsPage'
 import GlobalModal from './modules/user/components/common/GlobalModal'
+import SocketHandler from './modules/user/components/common/SocketHandler'
 
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
@@ -86,6 +87,7 @@ export default function App() {
   return (
     <>
       <GlobalModal />
+      <SocketHandler />
       <BrowserRouter>
       <Routes>
         <Route path="/admin/login" element={<LoginPage />} />
