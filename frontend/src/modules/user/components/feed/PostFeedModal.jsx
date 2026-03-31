@@ -16,7 +16,7 @@ import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 function ReelPost({ post, active }) {
     const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission } = useFeedStore()
-    const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
+    const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
     const handleLike = () => {
@@ -34,17 +34,27 @@ function ReelPost({ post, active }) {
     const creatorInitial = (post.creator?.username || 'U').charAt(0)
     const splat = splats[post.id]
     const earnings = earningsByPostId?.[post.id] ?? post.earnings ?? 0
-    const handleGift = (gift) => {
-        const spend = spendGiftFromSelectedWallet(gift.price)
-        if (!spend?.ok) {
-            if (spend?.error === 'insufficient_balance') {
+    const handleGift = async (gift) => {
+        const receiverId = post.creator?._id || post.creator?.id
+        const postId = post._id || post.id
+        
+        const result = await performGift({
+            gift,
+            receiverId,
+            postId,
+            reelId: postId
+        })
+        if (!result.ok) {
+            if (result.error === 'insufficient_balance') {
                 navigate('/wallet')
             }
             return
         }
         sendGift(post.id, gift)
         playGiftSound(gift.id)
-        if (post.creator.id === profile.id) addGiftEarning(gift.price)
+        const creatorIdStr = String(post.creator?._id || post.creator?.id || '')
+        const profileIdStr = String(profile?._id || profile?.id || '')
+        if (creatorIdStr === profileIdStr) addGiftEarning(gift.price)
         if (gift.price >= 5) triggerCoinRain()
     }
 

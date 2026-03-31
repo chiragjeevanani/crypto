@@ -39,6 +39,7 @@ const request = async (path, options = {}) => {
 
 export const walletService = {
     getBalance: () => request("/wallet/balance", { method: "GET" }),
+    getGifts: () => request("/wallet/gifts", { method: "GET" }),
     deposit: (amount, idempotencyKey) =>
         request("/wallet/deposit", {
             method: "POST",

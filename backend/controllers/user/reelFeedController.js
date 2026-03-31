@@ -34,11 +34,14 @@ exports.getReelsFeed = async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const interval = Math.max(3, Math.min(10, Number(req.query?.interval) || 6));
-    const currentUserId = req.user?.userId?.toString?.();
+    const currentUserId = req.user?.userId;
+    const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
+    const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
+
     const reels = await populateCreator(
       Post.find({ status: "approved", "media.type": "video" }).sort({ createdAt: -1 }).limit(200)
     ).exec();
-    const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId));
+    const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds));
 
     const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).lean();
     const now = new Date();

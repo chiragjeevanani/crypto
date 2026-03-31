@@ -236,6 +236,47 @@ body {
   animation: scroll-text 15s linear infinite;
 }
 
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-surface2);
+  border: none !important;
+}
+
+.animate-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+.light .animate-shimmer {
+  background-color: #f1f1f2;
+}
+
+.light .animate-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+}
+
 /* Mobile card baseline */
 .post-card-shell {
   border-bottom: 8px solid var(--color-surface2);
@@ -343,5 +384,15 @@ body {
 
   .nft-badge-glow {
     box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.16), 0 0 18px rgba(245, 158, 11, 0.2);
+  }
+}
+
+.post-media-aspect {
+  aspect-ratio: 4/5;
+}
+
+@media (min-width: 1024px) {
+  .post-media-aspect {
+    aspect-ratio: 4/3 !important;
   }
 }

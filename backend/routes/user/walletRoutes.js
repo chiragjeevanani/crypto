@@ -5,6 +5,7 @@ const {
   getBalance,
   deposit,
   sendGift,
+  listActiveGifts,
   listTransactions,
   withdraw
 } = require("../../controllers/user/walletController");
@@ -12,6 +13,8 @@ const {
 const router = express.Router();
 
 router.get("/balance", protect, getBalance);
+router.get("/gifts", protect, listActiveGifts);
+router.get("/gift", protect, listActiveGifts); 
 router.post("/deposit", protect, deposit);
 router.get("/transactions", protect, listTransactions);
 router.post("/withdraw", protect, rateLimit({ keyPrefix: "withdraw", windowMs: 60000, max: 3 }), withdraw);

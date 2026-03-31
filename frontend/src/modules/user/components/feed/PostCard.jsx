@@ -29,7 +29,7 @@ export default function PostCard({ post, onOpen }) {
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
         savedPostIds, toggleSavePost 
     } = useFeedStore()
-    const { addGiftEarning, spendGiftFromSelectedWallet } = useWalletStore()
+    const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const navigate = useNavigate()
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
@@ -83,13 +83,22 @@ export default function PostCard({ post, onOpen }) {
 
     const splat = splats[post.id]
 
-    const handleGift = (gift) => {
-        const spend = spendGiftFromSelectedWallet(gift.price)
-        if (!spend?.ok) {
-            setGiftError(spend?.message || 'Insufficient balance.')
+    const handleGift = async (gift) => {
+        const receiverId = post.creator?._id || post.creator?.id
+        const postId = post._id || post.id
+        
+        const result = await performGift({
+            gift,
+            receiverId,
+            postId,
+            reelId: postId
+        })
+
+        if (!result.ok) {
+            setGiftError(result.message || 'Insufficient balance.')
             setTimeout(() => {
                 setGiftError('')
-                if (spend?.error === 'insufficient_balance') {
+                if (result.error === 'insufficient_balance') {
                     navigate('/wallet')
                 }
             }, 1200)
@@ -97,7 +106,9 @@ export default function PostCard({ post, onOpen }) {
         }
         sendGift(post.id, gift)
         playGiftSound(gift.id)
-        if (post.creator?.id === profile?.id) addGiftEarning(gift.price)
+        const creatorIdStr = String(post.creator?._id || post.creator?.id || '')
+        const profileIdStr = String(profile?._id || profile?.id || '')
+        if (creatorIdStr === profileIdStr) addGiftEarning(gift.price)
         setGiftError('')
         setEarningsFlash(true)
         setTimeout(() => setEarningsFlash(false), 600)
@@ -277,8 +288,7 @@ export default function PostCard({ post, onOpen }) {
             </div>
 
             <div
-                className={`w-full relative bg-black/5 ${onOpen ? 'cursor-pointer' : ''}`}
-                style={{ aspectRatio: post.media?.type === 'audio' ? 'auto' : '4/5' }}
+                className={`w-full relative bg-black/5 ${post.media?.type !== 'audio' ? 'post-media-aspect' : ''} ${onOpen ? 'cursor-pointer' : ''}`}
                 onClick={() => onOpen?.(post.id)}
             >
                 {post.media?.type === 'video' ? (

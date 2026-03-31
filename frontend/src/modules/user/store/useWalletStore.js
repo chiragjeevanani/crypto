@@ -19,9 +19,11 @@ export const useWalletStore = create((set, get) => ({
     giftEarnings: 0,
     taskEarnings: 0,
     nftEarnings: 0,
+    gifts: [],
     transactions: [],
     activeTab: 'transactions',
     walletLoading: false,
+    giftsLoading: false,
     transactionsLoading: false,
     walletError: '',
     earningsLedger: [
@@ -48,8 +50,37 @@ export const useWalletStore = create((set, get) => ({
                 balance: rechargeCoins + earningCoins,
                 walletLoading: false,
             })
+            // ensure gifts are also in sync
+            get().loadGifts()
         } catch (error) {
             set({ walletLoading: false, walletError: error.message })
+        }
+    },
+
+    loadGifts: async () => {
+        set({ giftsLoading: true })
+        try {
+            const data = await walletService.getGifts()
+            const list = Array.isArray(data?.gifts) ? data.gifts : []
+            // Preserve unique IDs while identifying animation types
+            const mapped = list.map(g => {
+                const emoji = g.icon || '🎁'
+                let animationId = 'gift'
+                if (emoji === '🌹') animationId = 'rose'
+                else if (emoji === '🥚') animationId = 'egg'
+                else if (emoji === '🍅') animationId = 'tomato'
+                else if (emoji === '💛' || emoji === '❤️' || emoji === '💖') animationId = 'heart'
+                
+                return { 
+                    ...g, 
+                    id: String(g.id || g._id),
+                    animationType: animationId,
+                    emoji 
+                }
+            })
+            set({ gifts: mapped, giftsLoading: false })
+        } catch {
+            set({ giftsLoading: false })
         }
     },
 
@@ -201,6 +232,33 @@ export const useWalletStore = create((set, get) => ({
             ],
         }))
         return { ok: true }
+    },
+
+    performGift: async ({ gift, receiverId, postId, reelId }) => {
+        const state = get()
+        const amount = Number(gift.price || 0)
+        const giftIdForBackend = gift.id
+
+        if (state.inrWallet < amount) {
+            return { ok: false, message: 'Not enough INR balance.', error: 'insufficient_balance' }
+        }
+
+        // Optimistic update
+        set((prev) => ({
+            inrWallet: round2(prev.inrWallet - amount),
+            balance: round2(prev.balance - amount)
+        }))
+
+        try {
+            await walletService.sendGift(giftIdForBackend, receiverId, postId, reelId)
+            // Final sync
+            await get().loadWallet()
+            return { ok: true }
+        } catch (error) {
+            // Revert
+            await get().loadWallet()
+            return { ok: false, message: error.message }
+        }
     },
 
     transferEarningsToWallet: ({ wallet, amount }) => {

@@ -10,17 +10,27 @@ const DEFAULT_GIFTS = [
 
 function normalizeGift(gift, idx = 0) {
     const price = Number(gift?.price || 0)
+    const emoji = String(gift?.emoji || gift?.icon || "🎁")
+    let animationType = String(gift?.animationType || "gift")
+    
+    // Map emojis to animation types if not already specified
+    if (emoji === '🌹') animationType = 'rose'
+    else if (emoji === '🥚') animationType = 'egg'
+    else if (emoji === '🍅') animationType = 'tomato'
+    else if (emoji === '💛' || emoji === '❤️' || emoji === '💖') animationType = 'heart'
+
     return {
-        id: String(gift?.id || `gift_${idx}_${Date.now()}`),
-        emoji: String(gift?.emoji || gift?.icon || '🎁'),
+        id: String(gift?._id || gift?.id || `gift_${idx}_${Date.now()}`),
+        emoji,
         name: String(gift?.name || 'Gift'),
         price: Number.isFinite(price) ? Math.max(2, Math.min(10, Math.round(price))) : 2,
         status: String(gift?.status || 'Active'),
+        animationType
     }
 }
 
 function normalizeCatalog(list) {
-    if (!Array.isArray(list) || !list.length) return DEFAULT_GIFTS.map(normalizeGift)
+    if (!Array.isArray(list) || !list.length) return DEFAULT_GIFTS.map((g, i) => normalizeGift(g, i))
     return list.map((gift, idx) => normalizeGift(gift, idx))
 }
 
@@ -50,22 +60,5 @@ export function saveGiftCatalog(items) {
 }
 
 export function syncGiftCatalogFromAdminGifts(adminGifts) {
-    const mapped = (adminGifts || []).map((gift, idx) => {
-        const emoji = gift.icon || '🎁'
-        let canonicalId = `gift_${gift.id || idx + 1}`
-        // Map common emojis to canonical ids so existing sounds/effects work
-        if (emoji === '🌹') canonicalId = 'rose'
-        if (emoji === '🥚') canonicalId = 'egg'
-        if (emoji === '🍅') canonicalId = 'tomato'
-        if (emoji === '💛' || emoji === '❤️' || emoji === '💖') canonicalId = 'heart'
-
-        return normalizeGift({
-            id: canonicalId,
-            emoji,
-            name: gift.name,
-            price: gift.price,
-            status: gift.status,
-        }, idx)
-    })
-    saveGiftCatalog(mapped)
+    saveGiftCatalog(adminGifts || [])
 }

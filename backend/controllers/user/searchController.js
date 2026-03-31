@@ -31,11 +31,14 @@ exports.search = async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .limit(12)
-      .populate("creator", "name handle avatar role followers")
+      .populate("creator", "name handle avatar role")
       .lean();
 
-    const currentUserId = req.user?.userId?.toString?.();
-    const reels = posts.map((post) => formatPostForUserFeed(post, baseUrl, null, currentUserId));
+    const currentUserId = req.user?.userId;
+    const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
+    const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
+
+    const reels = posts.map((post) => formatPostForUserFeed(post, baseUrl, null, currentUserId, followingIds));
 
     const mappedUsers = users.map((u) => {
       const rawHandle = u.handle || "";
@@ -119,33 +122,32 @@ exports.getSuggestedUsers = async (req, res) => {
 exports.getSuggestedReels = async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
-    const currentUserId = req.user?.userId?.toString?.();
+    const currentUserId = req.user?.userId;
+    const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
+    const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
     // Suggested reels: Recent approved videos.
-    // Suggested reels: Recent approved videos or all videos if none are explicitly approved yet (for dev)
     let posts = await Post.find({
       status: "approved",
       "media.type": "video"
     })
       .sort({ createdAt: -1 })
       .limit(10)
-      .populate("creator", "name handle avatar role followers")
+      .populate("creator", "name handle avatar role")
       .lean();
 
     if (posts.length === 0) {
-      // Fallback to any videos if no approved ones
       posts = await Post.find({
         "media.type": "video"
       })
         .sort({ createdAt: -1 })
         .limit(10)
-        .populate("creator", "name handle avatar role followers")
+        .populate("creator", "name handle avatar role")
         .lean();
     }
 
-    console.log(`Found ${posts.length} suggested reels for user ${currentUserId}`);
-    const reels = posts.map((post) => formatPostForUserFeed(post, baseUrl, null, currentUserId));
-    return res.status(200).json({ success: true, reels });
+    const reeksWithFollow = posts.map((post) => formatPostForUserFeed(post, baseUrl, null, currentUserId, followingIds));
+    return res.status(200).json({ success: true, reels: reeksWithFollow });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -173,19 +175,23 @@ exports.getUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
     const baseUrl = getBaseUrl(req);
-    const user = await User.findById(id).select("name handle avatar bio followers following role").lean();
+    const user = await User.findById(id).select("name handle avatar bio role").lean();
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    const currentUserId = req.user?.userId;
+    const [followersCount, followingCount, isFollowing] = await Promise.all([
+      User.countDocuments({ following: id }),
+      User.countDocuments({ followers: id }),
+      currentUserId ? User.exists({ _id: id, followers: currentUserId }) : Promise.resolve(false)
+    ]);
+
     const rawHandle = user.handle || "";
     const handle = rawHandle
       ? (rawHandle.startsWith("@") ? rawHandle : `@${rawHandle}`)
       : `@${(user.name || "user").replace(/\s+/g, "").toLowerCase()}`;
-
-    const currentUserId = req.user?.userId;
-    const isFollowing = user.followers?.some(f => f.toString() === currentUserId?.toString()) || false;
 
     const mappedUser = {
       id: user._id?.toString() || "",
@@ -193,9 +199,9 @@ exports.getUserProfile = async (req, res) => {
       handle,
       avatar: avatarUrlFromUser(user, baseUrl),
       bio: user.bio || "",
-      followersCount: Array.isArray(user.followers) ? user.followers.length : 0,
-      followingCount: Array.isArray(user.following) ? user.following.length : 0,
-      isFollowing,
+      followersCount,
+      followingCount,
+      isFollowing: !!isFollowing,
       role: user.role
     };
 

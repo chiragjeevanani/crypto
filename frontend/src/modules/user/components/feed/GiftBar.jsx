@@ -14,30 +14,21 @@ const EMPTY_COUNTS = {}
 
 export default function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
     const { maxGiftsPerMinute } = usePlatformSettings()
-    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet } = useWalletStore()
+    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts } = useWalletStore()
     const { profile } = useUserStore()
     const giftCountsRaw = useFeedStore((s) => s.giftCountsByPostId?.[postId])
     const giftCounts = giftCountsRaw || EMPTY_COUNTS
     const currencySymbol = profile?.currencySymbol || '₹'
     const currencyCode = profile?.currencyCode || 'INR'
-    const [giftTypes, setGiftTypes] = useState(() => getActiveGiftCatalog())
+    
+    // Strictly dynamic: Only show gifts that exist in the backend database.
+    const giftTypes = Array.isArray(gifts) ? gifts : []
+
     const [rainTrigger, setRainTrigger] = useState(0)
     const [activeIcon, setActiveIcon] = useState('')
     const [confirmingGift, setConfirmingGift] = useState(null)
     const sentAtRef = useRef([])
 
-    useEffect(() => {
-        const sync = () => setGiftTypes(getActiveGiftCatalog())
-        const onStorage = (event) => {
-            if (event.key === 'K & Q Reels_gift_catalog_v1') sync()
-        }
-        window.addEventListener('gift-catalog-updated', sync)
-        window.addEventListener('storage', onStorage)
-        return () => {
-            window.removeEventListener('gift-catalog-updated', sync)
-            window.removeEventListener('storage', onStorage)
-        }
-    }, [])
 
     const handleGift = (gift) => {
         setConfirmingGift(gift)

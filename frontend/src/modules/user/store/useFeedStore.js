@@ -124,7 +124,8 @@ export const useFeedStore = create((set, get) => ({
     },
 
     sendGift: (postId, gift) => {
-        const { id, price, emoji } = gift
+        const { id, price, emoji, animationType } = gift
+        const animId = animationType || id
         const target = get().posts.find((p) => p.id === postId)
         if (target && target.allowGifts === false) return
 
@@ -138,7 +139,7 @@ export const useFeedStore = create((set, get) => ({
                 createdAt: new Date().toISOString(),
             })
         }
-        if (id === 'heart') {
+        if (animId === 'heart') {
             extraNotifications.push({
                 id: `note_followers_${Date.now()}`,
                 type: 'follower_broadcast',
@@ -173,12 +174,12 @@ export const useFeedStore = create((set, get) => ({
             unreadNotifications: state.unreadNotifications + extraNotifications.length,
         }))
 
-        // Trigger specialized "real" animations
-        if (id === 'egg' || id === 'tomato' || id === 'heart') {
+        // Trigger specialized "real" animations using animId
+        if (animId === 'egg' || animId === 'tomato' || animId === 'heart') {
             set((state) => ({
-                splats: { ...state.splats, [postId]: { type: id, key: Date.now() } }
+                splats: { ...state.splats, [postId]: { type: animId, key: Date.now() } }
             }))
-        } else if (id === 'rose') {
+        } else if (animId === 'rose') {
             set((state) => ({ roseTrigger: state.roseTrigger + 1 }))
         }
     },

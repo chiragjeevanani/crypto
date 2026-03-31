@@ -212,7 +212,7 @@ const sendGift = async (req, res) => {
               meta: { senderId, postId, reelId }
             }
           ],
-          { session }
+          { session, ordered: true }
         );
         debitTx = sentTx;
         creditTx = receivedTx;
@@ -365,10 +365,32 @@ const withdraw = async (req, res) => {
   }
 };
 
+const listActiveGifts = async (req, res) => {
+  try {
+    const gifts = await Gift.find({ status: "Active" })
+      .sort({ price: 1 })
+      .exec();
+    return res.status(200).json({
+      success: true,
+      gifts: gifts.map(g => ({
+        id: g._id.toString(),
+        name: g.name,
+        icon: g.icon || "🎁",
+        price: g.price,
+        value: g.value,
+        usage: g.usage || 0
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getBalance,
   deposit,
   sendGift,
+  listActiveGifts,
   listTransactions,
   withdraw
 };

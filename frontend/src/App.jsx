@@ -10,6 +10,7 @@ import TermsConditionsPage from './modules/user/pages/TermsConditionsPage'
 import PrivacyPolicyPage from './modules/user/pages/PrivacyPolicyPage'
 import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPage'
 import { useUserStore } from './modules/user/store/useUserStore'
+import { useWalletStore } from './modules/user/store/useWalletStore'
 import { useFeedStore } from './modules/user/store/useFeedStore'
 import { useEffect } from 'react'
 
@@ -68,6 +69,7 @@ import SocketHandler from './modules/user/components/common/SocketHandler'
 
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
+  const { loadWallet, loadGifts } = useWalletStore()
   const { fetchSavedPostIds } = useFeedStore()
 
   useEffect(() => {
@@ -81,8 +83,10 @@ export default function App() {
   useEffect(() => {
     if (authChecked && isAuthenticated) {
       fetchSavedPostIds()
+      loadWallet()
+      loadGifts()
     }
-  }, [authChecked, isAuthenticated, fetchSavedPostIds])
+  }, [authChecked, isAuthenticated, fetchSavedPostIds, loadWallet, loadGifts])
 
   return (
     <>

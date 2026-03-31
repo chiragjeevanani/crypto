@@ -146,11 +146,14 @@ const injectCampaignCards = (posts, campaigns, interval) => {
 exports.getPosts = async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
-    const currentUserId = req.user?.userId?.toString?.();
+    const currentUserId = req.user?.userId;
+    const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
+    const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
+
     const posts = await populateCreator(
       Post.find({ status: "approved" }).sort({ createdAt: -1 }).limit(200)
     ).exec();
-    const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId));
+    const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds));
 
     // Interleave Active Campaigns
     const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).limit(10).lean();
@@ -220,11 +223,14 @@ exports.getPosts = async (req, res) => {
  */
 exports.getPostById = async (req, res) => {
   try {
-    const currentUserId = req.user?.userId?.toString?.();
+    const currentUserId = req.user?.userId;
+    const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
+    const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
+
     const post = await populateCreator(Post.findOne({ _id: req.params.id, status: "approved" })).exec();
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
     const baseUrl = getBaseUrl(req);
-    const formatted = formatPostForUserFeed(post, baseUrl, null, currentUserId);
+    const formatted = formatPostForUserFeed(post, baseUrl, null, currentUserId, followingIds);
     return res.status(200).json({ success: true, post: formatted });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

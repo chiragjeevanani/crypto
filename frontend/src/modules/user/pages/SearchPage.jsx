@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { searchService } from '../services/searchService'
 import { postService } from '../services/postService'
 import { useUserStore } from '../store/useUserStore'
+import { SearchShimmer } from '../components/common/SearchShimmer'
 
 export default function SearchPage() {
     const navigate = useNavigate()
@@ -105,12 +106,13 @@ export default function SearchPage() {
                 />
             </div>
 
-            {loading && (
-                <p className="text-xs mb-3" style={{ color: 'var(--color-muted)' }}>Searching...</p>
-            )}
-            {error && (
-                <p className="text-xs mb-3" style={{ color: 'var(--color-muted)' }}>{error}</p>
-            )}
+            {loading ? (
+                <SearchShimmer />
+            ) : (
+                <>
+                    {error && (
+                        <p className="text-xs mb-3" style={{ color: 'var(--color-muted)' }}>{error}</p>
+                    )}
 
             {trimmed && users.length > 0 && (
                 <div className="mb-6">
@@ -246,8 +248,10 @@ export default function SearchPage() {
                 </div>
             )}
 
-            {trimmed && !loading && users.length === 0 && reels.length === 0 && !error && (
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No results.</p>
+                    {trimmed && !loading && users.length === 0 && reels.length === 0 && !error && (
+                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No results.</p>
+                    )}
+                </>
             )}
         </div>
     )

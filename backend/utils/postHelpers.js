@@ -27,7 +27,12 @@ const avatarUrlFromUser = (user, baseUrl) => {
  * only role "User" gets real name/handle; others get "User" / "@user".
  * currentUserId: optional; if provided, isLiked is set from post.likedBy.
  */
-function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
+/**
+ * Format post for user feed.
+ * followingIds: optional Set of user IDs that current user is following.
+ * currentUserId: optional ID of user viewing the feed.
+ */
+function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, followingIds = null) {
   const c = creatorInfo || post.creator;
   const isUserRole = c?.role === "User";
   const displayName = isUserRole ? (c?.name ?? c?.username ?? "User") : "User";
@@ -38,12 +43,12 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
   const isLiked = Boolean(
     currentUserId && likedBy.some((oid) => oid && oid.toString() === currentUserId.toString())
   );
-  const currentUserIdStr = currentUserId?.toString?.();
-  const followers = Array.isArray(c?.followers) ? c.followers : [];
-  const isFollowing = Boolean(
-    currentUserIdStr &&
-    followers.some((oid) => oid && oid.toString() === currentUserIdStr)
-  );
+  
+  const creatorIdStr = c?._id?.toString?.() || c?.id || "";
+  const isFollowing = followingIds 
+    ? followingIds.has(creatorIdStr)
+    : false;
+
   const category = String(post.category || "").toLowerCase();
   const isBrandCategory = category.includes("brand") || category.includes("campaign") || category.includes("task");
   const postType = post.isNFT ? "nft" : (post.isBusiness ? "business" : (isBrandCategory ? "brand" : "regular"));
@@ -102,10 +107,10 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId) {
 }
 
 function populateCreator(query) {
-  // Include followers so we can compute "isFollowing" in user feed
-  // Also include campaign metadata
+  // We NO LONGER populate "followers" because it can be massive (>16MB) for popular creators.
+  // We compute "isFollowing" in the controller by comparing against current user's follow list.
   return query
-    .populate("creator", "name email handle avatar role followers")
+    .populate("creator", "name email handle avatar role")
     .populate("campaign", "title brandName bannerUrl rewardDetails status isActive")
     .populate("campaignSubmission", "votes voters")
     .populate("musicId", "title artist audioUrl duration thumbnail")

@@ -3,6 +3,7 @@ const dns = require("dns");
 const app = require("./app");
 const connectDB = require("./utils/db");
 const seedAdmin = require("./utils/seedAdmin");
+const seedGifts = require("./utils/seedGifts");
 const initSocket = require("./utils/socket");
 
 const BASE_PORT = Number(process.env.PORT) || 5000;
@@ -42,6 +43,7 @@ const startServer = async () => {
   try {
     await connectDB();
     await seedAdmin();
+    await seedGifts();
     const { server, port } = await listenWithFallback(BASE_PORT, MAX_PORT_RETRIES);
     initSocket(server);
     console.log(`Server running on port ${port}`);
