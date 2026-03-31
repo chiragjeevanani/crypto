@@ -205,28 +205,6 @@ export default function CreatePage() {
                 addPost(newPost)
             }
 
-            if (isNFT && nftPriceINR > 0 && nftPriceValid) {
-                // ... NFT logic remains same
-                const listingMediaType = newPost?.media?.type || mediaType
-                const listingMediaUrl = newPost?.media?.url || ''
-                const listingThumbnail = listingMediaType === 'video'
-                    ? listingMediaUrl
-                    : listingMediaUrl || mediaPreview || ''
-                addUserNFTListing({
-                    title: caption?.trim() ? caption.trim().slice(0, 40) : 'Creator NFT',
-                    thumbnail: listingThumbnail,
-                    mediaType: listingMediaType,
-                    mediaUrl: listingMediaUrl,
-                    price: nftPriceINR,
-                    creatorId: profile.id,
-                    creatorName: profile.username,
-                    creatorHandle: profile.handle,
-                    status: 'listed',
-                    views: 0,
-                    bids: 0,
-                })
-            }
-
             setPublished(true)
             setTimeout(() => {
                 setPublished(false)

@@ -40,6 +40,23 @@ const storySchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    filter: {
+      type: String,
+      trim: true,
+      default: "none"
+    },
+    mediaScale: {
+      type: Number,
+      default: 1
+    },
+    mediaPosition: {
+      x: { type: Number, default: 0 },
+      y: { type: Number, default: 0 }
+    },
+    musicPosition: {
+      x: { type: Number, default: 0.5 },
+      y: { type: Number, default: 0.25 }
+    },
     deletedAt: {
       type: Date,
       default: null

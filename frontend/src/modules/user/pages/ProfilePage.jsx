@@ -44,7 +44,7 @@ export default function ProfilePage() {
     const [following, setFollowing] = useState([])
     const [joinedCampaigns, setJoinedCampaigns] = useState([])
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
-    const [nftListings, setNftListings] = useState([])
+    const nftListings = useMemo(() => profilePosts.filter(p => p.isNFT), [profilePosts])
     const [savedPosts, setSavedPosts] = useState([])
     const [savedLoading, setSavedLoading] = useState(false)
 
@@ -143,20 +143,7 @@ export default function ProfilePage() {
         setEditAvatarFile(null)
     }
 
-    useEffect(() => {
-        const hydrate = () => setNftListings(getUserNFTListings())
-        hydrate()
-        const onUpdate = () => hydrate()
-        const onStorage = (event) => {
-            if (event.key === 'K & Q Reels_user_nft_listings_v1') hydrate()
-        }
-        window.addEventListener('nft-listings-updated', onUpdate)
-        window.addEventListener('storage', onStorage)
-        return () => {
-            window.removeEventListener('nft-listings-updated', onUpdate)
-            window.removeEventListener('storage', onStorage)
-        }
-    }, [])
+    // NFT sync no longer needed from LocalStorage
 
     useEffect(() => {
         let mounted = true

@@ -52,10 +52,10 @@ const safeUser = (user) => ({
   countryName: user.countryName || "India",
   currencyCode: user.currencyCode || "INR",
   currencySymbol: user.currencySymbol || "₹",
-  ...(user.phone && { phone: user.phone }),
-  ...(user.bio !== undefined && { bio: user.bio }),
-  ...(user.avatar !== undefined && { avatar: user.avatar }),
-  ...(user.handle !== undefined && { handle: user.handle })
+  phone: user.phone || "",
+  bio: user.bio || "",
+  avatar: user.avatar || "",
+  handle: user.handle || ""
 });
 
 const registerUser = async (req, res) => {
@@ -256,6 +256,8 @@ const updateProfile = async (req, res) => {
           } else {
             updates.avatar = raw;
           }
+        } else if (key === "bio") {
+          updates.bio = typeof req.body[key] === "string" ? req.body[key].trim() : req.body[key];
         } else {
           updates[key] = typeof req.body[key] === "string" ? req.body[key].trim() : req.body[key];
         }

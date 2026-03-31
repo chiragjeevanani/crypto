@@ -46,6 +46,10 @@ const formatStoryForClient = (story, currentUserId, baseUrl) => {
       thumbnail: story.musicId.thumbnail
     } : null,
     musicStartTime: story.musicStartTime || 0,
+    filter: story.filter || "none",
+    mediaScale: story.mediaScale || 1,
+    mediaPosition: story.mediaPosition || { x: 0, y: 0 },
+    musicPosition: story.musicPosition || { x: 0.5, y: 0.25 },
     createdAt: story.createdAt,
     isMe
   };
@@ -116,7 +120,17 @@ exports.createStory = async (req, res) => {
       captionStyle,
       musicTrackId,
       musicId: body.musicId || null,
-      musicStartTime: Number(body.musicStartTime) || 0
+      musicStartTime: Number(body.musicStartTime) || 0,
+      filter: body.filter || "none",
+      mediaScale: Number(body.mediaScale) || 1,
+      mediaPosition: {
+        x: Number(body.mediaPosX) || 0,
+        y: Number(body.mediaPosY) || 0,
+      },
+      musicPosition: {
+        x: Number(body.musicPosX) || 0.5,
+        y: Number(body.musicPosY) || 0.25,
+      }
     });
 
     const user = await User.findById(userId).select("name handle avatar").lean();

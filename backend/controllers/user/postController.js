@@ -85,16 +85,17 @@ exports.createPost = async (req, res) => {
       musicTrackId,
       isNFT,
       nftPriceINR,
-      status: "approved", // Temporarily auto-approve all posts
+      status: isNFT ? "pending" : "approved", 
       isBusiness,
       ctaType,
       redirectType,
       whatsappNumber,
       externalLink,
-      paymentStatus: "paid", // Temporarily mark all as paid
-      isPublished: true, // Temporarily auto-publish all
+      paymentStatus: isBusiness ? "pending" : "paid",
+      isPublished: true, 
       musicId: body.musicId || null,
-      musicStartTime: Number(body.musicStartTime) || 0
+      musicStartTime: Number(body.musicStartTime) || 0,
+      history: [{ action: isNFT ? "NFT Submission created" : "Post created" }]
     });
 
     const forFeed = formatPostForUserFeed(post, baseUrl, { ...user, _id: user?._id });

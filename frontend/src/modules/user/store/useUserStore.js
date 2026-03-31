@@ -340,7 +340,11 @@ export const useUserStore = create((set, get) => ({
             let user = mergedUser
             if (Object.keys(payload).length > 0) {
                 const response = await authService.updateProfile(token, payload)
-                user = { ...user, ...payload, ...response.user }
+                if (response?.user) {
+                    user = { ...user, ...response.user }
+                } else {
+                    user = { ...user, ...payload }
+                }
             }
             try {
                 const me = await authService.getMe(token)

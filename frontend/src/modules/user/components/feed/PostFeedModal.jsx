@@ -14,7 +14,11 @@ import PostSplat from './PostSplat'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
+import ReelSkeleton from './ReelSkeleton'
+
 function ReelPost({ post, active }) {
+    if (!post?.creator) return <ReelSkeleton />
+    
     const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const { profile } = useUserStore()

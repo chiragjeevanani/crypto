@@ -43,6 +43,8 @@ import CampaignCreatePage from './modules/admin/pages/CampaignCreatePage'
 import AdvertiserPanel from './modules/admin/pages/AdvertiserPanel'
 import AdminProfilePage from './modules/admin/pages/AdminProfilePage'
 import MusicManagement from './modules/admin/pages/MusicManagement'
+import GiftHistory from './modules/admin/pages/GiftHistory'
+import WalletTransactions from './modules/admin/pages/WalletTransactions'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -142,10 +144,12 @@ export default function App() {
             <Route path="nfts" element={<NFTModeration />} />
 
             <Route path="wallet" element={<WalletOverview />} />
+            <Route path="wallet/deposits" element={<WalletTransactions />} />
             <Route path="withdrawals" element={<FinancialManagement />} />
             <Route path="withdrawals/edit/:settlementId" element={<EditSettlement />} />
             <Route path="financials" element={<WalletOverview />} />
             <Route path="gifts" element={<GiftListPage />} />
+            <Route path="gifts/history" element={<GiftHistory />} />
             <Route path="gifts/create" element={<CreateGift />} />
             <Route path="gifts/trash" element={<GiftTrash />} />
             <Route path="commissions" element={<FinancialRules />} />

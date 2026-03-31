@@ -132,6 +132,7 @@ export default function AdminDashboard() {
     const activeMandates = campaigns.filter(c => c.status === 'Active').length;
     const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'pending').length;
     const flaggedPostsCount = posts.filter(p => p.status === 'Flagged' || p.status === 'Urgent').length;
+    const pendingNFTsCount = posts.filter(p => p.isNFT && (p.status === 'Pending' || p.status === 'pending')).length;
 
     const summaryStats = [
         {
@@ -157,6 +158,14 @@ export default function AdminDashboard() {
             icon: Clock,
             color: 'amber-500',
             path: '/admin/withdrawals'
+        },
+        {
+            label: 'Asset Moderation',
+            value: pendingNFTsCount.toString(),
+            change: 'NFT Approvals',
+            icon: ShieldCheck,
+            color: 'emerald-500',
+            path: '/admin/nfts'
         },
         {
             label: 'Content Risks',

@@ -22,6 +22,7 @@ const adminWithdrawalRoutes = require("./routes/admin/withdrawalRoutes");
 const adminMediaRoutes = require("./routes/admin/mediaRoutes");
 const userMessageRoutes = require("./routes/user/messageRoutes");
 const userPaymentRoutes = require("./routes/user/paymentRoutes");
+const adminTransactionRoutes = require("./routes/admin/transactionRoutes");
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api/admin/campaigns", adminCampaignRoutes);
 app.use("/api/admin/config", adminConfigRoutes);
 app.use("/api/admin/media", adminMediaRoutes);
 app.use("/api/admin/withdrawals", adminWithdrawalRoutes);
+app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/user/messages", userMessageRoutes);
 app.use("/api/payment", userPaymentRoutes);
 

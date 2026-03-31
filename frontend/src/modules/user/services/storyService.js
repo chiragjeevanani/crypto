@@ -16,13 +16,19 @@ export const storyService = {
     return data.stories || [];
   },
 
-  async createStory({ file, caption, musicTrackId, musicId, musicStartTime, captionPosX, captionPosY, captionTextColor, captionBgColor }) {
+  async createStory({ file, caption, musicTrackId, musicId, musicStartTime, captionPosX, captionPosY, captionTextColor, captionBgColor, filter, mediaScale, mediaPosX, mediaPosY }) {
     const form = new FormData();
     if (file) form.append("media", file);
     if (caption) form.append("caption", caption);
     if (musicId) form.append("musicId", musicId);
     if (musicStartTime) form.append("musicStartTime", String(musicStartTime));
     if (musicTrackId) form.append("musicTrackId", musicTrackId);
+    if (filter) form.append("filter", filter);
+    if (typeof mediaScale === "number") form.append("mediaScale", String(mediaScale));
+    if (typeof mediaPosX === "number") form.append("mediaPosX", String(mediaPosX));
+    if (typeof mediaPosY === "number") form.append("mediaPosY", String(mediaPosY));
+    if (typeof musicPosX === "number") form.append("musicPosX", String(musicPosX));
+    if (typeof musicPosY === "number") form.append("musicPosY", String(musicPosY));
     if (typeof captionPosX === "number") form.append("captionPosX", String(captionPosX));
     if (typeof captionPosY === "number") form.append("captionPosY", String(captionPosY));
     if (captionTextColor) form.append("captionTextColor", captionTextColor);

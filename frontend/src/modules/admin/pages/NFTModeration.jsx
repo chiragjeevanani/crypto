@@ -16,60 +16,13 @@ import {
     MessageSquareX
 } from 'lucide-react';
 import { AdminPageHeader } from '../components/shared';
+import { moderationService } from '../services/moderationService';
 
-const initialNfts = [
-    {
-        id: 'NFT-901',
-        name: 'CyberPunk #442',
-        creator: 'PixelArtist',
-        collection: 'CyberVibe',
-        originalityScore: '98%',
-        status: 'pending',
-        image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&h=500&fit=crop',
-        history: [{ date: '2024-02-26 10:00', action: 'Submission created by PixelArtist' }]
-    },
-    {
-        id: 'NFT-902',
-        name: 'Neon Skater',
-        creator: 'StreetArt_X',
-        collection: 'UrbanLegends',
-        originalityScore: '42%',
-        status: 'pending',
-        image: 'https://images.unsplash.com/photo-1620321023374-d1a68fbc720d?w=500&h=500&fit=crop',
-        history: [{ date: '2024-02-26 11:30', action: 'Submission created by StreetArt_X' }]
-    },
-    {
-        id: 'NFT-903',
-        name: 'Golden Ape',
-        creator: 'CryptoKing',
-        collection: 'RareApes',
-        originalityScore: '100%',
-        status: 'approved',
-        image: 'https://images.unsplash.com/photo-1621619856624-42fd193a0661?w=500&h=500&fit=crop',
-        history: [
-            { date: '2024-02-20 09:00', action: 'Submission created by CryptoKing' },
-            { date: '2024-02-21 14:00', action: 'Approved by SuperAdmin' },
-            { date: '2024-02-23 16:20', action: 'Listed for trading at 0.5 ETH' }
-        ]
-    },
-    {
-        id: 'NFT-904',
-        name: 'Stolen Art #1',
-        creator: 'ScammerBot',
-        collection: 'FakePunks',
-        originalityScore: '12%',
-        status: 'rejected',
-        rejectReason: 'Low originality score, likely a duplicate of an existing asset.',
-        image: 'https://images.unsplash.com/photo-1605379399642-870262d3d051?w=500&h=500&fit=crop',
-        history: [
-            { date: '2024-02-25 08:00', action: 'Submission created by ScammerBot' },
-            { date: '2024-02-25 10:15', action: 'Rejected by SuperAdmin. Reason: Low originality score...' }
-        ]
-    }
-];
+const initialNfts = [];
 
 export default function NFTModeration() {
-    const [nfts, setNfts] = useState(initialNfts);
+    const [nfts, setNfts] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('pending');
 
     // Modals state
@@ -77,46 +30,65 @@ export default function NFTModeration() {
     const [rejectReason, setRejectReason] = useState('');
     const [historyAsset, setHistoryAsset] = useState(null);
 
-    const filteredNfts = nfts.filter(nft => nft.status === activeTab);
+    React.useEffect(() => {
+        loadData();
+    }, [activeTab]);
 
-    const logAction = (nftId, actionMsg) => {
-        setNfts(prev => prev.map(nft => {
-            if (nft.id === nftId) {
-                return {
-                    ...nft,
-                    history: [...nft.history, { date: new Date().toLocaleString(), action: actionMsg }]
-                }
-            }
-            return nft;
-        }));
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const data = await moderationService.fetchPosts({ isNFT: true, status: activeTab });
+            // Adapt real data to component interface
+            const adapted = data.map(p => ({
+                id: p.id,
+                name: p.caption || 'Untitled NFT',
+                creator: p.author || 'Anonymous',
+                collection: 'User Submission',
+                originalityScore: 'N/A',
+                status: p.status.toLowerCase(),
+                image: p.mediaUrl,
+                rejectReason: p.rejectReason || '',
+                history: Array.isArray(p.history) && p.history.length > 0 
+                    ? p.history.map(h => ({ date: new Date(h.date || Date.now()).toLocaleString(), action: h.action }))
+                    : [{ date: new Date(p.createdAt || Date.now()).toLocaleString(), action: 'Submission created' }]
+            }));
+            setNfts(adapted);
+        } catch (err) {
+            console.error("Failed to load NFTs", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleApprove = (nftId) => {
-        setNfts(prev => prev.map(nft => nft.id === nftId ? { ...nft, status: 'approved' } : nft));
-        logAction(nftId, 'Approved by Admin. Asset is now tradable.');
+    const handleApprove = async (nftId) => {
+        try {
+            await moderationService.approvePost(nftId);
+            setNfts(prev => prev.filter(nft => nft.id !== nftId));
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
-    const handleRejectSubmit = () => {
+    const handleRejectSubmit = async () => {
         if (!rejectAsset || !rejectReason.trim()) return;
 
-        setNfts(prev => prev.map(nft => nft.id === rejectAsset.id ? {
-            ...nft,
-            status: 'rejected',
-            rejectReason: rejectReason
-        } : nft));
-
-        // Notify Creator logic would go here (Backend call)
-        console.log(`Notification sent to ${rejectAsset.creator}: NFT Rejected. Reason: ${rejectReason}`);
-
-        logAction(rejectAsset.id, `Rejected by Admin. Reason: ${rejectReason}`);
-        setRejectAsset(null);
-        setRejectReason('');
+        try {
+            await moderationService.rejectPost(rejectAsset.id, rejectReason);
+            setNfts(prev => prev.filter(nft => nft.id !== rejectAsset.id));
+            setRejectAsset(null);
+            setRejectReason('');
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
-    const handleDisable = (nftId) => {
-        // Disabling prevents trading but preserves ownership
-        setNfts(prev => prev.map(nft => nft.id === nftId ? { ...nft, status: 'disabled' } : nft));
-        logAction(nftId, 'Disabled by Admin. Asset trading locked. Ownership preserved.');
+    const handleDisable = async (nftId) => {
+        try {
+            await moderationService.rejectPost(nftId, "Disabled by admin");
+            setNfts(prev => prev.filter(nft => nft.id !== nftId));
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
     return (
@@ -145,13 +117,19 @@ export default function NFTModeration() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <AnimatePresence>
-                    {filteredNfts.length === 0 && (
+                    {loading && (
+                         <div className="col-span-full py-20 text-center">
+                            <Clock className="w-10 h-10 text-primary mx-auto mb-3 animate-spin" />
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Loading assets...</p>
+                         </div>
+                    )}
+                    {!loading && nfts.length === 0 && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-20 text-center border-2 border-dashed border-surface rounded-xl">
                             <ImageIcon className="w-10 h-10 text-muted/30 mx-auto mb-3" />
                             <p className="text-[10px] font-bold text-muted uppercase tracking-widest">No assets found in {activeTab} status</p>
                         </motion.div>
                     )}
-                    {filteredNfts.map((nft) => (
+                    {!loading && nfts.map((nft) => (
                         <motion.div
                             layout
                             initial={{ opacity: 0, scale: 0.95 }}

@@ -57,7 +57,14 @@ const postSchema = new mongoose.Schema(
     externalLink: { type: String, trim: true, default: "" },
     isPublished: { type: Boolean, default: false },
     musicId: { type: mongoose.Schema.Types.ObjectId, ref: "Music", default: null },
-    musicStartTime: { type: Number, default: 0 }
+    musicStartTime: { type: Number, default: 0 },
+    history: [
+      {
+        date: { type: Date, default: Date.now },
+        action: { type: String, required: true },
+        admin: { type: String, default: "System" }
+      }
+    ]
   },
   { timestamps: true }
 );

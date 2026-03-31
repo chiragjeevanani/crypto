@@ -12,9 +12,20 @@ const STORY_AUDIO_TRACKS = [
     { id: '3', title: 'Chill Vibes' }
 ];
 
-// Default avatar when user has not uploaded a profile photo.
 // `person.png` is placed in the Vite `public` folder, so it is served from `/person.png`.
 const NO_IMAGE_AVATAR = '/person.png';
+
+const FILTERS = [
+    { name: 'Normal', value: 'none' },
+    { name: 'Clarendon', value: 'contrast(1.2) saturate(1.35)' },
+    { name: 'Gingham', value: 'brightness(1.05) hue-rotate(-10deg)' },
+    { name: 'Moon', value: 'grayscale(1) contrast(1.1) brightness(1.1)' },
+    { name: 'Lark', value: 'contrast(0.9)' },
+    { name: 'Reyes', value: 'sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)' },
+    { name: 'Juno', value: 'saturate(1.3)' },
+    { name: 'Slumber', value: 'saturate(0.66) hue-rotate(350deg)' },
+    { name: 'Crema', value: 'sepia(0.5) contrast(1.25)' },
+];
 
 export default function Stories() {
     const { profile } = useUserStore();
@@ -51,6 +62,9 @@ export default function Stories() {
     const [uploadError, setUploadError] = useState('');
     const [imageScale, setImageScale] = useState(1);
     const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+    const [musicPos, setMusicPos] = useState({ x: 0.5, y: 0.25 });
+    const [showFilters, setShowFilters] = useState(false);
+    const captionRef = useRef(null);
     
     useEffect(() => {
         return () => {
@@ -192,6 +206,10 @@ export default function Stories() {
                     captionStyle: s.captionStyle || null,
                     musicData: s.musicData || null,
                     musicStartTime: s.musicStartTime || 0,
+                    filter: s.filter || 'none',
+                    mediaScale: s.mediaScale || 1,
+                    mediaPosition: s.mediaPosition || { x: 0, y: 0 },
+                    musicPosition: s.musicPosition || { x: 0.5, y: 0.25 },
                     createdAt: s.createdAt,
                 })),
             });
@@ -214,6 +232,12 @@ export default function Stories() {
                 captionPosY: captionPos.y,
                 captionTextColor,
                 captionBgColor,
+                filter: storyFilter,
+                mediaScale: imageScale,
+                mediaPosX: imagePosition.x,
+                mediaPosY: imagePosition.y,
+                musicPosX: musicPos.x,
+                musicPosY: musicPos.y,
             });
             await loadStories();
             setIsCreatingStory(false);
@@ -221,11 +245,14 @@ export default function Stories() {
             setStoryMusic(null);
             setStoryFile(null);
             setStoryCaption('');
+            if (captionRef.current) captionRef.current.innerText = '';
             setStoryMusicStartTime(0);
             setStoryFilter('none');
+            setShowFilters(false);
             setIsVideoPreview(false);
             setIsTextMode(false);
             setCaptionPos({ x: 0.5, y: 0.8 });
+            setMusicPos({ x: 0.5, y: 0.25 });
             setImageScale(1);
             setImagePosition({ x: 0, y: 0 });
         } catch (err) {
@@ -402,6 +429,10 @@ export default function Stories() {
                                             muted={isMuted || !!selectedStory.stories[activeStoryIndex].musicData}
                                             loop
                                             playsInline
+                                            style={{
+                                                filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
+                                                transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
+                                            }}
                                         />
                                     ) : (
                                         <img
@@ -409,9 +440,32 @@ export default function Stories() {
                                             src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { width: 1080, quality: '80' })}
                                             alt="Story Content"
                                             className="w-full h-full object-cover"
+                                            style={{
+                                                filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
+                                                transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
+                                            }}
                                         />
                                     )}
                                 </>
+                             )}
+
+                             {/* Music Sticker Viewer Overlay */}
+                             {selectedStory.stories?.[activeStoryIndex]?.musicData && (
+                                <div
+                                    className="absolute bg-white/90 text-black px-3 py-2 rounded-xl flex items-center gap-2 backdrop-blur-md shadow-lg skew-y-[-2deg] z-20 pointer-events-none"
+                                    style={{
+                                        left: `${(selectedStory.stories[activeStoryIndex].musicPosition?.x || 0.5) * 100}%`,
+                                        top: `${(selectedStory.stories[activeStoryIndex].musicPosition?.y || 0.25) * 100}%`,
+                                        transform: 'translate(-50%, -50%)',
+                                    }}
+                                >
+                                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-black">
+                                        <Music size={10} />
+                                    </div>
+                                    <p className="text-[10px] font-bold truncate max-w-[100px]">
+                                        {selectedStory.stories[activeStoryIndex].musicData.title}
+                                    </p>
+                                </div>
                              )}
 
                             {/* Story Progress Bar */}
@@ -614,7 +668,10 @@ export default function Stories() {
                                 <button onClick={() => setShowMusicPicker(!showMusicPicker)} className={`w-10 h-10 ${storyMusic ? 'bg-primary' : 'bg-black/40'} rounded-full flex items-center justify-center text-white backdrop-blur-md`}>
                                     <Music size={20} />
                                 </button>
-                                <button className="w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white backdrop-blur-md">
+                                <button 
+                                    onClick={() => setShowFilters(!showFilters)} 
+                                    className={`w-10 h-10 ${showFilters ? 'bg-primary' : 'bg-black/40'} rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors`}
+                                >
                                     <Sparkles size={20} />
                                 </button>
                                 <button
@@ -645,23 +702,32 @@ export default function Stories() {
                                             loop
                                         />
                                     ) : (
-                                        <img
-                                            src={storyMedia}
-                                            className={`w-full h-full object-cover transition-transform duration-150 ${
-                                                storyFilter === 'grayscale'
-                                                    ? 'filter grayscale'
-                                                    : storyFilter === 'sepia'
-                                                    ? 'filter sepia'
-                                                    : storyFilter === 'vivid'
-                                                    ? 'filter contrast-125 saturate-150'
-                                                    : ''
-                                            }`}
-                                            alt="Preview"
-                                            style={{
-                                                transform: `scale(${imageScale}) translate(${imagePosition.x}%, ${imagePosition.y}%)`,
+                                        <motion.div 
+                                            drag
+                                            dragMomentum={false}
+                                            onDragEnd={(_, info) => {
+                                                const bounds = storyCanvasRef.current?.getBoundingClientRect();
+                                                if (!bounds) return;
+                                                // Convert pixels to percentage offset for consistency
+                                                const xMove = (info.offset.x / bounds.width) * 100;
+                                                const yMove = (info.offset.y / bounds.height) * 100;
+                                                setImagePosition(prev => ({ 
+                                                    x: prev.x + xMove, 
+                                                    y: prev.y + yMove 
+                                                }));
                                             }}
-                                            draggable={false}
-                                        />
+                                            className="w-full h-full cursor-move touch-none"
+                                        >
+                                            <img
+                                                src={storyMedia}
+                                                className="w-full h-full object-cover transition-transform duration-150 pointer-events-none select-none"
+                                                alt="Preview"
+                                                style={{
+                                                    filter: FILTERS.find(f => f.name.toLowerCase() === storyFilter.toLowerCase())?.value || 'none',
+                                                    transform: `scale(${imageScale}) translate(${imagePosition.x}%, ${imagePosition.y}%)`,
+                                                }}
+                                            />
+                                        </motion.div>
                                     )}
                                 </div>
                             ) : (
@@ -674,31 +740,35 @@ export default function Stories() {
                             {/* Music Sticker Overlay */}
                             {storyMusic && (
                                 <motion.div
+                                    drag
+                                    dragMomentum={false}
+                                    onDragEnd={(_, info) => {
+                                        const bounds = storyCanvasRef.current?.getBoundingClientRect();
+                                        if (!bounds) return;
+                                        const x = (info.point.x - bounds.left) / bounds.width;
+                                        const y = (info.point.y - bounds.top) / bounds.height;
+                                        setMusicPos({
+                                            x: Math.min(Math.max(x, 0.05), 0.95),
+                                            y: Math.min(Math.max(y, 0.05), 0.95),
+                                        });
+                                    }}
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
-                                    className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 text-black px-4 py-3 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-2xl skew-y-[-2deg]"
+                                    className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 text-black px-4 py-3 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-2xl skew-y-[-2deg] z-[50] cursor-move touch-none"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
                                         <Music size={14} />
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 pointer-events-none">
                                         <p className="text-[11px] font-bold truncate max-w-[120px]">{storyMusic.title}</p>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="text-[9px] font-bold text-black/50">{Math.floor(storyMusicStartTime)}s</span>
-                                            <input 
-                                                type="range"
-                                                min="0"
-                                                max={Math.max(0, (storyMusic.duration || 60) - 15)}
-                                                value={storyMusicStartTime}
-                                                onChange={(e) => {
-                                                    const val = Number(e.target.value);
-                                                    setStoryMusicStartTime(val);
-                                                    if (isPlayingPreview && previewAudioRef.current) {
-                                                        previewAudioRef.current.currentTime = val;
-                                                    }
-                                                }}
-                                                className="flex-1 h-1 bg-black/10 rounded-full appearance-none accent-black"
-                                            />
+                                            <div className="flex-1 h-1 bg-black/10 rounded-full relative">
+                                                <div 
+                                                    className="absolute h-full bg-primary rounded-full" 
+                                                    style={{ width: `${(storyMusicStartTime / (storyMusic.duration || 60)) * 100}%` }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>
@@ -725,18 +795,37 @@ export default function Stories() {
                                         top: `${captionPos.y * 100}%`,
                                         transform: 'translate(-50%, -50%)',
                                         backgroundColor: captionBgColor,
-                                        color: captionTextColor,
-                                        minWidth: '40%',
+                                        minWidth: '150px',
                                         maxWidth: '80%',
+                                        zIndex: 100,
+                                        touchAction: 'none'
                                     }}
-                                    className="px-3 py-1 rounded-lg text-sm font-semibold whitespace-pre-wrap text-center cursor-text z-20"
-                                    contentEditable
-                                    suppressContentEditableWarning
-                                    onInput={(e) => {
-                                        setStoryCaption(e.currentTarget.textContent || '');
-                                    }}
+                                    className="p-3 rounded-2xl shadow-2xl cursor-grab active:cursor-grabbing group"
                                 >
-                                    {storyCaption || 'Type your text'}
+                                    <textarea
+                                        ref={captionRef}
+                                        placeholder="Type your text"
+                                        value={storyCaption}
+                                        onChange={(e) => {
+                                            setStoryCaption(e.target.value);
+                                            e.target.style.height = 'auto';
+                                            e.target.style.height = e.target.scrollHeight + 'px';
+                                        }}
+                                        className="w-full bg-transparent outline-none border-none resize-none text-center font-bold text-lg placeholder:text-white/40 overflow-hidden leading-tight"
+                                        style={{
+                                            color: captionTextColor,
+                                            height: 'auto',
+                                            minHeight: '1.5em',
+                                            display: 'block',
+                                            width: '100%',
+                                        }}
+                                        rows={1}
+                                        autoFocus
+                                    />
+                                    {/* Drag handle */}
+                                    <div className="absolute -top-3 -right-3 w-6 h-6 bg-white rounded-full flex items-center justify-center text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Plus size={14} className="rotate-45" />
+                                    </div>
                                 </motion.div>
                             )}
 
@@ -765,56 +854,59 @@ export default function Stories() {
                                     </div>
                                 )}
                                 {storyMedia && !isVideoPreview && (
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span className="text-white/60 text-[10px] uppercase tracking-wider">Size</span>
+                                    <div className="flex flex-col gap-1.5 mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-white/60 text-[10px] uppercase tracking-wider font-bold shrink-0">Size</span>
                                             <input
                                                 type="range"
-                                                min="0.5"
-                                                max="2"
+                                                min="1"
+                                                max="3"
                                                 step="0.1"
                                                 value={imageScale}
                                                 onChange={(e) => setImageScale(Number(e.target.value))}
-                                                className="flex-1 h-2 rounded-full bg-white/20 accent-white"
+                                                className="flex-1 h-1 rounded-full bg-white/20 accent-white appearance-none"
                                             />
-                                            <span className="text-white/70 text-[10px] w-8">{Math.round(imageScale * 100)}%</span>
+                                            <span className="text-white/70 text-[10px] font-mono w-8 text-right">{Math.round(imageScale * 100)}%</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-white/60 text-[10px] uppercase tracking-wider shrink-0">Position</span>
-                                            <input
-                                                type="range"
-                                                min="-30"
-                                                max="30"
-                                                value={imagePosition.x}
-                                                onChange={(e) => setImagePosition((p) => ({ ...p, x: Number(e.target.value) }))}
-                                                className="flex-1 h-2 rounded-full bg-white/20 accent-white"
-                                            />
-                                            <input
-                                                type="range"
-                                                min="-30"
-                                                max="30"
-                                                value={imagePosition.y}
-                                                onChange={(e) => setImagePosition((p) => ({ ...p, y: Number(e.target.value) }))}
-                                                className="flex-1 h-2 rounded-full bg-white/20 accent-white"
-                                            />
-                                        </div>
+                                        <p className="text-[9px] text-white/40 italic">Touch image to move position</p>
                                     </div>
                                 )}
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="text-white/60 text-[10px] uppercase tracking-wider">
-                                        Filter
-                                    </span>
-                                    <select
-                                        value={storyFilter}
-                                        onChange={(e) => setStoryFilter(e.target.value)}
-                                        className="flex-1 px-3 py-1 rounded-full bg-black/40 text-white text-xs outline-none border border-white/20"
+
+                                {showFilters && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="space-y-1.5 p-3 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10"
                                     >
-                                        <option value="none">None</option>
-                                        <option value="grayscale">Grayscale</option>
-                                        <option value="sepia">Warm</option>
-                                        <option value="vivid">Vivid</option>
-                                    </select>
-                                </div>
+                                        <span className="text-white/60 text-[10px] uppercase tracking-wider font-bold block mb-1">
+                                            Filters
+                                        </span>
+                                        <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1.5 touch-pan-x">
+                                            {FILTERS.map((f) => (
+                                                <button
+                                                    key={f.name}
+                                                    type="button"
+                                                    onClick={() => setStoryFilter(f.name.toLowerCase())}
+                                                    className="flex flex-col items-center gap-1 shrink-0"
+                                                >
+                                                    <div 
+                                                        className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${storyFilter === f.name.toLowerCase() ? 'border-primary ring-2 ring-primary/20' : 'border-white/10'}`}
+                                                    >
+                                                        <img 
+                                                            src={storyMedia || "https://i.pravatar.cc/150"} 
+                                                            className="w-full h-full object-cover"
+                                                            style={{ filter: f.value }}
+                                                            alt=""
+                                                        />
+                                                    </div>
+                                                    <span className={`text-[9px] font-bold ${storyFilter === f.name.toLowerCase() ? 'text-primary' : 'text-white/60'}`}>
+                                                        {f.name}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
                             </div>
 
                             {/* Music Picker Bottom Sheet */}

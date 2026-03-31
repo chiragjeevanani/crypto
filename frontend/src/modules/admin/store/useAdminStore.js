@@ -5,6 +5,7 @@ import { userService } from '../services/userService';
 import { campaignService } from '../services/campaignService';
 import { moderationService } from '../services/moderationService';
 import { settingsService } from '../services/settingsService';
+import { financialService } from '../services/financialService';
 import { useCampaignStore } from '../../user/store/useCampaignStore';
 import { patchKYCSubmission } from '../../../shared/kycSync';
 import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
@@ -22,6 +23,8 @@ export const useAdminStore = create((set, get) => ({
     postDetail: null,
     ledger: [],
     auditLogs: [],
+    deposits: [],
+    giftHistory: [],
     suspiciousUsers: [],
     settings: null,
     prdMetrics: null,
@@ -162,6 +165,17 @@ export const useAdminStore = create((set, get) => ({
 
     getUserFinancialSnapshot: (userId) => get().execute(async () => {
         return await withdrawalService.getUserFinancialSnapshot(userId);
+    }),
+
+    // Actions - Financial Transactions
+    loadDeposits: (params) => get().execute(async () => {
+        const deposits = await financialService.fetchDeposits(params);
+        set({ deposits });
+    }),
+
+    loadGiftHistory: (params) => get().execute(async () => {
+        const giftHistory = await financialService.fetchGiftHistory(params);
+        set({ giftHistory });
     }),
 
     // Actions - Users

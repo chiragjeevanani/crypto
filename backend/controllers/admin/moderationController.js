@@ -29,7 +29,9 @@ exports.getPosts = async (req, res) => {
         status: p.status === "approved" ? "Approved" : p.status === "rejected" ? "Rejected" : "Pending",
         thumbnail: url,
         mediaUrl: url,
-        isNFT: Boolean(p.isNFT)
+        isNFT: Boolean(p.isNFT),
+        history: p.history || [],
+        createdAt: p.createdAt
       };
     });
     return res.status(200).json({ success: true, posts: adminList });
@@ -81,6 +83,13 @@ exports.updatePostStatus = async (req, res) => {
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
     post.status = approved ? "approved" : "rejected";
     if (reason) post.rejectReason = reason;
+
+    // Log in history
+    post.history.push({
+      action: approved ? "Approved by Admin. Asset is now tradable." : `Rejected by Admin. Reason: ${reason || "No reason specified."}`,
+      admin: "SuperAdmin"
+    });
+
     await post.save();
     const baseUrl = getBaseUrl(req);
     return res.status(200).json({

@@ -76,7 +76,15 @@ const menuGroups = [
     {
         title: 'Money',
         items: [
-            { icon: Wallet, label: 'Wallet Overview', path: '/admin/wallet' },
+            { 
+                icon: Wallet, 
+                label: 'Wallet', 
+                path: '/admin/wallet',
+                children: [
+                    { label: 'Overview', path: '/admin/wallet' },
+                    { label: 'Deposit History', path: '/admin/wallet/deposits' }
+                ]
+            },
             { icon: Send, label: 'Withdrawals', path: '/admin/withdrawals', badge: 12 },
             {
                 icon: Gift,
@@ -84,6 +92,7 @@ const menuGroups = [
                 path: '/admin/gifts',
                 children: [
                     { label: 'Gift List', path: '/admin/gifts' },
+                    { label: 'Gift History', path: '/admin/gifts/history' },
                     { label: 'Add Gift', path: '/admin/gifts/create' },
                     { label: 'Deleted Gifts', path: '/admin/gifts/trash' }
                 ]

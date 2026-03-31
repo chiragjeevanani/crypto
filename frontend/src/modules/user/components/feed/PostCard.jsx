@@ -27,7 +27,7 @@ export default function PostCard({ post, onOpen }) {
     const { 
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
-        savedPostIds, toggleSavePost 
+        savedPostIds, toggleSavePost, voteCampaignSubmission
     } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const navigate = useNavigate()
