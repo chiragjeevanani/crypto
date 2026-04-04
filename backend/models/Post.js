@@ -18,6 +18,7 @@ const postSchema = new mongoose.Schema(
     },
     caption: { type: String, trim: true, default: "" },
     category: { type: String, trim: true, default: "General" },
+    subcategory: { type: String, trim: true, default: "" },
     filter: { type: String, trim: true, default: "none" },
     musicTrackId: { type: String, trim: true, default: "none" },
     isNFT: { type: Boolean, default: false },

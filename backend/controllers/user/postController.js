@@ -59,6 +59,7 @@ exports.createPost = async (req, res) => {
     const body = req.body || {};
     const caption = typeof body.caption === "string" ? body.caption.trim() : "";
     const category = typeof body.category === "string" ? body.category.trim() : "General";
+    const subcategory = typeof body.subcategory === "string" ? body.subcategory.trim() : "";
     const filter = typeof body.filter === "string" ? body.filter : "none";
     const musicTrackId = typeof body.musicTrackId === "string" ? body.musicTrackId : "none";
     const isNFT = body.isNFT === true || body.isNFT === "true";
@@ -94,6 +95,7 @@ exports.createPost = async (req, res) => {
       media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3" },
       caption,
       category,
+      subcategory,
       filter,
       musicTrackId,
       isNFT,

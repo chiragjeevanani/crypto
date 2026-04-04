@@ -14,10 +14,10 @@ import PostSplat from './PostSplat'
 import { formatCurrency, formatCount } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
-import ReelSkeleton from './ReelSkeleton'
+import ReelFullSkeleton from './ReelFullSkeleton'
 
 function ReelPost({ post, active }) {
-    if (!post?.creator) return <ReelSkeleton />
+    if (!post?.creator) return <ReelFullSkeleton />
     
     const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()

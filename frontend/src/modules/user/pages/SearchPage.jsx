@@ -12,6 +12,7 @@ export default function SearchPage() {
     const { profile } = useUserStore()
     const { categories, loadCategories } = useAdminStore()
     const [selectedCategory, setSelectedCategory] = useState('All')
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null)
     const [query, setQuery] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -82,19 +83,19 @@ export default function SearchPage() {
 
     const displayReels = useMemo(() => {
         let list = allPosts.filter(p => p.media?.type === 'video')
-        if (selectedCategory !== 'All') {
-            list = list.filter(p => p.category === selectedCategory)
+        if (selectedSubcategory) {
+            list = list.filter(p => p.subcategory === selectedSubcategory)
         }
         return list.slice(0, 12)
-    }, [allPosts, selectedCategory])
+    }, [allPosts, selectedSubcategory])
 
     const displayPosts = useMemo(() => {
         let list = allPosts.filter(p => p.media?.type !== 'video')
-        if (selectedCategory !== 'All') {
-            list = list.filter(p => p.category === selectedCategory)
+        if (selectedSubcategory) {
+            list = list.filter(p => p.subcategory === selectedSubcategory)
         }
         return list.slice(0, 12)
-    }, [allPosts, selectedCategory])
+    }, [allPosts, selectedSubcategory])
 
     const filteredPosts = useMemo(() => {
         if (!trimmed) return []
@@ -124,22 +125,22 @@ export default function SearchPage() {
                 />
             </div>
 
-            {/* Category Tabs */}
+            {/* Direct Subcategory Tabs from 'Post Type' */}
             {!trimmed && (
                 <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar -mx-1 px-1">
                     <button
-                        onClick={() => setSelectedCategory('All')}
-                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedCategory === 'All' ? 'bg-primary border-primary text-black' : 'bg-surface border-surface text-muted'}`}
+                        onClick={() => setSelectedSubcategory(null)}
+                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${!selectedSubcategory ? 'bg-primary border-primary text-black' : 'bg-surface border-surface text-muted'}`}
                     >
                         All
                     </button>
-                    {categories.map((cat) => (
+                    {(categories.find(c => c.name.toLowerCase() === 'post type')?.subcategories || []).map((sub) => (
                         <button
-                            key={cat._id}
-                            onClick={() => setSelectedCategory(cat.name)}
-                            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedCategory === cat.name ? 'bg-primary border-primary text-black' : 'bg-surface border-surface text-muted'}`}
+                            key={sub._id || sub.name}
+                            onClick={() => setSelectedSubcategory(sub.name)}
+                            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedSubcategory === sub.name ? 'bg-primary border-primary text-black' : 'bg-surface border-surface text-muted'}`}
                         >
-                            {cat.name}
+                            {sub.name}
                         </button>
                     ))}
                 </div>
@@ -289,8 +290,20 @@ export default function SearchPage() {
             )}
 
             {!trimmed && displayReels.length === 0 && displayPosts.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
-                    <p className="text-sm font-medium">No {selectedCategory !== 'All' ? selectedCategory : ''} content found yet.</p>
+                <div className="mt-4 px-1">
+                    {selectedSubcategory ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                            <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                                No content found in <span className="text-primary font-bold">#{selectedSubcategory}</span> yet.
+                            </p>
+                            <p className="text-xs text-muted mt-1">Try another category or check back later.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-6 opacity-50">Discovering Content...</p>
+                            <SearchShimmer />
+                        </>
+                    )}
                 </div>
             )}
 

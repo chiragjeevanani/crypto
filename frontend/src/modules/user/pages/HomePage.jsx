@@ -8,6 +8,7 @@ import { reelFeedService } from '../services/reelFeedService'
 import PostCard from '../components/feed/PostCard'
 import PostSkeleton from '../components/feed/PostSkeleton'
 import ReelSkeleton from '../components/feed/ReelSkeleton'
+import ReelFullSkeleton from '../components/feed/ReelFullSkeleton'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import Stories from '../components/feed/Stories'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
@@ -597,13 +598,8 @@ export default function HomePage() {
                         Reels
                     </p>
                     {reelFeedLoading ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReelSkeleton />
-                            <ReelSkeleton />
-                            <ReelSkeleton />
-                            <ReelSkeleton />
-                            <ReelSkeleton />
-                            <ReelSkeleton />
+                        <div className="fixed inset-0 z-50 bg-black">
+                            <ReelFullSkeleton />
                         </div>
                     ) : reelFeed.length === 0 && !reelFeedError ? (
                         <p className="mt-2 text-sm" style={{ color: 'var(--color-muted)' }}>

@@ -44,7 +44,8 @@ export default function CreatePage() {
     const [isNFT, setIsNFT] = useState(false)
     const { profile, kyc } = useUserStore()
     const { categories, loadCategories } = useAdminStore()
-    const [selectedCategory, setSelectedCategory] = useState('General')
+    const [selectedCategory, setSelectedCategory] = useState({ name: 'General', _id: null, subcategories: [] })
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null)
     const [mediaPreview, setMediaPreview] = useState(null)
     const [mediaFile, setMediaFile] = useState(null)
     const [mediaType, setMediaType] = useState('image')
@@ -114,16 +115,17 @@ export default function CreatePage() {
     }, [loadCategories])
 
     const categoryOptions = useMemo(() => {
-        const type = mediaType === 'video' ? 'reel' : 'post'
-        const filtered = categories.filter(c => c.type === 'all' || c.type === type)
-        const names = filtered.map(c => c.name)
-        if (!names.includes('General')) names.push('General')
-        return names
-    }, [categories, mediaType])
+        // Display only active categories
+        const active = categories.filter(c => c.isActive !== false)
+        if (!active.some(c => c.name === 'General')) {
+            active.push({ name: 'General', _id: 'gen_01', subcategories: [] })
+        }
+        return active
+    }, [categories])
 
     useEffect(() => {
-        if (!categoryOptions.includes(selectedCategory)) {
-            setSelectedCategory(categoryOptions[0] || 'General')
+        if (!categoryOptions.some(c => c.name === (selectedCategory?.name || selectedCategory))) {
+            setSelectedCategory(categoryOptions[0] || { name: 'General', subcategories: [] })
         }
     }, [categoryOptions, selectedCategory])
 
@@ -181,7 +183,8 @@ export default function CreatePage() {
             const formData = new FormData()
             formData.append('media', mediaFile)
             formData.append('caption', caption?.trim() || '')
-            formData.append('category', selectedCategory || 'General')
+            formData.append('category', selectedCategory?.name || selectedCategory || 'General')
+            formData.append('subcategory', selectedSubcategory?.name || '')
             formData.append('filter', activeFilter || 'none')
             formData.append('musicId', selectedMusic?.id || '')
             formData.append('musicStartTime', String(musicStartTime))
@@ -837,29 +840,52 @@ export default function CreatePage() {
                             </div>
                         )}
 
-                        {/* Step 6: Category */}
+                        {/* Step 6: Direct subcategory selection for 'Post Type' */}
                         {step === 6 && (
-                            <div>
-                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Select Category</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {categoryOptions.map((cat) => {
-                                        const active = cat === selectedCategory
-                                        return (
-                                            <motion.button
-                                                key={cat}
-                                                whileTap={{ scale: 0.93 }}
-                                                onClick={() => setSelectedCategory(cat)}
-                                                className="py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-150"
-                                                style={{
-                                                    background: active ? 'rgba(245,158,11,0.12)' : 'var(--color-surface)',
-                                                    border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                                    color: active ? 'var(--color-primary)' : 'var(--color-text)',
-                                                }}
-                                            >
-                                                {cat}
-                                            </motion.button>
-                                        )
-                                    })}
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Select Post Type / Theme</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {(categories.find(c => c.name.toLowerCase() === 'post type')?.subcategories || []).map((sub) => {
+                                            const active = selectedSubcategory?.name === sub.name
+                                            return (
+                                                <motion.button
+                                                    key={sub._id || sub.name}
+                                                    whileTap={{ scale: 0.93 }}
+                                                    onClick={() => {
+                                                        const parent = categories.find(c => c.name.toLowerCase() === 'post type')
+                                                        setSelectedCategory(parent || { name: 'Post Type' })
+                                                        setSelectedSubcategory(sub)
+                                                    }}
+                                                    className="py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-150"
+                                                    style={{
+                                                        background: active ? 'rgba(245,158,11,0.12)' : 'var(--color-surface)',
+                                                        border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                                        color: active ? 'var(--color-primary)' : 'var(--color-text)',
+                                                    }}
+                                                >
+                                                    {sub.name}
+                                                </motion.button>
+                                            )
+                                        })}
+                                        
+                                        {/* Fallback to 'General' if no subcategories or to ensure a default exists */}
+                                        <motion.button
+                                            whileTap={{ scale: 0.93 }}
+                                            onClick={() => {
+                                                setSelectedCategory({ name: 'General', subcategories: [] })
+                                                setSelectedSubcategory(null)
+                                            }}
+                                            className="py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-150"
+                                            style={{
+                                                background: (selectedCategory?.name === 'General' && !selectedSubcategory) ? 'rgba(245,158,11,0.12)' : 'var(--color-surface)',
+                                                border: `1px solid ${(selectedCategory?.name === 'General' && !selectedSubcategory) ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                                color: (selectedCategory?.name === 'General' && !selectedSubcategory) ? 'var(--color-primary)' : 'var(--color-text)',
+                                            }}
+                                        >
+                                            General
+                                        </motion.button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -891,8 +917,15 @@ export default function CreatePage() {
                                                 className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                 style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--color-primary)' }}
                                             >
-                                                {selectedCategory}
+                                                {selectedCategory?.name || selectedCategory || 'General'}
                                             </span>
+                                            {selectedSubcategory && (
+                                                <span
+                                                    className="text-[10px] px-2 py-0.5 rounded-full font-bold border border-primary/20 bg-primary/5 text-primary italic"
+                                                >
+                                                    #{selectedSubcategory.name}
+                                                </span>
+                                            )}
                                             {isBusiness && (
                                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                     style={{ background: 'rgba(59,130,246,0.12)', color: 'var(--color-blue)' }}>

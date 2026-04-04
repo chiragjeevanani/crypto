@@ -1,4 +1,6 @@
 const User = require("../../models/User");
+const { createNotification } = require("./notificationController");
+const { emitToUser } = require("../../utils/socket");
 
 /**
  * Toggle follow/unfollow another user.
@@ -57,6 +59,36 @@ exports.toggleFollowUser = async (req, res) => {
 
     const followerCount = targetUser.followers.length;
     const followingCount = currentUser.following.length;
+
+    // Notify target user when someone new follows them
+    if (!isAlreadyFollower) {
+      const senderHandle = currentUser.handle ? `@${currentUser.handle}` : currentUser.name;
+      const notif = await createNotification({
+        recipientId: targetUserId,
+        senderId: currentUserId,
+        type: "follow",
+        title: `${senderHandle} started following you`,
+        subtitle: "Tap to view their profile.",
+        meta: { followerId: currentUserId.toString() }
+      });
+      if (notif) {
+        emitToUser(String(targetUserId), "notification", {
+          id: notif._id.toString(),
+          type: "follow",
+          title: notif.title,
+          subtitle: notif.subtitle,
+          createdAt: notif.createdAt,
+          isRead: false,
+          meta: notif.meta,
+          sender: {
+            id: currentUserId.toString(),
+            name: currentUser.name,
+            handle: currentUser.handle,
+            avatar: currentUser.avatar
+          }
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,

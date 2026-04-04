@@ -4,7 +4,7 @@ const app = require("./app");
 const connectDB = require("./utils/db");
 const seedAdmin = require("./utils/seedAdmin");
 const seedGifts = require("./utils/seedGifts");
-const initSocket = require("./utils/socket");
+const { initSocket } = require("./utils/socket");
 
 const BASE_PORT = Number(process.env.PORT) || 5000;
 const MAX_PORT_RETRIES = Number(process.env.MAX_PORT_RETRIES) || 10;

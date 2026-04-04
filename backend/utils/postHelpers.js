@@ -83,6 +83,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
     createdAt: post.createdAt,
     status: post.status,
     category: post.category,
+    subcategory: post.subcategory || "",
     musicTrackId: post.musicTrackId,
     campaign: post.campaign || null,
     campaignSubmission: post.campaignSubmission || null,

@@ -1,18 +1,20 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, Megaphone, Plus, User, PlayCircle } from 'lucide-react'
+import { Home, Bell, Plus, User, PlayCircle } from 'lucide-react'
+import { useFeedStore } from '../../store/useFeedStore'
 
 const navItems = [
     { to: '/home', icon: Home, label: 'Home', key: 'home' },
     { to: '/home?view=reels', icon: PlayCircle, label: 'Reels', key: 'reels' },
     { to: '/create', icon: Plus, label: 'Create', isCreate: true, key: 'create' },
-    { to: '/tasks', icon: Megaphone, label: 'Campaigns', key: 'tasks' },
+    { to: '/notifications', icon: Bell, label: 'Activity', key: 'notifications' },
     { to: '/profile', icon: User, label: 'Profile', key: 'profile' },
 ]
 
 export default function BottomNavbar() {
     const location = useLocation()
     const navigate = useNavigate()
+    const { unreadNotifications } = useFeedStore()
     const searchParams = new URLSearchParams(location.search)
     const view = searchParams.get('view')
 
@@ -96,6 +98,14 @@ export default function BottomNavbar() {
                                     className="absolute top-0 h-0.5 w-6 rounded-full lg:hidden"
                                     style={{ background: 'var(--color-primary)' }}
                                 />
+                            )}
+                            {item.key === 'notifications' && unreadNotifications > 0 && (
+                                <span 
+                                    className="absolute -top-1.5 -right-1 min-w-[16px] h-[16px] rounded-full flex items-center justify-center bg-red-500 text-[9px] font-bold text-white border-2 border-surface"
+                                    style={{ borderColor: 'var(--color-surface)' }}
+                                >
+                                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                                </span>
                             )}
                         </div>
                     </button>

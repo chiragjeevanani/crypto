@@ -3,6 +3,35 @@ const mongoose = require("mongoose");
 const Message = require("../models/Message");
 const Post = require("../models/Post");
 
+// Shared map: userId (string) -> socketId
+// Controllers import emitToUser to push targeted events without importing io
+const onlineUsersMap = new Map();
+let _io = null;
+
+/**
+ * Push a socket event to a specific user if they are online.
+ * @param {string} userId
+ * @param {string} event
+ * @param {object} data
+ */
+const emitToUser = (userId, event, data) => {
+  if (!_io || !userId) return;
+  const socketId = onlineUsersMap.get(String(userId));
+  if (socketId) {
+    _io.to(socketId).emit(event, data);
+  }
+};
+
+/**
+ * Broadcast a socket event to ALL connected clients (global announcement).
+ * @param {string} event
+ * @param {object} data
+ */
+const broadcastAll = (event, data) => {
+  if (!_io) return;
+  _io.emit(event, data);
+};
+
 const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
@@ -12,7 +41,8 @@ const initSocket = (server) => {
     transports: ["websocket"]
   });
 
-  const onlineUsers = new Map(); // userId -> socketId
+  _io = io; // expose for emitToUser
+  const onlineUsers = onlineUsersMap; // alias to shared map
 
   io.on("connection", (socket) => {
     // We expect the user to emit their userId upon connection (or derive from auth if using middleware)
@@ -142,4 +172,5 @@ const initSocket = (server) => {
   return io;
 };
 
-module.exports = initSocket;
+module.exports = { initSocket, emitToUser, broadcastAll };
+

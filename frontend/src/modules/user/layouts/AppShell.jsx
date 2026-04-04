@@ -12,6 +12,7 @@ import {
     Trophy,
     PlayCircle,
     MessageCircle,
+    Bell,
 } from 'lucide-react'
 import BottomNavbar from '../components/shared/BottomNavbar'
 import CoinRain from '../components/shared/CoinRain'
@@ -34,9 +35,10 @@ const SIDEBAR_ITEMS = [
     { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
     { label: 'Campaigns', to: '/campaigns', icon: Megaphone, key: 'campaigns' },
     { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
+    { label: 'Notifications', to: '/notifications', icon: Bell, key: 'notifications' },
+    { label: 'Messages', to: '/messaging', icon: MessageCircle, key: 'messaging' },
     { label: 'Wallet', to: '/wallet', icon: Wallet, key: 'wallet' },
     { label: 'Profile', to: '/profile', icon: User, key: 'profile' },
-    { label: 'Messages', to: '/messaging', icon: MessageCircle, key: 'messaging' },
     { label: 'Logout', to: '/logout', icon: LogOut, key: 'logout' },
 ]
 
@@ -47,7 +49,7 @@ export default function AppShell() {
     const view = searchParams.get('view')
 
     const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore()
-    const { posts, pushNotification } = useFeedStore()
+    const { posts, pushNotification, unreadNotifications: notifTotal } = useFeedStore()
     const { kyc, setKYCFromSync, user, profile } = useUserStore()
 
     const [activeCampaigns, setActiveCampaigns] = useState([])
@@ -286,6 +288,14 @@ export default function AppShell() {
                                         className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold text-white bg-blue-500"
                                     >
                                         {unreadTotal}
+                                    </span>
+                                )}
+                                {item.key === 'notifications' && notifTotal > 0 && (
+                                    <span 
+                                        className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold text-white"
+                                        style={{ background: 'var(--color-primary)' }}
+                                    >
+                                        {notifTotal}
                                     </span>
                                 )}
                             </Link>

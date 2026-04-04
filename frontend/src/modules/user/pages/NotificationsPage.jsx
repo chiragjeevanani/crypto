@@ -1,47 +1,171 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Bell, MoreHorizontal, User } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ArrowLeft, Bell, UserPlus, Heart, Gift, Megaphone } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useFeedStore } from '../store/useFeedStore'
+import { useUserStore } from '../store/useUserStore'
+import { followService } from '../services/followService'
+import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const NotifIcon = ({ type }) => {
+    if (type === 'gift' || type === 'premium_gift') return <span className="text-xl">🎁</span>
+    if (type === 'follower_broadcast') return <span className="text-xl">💛</span>
+    if (type === 'follow') return <UserPlus size={20} />
+    if (type === 'recommendation') return <span className="text-xl">✨</span>
+    return <Bell size={20} />
+}
+
+const formatTime = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const groupByDate = (notifications) => {
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    const isToday = (d) => new Date(d).toDateString() === today.toDateString()
+    const isYesterday = (d) => new Date(d).toDateString() === yesterday.toDateString()
+
+    const groups = { Today: [], Yesterday: [], Earlier: [] }
+    for (const n of notifications) {
+        if (isToday(n.createdAt)) groups.Today.push(n)
+        else if (isYesterday(n.createdAt)) groups.Yesterday.push(n)
+        else groups.Earlier.push(n)
+    }
+    return groups
+}
+
+// ─── Suggestion Card ─────────────────────────────────────────────────────────
+
+function SuggestionCard({ user }) {
+    const [followed, setFollowed] = useState(false)
+    const [loading, setLoading] = useState(false)
+
+    const handleFollow = async () => {
+        if (loading || followed) return
+        setLoading(true)
+        try {
+            await followService.toggleFollow(user.id)
+            setFollowed(true)
+        } catch {
+            // silent
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        >
+            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--color-surface2)' }}>
+                {user.avatar ? (
+                    <img src={optimizeCloudinaryUrl(user.avatar, { width: 80 })} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                    <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                        {(user.name || 'U').charAt(0).toUpperCase()}
+                    </span>
+                )}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{user.name}</p>
+                <p className="text-xs opacity-50 truncate">{user.handle ? `@${user.handle}` : ''}</p>
+                {user.mutualCount > 0 && (
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-primary)' }}>
+                        {user.mutualCount} mutual connection{user.mutualCount > 1 ? 's' : ''}
+                    </p>
+                )}
+            </div>
+            <button
+                onClick={handleFollow}
+                disabled={loading || followed}
+                className="px-4 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95"
+                style={{
+                    background: followed ? 'var(--color-surface2)' : 'var(--color-primary)',
+                    color: followed ? 'var(--color-muted)' : '#000',
+                    opacity: loading ? 0.6 : 1
+                }}
+            >
+                {followed ? 'Following' : 'Follow'}
+            </button>
+        </motion.div>
+    )
+}
+
+// ─── Shimmer ─────────────────────────────────────────────────────────────────
+
+function NotifShimmer() {
+    return (
+        <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-4 p-4 rounded-3xl animate-pulse"
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                    <div className="w-12 h-12 rounded-2xl flex-shrink-0" style={{ background: 'var(--color-surface2)' }} />
+                    <div className="flex-1 space-y-2">
+                        <div className="h-3 rounded w-3/4" style={{ background: 'var(--color-surface2)' }} />
+                        <div className="h-2 rounded w-1/2" style={{ background: 'var(--color-surface2)' }} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
     const navigate = useNavigate()
-    const { notifications, markNotificationsRead } = useFeedStore()
+    const {
+        notifications,
+        notificationsLoading,
+        markNotificationsRead,
+        markOneNotificationRead,
+        loadNotifications,
+        suggestions,
+        suggestionsLoading,
+        loadSuggestions
+    } = useFeedStore()
+
     const [selectedNotification, setSelectedNotification] = useState(null)
 
-    // Mark as read when entering the page
     useEffect(() => {
+        loadNotifications()
+        loadSuggestions()
         markNotificationsRead()
-    }, [markNotificationsRead])
+    }, [])
+
+    const groups = useMemo(() => groupByDate(notifications), [notifications])
 
     const handleNotificationClick = (notification) => {
-        if (notification.postId) {
-            navigate(`/home?post=${notification.postId}`)
-        } else if (notification.userId) {
-            navigate(`/user/${notification.userId}`)
+        if (!notification.isRead) {
+            markOneNotificationRead(notification.id)
+        }
+        if (notification.meta?.followerId) {
+            navigate(`/user/${notification.meta.followerId}`)
+        } else if (notification.meta?.postId) {
+            navigate(`/home?post=${notification.meta.postId}`)
         } else {
             setSelectedNotification(notification)
         }
     }
 
-    const formatTime = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
     return (
         <div className="min-h-[100dvh] pb-24 overflow-y-auto relative" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
-            <div 
+            <div
                 className="sticky top-0 z-20 flex items-center justify-between px-4 py-5 backdrop-blur-md"
                 style={{ background: 'rgba(var(--color-bg-rgb), 0.8)', borderBottom: '1px solid var(--color-border)' }}
             >
                 <div className="flex items-center gap-4">
-                    <button 
+                    <button
                         onClick={() => navigate(-1)}
                         className="p-2 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90"
                         style={{ color: 'var(--color-text)', background: 'var(--color-surface2)' }}
@@ -55,9 +179,27 @@ export default function NotificationsPage() {
                 </div>
             </div>
 
-            {/* List */}
-            <div className="px-4 pt-6 space-y-4">
-                {notifications.length === 0 ? (
+            <div className="px-4 pt-6 space-y-6">
+                {/* Who to Follow section */}
+                {(suggestions.length > 0 || suggestionsLoading) && (
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Suggested For You</p>
+                        {suggestionsLoading ? (
+                            <div className="h-16 rounded-2xl animate-pulse" style={{ background: 'var(--color-surface)' }} />
+                        ) : (
+                            <div className="space-y-2">
+                                {suggestions.map((u) => (
+                                    <SuggestionCard key={u.id} user={u} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Notification List */}
+                {notificationsLoading ? (
+                    <NotifShimmer />
+                ) : notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 opacity-30">
                         <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: 'var(--color-surface2)' }}>
                             <Bell size={32} />
@@ -66,137 +208,133 @@ export default function NotificationsPage() {
                         <p className="text-xs mt-1">No new activity to show</p>
                     </div>
                 ) : (
-                    notifications.map((item) => (
-                        <div 
-                            key={item.id} 
-                            onClick={() => handleNotificationClick(item)}
-                            className="group flex items-start gap-4 p-4 rounded-3xl cursor-pointer transition-all hover:bg-surface2 active:scale-[0.97]"
-                            style={{ 
-                                background: 'var(--color-surface)', 
-                                border: '1px solid var(--color-border)',
-                                boxShadow: '0 8px 24px rgba(0,0,0,0.03)'
-                            }}
-                        >
-                            <div 
-                                className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-12"
-                                style={{ 
-                                    background: 'linear-gradient(135deg, var(--color-surface2), var(--color-bg))',
-                                    color: 'var(--color-primary)',
-                                    border: '1px solid var(--color-border)'
-                                }}
-                            >
-                                {item.type === 'premium_gift' ? (
-                                    <span className="text-xl">🎁</span>
-                                ) : item.type === 'follower_broadcast' ? (
-                                    <span className="text-xl">📢</span>
-                                ) : item.type === 'share' ? (
-                                    <span className="text-xl">🔗</span>
-                                ) : (
-                                    <Bell size={20} />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0 py-0.5">
-                                <div className="flex justify-between items-start mb-1">
-                                    <p className="font-bold text-sm truncate pr-2" style={{ color: 'var(--color-text)' }}>
-                                        {item.title}
-                                    </p>
-                                    <span className="text-[10px] whitespace-nowrap font-medium opacity-40 mt-1">
-                                        {formatTime(item.createdAt)}
-                                    </span>
+                    Object.entries(groups).map(([groupLabel, items]) => {
+                        if (items.length === 0) return null
+                        return (
+                            <div key={groupLabel}>
+                                <p className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-40">{groupLabel}</p>
+                                <div className="space-y-3">
+                                    {items.map((item) => (
+                                        <motion.div
+                                            key={item.id}
+                                            initial={{ opacity: 0, y: 6 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            onClick={() => handleNotificationClick(item)}
+                                            className="group flex items-start gap-4 p-4 rounded-3xl cursor-pointer transition-all hover:bg-surface2 active:scale-[0.97] relative"
+                                            style={{
+                                                background: item.isRead ? 'var(--color-surface)' : 'rgba(245,158,11,0.05)',
+                                                border: `1px solid ${item.isRead ? 'var(--color-border)' : 'rgba(245,158,11,0.2)'}`,
+                                                boxShadow: item.isRead ? '0 8px 24px rgba(0,0,0,0.03)' : '0 4px 16px rgba(245,158,11,0.08)'
+                                            }}
+                                        >
+                                            {/* Unread dot */}
+                                            {!item.isRead && (
+                                                <span className="absolute top-4 right-4 w-2 h-2 rounded-full"
+                                                    style={{ background: 'var(--color-primary)' }} />
+                                            )}
+                                            <div
+                                                className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-12"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, var(--color-surface2), var(--color-bg))',
+                                                    color: 'var(--color-primary)',
+                                                    border: '1px solid var(--color-border)'
+                                                }}
+                                            >
+                                                <NotifIcon type={item.type} />
+                                            </div>
+                                            <div className="flex-1 min-w-0 py-0.5">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <p className="font-bold text-sm pr-4 leading-snug" style={{ color: 'var(--color-text)' }}>
+                                                        {item.title}
+                                                    </p>
+                                                    <span className="text-[10px] whitespace-nowrap font-medium opacity-40 mt-1">
+                                                        {formatTime(item.createdAt)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--color-muted)' }}>
+                                                    {item.subtitle}
+                                                </p>
+                                            </div>
+                                        </motion.div>
+                                    ))}
                                 </div>
-                                <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--color-muted)' }}>
-                                    {item.subtitle}
-                                </p>
                             </div>
-                        </div>
-                    ))
+                        )
+                    })
                 )}
             </div>
 
-            {/* Detail Overlay / Modal */}
-            {selectedNotification && (
-                <div 
-                    className="fixed inset-0 z-[100] flex flex-col pt-safe animate-in fade-in slide-in-from-bottom-5 duration-300"
-                    style={{ background: 'var(--color-bg)' }}
-                >
-                    <div 
-                        className="flex items-center gap-4 px-4 py-5"
-                        style={{ borderBottom: '1px solid var(--color-border)' }}
+            {/* Detail Modal */}
+            <AnimatePresence>
+                {selectedNotification && (
+                    <motion.div
+                        className="fixed inset-0 z-[100] flex flex-col pt-safe"
+                        style={{ background: 'var(--color-bg)' }}
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 40 }}
                     >
-                        <button 
-                            onClick={() => setSelectedNotification(null)}
-                            className="p-2 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90"
-                            style={{ color: 'var(--color-text)', background: 'var(--color-surface2)' }}
-                        >
-                            <ArrowLeft size={20} />
-                        </button>
-                        <h2 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Notification Detail</h2>
-                    </div>
+                        <div className="flex items-center gap-4 px-4 py-5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <button
+                                onClick={() => setSelectedNotification(null)}
+                                className="p-2 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90"
+                                style={{ color: 'var(--color-text)', background: 'var(--color-surface2)' }}
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+                            <h2 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Notification Detail</h2>
+                        </div>
 
-                    <div className="flex-1 overflow-y-auto px-6 py-10">
-                        <div className="flex flex-col items-center text-center">
-                            <div 
-                                className="w-24 h-24 rounded-[2rem] flex items-center justify-center mb-8 shadow-2xl rotate-3"
-                                style={{ 
-                                    background: 'linear-gradient(45deg, var(--color-primary), var(--color-primary2))',
-                                    color: '#fff'
-                                }}
-                            >
-                                {selectedNotification.type === 'premium_gift' ? (
-                                    <span className="text-4xl">🎁</span>
-                                ) : selectedNotification.type === 'follower_broadcast' ? (
-                                    <span className="text-4xl">📢</span>
-                                ) : selectedNotification.type === 'share' ? (
-                                    <span className="text-4xl">🔗</span>
-                                ) : (
-                                    <Bell size={40} />
-                                )}
-                            </div>
-                            
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--color-primary)' }}>
-                                {selectedNotification.type?.replace('_', ' ') || 'Notification'}
-                            </p>
-                            
-                            <h3 className="text-2xl font-black mb-4 leading-tight" style={{ color: 'var(--color-text)' }}>
-                                {selectedNotification.title}
-                            </h3>
-                            
-                            <div className="w-12 h-1 rounded-full mb-6" style={{ background: 'var(--color-border)' }} />
-                            
-                            <p className="text-base leading-relaxed mb-10" style={{ color: 'var(--color-muted)' }}>
-                                {selectedNotification.subtitle}
-                            </p>
-                            
-                            <div 
-                                className="w-full rounded-2xl p-4 flex items-center justify-between"
-                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                            >
-                                <div className="text-left">
-                                    <p className="text-[10px] uppercase font-bold opacity-40 mb-0.5">Date</p>
-                                    <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{formatDate(selectedNotification.createdAt)}</p>
+                        <div className="flex-1 overflow-y-auto px-6 py-10">
+                            <div className="flex flex-col items-center text-center">
+                                <div
+                                    className="w-24 h-24 rounded-[2rem] flex items-center justify-center mb-8 shadow-2xl rotate-3"
+                                    style={{ background: 'linear-gradient(45deg, var(--color-primary), var(--color-primary2))', color: '#fff' }}
+                                >
+                                    <span className="text-4xl"><NotifIcon type={selectedNotification.type} /></span>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] uppercase font-bold opacity-40 mb-0.5">Time</p>
-                                    <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{formatTime(selectedNotification.createdAt)}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--color-primary)' }}>
+                                    {selectedNotification.type?.replace(/_/g, ' ') || 'Notification'}
+                                </p>
+                                <h3 className="text-2xl font-black mb-4 leading-tight" style={{ color: 'var(--color-text)' }}>
+                                    {selectedNotification.title}
+                                </h3>
+                                <div className="w-12 h-1 rounded-full mb-6" style={{ background: 'var(--color-border)' }} />
+                                <p className="text-base leading-relaxed mb-10" style={{ color: 'var(--color-muted)' }}>
+                                    {selectedNotification.subtitle}
+                                </p>
+                                <div
+                                    className="w-full rounded-2xl p-4 flex items-center justify-between"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                >
+                                    <div className="text-left">
+                                        <p className="text-[10px] uppercase font-bold opacity-40 mb-0.5">Date</p>
+                                        <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+                                            {new Date(selectedNotification.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] uppercase font-bold opacity-40 mb-0.5">Time</p>
+                                        <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+                                            {formatTime(selectedNotification.createdAt)}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="p-6">
-                        <button 
-                            onClick={() => setSelectedNotification(null)}
-                            className="w-full py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg"
-                            style={{ 
-                                background: 'var(--color-text)', 
-                                color: 'var(--color-bg)'
-                            }}
-                        >
-                            Dismiss
-                        </button>
-                    </div>
-                </div>
-            )}
+                        <div className="p-6">
+                            <button
+                                onClick={() => setSelectedNotification(null)}
+                                className="w-full py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg"
+                                style={{ background: 'var(--color-text)', color: 'var(--color-bg)' }}
+                            >
+                                Dismiss
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

@@ -4,6 +4,8 @@ const Gift = require("../../models/Gift");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Withdrawal = require("../../models/Withdrawal");
 const { getAdminConfig } = require("../../utils/adminConfig");
+const { createNotification } = require("./notificationController");
+const { emitToUser, broadcastAll } = require("../../utils/socket");
 
 const getIdempotencyKey = (req) =>
   (req.headers["idempotency-key"] || req.body.idempotencyKey || "").toString().trim() || null;
@@ -143,20 +145,22 @@ const sendGift = async (req, res) => {
     const session = await mongoose.startSession();
     let debitTx;
     let creditTx;
+    let sender, receiver, gift, coinValue;
+
     try {
       await session.withTransaction(async () => {
-        const gift = await Gift.findById(giftId).session(session);
+        gift = await Gift.findById(giftId).session(session);
         if (!gift || gift.status !== "Active") {
           throw new Error("Gift not available");
         }
 
-        const coinValue = Number(gift.value || 0);
+        coinValue = Number(gift.value || 0);
         if (coinValue <= 0) throw new Error("Gift value invalid");
 
-        const sender = await User.findById(senderId).session(session);
+        sender = await User.findById(senderId).session(session);
         if (!sender) throw new Error("Sender not found");
 
-        const receiver = await User.findById(receiverId).session(session);
+        receiver = await User.findById(receiverId).session(session);
         if (!receiver) throw new Error("Receiver not found");
 
         const senderBefore = Number(sender.rechargeCoins || 0);
@@ -231,6 +235,63 @@ const sendGift = async (req, res) => {
       });
     } finally {
       session.endSession();
+    }
+
+    // --- Persist notification for receiver & emit live event ---
+    const senderHandle = sender.handle ? `@${sender.handle}` : sender.name;
+    const receiverHandle = receiver.handle ? `@${receiver.handle}` : receiver.name;
+    const giftEmoji = gift.icon || "🎁";
+    const notifType = gift.name?.toLowerCase().includes("heart") ? "follower_broadcast" : "gift";
+    const notifTitle = `${senderHandle} sent a ${giftEmoji} ${gift.name} to ${receiverHandle}`;
+    const notifSubtitle =
+      notifType === "follower_broadcast"
+        ? "Broadcast sent to 100 followers to boost engagement."
+        : `${receiverHandle} just received a premium gift!`;
+
+    const savedNotif = await createNotification({
+      recipientId: receiverId,
+      senderId: senderId,
+      type: notifType,
+      title: notifTitle,
+      subtitle: notifSubtitle,
+      meta: { postId, reelId, giftName: gift.name, giftIcon: giftEmoji, coins: coinValue }
+    });
+
+    // Push real-time private notification to receiver
+    if (savedNotif) {
+      emitToUser(String(receiverId), "notification", {
+        id: savedNotif._id.toString(),
+        type: notifType,
+        title: notifTitle,
+        subtitle: notifSubtitle,
+        createdAt: savedNotif.createdAt,
+        isRead: false,
+        meta: savedNotif.meta
+      });
+    }
+
+    // Global broadcast — if gift price >= 5, announce to ALL online users (and save in history)
+    if (gift.price >= 5) {
+      const broadcastTitle = `${receiverHandle} received a ${giftEmoji} ${gift.name} from ${senderHandle}!`;
+      const broadcastSubtitle = `Join the post to show your support.`;
+      
+      const globalNotif = await createNotification({
+        type: "follower_broadcast",
+        title: broadcastTitle,
+        subtitle: broadcastSubtitle,
+        meta: { postId, giftName: gift.name, giftIcon: giftEmoji, price: gift.price },
+        isGlobal: true
+      });
+
+      broadcastAll("notification_broadcast", {
+        id: globalNotif?._id.toString() || `broadcast_${Date.now()}`,
+        type: "follower_broadcast",
+        title: broadcastTitle,
+        subtitle: broadcastSubtitle,
+        createdAt: globalNotif?.createdAt || new Date().toISOString(),
+        isRead: false,
+        meta: { postId, giftName: gift.name, giftIcon: giftEmoji, price: gift.price }
+      });
     }
 
     return res.status(200).json({
