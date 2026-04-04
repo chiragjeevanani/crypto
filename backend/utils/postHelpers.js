@@ -77,6 +77,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
     likes: post.likes || 0,
     comments: post.comments || 0,
     shares: (post.sharedBy && post.sharedBy.length) ? post.sharedBy.length : (post.shares || 0),
+    views: post.views || 0,
     earnings: post.earnings || 0,
     isLiked,
     createdAt: post.createdAt,

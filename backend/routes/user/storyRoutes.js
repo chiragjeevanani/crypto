@@ -9,9 +9,9 @@ const {
 
 const router = express.Router();
 
-router.post("/", protect, authorize("User"), upload.single("media"), createStory);
+router.post("/", protect, authorize("User", "SuperNode", "Admin", "super_admin", "Developer"), upload.single("media"), createStory);
 router.get("/feed", protect, getFeedStories);
-router.delete("/:id", protect, authorize("User"), deleteStory);
+router.delete("/:id", protect, authorize("User", "Admin", "SuperNode", "super_admin", "Developer"), deleteStory);
 
 module.exports = router;
 

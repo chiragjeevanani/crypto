@@ -2,6 +2,7 @@ const Post = require("../../models/Post");
 const User = require("../../models/User");
 const Comment = require("../../models/Comment");
 const Campaign = require("../../models/Campaign");
+const WalletTransaction = require("../../models/WalletTransaction");
 const { computeStatus, formatCampaignForUser } = require("../../utils/campaignHelpers");
 const fs = require("fs");
 const path = require("path");
@@ -67,14 +68,26 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ success: false, message: "Media file is required" });
     }
 
-    const user = await User.findById(userId).select("name handle avatar role").lean();
+    const user = await User.findById(userId).select("name handle avatar role earningCoins rechargeCoins").lean();
+    if (!user) return res.status(404).json({ success: false, message: "User account not found." });
     
-    // Business fields
+    // Business & Promotion fields
     const isBusiness = body.isBusiness === true || body.isBusiness === "true";
     const ctaType = body.ctaType || "none";
     const redirectType = body.redirectType || "none";
     const whatsappNumber = body.whatsappNumber || "";
     const externalLink = body.externalLink || "";
+
+    // Promotion details
+    const promoEnabled = body.promoEnabled === true || body.promoEnabled === "true";
+    const promotionData = {
+      isEnabled: promoEnabled,
+      dailyBudget: Number(body.dailyBudget) || 0,
+      duration: Number(body.duration) || 0,
+      totalBudget: Number(body.totalBudget) || 0,
+      estimatedImpressions: body.estimatedImpressions || "",
+      status: promoEnabled ? "paused" : "none" // Wait for payment/approval to activate
+    };
 
     const post = await Post.create({
       creator: userId,
@@ -85,23 +98,44 @@ exports.createPost = async (req, res) => {
       musicTrackId,
       isNFT,
       nftPriceINR,
-      status: isNFT ? "pending" : "approved", 
+      status: (isNFT || isBusiness) ? "pending" : "approved", 
       isBusiness,
       ctaType,
       redirectType,
       whatsappNumber,
       externalLink,
       paymentStatus: isBusiness ? "pending" : "paid",
-      isPublished: true, 
+      isPublished: !isBusiness && !isNFT, // Don't show business or NFT posts until paid/approved
+      promotion: promotionData,
       musicId: body.musicId || null,
       musicStartTime: Number(body.musicStartTime) || 0,
-      history: [{ action: isNFT ? "NFT Submission created" : "Post created" }]
+      history: [{ action: isBusiness ? "Promotion Submission created" : (isNFT ? "NFT Submission created" : "Post created") }]
     });
 
+    // Credit Earning Wallet if not a business post (business posts are promotional)
+    const REEL_REWARD_COINS = 10;
+    if (!isBusiness) {
+      await User.updateOne({ _id: userId }, { $inc: { earningCoins: REEL_REWARD_COINS } });
+      
+      // Create a transaction record
+      await WalletTransaction.create({
+        userId,
+        type: "gift_received", // Reusing type or I could add "post_reward"
+        coins: REEL_REWARD_COINS,
+        amount: null,
+        beforeBalance: (user.earningCoins || 0),
+        afterBalance: (user.earningCoins || 0) + REEL_REWARD_COINS,
+        referenceId: post._id.toString(),
+        referenceType: "post",
+        status: "success",
+        meta: { reason: "Reel Post Reward" }
+      });
+    }
     const forFeed = formatPostForUserFeed(post, baseUrl, { ...user, _id: user?._id });
     return res.status(201).json({ success: true, post: forFeed });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("Create Post Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "An internal error occurred during post creation." });
   }
 };
 
@@ -152,7 +186,7 @@ exports.getPosts = async (req, res) => {
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
     const posts = await populateCreator(
-      Post.find({ status: "approved" }).sort({ createdAt: -1 }).limit(200)
+      Post.find({ status: "approved", isPublished: true }).sort({ createdAt: -1 }).limit(200)
     ).exec();
     const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds));
 
@@ -364,6 +398,36 @@ exports.sharePost = async (req, res) => {
     if (error.name === "CastError" && error.path === "_id") {
       return res.status(400).json({ success: false, message: "Invalid post id" });
     }
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Record view for a post. One count per user.
+ */
+exports.recordView = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+    
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+
+    const viewedBy = post.viewedBy || [];
+    const hasViewed = viewedBy.some(v => v && v.toString() === userId.toString());
+
+    if (!hasViewed) {
+      post.viewedBy.push(userId);
+      post.views = (post.views || 0) + 1;
+      await post.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      views: post.views,
+      alreadyViewed: hasViewed
+    });
+  } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -1,4 +1,5 @@
 const Post = require("../../models/Post");
+const User = require("../../models/User");
 const Campaign = require("../../models/Campaign");
 const { formatPostForUserFeed, populateCreator, getBaseUrl } = require("../../utils/postHelpers");
 const { computeStatus } = require("../../utils/campaignHelpers");
@@ -39,7 +40,11 @@ exports.getReelsFeed = async (req, res) => {
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
     const reels = await populateCreator(
-      Post.find({ status: "approved", "media.type": "video" }).sort({ createdAt: -1 }).limit(200)
+      Post.find({ 
+        status: "approved", 
+        isPublished: true,
+        "media.type": "video" 
+      }).sort({ createdAt: -1 }).limit(200)
     ).exec();
     const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds));
 

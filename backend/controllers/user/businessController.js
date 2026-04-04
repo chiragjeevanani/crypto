@@ -1,4 +1,5 @@
 const Post = require("../../models/Post");
+const PromotionSettings = require("../../models/PromotionSettings");
 const { getAdminConfig } = require("../../utils/adminConfig");
 
 /**
@@ -30,11 +31,37 @@ exports.initiatePayment = async (req, res) => {
     }
 
     const config = await getAdminConfig();
-    const amount = config.businessPostPriceINR || 499;
+    let amount = config.businessPostPriceINR || 499;
 
-    // Here you would normally interface with Razorpay/Stripe
-    // For now, we return payment details for simulation
-    // In a real app, you'd return orderId from Razorpay or sessionId from Stripe
+    // If the post has promotion budget set, use that
+    if (post.promotion?.isEnabled && post.promotion?.totalBudget > 0) {
+      amount = post.promotion.totalBudget;
+    }
+
+    const Razorpay = require("razorpay");
+    let orderId = `sim_${Date.now()}_${post._id}`;
+
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+      try {
+        const rzp = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET
+        });
+        const order = await rzp.orders.create({
+          amount: amount * 100, // amount in smallest currency unit (paise)
+          currency: "INR",
+          receipt: post._id.toString(),
+          notes: {
+            postId: post._id.toString(),
+            type: "promotion"
+          }
+        });
+        orderId = order.id;
+      } catch (rzpErr) {
+        console.error("Razorpay Order Creation Failed:", rzpErr);
+        // Fallback or handle error
+      }
+    }
     
     return res.status(200).json({
       success: true,
@@ -42,7 +69,7 @@ exports.initiatePayment = async (req, res) => {
         postId: post._id,
         amount,
         currency: "INR",
-        orderId: `sim_${Date.now()}_${post._id}`, // Simulated order ID
+        orderId,
         message: "Payment initiated"
       }
     });
@@ -58,12 +85,20 @@ exports.initiatePayment = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   try {
     const { postId, paymentId, orderId, signature } = req.body;
+    const crypto = require("crypto");
     
-    // In a real Razorpay/Stripe implementation, you would verify the signature here.
-    // For simulation, we assume any truthy paymentId works.
-
     if (!postId || !paymentId) {
       return res.status(400).json({ success: false, message: "Missing required verification data" });
+    }
+
+    // Real Signature Verification
+    if (process.env.RAZORPAY_KEY_SECRET && signature && !orderId.startsWith("sim_")) {
+      const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+      hmac.update(orderId + "|" + paymentId);
+      const generatedSignature = hmac.digest("hex");
+      if (generatedSignature !== signature) {
+        return res.status(400).json({ success: false, message: "Invalid payment signature. Potential fraud." });
+      }
     }
 
     const post = await Post.findById(postId);
@@ -75,17 +110,55 @@ exports.verifyPayment = async (req, res) => {
       return res.status(200).json({ success: true, message: "Post already paid", post });
     }
 
-    // Mark as paid and publish
+    // Mark as paid but keep pending for admin review
     post.paymentStatus = "paid";
-    post.isPublished = true;
-    post.status = "approved";
+    post.isPublished = false; // Remains false until admin approval
+    post.status = "pending";
+    if (post.promotion) post.promotion.status = "paused"; // or "active" if you want it to start immediately after approval
     
+    const WalletTransaction = require("../../models/WalletTransaction");
+    const User = require("../../models/User");
+    const user = await User.findById(post.creator);
+
+    await WalletTransaction.create({
+      userId: post.creator,
+      type: "deposit", 
+      amount: post.promotion?.totalBudget || 499,
+      coins: 0,
+      beforeBalance: (user?.rechargeCoins || 0),
+      afterBalance: (user?.rechargeCoins || 0),
+      referenceId: post._id.toString(),
+      referenceType: "post",
+      status: "success",
+      meta: { reason: "Promotional Ad Budget", orderId: orderId, paymentId: paymentId }
+    });
+
+    post.history.push({ action: "Payment verified, awaiting admin approval" });
     await post.save();
 
     return res.status(200).json({
       success: true,
       message: "Payment verified and post published",
       post: post
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Get current promotion settings for users.
+ * GET /api/business/settings
+ */
+exports.getSettings = async (req, res) => {
+  try {
+    let settings = await PromotionSettings.findOne();
+    if (!settings) {
+      settings = await PromotionSettings.create({});
+    }
+    return res.status(200).json({
+      success: true,
+      settings
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

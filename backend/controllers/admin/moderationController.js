@@ -29,6 +29,9 @@ exports.getPosts = async (req, res) => {
         status: p.status === "approved" ? "Approved" : p.status === "rejected" ? "Rejected" : "Pending",
         thumbnail: url,
         mediaUrl: url,
+        mediaType: p.media?.type || "image",
+        isBusiness: Boolean(p.isBusiness),
+        promotion: p.promotion || null,
         isNFT: Boolean(p.isNFT),
         history: p.history || [],
         createdAt: p.createdAt
@@ -57,12 +60,15 @@ exports.getPostById = async (req, res) => {
         content: post.caption,
         thumbnail: mediaUrlFromPost(post, baseUrl),
         mediaUrl: mediaUrlFromPost(post, baseUrl),
+        mediaType: post.media?.type || "image",
+        isBusiness: Boolean(post.isBusiness),
+        promotion: post.promotion || null,
         createdAt: post.createdAt,
         status: post.status,
         flagReason: "Pending review",
         reportCount: 0,
         aiRiskScore: "—",
-        moderationNotes: "Review and approve or reject.",
+        moderationNotes: post.isBusiness ? "Business Promotion: Review ad budget and content." : "Review and approve or reject.",
         authorStats: { followers: 0, posts: 0, previousFlags: 0 },
         reports: []
       }
@@ -82,11 +88,24 @@ exports.updatePostStatus = async (req, res) => {
     const post = await Post.findById(id);
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
     post.status = approved ? "approved" : "rejected";
+    if (approved) {
+      post.isPublished = true;
+      if (post.isBusiness && post.promotion) {
+        post.promotion.status = "active";
+        post.promotion.startDate = new Date();
+        const duration = post.promotion.duration || 30; // default 30 if 0? No, 0 means live.
+        if (duration > 0) {
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + duration);
+          post.promotion.endDate = endDate;
+        }
+      }
+    }
     if (reason) post.rejectReason = reason;
 
     // Log in history
     post.history.push({
-      action: approved ? "Approved by Admin. Asset is now tradable." : `Rejected by Admin. Reason: ${reason || "No reason specified."}`,
+      action: approved ? (post.isBusiness ? "Promotion Approved & Published" : "Approved by Admin") : `Rejected by Admin. Reason: ${reason || "No reason specified."}`,
       admin: "SuperAdmin"
     });
 

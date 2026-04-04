@@ -6,5 +6,6 @@ const { protect } = require("../../middleware/authMiddleware");
 // All business routes are protected (logged‑in users only)
 router.post("/initiate-payment", protect, businessController.initiatePayment);
 router.post("/verify-payment", protect, businessController.verifyPayment);
+router.get("/settings", protect, businessController.getSettings);
 
 module.exports = router;

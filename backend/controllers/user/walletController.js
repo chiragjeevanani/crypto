@@ -197,7 +197,13 @@ const sendGift = async (req, res) => {
               referenceType: "gift",
               status: "success",
               idempotencyKey,
-              meta: { receiverId, postId, reelId }
+              meta: { 
+                receiverId, 
+                receiverName: receiver.name || receiver.username,
+                receiverHandle: receiver.handle,
+                postId, 
+                reelId 
+              }
             },
             {
               userId: receiverId,
@@ -209,7 +215,13 @@ const sendGift = async (req, res) => {
               referenceId,
               referenceType: "gift",
               status: "success",
-              meta: { senderId, postId, reelId }
+              meta: { 
+                senderId, 
+                senderName: sender.name || sender.username,
+                senderHandle: sender.handle,
+                postId, 
+                reelId 
+              }
             }
           ],
           { session, ordered: true }
@@ -329,7 +341,12 @@ const withdraw = async (req, res) => {
         );
 
         const beforeBalance = earningCoins;
-        const afterBalance = earningCoins;
+        const afterBalance = earningCoins - coins;
+        
+        // Deduct from User's earning wallet
+        user.earningCoins = afterBalance;
+        await user.save({ session });
+
         await WalletTransaction.create(
           [
             {

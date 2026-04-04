@@ -1,6 +1,7 @@
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userPostRoutes = require("./routes/user/postRoutes");
@@ -23,10 +24,12 @@ const adminMediaRoutes = require("./routes/admin/mediaRoutes");
 const userMessageRoutes = require("./routes/user/messageRoutes");
 const userPaymentRoutes = require("./routes/user/paymentRoutes");
 const adminTransactionRoutes = require("./routes/admin/transactionRoutes");
+const adminPromotionRoutes = require("./routes/admin/promotionAdminRoutes");
+const adminCategoryRoutes = require("./routes/admin/categoryRoutes");
 
 const app = express();
 
-// Temporarily allow all origins (wildcard CORS). Do NOT use this in production without tightening it.
+app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
@@ -58,6 +61,8 @@ app.use("/api/admin/campaigns", adminCampaignRoutes);
 app.use("/api/admin/config", adminConfigRoutes);
 app.use("/api/admin/media", adminMediaRoutes);
 app.use("/api/admin/withdrawals", adminWithdrawalRoutes);
+app.use("/api/admin/promotion", adminPromotionRoutes);
+app.use("/api/admin/categories", adminCategoryRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/user/messages", userMessageRoutes);
 app.use("/api/payment", userPaymentRoutes);
@@ -83,3 +88,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+// Trigger restart for Category schema update
