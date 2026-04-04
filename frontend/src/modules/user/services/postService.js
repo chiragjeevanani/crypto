@@ -1,9 +1,11 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const USER_POSTS = `${API_BASE}/user/posts`;
 
+import { getStoredToken } from '../store/useUserStore';
+
 const getAuthHeaders = () => {
-  const raw = localStorage.getItem("crypto_auth_token");
-  return raw ? { Authorization: `Bearer ${raw}` } : {};
+    const raw = getStoredToken();
+    return raw ? { Authorization: `Bearer ${raw}` } : {};
 };
 
 export const postService = {
@@ -67,6 +69,16 @@ export const postService = {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to record share");
+    return data;
+  },
+
+  async recordView(id) {
+    const response = await fetch(`${USER_POSTS}/${id}/view`, {
+      method: "POST",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to record view");
     return data;
   }
 };

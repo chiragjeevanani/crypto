@@ -153,9 +153,19 @@ export default function ContentControl() {
                         <div className="flex items-center gap-3">
                             <div
                                 onClick={() => navigate(`/admin/content/${post.id}`)}
-                                className="w-10 h-10 rounded-lg bg-surface2 overflow-hidden border border-surface cursor-pointer"
+                                className="w-10 h-10 rounded-lg bg-surface2 overflow-hidden border border-surface cursor-pointer relative"
                             >
-                                <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />
+                                {post.mediaType === 'video' ? (
+                                    <video 
+                                        src={post.thumbnail} 
+                                        className="w-full h-full object-cover" 
+                                        muted 
+                                        onMouseOver={e => e.target.play()} 
+                                        onMouseOut={e => { e.target.pause(); e.target.currentTime = 0; }}
+                                    />
+                                ) : (
+                                    <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />
+                                )}
                             </div>
                             <div>
                                 <p
@@ -164,7 +174,17 @@ export default function ContentControl() {
                                 >
                                     {post.id}
                                 </p>
-                                <p className="text-[10px] text-muted truncate max-w-[200px] font-medium">{post.content}</p>
+                                <p className="text-[10px] text-muted truncate max-w-[200px] font-medium mb-1">{post.content}</p>
+                                {post.isBusiness && (
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-bold uppercase tracking-wider border border-blue-500/20">
+                                            Promotion
+                                        </span>
+                                        <span className="text-[10px] font-bold text-emerald-500">
+                                            ₹{post.promotion?.totalBudget || 0}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>,
                         <span className="text-xs font-medium text-text">@{post.author}</span>,

@@ -2,8 +2,10 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
+import { getStoredToken } from '../modules/user/store/useUserStore';
+
 const getAuthHeader = () => {
-    const token = localStorage.getItem('crypto_auth_token');
+    const token = getStoredToken();
     return {
         headers: {
             Authorization: `Bearer ${token}`

@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play } from 'lucide-react'
+import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play, Eye } from 'lucide-react'
+import { formatCount } from '../utils/formatCurrency'
 import { mockNFTs } from '../data/mockNFTs'
 import { useFeedStore } from '../store/useFeedStore'
 import NFTBadge from '../components/shared/NFTBadge'
@@ -73,6 +74,7 @@ export default function UserProfilePage() {
     const userPosts = useMemo(() => {
         return posts.filter((p) => String(p.creator?.id) === String(userId))
     }, [posts, userId])
+    const totalViews = useMemo(() => userPosts.reduce((acc, p) => acc + (p.views || 0), 0), [userPosts])
 
     // Find user from fetched profile, then first post, or fallback
     const user = useMemo(() => {
@@ -288,6 +290,7 @@ export default function UserProfilePage() {
                                             loading="lazy"
                                         />
                                     )}
+                                    {/* Views hidden for other users */}
                                     <div className="absolute bottom-1 right-1">
                                         <span
                                             className="text-[9px] font-bold px-1 py-0.5 rounded-sm"

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles, ChevronRight, Vote } from 'lucide-react'
+import { Heart, MessageCircle, Share2, TrendingUp, UserPlus, Check, BriefcaseBusiness, Link2, Send, Camera, MessagesSquare, MoreHorizontal, Music, Bookmark, Volume2, VolumeX, Sparkles, ChevronRight, Vote, Eye } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore } from '../../store/useUserStore'
@@ -60,6 +60,9 @@ export default function PostCard({ post, onOpen }) {
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
+                    const recordView = useFeedStore.getState().recordView
+                    if (recordView) recordView(post.id)
+
                     if (videoRef.current) videoRef.current.play().catch(() => {})
                     if (audioRef.current) {
                         audioRef.current.currentTime = post.musicStartTime || 0
@@ -182,8 +185,19 @@ export default function PostCard({ post, onOpen }) {
             const text = encodeURIComponent("I am interested in your product")
             window.open(`https://wa.me/${number}?text=${text}`, '_blank')
         } else if (post.redirectType === 'internal') {
-            console.log("Redirect to internal messaging")
-            // Logic for future internal messaging
+            navigate('/messaging', { 
+                state: { 
+                    openChat: post.creator,
+                    initialMessage: `Hi ${post.creator?.username}, I saw your post "${post.caption?.slice(0, 30) || 'advertisement'}..." and I'm interested!`,
+                    sharedPost: {
+                        id: post.id,
+                        thumbnail: post.media?.url,
+                        caption: post.caption,
+                        type: post.media?.type === 'video' ? 'reel' : 'post',
+                        creator: post.creator
+                    }
+                } 
+            })
         }
     }
 
@@ -440,6 +454,15 @@ export default function PostCard({ post, onOpen }) {
                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-0.5" style={{ color: 'var(--color-primary)' }}>Vote</span>
                     )}
                 </motion.button>
+                
+                {isSelfPost && (
+                    <div className="flex items-center gap-1.5 cursor-default transition-transform duration-200 ease-out hover:scale-[1.03]">
+                        <Eye size={23} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />
+                        <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
+                            {formatCount(post.views || 0)}
+                        </span>
+                    </div>
+                )}
 
                 <motion.button
                     whileTap={{ scale: 0.8 }}

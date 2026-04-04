@@ -1,9 +1,11 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const USER_FOLLOW = `${API_BASE}/user/follow`;
 
+import { getStoredToken } from '../store/useUserStore';
+
 const getAuthHeaders = () => {
-  const raw = localStorage.getItem("crypto_auth_token");
-  return raw ? { Authorization: `Bearer ${raw}` } : {};
+    const raw = getStoredToken();
+    return raw ? { Authorization: `Bearer ${raw}` } : {};
 };
 
 export const followService = {

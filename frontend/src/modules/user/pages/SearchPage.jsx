@@ -4,11 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { searchService } from '../services/searchService'
 import { postService } from '../services/postService'
 import { useUserStore } from '../store/useUserStore'
+import { useAdminStore } from '../../admin/store/useAdminStore'
 import { SearchShimmer } from '../components/common/SearchShimmer'
 
 export default function SearchPage() {
     const navigate = useNavigate()
     const { profile } = useUserStore()
+    const { categories, loadCategories } = useAdminStore()
+    const [selectedCategory, setSelectedCategory] = useState('All')
     const [query, setQuery] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -55,23 +58,21 @@ export default function SearchPage() {
     }, [trimmed])
 
     useEffect(() => {
+        loadCategories()
+    }, [loadCategories])
+
+    useEffect(() => {
         let mounted = true
         const load = async () => {
             try {
                 const res = await postService.getPosts()
                 const list = Array.isArray(res?.posts) ? res.posts : []
-                const videos = list.filter((post) => post.media?.type === 'video').slice(0, 6)
-                const images = list.filter((post) => post.media?.type !== 'video').slice(0, 6)
                 if (mounted) {
                     setAllPosts(list)
-                    setSuggestedReels(videos)
-                    setSuggestedPosts(images)
                 }
             } catch {
                 if (mounted) {
                     setAllPosts([])
-                    setSuggestedReels([])
-                    setSuggestedPosts([])
                 }
             }
         }
@@ -79,13 +80,30 @@ export default function SearchPage() {
         return () => { mounted = false }
     }, [])
 
+    const displayReels = useMemo(() => {
+        let list = allPosts.filter(p => p.media?.type === 'video')
+        if (selectedCategory !== 'All') {
+            list = list.filter(p => p.category === selectedCategory)
+        }
+        return list.slice(0, 12)
+    }, [allPosts, selectedCategory])
+
+    const displayPosts = useMemo(() => {
+        let list = allPosts.filter(p => p.media?.type !== 'video')
+        if (selectedCategory !== 'All') {
+            list = list.filter(p => p.category === selectedCategory)
+        }
+        return list.slice(0, 12)
+    }, [allPosts, selectedCategory])
+
     const filteredPosts = useMemo(() => {
         if (!trimmed) return []
         const q = trimmed.toLowerCase()
         return allPosts.filter((post) =>
             (post.caption || '').toLowerCase().includes(q) ||
             (post.creator?.username || '').toLowerCase().includes(q) ||
-            (post.creator?.handle || '').toLowerCase().includes(q)
+            (post.creator?.handle || '').toLowerCase().includes(q) ||
+            (post.category || '').toLowerCase().includes(q)
         ).slice(0, 12)
     }, [allPosts, trimmed])
 
@@ -105,6 +123,27 @@ export default function SearchPage() {
                     style={{ color: 'var(--color-text)' }}
                 />
             </div>
+
+            {/* Category Tabs */}
+            {!trimmed && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar -mx-1 px-1">
+                    <button
+                        onClick={() => setSelectedCategory('All')}
+                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedCategory === 'All' ? 'bg-primary border-primary text-black' : 'bg-surface border-surface text-muted'}`}
+                    >
+                        All
+                    </button>
+                    {categories.map((cat) => (
+                        <button
+                            key={cat._id}
+                            onClick={() => setSelectedCategory(cat.name)}
+                            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedCategory === cat.name ? 'bg-primary border-primary text-black' : 'bg-surface border-surface text-muted'}`}
+                        >
+                            {cat.name}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {loading ? (
                 <SearchShimmer />
@@ -198,11 +237,13 @@ export default function SearchPage() {
                 </div>
             )}
 
-            {!trimmed && (suggestedReels.length > 0 || suggestedPosts.length > 0) && (
+            {!trimmed && (displayReels.length > 0 || displayPosts.length > 0) && (
                 <div>
-                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Suggested</p>
+                    <p className="text-sm font-semibold mb-3 flex items-center justify-between" style={{ color: 'var(--color-text)' }}>
+                        <span>{selectedCategory === 'All' ? 'Suggested for you' : `${selectedCategory} Results`}</span>
+                    </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {[...suggestedReels, ...suggestedPosts].map((post) => {
+                        {[...displayReels, ...displayPosts].map((post) => {
                             if (!post) return null
                             const isVideo = post.media?.type === 'video'
                             const openUrl = isVideo
@@ -212,39 +253,44 @@ export default function SearchPage() {
                                 <button
                                     key={post.id}
                                     onClick={() => navigate(openUrl)}
-                                    className="overflow-hidden rounded-2xl text-left"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    className="overflow-hidden rounded-2xl text-left border border-surface bg-surface transition-all active:scale-[0.98]"
                                 >
-                                    {isVideo ? (
-                                        <video
-                                            src={post.media?.url}
-                                            className="w-full aspect-square object-cover"
-                                            muted
-                                            playsInline
-                                            loop
-                                            preload="none"
-                                            poster={post.media?.thumbnail || post.media?.poster}
-                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
-                                            onMouseLeave={(e) => {
-                                                e.target.pause()
-                                                e.target.currentTime = 0
-                                            }}
-                                        />
-                                    ) : (
-                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" loading="lazy" />
-                                    )}
+                                    <div className="relative aspect-square">
+                                        {isVideo ? (
+                                            <video
+                                                src={post.media?.url}
+                                                className="w-full h-full object-cover"
+                                                muted
+                                                playsInline
+                                                loop
+                                                preload="none"
+                                                poster={post.media?.thumbnail || post.media?.poster}
+                                            />
+                                        ) : (
+                                            <img src={post.media?.url} alt={post.caption} className="w-full h-full object-cover" loading="lazy" />
+                                        )}
+                                        {post.isBusiness && (
+                                            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-blue-500/90 text-white text-[8px] font-bold uppercase rounded">Ad</div>
+                                        )}
+                                    </div>
                                     <div className="p-2.5">
+                                        <p className="text-[10px] font-bold opacity-60 uppercase mb-1" style={{ color: 'var(--color-primary)' }}>
+                                            {post.category || 'General'}
+                                        </p>
                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
                                             {post.creator?.username}
-                                        </p>
-                                        <p className="text-[11px] truncate" style={{ color: 'var(--color-muted)' }}>
-                                            {post.caption}
                                         </p>
                                     </div>
                                 </button>
                             )
                         })}
                     </div>
+                </div>
+            )}
+
+            {!trimmed && displayReels.length === 0 && displayPosts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                    <p className="text-sm font-medium">No {selectedCategory !== 'All' ? selectedCategory : ''} content found yet.</p>
                 </div>
             )}
 

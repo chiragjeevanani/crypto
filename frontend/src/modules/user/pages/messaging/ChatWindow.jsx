@@ -21,6 +21,13 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
+    
+    // Set initial message if provided (e.g. from CTA redirect)
+    useEffect(() => {
+        if (chat?.initialMessage) {
+            setInputValue(chat.initialMessage)
+        }
+    }, [chat?.initialMessage])
 
     // Sort user IDs for a consistent roomId
     useEffect(() => {
@@ -98,35 +105,74 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     }, [messages, isOtherTyping])
 
     const handleSendMessage = (e) => {
-        e.preventDefault()
-        if (!inputValue.trim() || !roomId) return
+        if (e) e.preventDefault()
+        if ((!inputValue.trim() && !sharingPost) || !roomId) return
 
         const socket = getSocket()
         socket.emit('stop_typing', { roomId, userId: profile.id })
 
-        const messageData = {
-            roomId,
-            sender: profile.id,
-            receiver: chat.user.id,
-            text: inputValue,
-            type: 'text'
+        if (sharingPost) {
+            const type = (sharingPost.media?.type || sharingPost.type) === 'video' ? 'reel' : 'post'
+            const payload = {
+                id: sharingPost.id || sharingPost._id,
+                caption: sharingPost.caption,
+                thumbnail: sharingPost.media?.thumbnail || sharingPost.media?.url || sharingPost.thumbnail,
+                creator: {
+                    username: sharingPost.creator?.username,
+                    avatar: sharingPost.creator?.avatar
+                }
+            }
+
+            const messageData = {
+                roomId,
+                sender: profile.id,
+                receiver: chat.user.id,
+                text: inputValue.trim() || `Sent a ${type}`,
+                type: type,
+                payload
+            }
+
+            // Optimistic update locally
+            const localMsg = {
+                id: `me-${Date.now()}`,
+                sender: 'me',
+                text: inputValue.trim() || `Sent a ${type}`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                type: type,
+                payload
+            }
+
+            setMessages(prev => [...prev, localMsg])
+            setInputValue('')
+            clearSharingPost?.()
+            
+            // Emit through socket
+            socket.emit('send_message', messageData)
+        } else {
+            const messageData = {
+                roomId,
+                sender: profile.id,
+                receiver: chat.user.id,
+                text: inputValue,
+                type: 'text'
+            }
+
+            // Optimistic update locally
+            const localMsg = {
+                id: `me-${Date.now()}`,
+                sender: 'me',
+                text: inputValue,
+                status: 'sent',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                type: 'text'
+            }
+
+            setMessages(prev => [...prev, localMsg])
+            setInputValue('')
+
+            // Emit through socket
+            socket.emit('send_message', messageData)
         }
-
-        // Optimistic update locally
-        const localMsg = {
-            id: `me-${Date.now()}`,
-            sender: 'me',
-            text: inputValue,
-            status: 'sent',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-            type: 'text'
-        }
-
-        setMessages(prev => [...prev, localMsg])
-        setInputValue('')
-
-        // Emit through socket
-        socket.emit('send_message', messageData)
     }
 
     const handleInputChange = (e) => {
@@ -182,49 +228,6 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         } finally {
             setIsUploading(false)
         }
-    }
-
-    const handleSendPost = () => {
-        if (!sharingPost || !roomId) return
-
-        const type = sharingPost.media?.type === 'video' ? 'reel' : 'post'
-        const socket = getSocket()
-        const payload = {
-            id: sharingPost.id,
-            caption: sharingPost.caption,
-            thumbnail: sharingPost.media?.thumbnail || sharingPost.media?.url,
-            creator: {
-                username: sharingPost.creator?.username,
-                avatar: sharingPost.creator?.avatar
-            }
-        }
-
-        const messageData = {
-            roomId,
-            sender: profile.id,
-            receiver: chat.user.id,
-            text: `Sent a ${type}`,
-            type: type,
-            payload
-        }
-
-        // Optimistic update locally
-        const localMsg = {
-            id: `me-${Date.now()}`,
-            sender: 'me',
-            text: `Sent a ${type}`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-            type: type,
-            payload
-        }
-
-        setMessages(prev => [...prev, localMsg])
-        
-        // Emit through socket
-        socket.emit('send_message', messageData)
-        
-        // Clear global state
-        clearSharingPost?.()
     }
 
     const renderMessageContent = (msg) => {
@@ -295,8 +298,13 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         )}
                     </div>
 
-                    {/* Caption */}
+                    {/* Message / Caption */}
                     <div className="p-2.5">
+                        {msg.text && !msg.text.startsWith('Sent a ') && (
+                            <p className="text-xs font-medium mb-2 pb-2 border-b" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}>
+                                {msg.text}
+                            </p>
+                        )}
                         <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{msg.payload.creator.username}</p>
                         <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{msg.payload.caption}</p>
                     </div>
@@ -431,10 +439,10 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         >
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                                    <img src={sharingPost.media?.url} alt="shared post" className="w-full h-full object-cover" />
+                                    <img src={sharingPost.media?.url || sharingPost.thumbnail} alt="shared post" className="w-full h-full object-cover" />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>Share this {sharingPost.media?.type === 'video' ? 'Reel' : 'Post'}?</p>
+                                    <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>Share this {(sharingPost.media?.type || sharingPost.type) === 'video' ? 'Reel' : 'Post'}?</p>
                                     <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>To: {chat.user.username}</p>
                                 </div>
                             </div>
@@ -447,7 +455,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     Cancel
                                 </button>
                                 <button 
-                                    onClick={handleSendPost}
+                                    onClick={() => handleSendMessage()}
                                     className="px-4 py-2 rounded-lg text-xs font-bold"
                                     style={{ background: 'var(--color-primary)', color: '#fff' }}
                                 >

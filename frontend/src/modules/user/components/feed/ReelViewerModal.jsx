@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, TrendingUp } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { formatCount } from '../../utils/formatCurrency'
 
 export default function ReelViewerModal({ posts = [], startIndex = null, onClose }) {
+    const navigate = useNavigate()
     const { toggleLike } = useFeedStore()
     const [index, setIndex] = useState(startIndex)
 
@@ -39,7 +40,18 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
             const text = encodeURIComponent("I am interested in your product")
             window.open(`https://wa.me/${number}?text=${text}`, '_blank')
         } else if (post?.redirectType === 'internal') {
-            console.log("Redirect to internal messaging")
+            navigate('/messaging', { 
+                state: { 
+                    openChat: post.creator,
+                    initialMessage: `Hi ${post.creator?.username}, I saw your reel "${post.caption?.slice(0, 30) || 'advertisement'}..." and I'm interested!`,
+                    sharedPost: {
+                        id: post.id,
+                        thumbnail: post.media?.url,
+                        caption: post.caption,
+                        type: 'reel'
+                    }
+                } 
+            })
         }
     }
 

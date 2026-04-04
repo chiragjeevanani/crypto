@@ -27,5 +27,14 @@ export const businessService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to verify payment");
     return data;
+  },
+
+  async getSettings() {
+    const response = await fetch(`${BUSINESS_URL}/settings`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to fetch settings");
+    return data.settings;
   }
 };

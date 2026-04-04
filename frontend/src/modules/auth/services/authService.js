@@ -1,5 +1,5 @@
-// Backend defaults to port 5000; use 5000 so registration works without custom .env
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// Backend is running on port 5002 as per .env
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5002/api";
 
 const request = async (path, options = {}) => {
   let response;

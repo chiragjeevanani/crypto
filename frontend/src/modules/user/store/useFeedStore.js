@@ -281,6 +281,21 @@ export const useFeedStore = create((set, get) => ({
         }
     },
 
+    recordView: async (postId) => {
+        try {
+            const res = await postService.recordView(postId)
+            if (res.success && !res.alreadyViewed) {
+                set((state) => ({
+                    posts: state.posts.map((p) =>
+                        p.id === postId ? { ...p, views: res.views } : p
+                    ),
+                }))
+            }
+        } catch {
+            // silence view errors
+        }
+    },
+
     pushNotification: (payload) => set((state) => {
         const next = {
             id: payload?.id || `note_${Date.now()}`,

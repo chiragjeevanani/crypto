@@ -66,8 +66,16 @@ export default function ContentDetailPage() {
             />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 bg-surface border border-surface rounded-2xl overflow-hidden">
-                    <img src={postDetail?.mediaUrl || postDetail?.thumbnail} alt={postDetail?.id} className="w-full h-[360px] object-cover" />
+                <div className="xl:col-span-2 bg-surface border border-surface rounded-2xl overflow-hidden relative min-h-[360px]">
+                    {postDetail?.mediaType === 'video' ? (
+                        <video 
+                            src={postDetail?.mediaUrl || postDetail?.thumbnail} 
+                            controls 
+                            className="w-full h-full max-h-[500px] object-cover" 
+                        />
+                    ) : (
+                        <img src={postDetail?.mediaUrl || postDetail?.thumbnail} alt={postDetail?.id} className="w-full h-[360px] object-cover" />
+                    )}
                     <div className="p-5 space-y-4">
                         <div className="flex items-center justify-between">
                             <p className="text-xs font-bold uppercase tracking-[0.2em] text-text">{postDetail?.type}</p>

@@ -23,6 +23,7 @@ import { formatINR, formatCurrency, formatCount } from '../utils/formatCurrency'
 import { getKYCSubmissionByUser } from '../../../shared/kycSync'
 import { mapCampaignToTask } from '../utils/campaignMapper'
 import { userCampaignService } from '../services/campaignService'
+import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import { getUserNFTListings } from '../../../shared/nftListings'
 import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
@@ -52,7 +53,7 @@ export default function AppShell() {
     const [activeCampaigns, setActiveCampaigns] = useState([])
     const [campaignLoading, setCampaignLoading] = useState(false)
     const [campaignError, setCampaignError] = useState('')
-    const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
+
     const [userNFTListings, setUserNFTListings] = useState([])
     const [unreadTotal, setUnreadTotal] = useState(0)
     const trendingNFTs = useMemo(() => {
@@ -62,7 +63,9 @@ export default function AppShell() {
                 id: `post_${post.id}`,
                 title: post.caption || 'NFT drop',
                 price: post.nftPriceINR || 0,
-                thumbnail: post.media?.url || '',
+                thumbnail: post.media?.type === 'video' 
+                    ? optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 100, crop: 'scale', format: 'jpg' })
+                    : (post.media?.url || ''),
                 likes: post.likes || 0,
                 listedAt: post.createdAt || '',
                 source: 'post',
@@ -72,7 +75,11 @@ export default function AppShell() {
             id: `listing_${listing.id}`,
             title: listing.title,
             price: listing.price,
-            thumbnail: listing.thumbnail || listing.mediaUrl || '',
+            thumbnail: listing.thumbnail || (
+                listing.mediaType === 'video'
+                    ? optimizeCloudinaryUrl(listing.mediaUrl, { isVideo: true, width: 100, crop: 'scale', format: 'jpg' })
+                    : (listing.mediaUrl || '')
+            ),
             likes: listing.views || 0,
             listedAt: listing.listedAt,
             source: 'listing',
@@ -198,33 +205,7 @@ export default function AppShell() {
         }
     }, [pushNotification])
 
-    useEffect(() => {
-        const key = 'K & Q Reels_screen_time_start_v1'
-        const todayKey = new Date().toISOString().slice(0, 10)
-        const startValue = window.localStorage.getItem(key)
-        const parsed = startValue ? JSON.parse(startValue) : null
-        if (!parsed || parsed.day !== todayKey) {
-            window.localStorage.setItem(key, JSON.stringify({ day: todayKey, startAt: Date.now() }))
-        }
 
-        const formatDuration = (ms) => {
-            const totalMinutes = Math.max(0, Math.floor(ms / 60000))
-            const hours = Math.floor(totalMinutes / 60)
-            const minutes = totalMinutes % 60
-            if (hours === 0) return `${minutes}m`
-            return `${hours}h ${minutes}m`
-        }
-
-        const tick = () => {
-            const raw = window.localStorage.getItem(key)
-            const current = raw ? JSON.parse(raw) : { day: todayKey, startAt: Date.now() }
-            setScreenTimeLabel(formatDuration(Date.now() - Number(current.startAt || Date.now())))
-        }
-
-        tick()
-        const timer = window.setInterval(tick, 30000)
-        return () => window.clearInterval(timer)
-    }, [])
 
     useEffect(() => {
         const hydrate = () => setUserNFTListings(getUserNFTListings())
@@ -374,11 +355,7 @@ export default function AppShell() {
                         </div>
                     </section>
 
-                    <section className="desktop-panel-card rounded-2xl p-4">
-                        <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Screen Time</p>
-                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Today</p>
-                        <p className="text-2xl font-bold mt-1" style={{ color: 'var(--color-primary)' }}>{screenTimeLabel}</p>
-                    </section>
+
 
                     <section className="desktop-panel-card rounded-2xl p-4">
                         <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Campaigns</p>

@@ -29,8 +29,10 @@ export default function MessagingPage() {
             setSelectedChat({
                 id: null, // New conversation might not have an ID yet
                 user: state.openChat,
-                lastMessage: { text: '', timestamp: '' },
-                isOnline: false
+                lastMessage: { text: state.initialMessage || '', timestamp: '' },
+                isOnline: false,
+                initialMessage: state.initialMessage, // Pass initial message
+                autoSharePost: state.sharedPost // Auto-attach the post
             })
             if (isMobile) {
                 setShowChatMobile(true)
@@ -38,8 +40,8 @@ export default function MessagingPage() {
             // Clear state after reading to prevent re-opening on refresh
             navigate(location.pathname, { replace: true, state: null })
         }
-        if (state?.sharePost) {
-            setSharingPost(state.sharePost)
+        if (state?.sharePost || state?.sharedPost) {
+            setSharingPost(state.sharePost || state.sharedPost)
             // Clear state after reading
             navigate(location.pathname, { replace: true, state: null })
         }

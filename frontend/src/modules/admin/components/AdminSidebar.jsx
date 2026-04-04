@@ -118,6 +118,7 @@ const menuGroups = [
                 children: [
                     { label: 'Finance', path: '/admin/settings/financial' },
                     { label: 'Security', path: '/admin/settings/security' },
+                    { label: 'Promotion', path: '/admin/settings/promotion' },
                     { label: 'Network', path: '/admin/settings/network' }
                 ]
             },

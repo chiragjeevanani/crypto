@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getStoredToken } from '../../user/store/useUserStore';
 import { 
     Music, 
     Upload, 
@@ -43,10 +44,10 @@ export default function MusicManagement() {
         fetchMusic();
     }, []);
 
-    const fetchMusic = async () => {
+const fetchMusic = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('crypto_auth_token');
+            const token = getStoredToken();
             const res = await fetch(`${API_BASE}/admin/music/all`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -76,7 +77,7 @@ export default function MusicManagement() {
         if (audioRef.current) audioRef.current.pause();
 
         try {
-            const token = localStorage.getItem('crypto_auth_token');
+            const token = getStoredToken();
             const formData = new FormData();
             formData.append('title', newTrack.title);
             formData.append('artist', newTrack.artist);
@@ -110,7 +111,7 @@ export default function MusicManagement() {
 
     const toggleStatus = async (id) => {
         try {
-            const token = localStorage.getItem('crypto_auth_token');
+            const token = getStoredToken();
             const res = await fetch(`${API_BASE}/admin/music/${id}/toggle`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -127,7 +128,7 @@ export default function MusicManagement() {
     const deleteTrack = async (id) => {
         if (!window.confirm('Are you sure you want to delete this track?')) return;
         try {
-            const token = localStorage.getItem('crypto_auth_token');
+            const token = getStoredToken();
             const res = await fetch(`${API_BASE}/admin/music/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }

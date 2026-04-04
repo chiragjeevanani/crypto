@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music } from 'lucide-react'
+import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music, Eye } from 'lucide-react'
 import PostCard from './PostCard'
 import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
@@ -11,7 +11,7 @@ import { triggerCoinRain } from '../shared/CoinRain'
 import { playGiftSound } from '../../utils/giftSounds'
 import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
-import { formatCurrency } from '../../utils/formatCurrency'
+import { formatCurrency, formatCount } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 import ReelSkeleton from './ReelSkeleton'
@@ -77,6 +77,9 @@ function ReelPost({ post, active }) {
     useEffect(() => {
         if (!videoRef.current) return
         if (active) {
+            const recordView = useFeedStore.getState().recordView
+            if (recordView) recordView(post.id)
+
             const playVideo = videoRef.current.play()
             if (playVideo !== undefined) {
                 playVideo.catch(() => { /* Autoplay block */ })
@@ -157,10 +160,20 @@ function ReelPost({ post, active }) {
                         <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
                             <Heart size={22} fill={post.isLiked ? 'currentColor' : 'none'} style={{ color: post.isLiked ? 'var(--color-danger)' : 'white' }} />
                         </div>
-                        <span className="text-[11px] font-semibold">
+                    <span className="text-[11px] font-semibold">
                             {post.likes ?? 0}
                         </span>
                     </button>
+                    {profile?.id && post.creator?.id && String(profile.id) === String(post.creator.id) && (
+                        <div className="flex flex-col items-center gap-1">
+                            <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
+                                <Eye size={22} className="text-white" />
+                            </div>
+                            <span className="text-[11px] font-semibold">
+                                {formatCount(post.views ?? 0)}
+                            </span>
+                        </div>
+                    )}
                     <button
                         type="button"
                         className="flex flex-col items-center gap-1 cursor-pointer"

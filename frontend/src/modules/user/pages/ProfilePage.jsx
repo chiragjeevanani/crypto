@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, Heart, MessageCircle } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
+import { useWalletStore } from '../store/useWalletStore'
+import { formatCount, formatINR } from '../utils/formatCurrency'
 import ProfileHeader from '../components/profile/ProfileHeader'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
@@ -27,7 +29,10 @@ export default function ProfilePage() {
     const location = useLocation()
     const { profile, updateProfile, toggleDarkMode, darkMode, user } = useUserStore()
     const { posts, loadPosts } = useFeedStore()
+    const { earningsWallet, loadWallet } = useWalletStore()
+    
     const profilePosts = useMemo(() => posts.filter((p) => String(p.creator?.id) === String(profile?.id)), [posts, profile?.id])
+    const totalViews = useMemo(() => profilePosts.reduce((acc, p) => acc + (p.views || 0), 0), [profilePosts])
     const [activeTab, setActiveTab] = useState('Posts')
     const [editOpen, setEditOpen] = useState(false)
     const [activePostIndex, setActivePostIndex] = useState(null)
@@ -133,6 +138,7 @@ export default function ProfilePage() {
     }, [editOpen, profile.username, profile.bio, resetEditForm])
 
     useEffect(() => { loadPosts() }, [loadPosts])
+    useEffect(() => { loadWallet() }, [loadWallet])
 
     const closeEdit = () => {
         setEditOpen(false)
@@ -262,7 +268,14 @@ export default function ProfilePage() {
     return (
         <div>
             <ProfileHeader
-                profile={{ ...profile, posts: profilePosts.length, followers: followers.length, following: following.length }}
+                profile={{ 
+                    ...profile, 
+                    posts: profilePosts.length, 
+                    followers: followers.length, 
+                    following: following.length,
+                    totalEarnings: earningsWallet,
+                    totalViews
+                }}
                 onEdit={() => setEditOpen(true)}
                 onOpenFollowers={() => setConnectionsOpen('followers')}
                 onOpenFollowing={() => setConnectionsOpen('following')}
@@ -339,6 +352,14 @@ export default function ProfilePage() {
                                     ) : (
                                         <img src={post.media?.url || post.thumbnail} alt="post" className="w-full h-full object-cover" loading="lazy" />
                                     )}
+                                    <div className="absolute inset-x-0 bottom-0 p-1.5 flex items-center justify-between pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }}>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-0.5">
+                                                <Eye size={12} className="text-white fill-current opacity-90" />
+                                                <span className="text-[10px] font-black text-white drop-shadow-md">{formatCount(post.views || 0)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className="absolute bottom-1 right-1">
                                         <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>₹{post.earnings ?? 0}</span>
                                     </div>

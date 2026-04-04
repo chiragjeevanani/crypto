@@ -1,13 +1,28 @@
 import { create } from 'zustand'
 import { authService } from '../../auth/services/authService'
 
-const TOKEN_KEY = 'crypto_auth_token'
-const REFRESH_TOKEN_KEY = 'crypto_refresh_token'
-const USER_KEY = 'crypto_auth_user'
+export const getKeys = () => {
+    const isAdmin = window.location.pathname.startsWith('/admin')
+    const prefix = isAdmin ? 'admin_' : ''
+    return {
+        TOKEN_KEY: `crypto_${prefix}auth_token`,
+        REFRESH_TOKEN_KEY: `crypto_${prefix}refresh_token`,
+        USER_KEY: `crypto_${prefix}auth_user`
+    }
+}
 
-const getStoredToken = () => localStorage.getItem(TOKEN_KEY)
-const getStoredRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY)
-const getStoredUser = () => {
+export const getStoredToken = () => {
+    const { TOKEN_KEY } = getKeys()
+    return localStorage.getItem(TOKEN_KEY)
+}
+
+export const getStoredRefreshToken = () => {
+    const { REFRESH_TOKEN_KEY } = getKeys()
+    return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export const getStoredUser = () => {
+    const { USER_KEY } = getKeys()
     const raw = localStorage.getItem(USER_KEY)
     if (!raw) return null
     try {
@@ -17,13 +32,15 @@ const getStoredUser = () => {
     }
 }
 
-const saveAuthToStorage = ({ token, refreshToken, user }) => {
+export const saveAuthToStorage = ({ token, refreshToken, user }) => {
+    const { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } = getKeys()
     if (token != null) localStorage.setItem(TOKEN_KEY, token)
     if (refreshToken != null) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
     if (user != null) localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
-const clearAuthStorage = () => {
+export const clearAuthStorage = () => {
+    const { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } = getKeys()
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
@@ -72,7 +89,7 @@ function profileFromUser(user) {
         followers: 0,
         following: 0,
         badge: '',
-        totalEarnings: 0,
+        totalEarnings: user.earningCoins || 0,
         followersList: [],
         followingList: [],
     }

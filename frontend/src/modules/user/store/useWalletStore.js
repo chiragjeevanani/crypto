@@ -106,10 +106,20 @@ export const useWalletStore = create((set, get) => ({
                         : tx.type === 'deposit'
                             ? 'topup'
                             : tx.type
+                
+                let title = titleMap[tx.type] || 'Wallet activity'
+                if (tx.type === 'gift_received' && tx.meta?.senderName) {
+                    title = `Gift from ${tx.meta.senderName}`
+                } else if (tx.type === 'gift_sent' && tx.meta?.receiverName) {
+                    title = `Gift to ${tx.meta.receiverName}`
+                } else if (tx.type === 'post_reward') {
+                    title = 'Reel Post Reward'
+                }
+
                 return {
                     id: tx._id || tx.id,
                     type: normalizedType,
-                    title: titleMap[tx.type] || 'Wallet activity',
+                    title,
                     amount: Math.round(sign * coins),
                     date: tx.createdAt || new Date().toISOString(),
                     status: tx.status === 'success' ? 'completed' : tx.status,
@@ -262,47 +272,8 @@ export const useWalletStore = create((set, get) => ({
     },
 
     transferEarningsToWallet: ({ wallet, amount }) => {
-        const parsed = Number(amount || 0)
-        const state = get()
-        if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Enter valid amount.' }
-        if (parsed > state.earningsWallet) return { ok: false, message: 'Not enough earnings balance.' }
-        if (wallet === 'crypto') {
-            const creditCrypto = parsed / state.walletRates.inrPerCrypto
-            set((prev) => ({
-                earningsWallet: round2(prev.earningsWallet - parsed),
-                balance: round2(prev.earningsWallet - parsed),
-                cryptoWallet: round2(prev.cryptoWallet + creditCrypto),
-                transactions: [
-                    {
-                        id: `tx_${Date.now()}`,
-                        type: 'transfer',
-                        title: 'Moved earnings to Crypto wallet',
-                        amount: -Math.round(parsed),
-                        date: new Date().toISOString(),
-                        status: 'completed',
-                    },
-                    ...prev.transactions,
-                ],
-            }))
-            return { ok: true }
-        }
-        set((prev) => ({
-            earningsWallet: round2(prev.earningsWallet - parsed),
-            balance: round2(prev.earningsWallet - parsed),
-            inrWallet: round2(prev.inrWallet + parsed),
-            transactions: [
-                {
-                    id: `tx_${Date.now()}`,
-                    type: 'transfer',
-                    title: 'Moved earnings to INR wallet',
-                    amount: -Math.round(parsed),
-                    date: new Date().toISOString(),
-                    status: 'completed',
-                },
-                ...prev.transactions,
-            ],
-        }))
-        return { ok: true }
+        // Enforcing policy: Earnings can only be withdrawn, not moved internally.
+        return { ok: false, message: 'Earnings can only be withdrawn to your bank/upi account.' }
     },
 
     buyNft: (amount, title = 'NFT purchase') => {

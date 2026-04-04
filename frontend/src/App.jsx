@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AppShell from './modules/user/layouts/AppShell'
 import HomePage from './modules/user/pages/HomePage'
 import TasksPage from './modules/user/pages/TasksPage'
@@ -12,7 +12,7 @@ import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPag
 import { useUserStore } from './modules/user/store/useUserStore'
 import { useWalletStore } from './modules/user/store/useWalletStore'
 import { useFeedStore } from './modules/user/store/useFeedStore'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 // Admin Modules
 import AdminLayout from './modules/admin/layouts/AdminLayout'
@@ -45,6 +45,7 @@ import AdminProfilePage from './modules/admin/pages/AdminProfilePage'
 import MusicManagement from './modules/admin/pages/MusicManagement'
 import GiftHistory from './modules/admin/pages/GiftHistory'
 import WalletTransactions from './modules/admin/pages/WalletTransactions'
+import PromotionSettingsPage from './modules/admin/pages/PromotionSettingsPage'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -73,14 +74,18 @@ export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
   const { loadWallet, loadGifts } = useWalletStore()
   const { fetchSavedPostIds } = useFeedStore()
+  const { pathname } = useLocation()
+  const isAdminPath = pathname.startsWith('/admin')
+  const pathToken = useMemo(() => isAdminPath ? 'admin' : 'user', [isAdminPath])
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', !darkMode)
   }, [darkMode])
 
+  // Re-run initialization whenever the module context (admin/user) changes
   useEffect(() => {
     initializeAuth()
-  }, [initializeAuth])
+  }, [initializeAuth, pathToken])
 
   useEffect(() => {
     if (authChecked && isAuthenticated) {
@@ -94,7 +99,6 @@ export default function App() {
     <>
       <GlobalModal />
       <SocketHandler />
-      <BrowserRouter>
       <Routes>
         <Route path="/admin/login" element={<LoginPage />} />
         {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
@@ -105,8 +109,8 @@ export default function App() {
         {/* redirect legacy login to admin login */}
         <Route path="/login" element={<Navigate to="/admin/login" replace />} />
 
-        {/* User app: only role "User" can access; admins use /admin */}
-        <Route element={<ProtectedRoute allowedRoles={['User']} />}>
+        {/* User app: admins are also allowed here */}
+        <Route element={<ProtectedRoute allowedRoles={['User', 'SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
           <Route path="/*" element={<AppShell />}>
             <Route path="home" element={<HomePage />} />
             <Route path="tasks" element={<TasksPage />} />
@@ -163,6 +167,7 @@ export default function App() {
             <Route path="settings" element={<PlatformSettings />} />
             <Route path="settings/financial" element={<FinancialRules />} />
             <Route path="settings/security" element={<SecurityAccess />} />
+            <Route path="settings/promotion" element={<PromotionSettingsPage />} />
             <Route path="settings/network" element={<NetworkConfig />} />
             <Route path="transparency" element={<AuditLogs />} />
             <Route path="profile" element={<AdminProfilePage />} />
@@ -178,7 +183,7 @@ export default function App() {
           <Route path="logs" element={<PublicAuditLogs />} />
         </Route>
       </Routes>
-    </BrowserRouter>
   </>
+
   )
 }

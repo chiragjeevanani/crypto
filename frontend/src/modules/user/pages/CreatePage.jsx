@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -11,6 +11,9 @@ import { getSelectablePostCategories } from '../../../shared/postCategories'
 import { addUserNFTListing } from '../../../shared/nftListings'
 import MusicSelectionModal from '../components/feed/MusicSelectionModal'
 import { musicService } from '../services/musicService'
+import { useWalletStore } from '../store/useWalletStore'
+import { loadRazorpayScript } from '../../../utils/razorpayLoader'
+import { useAdminStore } from '../../admin/store/useAdminStore'
 
 const STEPS = [
     { id: 1, label: 'Upload Media', icon: Image },
@@ -39,8 +42,9 @@ export default function CreatePage() {
     const navigate = useNavigate()
     const [step, setStep] = useState(1)
     const [isNFT, setIsNFT] = useState(false)
-    const [categories, setCategories] = useState(getSelectablePostCategories())
-    const [selectedCategory, setSelectedCategory] = useState(categories[0] || 'General')
+    const { profile, kyc } = useUserStore()
+    const { categories, loadCategories } = useAdminStore()
+    const [selectedCategory, setSelectedCategory] = useState('General')
     const [mediaPreview, setMediaPreview] = useState(null)
     const [mediaFile, setMediaFile] = useState(null)
     const [mediaType, setMediaType] = useState('image')
@@ -60,7 +64,33 @@ export default function CreatePage() {
     const [redirectType, setRedirectType] = useState('whatsapp')
     const [whatsappNumber, setWhatsappNumber] = useState('')
     const [externalLink, setExternalLink] = useState('')
-    const [businessPrice, setBusinessPrice] = useState(499)
+
+    // Promotion advanced states
+    const [promoSettings, setPromoSettings] = useState({
+        minDailyBudget: 99,
+        maxDailyBudget: 100000,
+        minDuration: 1,
+        maxDuration: 30,
+        minImpressionFactor: 14,
+        maxImpressionFactor: 29
+    })
+    const [dailyBudget, setDailyBudget] = useState(99)
+    const [durationSelection, setDurationSelection] = useState('set') // 'set' or 'pause'
+    const [durationDays, setDurationDays] = useState(10)
+
+    useEffect(() => {
+        businessService.getSettings().then(setPromoSettings).catch(console.error)
+        
+        // Pre-load Razorpay script to save time during checkout
+        loadRazorpayScript().then(success => {
+            if (!success) console.warn('Failed to pre-load Razorpay script')
+        })
+    }, [])
+
+    const totalBudget = durationSelection === 'set' ? dailyBudget * durationDays : dailyBudget;
+    const estimatedMin = Math.round(dailyBudget * promoSettings.minImpressionFactor);
+    const estimatedMax = Math.round(dailyBudget * promoSettings.maxImpressionFactor);
+    const estimatedLabel = `${(estimatedMin / 1000).toFixed(1)}K - ${(estimatedMax / 1000).toFixed(1)}K`;
 
     const STEPS = [
         { id: 1, label: 'Upload Media', icon: Image },
@@ -73,7 +103,6 @@ export default function CreatePage() {
     ]
 
     const { register, watch, handleSubmit } = useForm({ defaultValues: { caption: '', price: '' } })
-    const { kyc, profile } = useUserStore()
     const addPost = useFeedStore((s) => s.addPost)
     const caption = watch('caption', '')
     const nftPriceINR = Number(watch('price', 0) || 0)
@@ -81,22 +110,22 @@ export default function CreatePage() {
     const nftPriceValid = nftPriceUSD >= 1 && nftPriceUSD <= 20
 
     useEffect(() => {
-        const sync = () => {
-            const next = getSelectablePostCategories()
-            setCategories(next)
-            setSelectedCategory((prev) => (next.includes(prev) ? prev : next[0]))
+        loadCategories()
+    }, [loadCategories])
+
+    const categoryOptions = useMemo(() => {
+        const type = mediaType === 'video' ? 'reel' : 'post'
+        const filtered = categories.filter(c => c.type === 'all' || c.type === type)
+        const names = filtered.map(c => c.name)
+        if (!names.includes('General')) names.push('General')
+        return names
+    }, [categories, mediaType])
+
+    useEffect(() => {
+        if (!categoryOptions.includes(selectedCategory)) {
+            setSelectedCategory(categoryOptions[0] || 'General')
         }
-        sync()
-        const onStorage = (event) => {
-            if (event.key === 'K & Q Reels_post_categories_v2') sync()
-        }
-        window.addEventListener('post-categories-updated', sync)
-        window.addEventListener('storage', onStorage)
-        return () => {
-            window.removeEventListener('post-categories-updated', sync)
-            window.removeEventListener('storage', onStorage)
-        }
-    }, [])
+    }, [categoryOptions, selectedCategory])
 
     useEffect(() => {
         // Cleanup function for blob object URLs
@@ -145,12 +174,9 @@ export default function CreatePage() {
     }
 
     const handlePublish = async () => {
-        setPublishError('')
-        if (!mediaFile) {
-            setPublishError('Please upload an image, video, or audio file.')
-            return
-        }
+        if (publishing) return // Prevent duplicate clicks
         setPublishing(true)
+        setPublishError('') // Reset error
         try {
             const formData = new FormData()
             formData.append('media', mediaFile)
@@ -170,37 +196,85 @@ export default function CreatePage() {
                 formData.append('redirectType', redirectType)
                 formData.append('whatsappNumber', whatsappNumber)
                 formData.append('externalLink', externalLink)
+                
+                // Promotion details
+                formData.append('promoEnabled', 'true')
+                formData.append('dailyBudget', String(dailyBudget))
+                formData.append('duration', durationSelection === 'set' ? String(durationDays) : '0')
+                formData.append('totalBudget', String(totalBudget))
+                formData.append('estimatedImpressions', estimatedLabel)
             }
 
+            setPublishing('Optimizing & Uploading Content...')
             const res = await postService.createPost(formData)
             const newPost = res?.post
             
-            // If business, proceed to payment simulation (non-blocking for now)
+            setPublishing('Preparing Payment Bridge...')
+            // Refresh wallet balance to show the post reward (10 coins) immediately
+            const loadWallet = useWalletStore.getState().loadWallet;
+            if (loadWallet) loadWallet();
+            
+            // If business, proceed to real Razorpay payment
             if (isBusiness && newPost?.id) {
                 try {
-                    // 1. Initiate payment
                     const initRes = await businessService.initiatePayment(newPost.id)
-                    const orderId = initRes.data?.orderId; // Safe check
+                    const { amount, orderId, currency } = initRes.data || {}
 
-                    if (orderId) {
-                        // 2. Simulate delay 
-                        await new Promise(r => setTimeout(r, 800)); 
-                        
-                        const verifyRes = await businessService.verifyPayment({
-                            postId: newPost.id,
-                            paymentId: `sim_pay_${Date.now()}`,
-                            orderId: orderId
-                        });
+                    setPublishing('Opening Secure Checkout...')
+                    const isLoaded = await loadRazorpayScript();
+                    if (orderId && isLoaded && typeof window.Razorpay !== 'undefined') {
+                        const options = {
+                            key: 'rzp_test_S2tOuYBZiOuLb4', 
+                            amount: amount * 100, // Smallest unit
+                            currency: currency || "INR",
+                            name: "SocialEarn Promotion",
+                            description: `Promotion for Reel #${newPost.id.slice(-6)}`,
+                            order_id: orderId,
+                            handler: async function (response) {
+                                // Payment Successful
+                                try {
+                                    const verifyRes = await businessService.verifyPayment({
+                                        postId: newPost.id,
+                                        paymentId: response.razorpay_payment_id,
+                                        orderId: response.razorpay_order_id,
+                                        signature: response.razorpay_signature
+                                    });
 
-                        if (verifyRes.success) {
-                            if (verifyRes.post) addPost(verifyRes.post) // Use the updated post if available
-                        }
+                                    if (verifyRes.success) {
+                                        // The post is now paid but pending admin approval
+                                        // We can show a success message or redirect
+                                        setPublished(true)
+                                    }
+                                } catch (err) {
+                                    setPublishError('Payment verification failed. Please contact support.')
+                                } finally {
+                                    setPublishing(false)
+                                }
+                            },
+                            prefill: {
+                                name: profile?.name || "",
+                                email: profile?.email || "",
+                                contact: profile?.phone || ""
+                            },
+                            theme: { color: "#e11d48" }, // Red theme to match app
+                            modal: {
+                                ondismiss: function() {
+                                    setPublishing(false)
+                                    setPublishError('Payment cancelled. Your reel remains as a draft.')
+                                }
+                            }
+                        };
+                        const rzp = new window.Razorpay(options);
+                        rzp.open();
+                    } else {
+                        throw new Error('Razorpay script not loaded or invalid order.')
                     }
                 } catch (payErr) {
-                    console.warn("Payment flow bypassed/failed:", payErr.message);
-                    // We don't block the user, backend already set isPublished=true temporarily
-                    if (newPost) addPost(newPost);
+                    console.error("Payment failed:", payErr);
+                    setPublishError(payErr.message || "Payment initiation failed.");
+                    setPublishing(false);
                 }
+                return; // Early return as payment handles the transition
             } else if (newPost) {
                 addPost(newPost)
             }
@@ -225,20 +299,54 @@ export default function CreatePage() {
         }
     }
 
+    useEffect(() => {
+        if (published) {
+            const timer = setTimeout(() => {
+                navigate('/home')
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [published, navigate]);
+
     if (published) {
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-4 px-8 text-center py-24">
+            <div className="flex flex-col items-center justify-center h-full gap-5 px-8 text-center py-20 bg-[var(--color-bg)]">
                 <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
+                    initial={{ scale: 0, rotate: -45 }}
+                    animate={{ scale: 1.1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                    className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
-                    style={{ background: 'rgba(245,158,11,0.15)' }}
+                    className="w-24 h-24 rounded-full flex items-center justify-center text-5xl relative"
+                    style={{ background: 'var(--color-surface)' }}
                 >
-                    🚀
+                    <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'var(--color-primary)' }}></div>
+                    {isBusiness || isNFT ? '📑' : '🚀'}
                 </motion.div>
-                <p className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>Post Published!</p>
-                <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Your content is live and earning</p>
+                
+                <div className="space-y-2">
+                    <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+                        {isBusiness || isNFT ? 'Submission Received!' : 'Post Published!'}
+                    </h2>
+                    <p className="text-sm max-w-[280px] mx-auto opacity-70" style={{ color: 'var(--color-text)' }}>
+                        {isBusiness
+                            ? 'Your promotion has been submitted and is pending admin moderation. It will go live once approved.'
+                            : isNFT 
+                                ? 'Your NFT listing has been submitted for verification. You will be notified once it is approved.'
+                                : 'Your content is live and earning rewards. Check your feed to see the engagement!'}
+                    </p>
+                </div>
+
+                <div className="w-full max-w-[200px] space-y-3 pt-6">
+                    <button 
+                        onClick={() => navigate('/home')}
+                        className="w-full py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 transition-all active:scale-95"
+                        style={{ background: 'var(--color-primary)', color: '#fff' }}
+                    >
+                        Go to Home
+                    </button>
+                    <p className="text-[10px] uppercase tracking-widest opacity-40 font-bold">
+                        Redirecting in 5 seconds...
+                    </p>
+                </div>
             </div>
         )
     }
@@ -501,17 +609,19 @@ export default function CreatePage() {
 
                         {/* Step 4: Promotion */}
                         {step === 4 && (
-                            <div>
-                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Promote Content</p>
+                            <div className="space-y-6">
+                                <div>
+                                    <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>What's your ad budget?</h2>
+                                    <p className="text-sm" style={{ color: 'var(--color-muted)' }}>The budget and duration you set will impact your ad's reach</p>
+                                </div>
+
                                 <div
-                                    className="flex items-center justify-between p-4 rounded-xl mb-6"
+                                    className="flex items-center justify-between p-4 rounded-xl"
                                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                                 >
                                     <div>
                                         <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Enable Promotion</p>
-                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                                            Boost your content to the business feed
-                                        </p>
+                                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>Boost your content to the business feed</p>
                                     </div>
                                     <button onClick={() => setIsBusiness(!isBusiness)} className="cursor-pointer">
                                         {isBusiness ? (
@@ -525,15 +635,86 @@ export default function CreatePage() {
                                 <AnimatePresence>
                                     {isBusiness && (
                                         <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="space-y-4"
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className="space-y-6"
                                         >
-                                            <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl mb-4">
-                                                <p className="text-[11px] text-amber-500 font-medium">
-                                                    Promotional posts require a one-time payment of ₹{businessPrice} to be published.
-                                                </p>
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>Daily budget</p>
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <span className="text-4xl font-extrabold" style={{ color: 'var(--color-text)' }}>₹{dailyBudget}</span>
+                                                        <FileText size={20} style={{ color: 'var(--color-muted)' }} className="opacity-50" />
+                                                    </div>
+                                                    <div className="w-full flex items-center gap-4">
+                                                        <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>₹{promoSettings.minDailyBudget}</span>
+                                                        <input 
+                                                            type="range"
+                                                            min={promoSettings.minDailyBudget}
+                                                            max={10000} // Capping for slider UX, but can be higher
+                                                            value={dailyBudget}
+                                                            onChange={(e) => setDailyBudget(Number(e.target.value))}
+                                                            className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                            style={{ background: 'var(--color-surface2)' }}
+                                                        />
+                                                        <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>₹10,000+</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                                                <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>Duration</p>
+                                                <div className="space-y-3">
+                                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${durationSelection === 'pause' ? 'border-primary' : 'border-muted'}`}>
+                                                            {durationSelection === 'pause' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                                        </div>
+                                                        <input type="radio" className="hidden" name="duration" checked={durationSelection === 'pause'} onChange={() => setDurationSelection('pause')} />
+                                                        <span className="text-sm font-semibold" style={{ color: durationSelection === 'pause' ? 'var(--color-text)' : 'var(--color-muted)' }}>Run this ad until I pause it</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${durationSelection === 'set' ? 'border-primary' : 'border-muted'}`}>
+                                                            {durationSelection === 'set' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                                                        </div>
+                                                        <input type="radio" className="hidden" name="duration" checked={durationSelection === 'set'} onChange={() => setDurationSelection('set')} />
+                                                        <span className="text-sm font-semibold" style={{ color: durationSelection === 'set' ? 'var(--color-text)' : 'var(--color-muted)' }}>Run this ad for a set duration</span>
+                                                    </label>
+                                                </div>
+
+                                                {durationSelection === 'set' && (
+                                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center pt-2">
+                                                        <p className="text-2xl font-bold mb-4" style={{ color: 'var(--color-text)' }}>{durationDays} days</p>
+                                                        <div className="w-full flex items-center gap-4">
+                                                            <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>{promoSettings.minDuration}</span>
+                                                            <input 
+                                                                type="range"
+                                                                min={promoSettings.minDuration}
+                                                                max={promoSettings.maxDuration}
+                                                                value={durationDays}
+                                                                onChange={(e) => setDurationDays(Number(e.target.value))}
+                                                                className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                                style={{ background: 'var(--color-surface2)' }}
+                                                            />
+                                                            <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>{promoSettings.maxDuration}</span>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </div>
+
+                                            <div className="bg-surface2 rounded-2xl p-4 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>Total budget</span>
+                                                    <span className="text-base font-bold" style={{ color: 'var(--color-text)' }}>₹{totalBudget}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>Estimated daily impressions</span>
+                                                        <div className="w-3.5 h-3.5 rounded-full border border-muted text-[10px] flex items-center justify-center opacity-60">i</div>
+                                                    </div>
+                                                    <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{estimatedLabel}</span>
+                                                </div>
                                             </div>
 
                                             <div>
@@ -574,49 +755,25 @@ export default function CreatePage() {
                                             </div>
 
                                             {redirectType === 'whatsapp' && (
-                                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                                                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
-                                                        WhatsApp Number
-                                                    </label>
+                                                <div className="space-y-1.5">
+                                                    <label className="block text-xs font-semibold" style={{ color: 'var(--color-sub)' }}>WhatsApp Number</label>
                                                     <input
                                                         type="text"
                                                         value={whatsappNumber}
                                                         onChange={(e) => setWhatsappNumber(e.target.value)}
                                                         placeholder="e.g. +91 9876543210"
                                                         className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                                                        style={{
-                                                            background: 'var(--color-surface)',
-                                                            color: 'var(--color-text)',
-                                                            border: '1px solid var(--color-border)',
-                                                        }}
+                                                        style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                                                     />
-                                                </motion.div>
+                                                </div>
                                             )}
-
-                                            <div>
-                                                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
-                                                    Optional Link (Future Ready)
-                                                </label>
-                                                <input
-                                                    type="url"
-                                                    value={externalLink}
-                                                    onChange={(e) => setExternalLink(e.target.value)}
-                                                    placeholder="https://example.com"
-                                                    className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                                                    style={{
-                                                        background: 'var(--color-surface)',
-                                                        color: 'var(--color-text)',
-                                                        border: '1px solid var(--color-border)',
-                                                    }}
-                                                />
-                                            </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
                                 {!isBusiness && (
-                                    <div className="mt-8 p-4 rounded-2xl bg-surface2 border border-border">
+                                    <div className="mt-4 p-4 rounded-2xl bg-surface2 border border-border">
                                         <p className="text-xs text-muted leading-relaxed">
-                                            Turning on promotion will allow you to add a Call-To-Action button to your post and reach a wider audience interested in your products or services.
+                                            Promote your post to reach more people. Set a budget to increase impressions and add a call-to-action button to drive results.
                                         </p>
                                     </div>
                                 )}
@@ -685,7 +842,7 @@ export default function CreatePage() {
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Select Category</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {categories.map((cat) => {
+                                    {categoryOptions.map((cat) => {
                                         const active = cat === selectedCategory
                                         return (
                                             <motion.button
@@ -739,7 +896,7 @@ export default function CreatePage() {
                                             {isBusiness && (
                                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                     style={{ background: 'rgba(59,130,246,0.12)', color: 'var(--color-blue)' }}>
-                                                    Business Post (₹{businessPrice})
+                                                    Business Post (₹{totalBudget})
                                                 </span>
                                             )}
                                             {isBusiness && ctaType !== 'none' && (
@@ -801,14 +958,23 @@ export default function CreatePage() {
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={handlePublish}
-                        disabled={publishing}
-                        className="flex-1 py-3 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-50"
+                        disabled={!!publishing}
+                        className="flex-1 py-3 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-75 relative overflow-hidden"
                         style={{
                             background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))',
                             color: '#fff',
                         }}
                     >
-                        {publishing ? (isBusiness ? 'Processing Payment...' : 'Publishing...') : (isBusiness ? `Pay ₹${businessPrice} & Publish` : '🚀 Publish')}
+                        <div className="flex items-center justify-center gap-2">
+                            {publishing && (
+                                <motion.div 
+                                    animate={{ rotate: 360 }}
+                                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                                />
+                            )}
+                            {typeof publishing === 'string' ? publishing : (publishing ? (isBusiness ? 'Processing...' : 'Publishing...') : (isBusiness ? `Pay ₹${totalBudget} & Publish` : '🚀 Publish'))}
+                        </div>
                     </motion.button>
                 )}
             </div>

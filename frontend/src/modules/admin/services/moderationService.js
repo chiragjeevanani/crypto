@@ -1,8 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const ADMIN_CONTENT = `${API_BASE}/admin/content`;
 
+import { getStoredToken } from '../../user/store/useUserStore';
+
 const getAuthHeaders = () => {
-    const token = localStorage.getItem("crypto_auth_token");
+    const token = getStoredToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -33,10 +35,13 @@ export const moderationService = {
             status: p.status ?? "Pending",
             thumbnail: p.thumbnail ?? p.media?.url,
             mediaUrl: p.mediaUrl ?? p.media?.url,
+            mediaType: p.mediaType ?? (p.media?.type || "image"),
+            isBusiness: Boolean(p.isBusiness),
+            promotion: p.promotion || null,
             createdAt: p.createdAt,
             reportCount: p.reportCount ?? 0,
             aiRiskScore: p.aiRiskScore ?? "—",
-            moderationNotes: p.moderationNotes ?? "Review and approve or reject.",
+            moderationNotes: p.isBusiness ? "Business Promotion: Review ad budget and content." : (p.moderationNotes ?? "Review and approve or reject."),
             authorStats: p.authorStats ?? { followers: 0, posts: 0, previousFlags: 0 },
             reports: p.reports ?? []
         };

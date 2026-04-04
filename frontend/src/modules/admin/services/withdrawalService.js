@@ -1,6 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const getToken = () => localStorage.getItem("crypto_auth_token");
+import { getStoredToken } from '../../user/store/useUserStore';
+
+const getToken = () => getStoredToken();
 
 const request = async (path, options = {}) => {
     let response;

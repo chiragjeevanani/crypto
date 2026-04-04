@@ -9,6 +9,7 @@ import { financialService } from '../services/financialService';
 import { useCampaignStore } from '../../user/store/useCampaignStore';
 import { patchKYCSubmission } from '../../../shared/kycSync';
 import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
+import { getStoredToken } from '../../user/store/useUserStore';
 
 export const useAdminStore = create((set, get) => ({
     // States
@@ -26,7 +27,9 @@ export const useAdminStore = create((set, get) => ({
     deposits: [],
     giftHistory: [],
     suspiciousUsers: [],
+    selectedChat: null,
     settings: null,
+    categories: [],
     prdMetrics: null,
     giftPolicy: {
         allowedINR: [2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -287,6 +290,117 @@ export const useAdminStore = create((set, get) => ({
         const posts = await moderationService.fetchPosts();
         set({ posts });
     }),
+
+    // Actions - Categories
+    loadCategories: () => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories`);
+        const data = await res.json();
+        if (data.success) {
+            set({ categories: data.categories });
+        }
+    }),
+
+    addCategory: (formData) => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getStoredToken()}`
+            },
+            body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+        if (data.success) {
+            set(state => ({ categories: [...state.categories, data.category] }));
+            return data.category;
+        }
+        throw new Error(data.message || "Failed to add category");
+    }, "Category created."),
+
+    updateCategory: (id, formData) => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${id}`, {
+            method: 'PATCH',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getStoredToken()}`
+            },
+            body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+        if (data.success) {
+            set(state => ({
+                categories: state.categories.map(c => c._id === id ? data.category : c)
+            }));
+            return data.category;
+        }
+        throw new Error(data.message || "Failed to update category");
+    }, "Category updated."),
+
+    deleteCategory: (id) => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${id}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${getStoredToken()}`
+            }
+        });
+        const data = await res.json();
+        if (data.success) {
+            set(state => ({ categories: state.categories.filter(c => c._id !== id) }));
+        }
+    }, "Category removed."),
+
+    addSubcategory: (categoryId, formData) => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${categoryId}/sub`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getStoredToken()}`
+            },
+            body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+        if (data.success) {
+            set(state => ({
+                categories: state.categories.map(c => c._id === categoryId ? data.category : c)
+            }));
+            return data.category;
+        }
+        throw new Error(data.message || "Failed to add subcategory");
+    }, "Subcategory added."),
+
+    updateSubcategory: (categoryId, subId, formData) => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${categoryId}/sub/${subId}`, {
+            method: 'PATCH',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getStoredToken()}`
+            },
+            body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+        if (data.success) {
+            set(state => ({
+                categories: state.categories.map(c => c._id === categoryId ? data.category : c)
+            }));
+            return data.category;
+        }
+        throw new Error(data.message || "Failed to update subcategory");
+    }, "Subcategory updated."),
+
+    deleteSubcategory: (categoryId, subId) => get().execute(async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${categoryId}/sub/${subId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${getStoredToken()}`
+            }
+        });
+        const data = await res.json();
+        if (data.success) {
+            set(state => ({
+                categories: state.categories.map(c => c._id === categoryId ? data.category : c)
+            }));
+        }
+    }, "Subcategory removed."),
 
     loadPostDetail: (id) => get().execute(async () => {
         const postDetail = await moderationService.fetchPostDetail(id);
