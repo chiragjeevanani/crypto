@@ -5,6 +5,9 @@ import { storyService } from '../../services/storyService';
 import { musicService } from '../../services/musicService';
 import { useUserStore } from '../../store/useUserStore';
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization';
+import EditorModal from '../editor/EditorModal';
+import { videoService } from '../../services/videoService';
+import { Loader2 } from 'lucide-react';
 
 const STORY_AUDIO_TRACKS = [
     { id: '1', title: 'Trending Now' },
@@ -65,6 +68,9 @@ export default function Stories() {
     const [musicPos, setMusicPos] = useState({ x: 0.5, y: 0.25 });
     const [showFilters, setShowFilters] = useState(false);
     const captionRef = useRef(null);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [originalFile, setOriginalFile] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
     
     useEffect(() => {
         return () => {
@@ -1010,21 +1016,80 @@ export default function Stories() {
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
-                                            if (storyMedia && storyMedia.startsWith('blob:')) {
-                                                URL.revokeObjectURL(storyMedia);
-                                            }
-                                            const url = URL.createObjectURL(file);
-                                            setStoryMedia(url);
-                                            setStoryFile(file);
-                                            setIsVideoPreview(file.type.startsWith('video/'));
-                                            setImageScale(1);
-                                            setImagePosition({ x: 0, y: 0 });
-                                            setUploadError('');
+                                            setOriginalFile(file);
+                                            setIsEditorOpen(true);
                                         }
                                         e.target.value = '';
                                     }}
                                 />
                             </label>
+
+                            {isEditorOpen && originalFile && (
+                                <EditorModal
+                                    file={originalFile}
+                                    type={originalFile.type.startsWith('video/') ? 'video' : 'image'}
+                                    onClose={() => setIsEditorOpen(false)}
+                                    onSave={async (editData) => {
+                                        setIsEditorOpen(false);
+                                        
+                                        if (editData instanceof File) {
+                                            // Image Editor
+                                            if (storyMedia && storyMedia.startsWith('blob:')) {
+                                                URL.revokeObjectURL(storyMedia);
+                                            }
+                                            const url = URL.createObjectURL(editData);
+                                            setStoryMedia(url);
+                                            setStoryFile(editData);
+                                            setIsVideoPreview(false);
+                                            setImageScale(1);
+                                            setImagePosition({ x: 0, y: 0 });
+                                            setUploadError('');
+                                        } else {
+                                            // Video Editor
+                                            setIsProcessing(true);
+                                            try {
+                                                const res = await videoService.processVideo({
+                                                    file: editData.file,
+                                                    secondFile: editData.secondFile,
+                                                    trim: editData.trim,
+                                                    layout: editData.layout,
+                                                    rotation: editData.rotation
+                                                });
+                                                const response = await fetch(res.url);
+                                                const blob = await response.blob();
+                                                const editedFile = new File([blob], res.filename || 'edited-story.mp4', { type: 'video/mp4' });
+                                                
+                                                if (storyMedia && storyMedia.startsWith('blob:')) {
+                                                    URL.revokeObjectURL(storyMedia);
+                                                }
+                                                const url = URL.createObjectURL(editedFile);
+                                                setStoryMedia(url);
+                                                setStoryFile(editedFile);
+                                                setIsVideoPreview(true);
+                                                setUploadError('');
+                                            } catch (err) {
+                                                console.error('Video processing failed:', err);
+                                                setUploadError('Processing failed. Try again.');
+                                            } finally {
+                                                setIsProcessing(false);
+                                            }
+                                        }
+                                    }}
+                                />
+                            )}
+
+                            {isProcessing && (
+                                <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-6">
+                                    <div className="relative">
+                                        <Loader2 className="w-16 h-16 text-primary animate-spin" />
+                                        <div className="absolute inset-0 bg-primary/20 blur-xl animate-pulse rounded-full"></div>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2 text-center">
+                                        <p className="text-xl font-black text-white uppercase tracking-tighter">Processing Story</p>
+                                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest animate-pulse">Running advanced pixel computations</p>
+                                    </div>
+                                </div>
+                            )}
 
                             <span className="text-white/50 text-xs max-w-[80px] text-center">Add photo or video</span>
 

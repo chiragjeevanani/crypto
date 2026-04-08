@@ -68,21 +68,34 @@ function ReelPost({ post, active }) {
     const videoRef = useRef(null)
     const audioRef = useRef(null)
 
-    const toggleMute = () => {
-        setIsMuted(!isMuted)
+    const toggleMute = (e) => {
+        if (e) e.stopPropagation()
+        const nextMuted = !isMuted
+        setIsMuted(nextMuted)
+        
+        if (audioRef.current) {
+            audioRef.current.muted = nextMuted
+            if (!nextMuted) audioRef.current.play().catch(() => {})
+        }
+        if (videoRef.current) {
+            videoRef.current.muted = nextMuted
+            if (!nextMuted) videoRef.current.play().catch(() => {})
+        }
+
         setShowMuteIndicator(true)
         setTimeout(() => setShowMuteIndicator(false), 800)
     }
 
     useEffect(() => {
-        if (!videoRef.current) return
         if (active) {
             const recordView = useFeedStore.getState().recordView
             if (recordView) recordView(post.id)
 
-            const playVideo = videoRef.current.play()
-            if (playVideo !== undefined) {
-                playVideo.catch(() => { /* Autoplay block */ })
+            if (videoRef.current) {
+                const playVideo = videoRef.current.play()
+                if (playVideo !== undefined) {
+                    playVideo.catch(() => { /* Autoplay block */ })
+                }
             }
             if (audioRef.current) {
                 const playAudio = audioRef.current.play()
@@ -91,8 +104,10 @@ function ReelPost({ post, active }) {
                 }
             }
         } else {
-            videoRef.current.pause()
-            videoRef.current.currentTime = 0
+            if (videoRef.current) {
+                videoRef.current.pause()
+                videoRef.current.currentTime = 0
+            }
             if (audioRef.current) {
                 audioRef.current.pause()
                 audioRef.current.currentTime = 0
@@ -109,18 +124,31 @@ function ReelPost({ post, active }) {
         <div className="relative flex flex-col h-full bg-black items-center justify-center">
             {/* Mobile: full height/width. Desktop: 9:16 with max widths. */}
             <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] md:max-h-[calc(100vh-56px)]">
-                <video
-                    ref={videoRef}
-                    src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '60' })}
-                    className="w-full h-full object-cover cursor-pointer"
-                    style={{ filter: post.filter || 'none' }}
-                    loop
-                    muted={isMuted}
-                    playsInline
-                    preload={active ? "auto" : "none"}
-                    crossOrigin="anonymous"
-                    onClick={toggleMute}
-                />
+                {post.media?.type === 'video' ? (
+                    <video
+                        key={`vid-${post.id}`}
+                        ref={videoRef}
+                        src={`${optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '60' })}${post.media?.url?.includes('?') ? '&' : '?'}v=${Date.now()}`}
+                        className="w-full h-full object-cover cursor-pointer"
+                        style={{ filter: post.filter || 'none' }}
+                        loop
+                        muted={isMuted}
+                        playsInline
+                        autoPlay
+                        preload="metadata"
+                        crossOrigin="anonymous"
+                        onClick={toggleMute}
+                    />
+                ) : (
+                    <img
+                        key={`img-${post.id}`}
+                        src={optimizeCloudinaryUrl(post.media?.url, { width: 1080, quality: '80' })}
+                        className="w-full h-full object-cover cursor-pointer"
+                        style={{ filter: post.filter || 'none' }}
+                        alt="Reel content"
+                        onClick={toggleMute}
+                    />
+                )}
 
                 <AnimatePresence>
                     {showMuteIndicator && (
@@ -136,6 +164,14 @@ function ReelPost({ post, active }) {
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* Persistent Volume Toggle */}
+                <button 
+                    onClick={toggleMute}
+                    className="absolute bottom-16 right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                >
+                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
 
                 <AnimatePresence>
                     {splat && (
@@ -286,9 +322,11 @@ function ReelPost({ post, active }) {
                 {post.musicData && (
                     <audio
                         ref={audioRef}
-                        src={post.musicData.audioUrl}
+                        src={`${post.musicData.audioUrl}${post.musicData.audioUrl.includes('?') ? '&' : '?'}v=${Date.now()}`}
+                        type="audio/mpeg"
                         loop
                         muted={isMuted}
+                        preload="none"
                         onPlay={(e) => {
                             if (post.musicStartTime) e.target.currentTime = post.musicStartTime
                         }}
@@ -472,7 +510,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                 >
                                 {isReelsMode
                                     ? post?.type === 'campaign'
-                                        ? <CampaignReelCard campaign={post} />
+                                        ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
                                         : <ReelPost post={post} active={activeReelIndex === index} />
                                     : post && <PostCard post={post} />}
                             </div>

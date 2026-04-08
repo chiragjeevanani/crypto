@@ -1,7 +1,9 @@
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Volume2, VolumeX } from 'lucide-react'
 
-export default function CampaignReelCard({ campaign }) {
+export default function CampaignReelCard({ campaign, active }) {
     const navigate = useNavigate()
     if (!campaign) return null
 
@@ -19,6 +21,49 @@ export default function CampaignReelCard({ campaign }) {
     const isVideo = campaign.bannerType === 'video' || 
                    /\.(mp4|webm|mov|ogg)$/i.test(bannerUrlRaw);
 
+    const [isMuted, setIsMuted] = useState(true)
+    const [showMuteIndicator, setShowMuteIndicator] = useState(false)
+    const videoRef = useRef(null)
+    const audioRef = useRef(null)
+
+    const toggleMute = (e) => {
+        if (e) e.stopPropagation()
+        const nextMuted = !isMuted
+        setIsMuted(nextMuted)
+        
+        if (audioRef.current) {
+            audioRef.current.muted = nextMuted
+            if (!nextMuted) audioRef.current.play().catch(() => {})
+        }
+        if (videoRef.current) {
+            videoRef.current.muted = nextMuted
+            if (!nextMuted) videoRef.current.play().catch(() => {})
+        }
+
+        setShowMuteIndicator(true)
+        setTimeout(() => setShowMuteIndicator(false), 800)
+    }
+
+    useEffect(() => {
+        if (active) {
+            if (videoRef.current) {
+                videoRef.current.play().catch(() => {})
+            }
+            if (audioRef.current) {
+                audioRef.current.play().catch(() => {})
+            }
+        } else {
+            if (videoRef.current) {
+                videoRef.current.pause()
+                videoRef.current.currentTime = 0
+            }
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current.currentTime = 0
+            }
+        }
+    }, [active])
+
     return (
         <div className="relative flex flex-col h-full items-center justify-center bg-black">
             <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] lg:max-h-[calc(100vh-56px)]">
@@ -26,27 +71,66 @@ export default function CampaignReelCard({ campaign }) {
                     {resolvedBannerUrl ? (
                         isVideo ? (
                             <video 
-                                src={resolvedBannerUrl} 
-                                className="w-full h-full object-cover" 
-                                muted 
+                                key={`vid-${campaign.id}`}
+                                ref={videoRef}
+                                src={`${resolvedBannerUrl}${resolvedBannerUrl.includes('?') ? '&' : '?'}v=${Date.now()}`} 
+                                className="w-full h-full object-cover cursor-pointer" 
+                                muted={isMuted} 
                                 playsInline 
                                 loop 
-                                autoPlay 
-                                preload="auto"
+                                autoPlay
+                                preload="metadata"
                                 crossOrigin="anonymous"
+                                onClick={toggleMute}
                             />
                         ) : (
                             <img 
+                                key={`img-${campaign.id}`}
                                 src={resolvedBannerUrl} 
                                 alt={campaign.title} 
                                 className="w-full h-full object-cover opacity-90" 
                                 loading="lazy" 
+                                onClick={toggleMute}
                             />
                         )
                     ) : (
                         <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.45), rgba(249,115,22,0.2))' }} />
                     )}
-                    <div className="absolute inset-0 bg-black/45" />
+                    <div className="absolute inset-0 bg-black/45" onClick={toggleMute} />
+
+                    <AnimatePresence>
+                        {showMuteIndicator && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+                            >
+                                <div className="bg-black/40 p-4 rounded-full text-white">
+                                    {isMuted ? <VolumeX size={32} /> : <Volume2 size={32} />}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Persistent Volume Toggle */}
+                    <button 
+                        onClick={toggleMute}
+                        className="absolute bottom-16 right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                    >
+                        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </button>
+
+                    {campaign.musicData && (
+                        <audio
+                            ref={audioRef}
+                            src={`${campaign.musicData.audioUrl}${campaign.musicData.audioUrl.includes('?') ? '&' : '?'}v=${Date.now()}`}
+                            type="audio/mpeg"
+                            loop
+                            muted={isMuted}
+                            preload="none"
+                        />
+                    )}
                 </div>
 
                 <div className="absolute inset-x-0 top-0 bottom-[var(--reels-bottom-offset,80px)] flex flex-col justify-between p-4 px-5 z-10">

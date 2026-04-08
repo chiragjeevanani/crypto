@@ -62,6 +62,7 @@ exports.createPost = async (req, res) => {
     const subcategory = typeof body.subcategory === "string" ? body.subcategory.trim() : "";
     const filter = typeof body.filter === "string" ? body.filter : "none";
     const musicTrackId = typeof body.musicTrackId === "string" ? body.musicTrackId : "none";
+    const musicId = (body.musicId && body.musicId !== "undefined" && body.musicId !== "") ? body.musicId : null;
     const isNFT = body.isNFT === true || body.isNFT === "true";
     const nftPriceINR = Math.max(0, Number(body.nftPriceINR) || 0);
 
@@ -90,7 +91,7 @@ exports.createPost = async (req, res) => {
       status: promoEnabled ? "paused" : "none" // Wait for payment/approval to activate
     };
 
-    const post = await Post.create({
+    const postDoc = await Post.create({
       creator: userId,
       media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3" },
       caption,
@@ -107,12 +108,17 @@ exports.createPost = async (req, res) => {
       whatsappNumber,
       externalLink,
       paymentStatus: isBusiness ? "pending" : "paid",
-      isPublished: !isBusiness && !isNFT, // Don't show business or NFT posts until paid/approved
+      isPublished: !isBusiness && !isNFT,
       promotion: promotionData,
-      musicId: body.musicId || null,
+      musicId: musicId,
       musicStartTime: Number(body.musicStartTime) || 0,
       history: [{ action: isBusiness ? "Promotion Submission created" : (isNFT ? "NFT Submission created" : "Post created") }]
     });
+
+    // Populate musicId immediately for the response
+    const post = await Post.findById(postDoc._id)
+      .populate("musicId", "title artist audioUrl duration thumbnail")
+      .lean();
 
     // Credit Earning Wallet if not a business post (business posts are promotional)
     const REEL_REWARD_COINS = 10;

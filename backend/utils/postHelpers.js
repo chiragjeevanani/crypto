@@ -100,9 +100,9 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
       id: post.musicId._id,
       title: post.musicId.title,
       artist: post.musicId.artist,
-      audioUrl: post.musicId.audioUrl,
+      audioUrl: resolveUrl(post.musicId.audioUrl, baseUrl),
       duration: post.musicId.duration,
-      thumbnail: post.musicId.thumbnail
+      thumbnail: resolveUrl(post.musicId.thumbnail, baseUrl)
     } : null,
     musicStartTime: post.musicStartTime || 0
   };

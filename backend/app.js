@@ -27,6 +27,7 @@ const adminTransactionRoutes = require("./routes/admin/transactionRoutes");
 const adminPromotionRoutes = require("./routes/admin/promotionAdminRoutes");
 const adminCategoryRoutes = require("./routes/admin/categoryRoutes");
 const userNotificationRoutes = require("./routes/user/notificationRoutes");
+const userVideoRoutes = require("./routes/user/videoRoutes");
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/user/messages", userMessageRoutes);
 app.use("/api/payment", userPaymentRoutes);
 app.use("/api/notifications", userNotificationRoutes);
+app.use("/api/video", userVideoRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

@@ -45,25 +45,36 @@ export default function PostCard({ post, onOpen }) {
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const videoRef = useRef(null)
     const audioRef = useRef(null)
+    const containerRef = useRef(null)
 
     const toggleMute = (e) => {
         e.stopPropagation()
         const nextMuted = !isMuted
         setIsMuted(nextMuted)
-        if (audioRef.current) audioRef.current.muted = nextMuted
+        
+        if (audioRef.current) {
+            audioRef.current.muted = nextMuted
+            if (!nextMuted) audioRef.current.play().catch(() => {})
+        }
+        if (videoRef.current) {
+            videoRef.current.muted = nextMuted
+            if (!nextMuted) videoRef.current.play().catch(() => {})
+        }
+        
         setShowMuteIndicator(true)
         setTimeout(() => setShowMuteIndicator(false), 800)
     }
 
     useEffect(() => {
-        // Observer to play/pause media when in view
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
                     const recordView = useFeedStore.getState().recordView
                     if (recordView) recordView(post.id)
 
-                    if (videoRef.current) videoRef.current.play().catch(() => {})
+                    if (videoRef.current) {
+                        videoRef.current.play().catch(() => {})
+                    }
                     if (audioRef.current) {
                         audioRef.current.currentTime = post.musicStartTime || 0
                         audioRef.current.play().catch(() => {})
@@ -73,10 +84,10 @@ export default function PostCard({ post, onOpen }) {
                     if (audioRef.current) audioRef.current.pause()
                 }
             },
-            { threshold: 0.5 }
+            { threshold: 0.3 }
         )
-        const target = videoRef.current || audioRef.current
-        if (target) observer.observe(target)
+
+        if (containerRef.current) observer.observe(containerRef.current)
         return () => observer.disconnect()
     }, [post.id, post.musicStartTime])
 
@@ -302,6 +313,7 @@ export default function PostCard({ post, onOpen }) {
             </div>
 
             <div
+                ref={containerRef}
                 className={`w-full relative bg-black/5 ${post.media?.type !== 'audio' ? 'post-media-aspect' : ''} ${onOpen ? 'cursor-pointer' : ''}`}
                 onClick={() => onOpen?.(post.id)}
             >
@@ -311,8 +323,11 @@ export default function PostCard({ post, onOpen }) {
                             <audio 
                                 ref={audioRef}
                                 src={post.musicData.audioUrl}
+                                crossOrigin="anonymous"
+                                type="audio/mpeg"
                                 loop
                                 muted={isMuted}
+                                preload="auto"
                                 className="hidden"
                             />
                         )}
@@ -324,7 +339,7 @@ export default function PostCard({ post, onOpen }) {
                             loop
                             playsInline
                             muted={isMuted}
-                            preload="none"
+                            preload="auto"
                             poster={post.media?.thumbnail || post.media?.poster}
                             crossOrigin="anonymous"
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
@@ -343,6 +358,13 @@ export default function PostCard({ post, onOpen }) {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                        {/* Persistent Volume Toggle */}
+                        <button 
+                            onClick={toggleMute}
+                            className="absolute bottom-3 right-3 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                        >
+                            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                        </button>
                     </div>
                 ) : post.media?.type === 'audio' ? (
                     <div className="w-full p-4 flex items-center gap-3" style={{ background: 'var(--color-surface2)' }}>
@@ -357,8 +379,11 @@ export default function PostCard({ post, onOpen }) {
                             <audio 
                                 ref={audioRef}
                                 src={post.musicData.audioUrl}
+                                crossOrigin="anonymous"
+                                type="audio/mpeg"
                                 loop
                                 muted={isMuted}
+                                preload="auto"
                                 className="hidden"
                             />
                         )}
@@ -371,7 +396,7 @@ export default function PostCard({ post, onOpen }) {
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
                         <AnimatePresence>
-                            {showMuteIndicator && post.musicData && (
+                            {showMuteIndicator && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}
@@ -384,6 +409,15 @@ export default function PostCard({ post, onOpen }) {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                        {/* Persistent Volume Toggle for Images with Music */}
+                        {post.musicData && (
+                            <button 
+                                onClick={toggleMute}
+                                className="absolute bottom-3 right-3 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                            >
+                                {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                            </button>
+                        )}
                         {post.musicData && (
                             <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1.5 border border-white/10 max-w-[140px]">
                                 <Music size={10} className="text-primary animate-pulse" />

@@ -14,6 +14,9 @@ import { musicService } from '../services/musicService'
 import { useWalletStore } from '../store/useWalletStore'
 import { loadRazorpayScript } from '../../../utils/razorpayLoader'
 import { useAdminStore } from '../../admin/store/useAdminStore'
+import EditorModal from '../components/editor/EditorModal'
+import { videoService } from '../services/videoService'
+import { Loader2 } from 'lucide-react'
 
 const STEPS = [
     { id: 1, label: 'Upload Media', icon: Image },
@@ -57,6 +60,9 @@ export default function CreatePage() {
     const [publishError, setPublishError] = useState('')
     const [publishing, setPublishing] = useState(false)
     const [isPlayingMusic, setIsPlayingMusic] = useState(false)
+    const [isEditorOpen, setIsEditorOpen] = useState(false)
+    const [originalFile, setOriginalFile] = useState(null)
+    const [isProcessing, setIsProcessing] = useState(false)
     const previewMusicRef = useRef(null)
 
     // Business states
@@ -163,16 +169,52 @@ export default function CreatePage() {
         const file = e.target.files?.[0]
         if (!file) return
         
-        // Revoke previous URL if any
-        if (mediaPreview && mediaPreview.startsWith('blob:')) {
-            URL.revokeObjectURL(mediaPreview)
+        if (file.type.startsWith('audio/')) {
+            setMediaFile(file)
+            setMediaPreview(URL.createObjectURL(file))
+            setMediaType('audio')
+            return
         }
+
+        setOriginalFile(file)
+        setIsEditorOpen(true)
+    }
+
+    const handleEditorSave = async (editData) => {
+        setIsEditorOpen(false)
         
-        setMediaFile(file)
-        setMediaPreview(URL.createObjectURL(file))
-        if (file.type.startsWith('video/')) setMediaType('video')
-        else if (file.type.startsWith('audio/')) setMediaType('audio')
-        else setMediaType('image')
+        if (editData instanceof File) {
+            // Image editor returns File
+            setMediaFile(editData)
+            setMediaPreview(URL.createObjectURL(editData))
+            setMediaType('image')
+            return
+        }
+
+        // Video editor returns edit params
+        setIsProcessing(true)
+        try {
+            const res = await videoService.processVideo({
+                file: editData.file,
+                secondFile: editData.secondFile,
+                trim: editData.trim,
+                layout: editData.layout,
+                rotation: editData.rotation
+            })
+
+            const response = await fetch(res.url)
+            const blob = await response.blob()
+            const editedFile = new File([blob], res.filename || 'edited-video.mp4', { type: 'video/mp4' })
+
+            setMediaFile(editedFile)
+            setMediaPreview(URL.createObjectURL(editedFile))
+            setMediaType('video')
+        } catch (err) {
+            console.error('Video processing failed:', err)
+            alert('Video processing failed. Please try again.')
+        } finally {
+            setIsProcessing(false)
+        }
     }
 
     const handlePublish = async () => {
@@ -356,6 +398,27 @@ export default function CreatePage() {
 
     return (
         <div className="flex flex-col h-full">
+            {isEditorOpen && originalFile && (
+                <EditorModal
+                    file={originalFile}
+                    type={originalFile.type.startsWith('video/') ? 'video' : 'image'}
+                    onClose={() => setIsEditorOpen(false)}
+                    onSave={handleEditorSave}
+                />
+            )}
+
+            {isProcessing && (
+                <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-6">
+                    <div className="relative">
+                        <Loader2 className="w-16 h-16 text-primary animate-spin" />
+                        <div className="absolute inset-0 bg-primary/20 blur-xl animate-pulse rounded-full"></div>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <p className="text-xl font-black text-white uppercase tracking-tighter">Processing Media</p>
+                        <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest animate-pulse">Running advanced pixel computations</p>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <div className="flex items-center justify-between mb-3">
