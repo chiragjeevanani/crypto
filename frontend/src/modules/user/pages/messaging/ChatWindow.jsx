@@ -264,20 +264,28 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     {/* Creator header */}
                     <div className="flex items-center gap-2 p-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
                         <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
-                            {msg.payload.creator.avatar ? <img src={msg.payload.creator.avatar} alt={msg.payload.creator.username} className="w-full h-full object-cover" /> : <div className="text-[10px] font-bold">{msg.payload.creator.username?.[0]?.toUpperCase() || 'U'}</div>}
+                            {msg.payload?.creator?.avatar ? (
+                                <img src={msg.payload.creator.avatar} alt={msg.payload.creator.username} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="text-[10px] font-bold">
+                                    {msg.payload?.creator?.username?.[0]?.toUpperCase() || 'U'}
+                                </div>
+                            )}
                         </div>
-                        <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-text)' }}>{msg.payload.creator.username}</span>
+                        <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                            {msg.payload?.creator?.username || 'Unknown Creator'}
+                        </span>
                     </div>
 
                     {/* Content thumbnail */}
                     <div 
                         className="relative aspect-square w-full bg-black/5 cursor-pointer"
-                        onClick={() => navigate(`/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`)}
+                        onClick={() => msg.payload?.id && navigate(`/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`)}
                     >
                         {msg.type === 'reel' ? (
                             <video 
-                                src={msg.payload.thumbnail} 
-                                poster={msg.payload.thumbnail?.includes('cloudinary') ? msg.payload.thumbnail.replace(/\.[^/.]+$/, ".jpg") : ""} 
+                                src={msg.payload?.thumbnail} 
+                                poster={msg.payload?.thumbnail?.includes('cloudinary') ? msg.payload.thumbnail.replace(/\.[^/.]+$/, ".jpg") : ""} 
                                 className="w-full h-full object-cover" 
                                 muted 
                                 playsInline 
@@ -285,8 +293,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                             />
                         ) : (
                             <img 
-                                src={msg.payload.thumbnail} 
-                                alt={msg.payload.caption} 
+                                src={msg.payload?.thumbnail} 
+                                alt={msg.payload?.caption || "post"} 
                                 className="w-full h-full object-cover" 
                                 onError={(e) => { e.currentTarget.style.display = 'none' }}
                             />
@@ -305,13 +313,13 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                 {msg.text}
                             </p>
                         )}
-                        <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{msg.payload.creator.username}</p>
-                        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{msg.payload.caption}</p>
+                        <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{msg.payload?.creator?.username || 'User'}</p>
+                        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{msg.payload?.caption || ''}</p>
                     </div>
 
                     {/* Footer button */}
                     <button 
-                        onClick={() => navigate(`/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`)}
+                        onClick={() => msg.payload?.id && navigate(`/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`)}
                         className="w-full py-2 text-center text-xs font-semibold border-t transition-colors hover:bg-[var(--color-surface2)]"
                         style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                     >

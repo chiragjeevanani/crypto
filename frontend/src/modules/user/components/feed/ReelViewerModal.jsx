@@ -1,13 +1,38 @@
+import React, { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, TrendingUp } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, TrendingUp, MoreHorizontal, AlertCircle, ShieldAlert } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
+import { useUserStore, getStoredToken } from '../../store/useUserStore'
 import { formatCount } from '../../utils/formatCurrency'
+import { postService } from '../../services/postService'
 
 export default function ReelViewerModal({ posts = [], startIndex = null, onClose }) {
     const navigate = useNavigate()
     const { toggleLike } = useFeedStore()
     const [index, setIndex] = useState(startIndex)
+    
+    const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+    const [reportReason, setReportReason] = useState('')
+    const [reportDescription, setReportDescription] = useState('')
+    const [isReporting, setIsReporting] = useState(false)
+
+    const handleReport = async () => {
+        if (!reportReason || !post) return
+        setIsReporting(true)
+        try {
+            await postService.reportPost(post.id, reportReason, reportDescription)
+            setIsReportModalOpen(false)
+            setIsReportMenuOpen(false)
+            setReportReason('')
+            setReportDescription('')
+        } catch (error) {
+            console.error('Report failed:', error)
+        } finally {
+            setIsReporting(false)
+        }
+    }
 
     useEffect(() => {
         setIndex(startIndex)
@@ -96,6 +121,40 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                             <button className="w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md">
                                 <Share2 size={20} />
                             </button>
+                            
+                            <div className="relative">
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setIsReportMenuOpen(!isReportMenuOpen)
+                                    }}
+                                    className="w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-md"
+                                >
+                                    <MoreHorizontal size={20} />
+                                </button>
+                                <AnimatePresence>
+                                    {isReportMenuOpen && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, scale: 0.95, x: -20 }}
+                                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95, x: -20 }}
+                                            className="absolute right-full mr-2 bottom-0 w-36 rounded-xl shadow-xl z-[40] border overflow-hidden"
+                                            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                        >
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setIsReportMenuOpen(false)
+                                                    setIsReportModalOpen(true)
+                                                }}
+                                                className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                            >
+                                                Report Reel
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
 
                         <div className="absolute left-0 right-0 bottom-0 p-5 pb-8 pr-16 text-white z-20">
@@ -142,6 +201,78 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                         </button>
                     </div>
                 </div>
+
+                <AnimatePresence>
+                    {isReportModalOpen && (
+                        <motion.div
+                            className="fixed inset-0 z-[130] flex items-center justify-center px-4"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)} />
+                            <motion.div
+                                className="relative w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl p-6"
+                                style={{ background: 'var(--color-surface)' }}
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                exit={{ scale: 0.9, y: 20 }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex justify-between items-center mb-1">
+                                    <h3 className="text-lg font-black" style={{ color: 'var(--color-text)' }}>Report Reel</h3>
+                                    <button onClick={() => setIsReportModalOpen(false)} className="p-1 rounded-full hover:bg-zinc-800/10">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                                <p className="text-[12px] mb-6 opacity-60" style={{ color: 'var(--color-text)' }}>Why are you reporting this content?</p>
+                                
+                                <div className="space-y-2.5 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+                                    {['Spam', 'Harassment', 'Inappropriate', 'Illegal', 'Intellectual Property', 'Other'].map((option) => (
+                                        <button
+                                            key={option}
+                                            onClick={() => setReportReason(option)}
+                                            className={`w-full px-4 py-3 rounded-2xl text-sm font-bold text-left transition-all ${reportReason === option ? 'bg-[var(--color-primary)] text-white shadow-lg' : 'bg-[var(--color-surface2)] text-[var(--color-text)] hover:brightness-95'}`}
+                                        >
+                                            {option}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {reportReason === 'Other' && (
+                                    <div className="mb-6">
+                                        <textarea
+                                            className="w-full h-24 p-4 rounded-2xl text-sm outline-none resize-none"
+                                            placeholder="Please describe the issue..."
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                            value={reportDescription}
+                                            onChange={(e) => setReportDescription(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setIsReportModalOpen(false)}
+                                        className="flex-1 py-3.5 rounded-2xl font-bold text-sm transition-colors"
+                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                                        disabled={isReporting}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleReport}
+                                        className="flex-1 py-3.5 rounded-2xl font-bold text-sm shadow-xl transition-all active:scale-95 disabled:opacity-50"
+                                        style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                        disabled={!reportReason || isReporting}
+                                    >
+                                        {isReporting ? 'Submitting...' : 'Submit Report'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </motion.div>
         </AnimatePresence>
     )

@@ -5,6 +5,7 @@ import { userService } from '../services/userService';
 import { campaignService } from '../services/campaignService';
 import { moderationService } from '../services/moderationService';
 import { settingsService } from '../services/settingsService';
+import { reportService } from '../services/reportService';
 import { financialService } from '../services/financialService';
 import { useCampaignStore } from '../../user/store/useCampaignStore';
 import { patchKYCSubmission } from '../../../shared/kycSync';
@@ -30,6 +31,7 @@ export const useAdminStore = create((set, get) => ({
     selectedChat: null,
     settings: null,
     categories: [],
+    reports: [],
     prdMetrics: null,
     giftPolicy: {
         allowedINR: [2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -290,6 +292,23 @@ export const useAdminStore = create((set, get) => ({
         const posts = await moderationService.fetchPosts();
         set({ posts });
     }),
+
+    // Actions - Reports
+    loadReports: () => get().execute(async () => {
+        const reports = await reportService.fetchReports();
+        set({ reports });
+    }),
+
+    handleReportAction: (id, action) => get().execute(async () => {
+        const data = await reportService.handleAction(id, action);
+        if (data.success) {
+            set(state => ({
+                reports: state.reports.map(r => r.id === id ? { ...r, status: action === 'ignore' ? 'ignored' : 'resolved', actionTaken: action } : r)
+            }));
+            if (action === 'delete') get().loadPosts(); // Refresh posts if one was "deleted"
+        }
+        return data;
+    }, (res) => `Report ${action}d successfully.`),
 
     // Actions - Categories
     loadCategories: () => get().execute(async () => {

@@ -13,6 +13,7 @@ import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
 import { formatCurrency, formatCount } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
+import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
@@ -65,6 +66,30 @@ function ReelPost({ post, active }) {
     const [isMuted, setIsMuted] = useState(true)
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
+    
+    // Reporting state
+    const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+    const [reportReason, setReportReason] = useState('')
+    const [reportDescription, setReportDescription] = useState('')
+    const [isReporting, setIsReporting] = useState(false)
+
+    const handleReport = async () => {
+        if (!reportReason || !post) return
+        setIsReporting(true)
+        try {
+            await postService.reportPost(post.id, reportReason, reportDescription)
+            setIsReportModalOpen(false)
+            setIsReportMenuOpen(false)
+            setReportReason('')
+            setReportDescription('')
+        } catch (error) {
+            console.error('Report failed:', error)
+        } finally {
+            setIsReporting(false)
+        }
+    }
+
     const videoRef = useRef(null)
     const audioRef = useRef(null)
 
@@ -113,12 +138,14 @@ function ReelPost({ post, active }) {
                 audioRef.current.currentTime = 0
             }
         }
-    }, [active])
+    }, [active, post.id])
 
     const toggleSave = (e) => {
         e.stopPropagation()
         toggleSavePost(post.id)
     }
+
+    const isSelfPost = profile?.id && post.creator?.id && String(profile.id) === String(post.creator.id)
 
     return (
         <div className="relative flex flex-col h-full bg-black items-center justify-center">
@@ -245,7 +272,124 @@ function ReelPost({ post, active }) {
                             {post.shares ?? 0}
                         </span>
                     </button>
+                    {!isSelfPost && (
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setIsReportMenuOpen(!isReportMenuOpen)
+                                }}
+                                className="flex flex-col items-center gap-1 cursor-pointer"
+                            >
+                                <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
+                                    <MoreHorizontal size={22} />
+                                </div>
+                                <span className="text-[11px] font-semibold">More</span>
+                            </button>
+                            <AnimatePresence>
+                                {isReportMenuOpen && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.95, x: -20 }}
+                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, x: -20 }}
+                                        className="absolute right-full mr-2 bottom-0 w-36 rounded-xl shadow-xl z-[40] border overflow-hidden"
+                                        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                    >
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setIsReportMenuOpen(false)
+                                                setIsReportModalOpen(true)
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                        >
+                                            <AlertCircle size={14} />
+                                            Report Reel
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
+
+                <AnimatePresence>
+                    {isReportModalOpen && (
+                        <motion.div
+                            className="fixed inset-0 z-[130] flex items-center justify-center px-4"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)} />
+                            <motion.div
+                                className="relative w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+                                style={{ background: 'var(--color-surface)' }}
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                exit={{ scale: 0.9, y: 20 }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex justify-between items-center mb-1">
+                                    <h3 className="text-lg font-black" style={{ color: 'var(--color-text)' }}>Report Reel</h3>
+                                    <button onClick={() => setIsReportModalOpen(false)} className="p-1 rounded-full hover:bg-zinc-800/10 transition-colors">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                                <p className="text-[12px] mb-6 opacity-60 font-medium" style={{ color: 'var(--color-text)' }}>Help us understand what's wrong.</p>
+                                
+                                <div className="space-y-2 mb-6 max-h-[40vh] overflow-y-auto pr-1">
+                                    {['Spam', 'Harassment', 'Inappropriate', 'Illegal', 'Intellectual Property', 'Other'].map((option) => (
+                                        <button
+                                            key={option}
+                                            onClick={() => setReportReason(option)}
+                                            className={`w-full px-4 py-3.5 rounded-2xl text-sm font-bold text-left transition-all ${reportReason === option ? 'bg-[var(--color-primary)] text-white shadow-lg' : 'bg-[var(--color-surface2)] text-[var(--color-text)] hover:brightness-95'}`}
+                                        >
+                                            {option}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {reportReason === 'Other' && (
+                                    <div className="mb-6">
+                                        <textarea
+                                            className="w-full h-24 p-4 rounded-2xl text-sm outline-none resize-none font-medium"
+                                            placeholder="Please describe the issue..."
+                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                            value={reportDescription}
+                                            onChange={(e) => setReportDescription(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        onClick={() => setIsReportModalOpen(false)}
+                                        className="flex-1 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95"
+                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                                        disabled={isReporting}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleReport}
+                                        className="flex-1 py-4 rounded-2xl font-bold text-sm shadow-xl transition-all active:scale-95 disabled:opacity-50"
+                                        style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                        disabled={!reportReason || isReporting}
+                                    >
+                                        {isReporting ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                <span>Reporting</span>
+                                            </div>
+                                        ) : 'Submit'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Bottom creator bar + gifts (gifts horizontal after profile circle) */}
                 <div

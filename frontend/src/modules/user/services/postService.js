@@ -80,5 +80,16 @@ export const postService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to record view");
     return data;
+  },
+
+  async reportPost(id, reason, description) {
+    const response = await fetch(`${USER_POSTS}/${id}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ reason, description })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to submit report");
+    return data;
   }
 };

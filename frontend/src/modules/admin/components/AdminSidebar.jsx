@@ -103,6 +103,7 @@ const menuGroups = [
     {
         title: 'Safety',
         items: [
+            { icon: ShieldAlert, label: 'Reports', path: '/admin/reports', badge: 'New' },
             { icon: ShieldAlert, label: 'Fraud Checks', path: '/admin/fraud' },
             { icon: Terminal, label: 'Audit Logs', path: '/admin/audit' },
         ]

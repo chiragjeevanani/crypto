@@ -14,6 +14,14 @@ const resolveUrl = (url, baseUrl) => {
 
 const mediaUrlFromPost = (post, baseUrl) => resolveUrl(post.media?.url, baseUrl);
 
+const thumbnailUrlFromPost = (post, baseUrl) => {
+  const url = mediaUrlFromPost(post, baseUrl);
+  if (post.media?.type === "video" && url?.includes('cloudinary')) {
+    return url.replace(/\.[^/.]+$/, ".jpg");
+  }
+  return url;
+};
+
 const avatarUrlFromUser = (user, baseUrl) => {
   const avatar = user?.avatar || "";
   if (!avatar) return null;
@@ -123,6 +131,7 @@ module.exports = {
   getBaseUrl,
   resolveUrl,
   mediaUrlFromPost,
+  thumbnailUrlFromPost,
   avatarUrlFromUser,
   formatPostForUserFeed,
   populateCreator

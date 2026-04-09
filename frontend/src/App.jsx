@@ -46,6 +46,7 @@ import MusicManagement from './modules/admin/pages/MusicManagement'
 import GiftHistory from './modules/admin/pages/GiftHistory'
 import WalletTransactions from './modules/admin/pages/WalletTransactions'
 import PromotionSettingsPage from './modules/admin/pages/PromotionSettingsPage'
+import ReportsManagement from './modules/admin/pages/ReportsManagement'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -146,6 +147,7 @@ export default function App() {
             <Route path="campaigns/edit/:campaignId" element={<EditCampaign />} />
             <Route path="voting" element={<VotingManagement />} />
             <Route path="nfts" element={<NFTModeration />} />
+            <Route path="reports" element={<ReportsManagement />} />
 
             <Route path="wallet" element={<WalletOverview />} />
             <Route path="wallet/deposits" element={<WalletTransactions />} />

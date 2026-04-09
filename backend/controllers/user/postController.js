@@ -2,6 +2,7 @@ const Post = require("../../models/Post");
 const User = require("../../models/User");
 const Comment = require("../../models/Comment");
 const Campaign = require("../../models/Campaign");
+const Report = require("../../models/Report");
 const WalletTransaction = require("../../models/WalletTransaction");
 const { computeStatus, formatCampaignForUser } = require("../../utils/campaignHelpers");
 const fs = require("fs");
@@ -436,6 +437,43 @@ exports.recordView = async (req, res) => {
       alreadyViewed: hasViewed
     });
   } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Report a post.
+ */
+exports.reportPost = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const postId = req.params.id;
+    const { reason, description } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ success: false, message: "Reason is required" });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    const report = await Report.create({
+      reporter: userId,
+      targetId: postId,
+      targetModel: "Post",
+      reason,
+      description: description || ""
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Report submitted successfully",
+      report
+    });
+  } catch (error) {
+    console.error("Report Post Error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -22,10 +22,12 @@ export function optimizeCloudinaryUrl(url, options = {}) {
     ];
 
     if (isVideo) {
-        transformations.push('vc_auto'); // Automatically choose best video codec
-        // Video specific optimizations
+        // Remove f_auto for videos to avoid 416 Range Not Satisfiable errors with partial content requests
+        const fIdx = transformations.findIndex(t => t.startsWith('f_'));
+        if (fIdx !== -1) transformations.splice(fIdx, 1);
+        
+        transformations.push('vc_auto'); 
         if (width > 720) {
-            // Cap mobile video to 720p for data saving
             const idx = transformations.findIndex(t => t.startsWith('w_'));
             if (idx !== -1) transformations[idx] = 'w_720';
         }
