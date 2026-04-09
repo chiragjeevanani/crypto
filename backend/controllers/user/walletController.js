@@ -176,16 +176,24 @@ const sendGift = async (req, res) => {
         );
         if (!senderUpdate.modifiedCount) throw new Error("Insufficient recharge coins");
 
+        const receiverAfter = receiverBefore + coinValue;
+        const config = await getAdminConfig(session);
+        const threshold = Number(config.premiumThreshold || 100);
+
+        const updateData = { $inc: { earningCoins: coinValue } };
+        if (!receiver.isPremium && receiverAfter >= threshold) {
+          updateData.$set = { isPremium: true };
+        }
+
         await User.updateOne(
           { _id: receiverId },
-          { $inc: { earningCoins: coinValue } },
+          updateData,
           { session }
         );
 
         await Gift.updateOne({ _id: giftId }, { $inc: { usage: 1 } }, { session });
 
         const senderAfter = senderBefore - coinValue;
-        const receiverAfter = receiverBefore + coinValue;
         const referenceId = String(giftId);
 
         const [sentTx, receivedTx] = await WalletTransaction.create(
@@ -374,7 +382,13 @@ const withdraw = async (req, res) => {
         const earningCoins = Number(user.earningCoins || 0);
         if (earningCoins < coins) throw new Error("Insufficient earning coins");
         if (coins < Number(config.minWithdrawalCoins || 0)) {
-          throw new Error("Below minimum withdrawal threshold");
+          throw new Error(`Minimum withdrawal amount is ${config.minWithdrawalCoins} RS`);
+        }
+        
+        // Enforce sharing/referral requirement
+        const requiredReferrals = Number(config.minReferralsForWithdrawal || 0);
+        if (Number(user.referralCount || 0) < requiredReferrals) {
+          throw new Error(`You must refer at least ${requiredReferrals} members before withdrawing. (Your count: ${user.referralCount || 0})`);
         }
 
         const coinRate = Math.max(0, Number(config.coinRate) || 0);

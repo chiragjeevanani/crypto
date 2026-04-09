@@ -2,6 +2,7 @@ const Post = require("../../models/Post");
 const User = require("../../models/User");
 const Campaign = require("../../models/Campaign");
 const { formatPostForUserFeed, populateCreator, getBaseUrl } = require("../../utils/postHelpers");
+const { getAdminConfig } = require("../../utils/adminConfig");
 const { computeStatus } = require("../../utils/campaignHelpers");
 
 const injectCampaigns = (reels, campaigns, interval) => {
@@ -39,6 +40,7 @@ exports.getReelsFeed = async (req, res) => {
     const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
+    const config = await getAdminConfig();
     const reels = await populateCreator(
       Post.find({ 
         status: "approved", 
@@ -46,7 +48,7 @@ exports.getReelsFeed = async (req, res) => {
         "media.type": "video" 
       }).sort({ createdAt: -1 }).limit(200)
     ).exec();
-    const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds));
+    const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
 
     const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).lean();
     const now = new Date();

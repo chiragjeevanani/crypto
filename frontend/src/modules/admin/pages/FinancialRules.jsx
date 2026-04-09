@@ -52,8 +52,29 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Min Withdrawal (INR)</label>
                             <input
                                 type="number"
-                                value={formData.minWithdrawal || 100}
-                                onChange={(e) => handleChange('minWithdrawal', parseInt(e.target.value))}
+                                value={formData.minWithdrawalCoins || 50}
+                                onChange={(e) => handleChange('minWithdrawalCoins', parseInt(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Min Referrals for Payout</label>
+                            <input
+                                type="number"
+                                value={formData.minReferralsForWithdrawal || 5}
+                                onChange={(e) => handleChange('minReferralsForWithdrawal', parseInt(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Premium Earning Threshold (INR)</label>
+                            <input
+                                type="number"
+                                value={formData.premiumThreshold || 100}
+                                onChange={(e) => handleChange('premiumThreshold', parseInt(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />
                         </div>

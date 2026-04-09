@@ -8,6 +8,7 @@ const { computeStatus, formatCampaignForUser } = require("../../utils/campaignHe
 const fs = require("fs");
 const path = require("path");
 const { getBaseUrl, formatPostForUserFeed, populateCreator, resolveUrl } = require("../../utils/postHelpers");
+const { getAdminConfig } = require("../../utils/adminConfig");
 const { UPLOAD_DIR } = require("../../utils/upload");
 const { cloudinary } = require("../../utils/cloudinary");
 
@@ -124,17 +125,27 @@ exports.createPost = async (req, res) => {
     // Credit Earning Wallet if not a business post (business posts are promotional)
     const REEL_REWARD_COINS = 10;
     if (!isBusiness) {
-      await User.updateOne({ _id: userId }, { $inc: { earningCoins: REEL_REWARD_COINS } });
+      const config = await getAdminConfig();
+      const updatedUser = await User.findByIdAndUpdate(
+        userId, 
+        { $inc: { earningCoins: REEL_REWARD_COINS } },
+        { new: true }
+      );
       
+      // Auto-upgrade to Premium if threshold met
+      if (!updatedUser.isPremium && updatedUser.earningCoins >= config.premiumThreshold) {
+        await User.updateOne({ _id: userId }, { isPremium: true });
+      }
+
       // Create a transaction record
       await WalletTransaction.create({
         userId,
-        type: "gift_received", // Reusing type or I could add "post_reward"
+        type: "gift_received", 
         coins: REEL_REWARD_COINS,
         amount: null,
         beforeBalance: (user.earningCoins || 0),
         afterBalance: (user.earningCoins || 0) + REEL_REWARD_COINS,
-        referenceId: post._id.toString(),
+        referenceId: postDoc._id.toString(),
         referenceType: "post",
         status: "success",
         meta: { reason: "Reel Post Reward" }
@@ -194,10 +205,11 @@ exports.getPosts = async (req, res) => {
     const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
+    const config = await getAdminConfig();
     const posts = await populateCreator(
       Post.find({ status: "approved", isPublished: true }).sort({ createdAt: -1 }).limit(200)
     ).exec();
-    const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds));
+    const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
 
     // Interleave Active Campaigns
     const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).limit(10).lean();
@@ -316,7 +328,7 @@ exports.toggleLike = async (req, res) => {
  * Only role "User" gets real name/handle; others get "User" / "@user".
  */
 function formatCommentAuthorForUser(author) {
-  if (!author) return { id: "", name: "User", handle: "@user", avatar: null };
+  if (!author) return { id: "", name: "User", handle: "@user", avatar: null, isPremium: false };
   const isUserRole = author.role === "User";
   const name = isUserRole ? (author.name || "User") : "User";
   const handle = isUserRole
@@ -327,7 +339,8 @@ function formatCommentAuthorForUser(author) {
     id: author._id?.toString?.() || "",
     name,
     handle: h,
-    avatar: author.avatar || null
+    avatar: author.avatar || null,
+    isPremium: !!author.isPremium
   };
 }
 
@@ -337,7 +350,7 @@ function formatCommentAuthorForUser(author) {
 exports.getComments = async (req, res) => {
   try {
     const comments = await Comment.find({ post: req.params.id })
-      .populate("author", "name handle avatar role")
+      .populate("author", "name handle avatar role isPremium")
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
@@ -368,7 +381,7 @@ exports.createComment = async (req, res) => {
     const comment = await Comment.create({ post: post._id, author: userId, text });
     post.comments = (post.comments || 0) + 1;
     await post.save();
-    const author = await User.findById(userId).select("name handle avatar role").lean();
+    const author = await User.findById(userId).select("name handle avatar role isPremium").lean();
     const commentObj = {
       id: comment._id.toString(),
       postId: post._id.toString(),

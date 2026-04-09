@@ -4,8 +4,9 @@ const DEFAULTS = {
   coinRate: 1,
   platformFeePct: 10,
   gstPct: 18,
-  referralLimit: 0,
-  minWithdrawalCoins: 100,
+  minReferralsForWithdrawal: 5,
+  minWithdrawalCoins: 50,
+  premiumThreshold: 100,
   businessPostPriceINR: 499
 };
 
@@ -17,15 +18,17 @@ const getAdminConfig = async (session = null) => {
     const created = await AdminConfig.create([DEFAULTS], session ? { session } : {});
     config = created[0];
   }
+  const obj = config.toObject();
   return {
-    ...config.toObject(),
-    coinRate: Number(config.coinRate) || DEFAULTS.coinRate,
-    platformFeePct: Number(config.platformFeePct) || DEFAULTS.platformFeePct,
-    gstPct: Number(config.gstPct) || DEFAULTS.gstPct,
-    referralLimit: Number(config.referralLimit) || DEFAULTS.referralLimit,
-    minWithdrawalCoins: Number(config.minWithdrawalCoins) || DEFAULTS.minWithdrawalCoins,
-    businessPostPriceINR: Number(config.businessPostPriceINR) || DEFAULTS.businessPostPriceINR,
-    id: config._id
+    ...obj,
+    coinRate: Number(obj.coinRate) || DEFAULTS.coinRate,
+    platformFeePct: Number(obj.platformFeePct) || DEFAULTS.platformFeePct,
+    gstPct: Number(obj.gstPct) || DEFAULTS.gstPct,
+    minReferralsForWithdrawal: Number(obj.minReferralsForWithdrawal) || DEFAULTS.minReferralsForWithdrawal,
+    minWithdrawalCoins: Number(obj.minWithdrawalCoins) || DEFAULTS.minWithdrawalCoins,
+    premiumThreshold: Number(obj.premiumThreshold) || DEFAULTS.premiumThreshold,
+    businessPostPriceINR: Number(obj.businessPostPriceINR) || DEFAULTS.businessPostPriceINR,
+    id: obj._id
   };
 };
 

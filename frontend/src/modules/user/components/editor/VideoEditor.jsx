@@ -20,6 +20,7 @@ const VideoEditor = ({ file, onSave }) => {
     const [splitRatio, setSplitRatio] = useState(50);
     const [selectedMusic, setSelectedMusic] = useState(null);
     const [showMusicPicker, setShowMusicPicker] = useState(false);
+    const [error, setError] = useState('');
     const musicAudioRef = useRef(null);
 
     useEffect(() => {
@@ -244,21 +245,33 @@ const VideoEditor = ({ file, onSave }) => {
                              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Composition</span>
                          </div>
                          {layout !== 'single' && !secondVideo && (
-                             <label className="text-[10px] font-bold text-primary cursor-pointer hover:text-primary/80 transition-colors flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10">
-                                 <FastForward size={12} /> Add Fusion Multi-Cam
-                                 <input 
-                                     type="file" 
-                                     accept="video/*" 
-                                     className="hidden" 
-                                     onChange={(e) => {
-                                         const file = e.target.files?.[0];
-                                         if (file) {
-                                             setSecondVideo(file);
-                                             setSecondVideoSrc(URL.createObjectURL(file));
-                                         }
-                                     }}
-                                 />
-                             </label>
+                             <div className="flex flex-col gap-2">
+                                 {error && (
+                                     <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[10px] font-bold text-red-500">
+                                         {error}
+                                     </div>
+                                 )}
+                                 <label className="text-[10px] font-bold text-primary cursor-pointer hover:text-primary/80 transition-colors flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10 w-fit">
+                                     <FastForward size={12} /> Add Fusion Multi-Cam
+                                     <input 
+                                         type="file" 
+                                         accept="video/*" 
+                                         className="hidden" 
+                                         onChange={(e) => {
+                                             const file = e.target.files?.[0];
+                                             if (file) {
+                                                 if (file.size > 10 * 1024 * 1024) {
+                                                     setError('File size exceeds 10MB limit. Please select a smaller file.');
+                                                     return;
+                                                 }
+                                                 setError('');
+                                                 setSecondVideo(file);
+                                                 setSecondVideoSrc(URL.createObjectURL(file));
+                                             }
+                                         }}
+                                     />
+                                 </label>
+                             </div>
                          )}
                          {secondVideo && (
                              <button 

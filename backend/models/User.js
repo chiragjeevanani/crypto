@@ -89,7 +89,11 @@ const userSchema = new mongoose.Schema(
     // Social graph
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    dismissedSuggestions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+    dismissedSuggestions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    isPremium: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 );

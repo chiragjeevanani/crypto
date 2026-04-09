@@ -159,7 +159,14 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
 
                         <div className="absolute left-0 right-0 bottom-0 p-5 pb-8 pr-16 text-white z-20">
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm font-bold bg-white/10 px-2 py-0.5 rounded-lg backdrop-blur-md">@{post.creator.username}</span>
+                                <span className="flex items-center gap-1 text-sm font-bold bg-white/10 px-2 py-0.5 rounded-lg backdrop-blur-md">
+                                    @{post.creator.username}
+                                    {post.creator?.isPremium && (
+                                        <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5">
+                                            <Check size={8} className="text-white" strokeWidth={5} />
+                                        </div>
+                                    )}
+                                </span>
                                 {post.isBusiness && (
                                     <span className="flex items-center gap-1 bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-lg text-[10px] font-bold border border-blue-500/30 backdrop-blur-md">
                                         <TrendingUp size={10} />

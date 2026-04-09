@@ -179,7 +179,14 @@ export default function SearchPage() {
                                     )}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{user.username}</p>
+                                    <div className="flex items-center gap-1">
+                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{user.username}</p>
+                                        {user.isPremium && (
+                                            <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                                <Check size={9} className="text-white" strokeWidth={5} />
+                                            </div>
+                                        )}
+                                    </div>
                                     <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{user.handle}</p>
                                 </div>
                             </button>

@@ -276,9 +276,16 @@ export default function PostCard({ post, onOpen }) {
                         to={isSelfPost ? '/profile' : `/user/${post.creator?.id || ''}`}
                         className="cursor-pointer"
                     >
-                        <p className="text-sm lg:text-[15px] font-bold truncate hover:text-[var(--desktop-accent,var(--color-primary))] transition-colors" style={{ color: 'var(--color-text)' }}>
-                            {post.creator?.username || 'User'}
-                        </p>
+                        <div className="flex items-center gap-1">
+                            <p className="text-sm lg:text-[15px] font-bold truncate hover:text-[var(--desktop-accent,var(--color-primary))] transition-colors" style={{ color: 'var(--color-text)' }}>
+                                {post.creator?.username || 'User'}
+                            </p>
+                            {post.creator?.isPremium && (
+                                <div className="w-3 h-3 lg:w-3.5 lg:h-3.5 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                    <Check size={10} className="text-white" strokeWidth={5} />
+                                </div>
+                            )}
+                        </div>
                     </Link>
                     <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                         {post.creator?.handle || '@user'} · {timeAgo(post.createdAt)}
@@ -722,7 +729,14 @@ export default function PostCard({ post, onOpen }) {
                                         ) : (
                                             postComments.map((item) => (
                                                 <div key={item.id} className="p-2.5 rounded-lg" style={{ background: 'var(--color-surface2)' }}>
-                                                    <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.author?.handle || item.author?.name || 'User'}</p>
+                                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                                        <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.author?.handle || item.author?.name || 'User'}</p>
+                                                        {item.author?.isPremium && (
+                                                            <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5">
+                                                                <Check size={8} className="text-white" strokeWidth={5} />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <p className="text-xs" style={{ color: 'var(--color-sub)' }}>{item.text}</p>
                                                     {item.createdAt && <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-muted)' }}>{timeAgo(item.createdAt)}</p>}
                                                 </div>

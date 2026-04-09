@@ -52,7 +52,14 @@ export default function SuggestedUserCard({ user, onRemove }) {
                     )}
                 </div>
             </div>
-            <p className="text-[11px] font-bold truncate w-full text-center" style={{ color: 'inherit' }}>{user.username}</p>
+            <div className="flex items-center gap-1 w-full justify-center">
+                <p className="text-[11px] font-bold truncate" style={{ color: 'inherit' }}>{user.username}</p>
+                {user.isPremium && (
+                    <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5">
+                        <Check size={8} className="text-white" strokeWidth={5} />
+                    </div>
+                )}
+            </div>
             <p className="text-[9px] text-zinc-500 mb-2 truncate w-full text-center">{user.handle}</p>
             <motion.button
                 whileTap={{ scale: 0.95 }}

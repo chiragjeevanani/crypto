@@ -17,14 +17,19 @@ const adminConfigSchema = new mongoose.Schema(
       default: 18,
       min: 0
     },
-    referralLimit: {
+    minReferralsForWithdrawal: {
       type: Number,
-      default: 0,
+      default: 5,
       min: 0
     },
     minWithdrawalCoins: {
       type: Number,
-      default: 100,
+      default: 50, // 50 RS
+      min: 0
+    },
+    premiumThreshold: {
+      type: Number,
+      default: 100, // 100 RS
       min: 0
     },
     businessPostPriceINR: {

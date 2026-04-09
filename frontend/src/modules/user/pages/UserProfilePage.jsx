@@ -183,6 +183,11 @@ export default function UserProfilePage() {
                             <p className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>
                                 {user.username}
                             </p>
+                            {user.isPremium && (
+                                <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center p-0.5">
+                                    <Check size={12} className="text-white" strokeWidth={4} />
+                                </div>
+                            )}
                             <span
                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
                                 style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--color-primary)' }}

@@ -1,6 +1,7 @@
 const User = require("../../models/User");
 const Post = require("../../models/Post");
-const { getBaseUrl, formatPostForUserFeed, avatarUrlFromUser } = require("../../utils/postHelpers");
+const { getBaseUrl, formatPostForUserFeed, avatarUrlFromUser, formatUser } = require("../../utils/postHelpers");
+const { getAdminConfig } = require("../../utils/adminConfig");
 
 const escapeRegex = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -175,7 +176,8 @@ exports.getUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
     const baseUrl = getBaseUrl(req);
-    const user = await User.findById(id).select("name handle avatar bio role").lean();
+    const config = await getAdminConfig();
+    const user = await User.findById(id).select("name handle avatar bio role earningCoins").lean();
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -188,21 +190,12 @@ exports.getUserProfile = async (req, res) => {
       currentUserId ? User.exists({ _id: id, followers: currentUserId }) : Promise.resolve(false)
     ]);
 
-    const rawHandle = user.handle || "";
-    const handle = rawHandle
-      ? (rawHandle.startsWith("@") ? rawHandle : `@${rawHandle}`)
-      : `@${(user.name || "user").replace(/\s+/g, "").toLowerCase()}`;
-
+    const formatted = formatUser(user, baseUrl, config.premiumThreshold);
     const mappedUser = {
-      id: user._id?.toString() || "",
-      username: user.name || "User",
-      handle,
-      avatar: avatarUrlFromUser(user, baseUrl),
-      bio: user.bio || "",
+      ...formatted,
       followersCount,
       followingCount,
-      isFollowing: !!isFollowing,
-      role: user.role
+      isFollowing: !!isFollowing
     };
 
     return res.status(200).json({ success: true, user: mappedUser });

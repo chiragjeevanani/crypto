@@ -3,7 +3,7 @@ const multer = require("multer");
 const fs = require("fs");
 
 const UPLOAD_DIR = path.join(__dirname, "..", "uploads");
-const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB for video
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit for video and images
 
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });

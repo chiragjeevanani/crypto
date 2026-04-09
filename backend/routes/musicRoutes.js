@@ -5,7 +5,10 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 const multer = require("multer");
 const os = require("os");
 
-const upload = multer({ dest: os.tmpdir() });
+const upload = multer({ 
+  dest: os.tmpdir(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // Admin routes
 router.post(

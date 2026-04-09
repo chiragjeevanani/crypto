@@ -63,6 +63,7 @@ export default function CreatePage() {
     const [isEditorOpen, setIsEditorOpen] = useState(false)
     const [originalFile, setOriginalFile] = useState(null)
     const [isProcessing, setIsProcessing] = useState(false)
+    const [mediaError, setMediaError] = useState('')
     const previewMusicRef = useRef(null)
 
     // Business states
@@ -168,6 +169,13 @@ export default function CreatePage() {
     const handleMediaChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
+
+        if (file.size > 10 * 1024 * 1024) {
+            setMediaError('File size exceeds 10MB limit. Please select a smaller file.')
+            return
+        }
+        
+        setMediaError('') // Clear any previous error
         
         if (file.type.startsWith('audio/')) {
             setMediaFile(file)
@@ -211,7 +219,7 @@ export default function CreatePage() {
             setMediaType('video')
         } catch (err) {
             console.error('Video processing failed:', err)
-            alert('Video processing failed. Please try again.')
+            setMediaError('Video processing failed. Please try again.')
         } finally {
             setIsProcessing(false)
         }
@@ -453,6 +461,12 @@ export default function CreatePage() {
                         {step === 1 && (
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Upload Media</p>
+                                {mediaError && (
+                                    <div className="mb-4 p-3 rounded-xl flex items-center gap-2" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                        <X size={16} className="text-red-500" />
+                                        <p className="text-xs font-bold text-red-500">{mediaError}</p>
+                                    </div>
+                                )}
                                 <label className="cursor-pointer block">
                                     <div
                                         className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed"
@@ -484,7 +498,7 @@ export default function CreatePage() {
                                                     Tap to upload
                                                 </p>
                                                 <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                                                    Image, Video or Audio
+                                                    Image, Video or Audio (Max 10MB)
                                                 </p>
                                             </>
                                         )}
