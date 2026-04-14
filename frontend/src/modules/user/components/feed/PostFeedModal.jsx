@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music, Eye } from 'lucide-react'
+import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music, Eye, Check, MoreHorizontal, AlertCircle, X, Trash2 } from 'lucide-react'
 import PostCard from './PostCard'
 import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
@@ -13,6 +13,7 @@ import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
 import { formatCurrency, formatCount } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
+import Avatar from '../shared/Avatar'
 import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
@@ -20,7 +21,7 @@ import ReelFullSkeleton from './ReelFullSkeleton'
 function ReelPost({ post, active }) {
     if (!post?.creator) return <ReelFullSkeleton />
     
-    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission } = useFeedStore()
+    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
@@ -87,6 +88,16 @@ function ReelPost({ post, active }) {
             console.error('Report failed:', error)
         } finally {
             setIsReporting(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this reel?')) return
+        try {
+            await deletePost(post.id)
+            if (post.onDelete) post.onDelete(post.id)
+        } catch (error) {
+            alert('Failed to delete reel')
         }
     }
 
@@ -162,7 +173,8 @@ function ReelPost({ post, active }) {
                         muted={isMuted}
                         playsInline
                         autoPlay
-                        preload="metadata"
+                        preload="auto"
+                        poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
                         crossOrigin="anonymous"
                         onClick={toggleMute}
                     />
@@ -195,7 +207,8 @@ function ReelPost({ post, active }) {
                 {/* Persistent Volume Toggle */}
                 <button 
                     onClick={toggleMute}
-                    className="absolute bottom-16 right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                    className="absolute right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                    style={{ bottom: 'calc(8px + var(--reels-bottom-offset, 64px))' }}
                 >
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
@@ -272,30 +285,43 @@ function ReelPost({ post, active }) {
                             {post.shares ?? 0}
                         </span>
                     </button>
-                    {!isSelfPost && (
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    setIsReportMenuOpen(!isReportMenuOpen)
-                                }}
-                                className="flex flex-col items-center gap-1 cursor-pointer"
-                            >
-                                <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
-                                    <MoreHorizontal size={22} />
-                                </div>
-                                <span className="text-[11px] font-semibold">More</span>
-                            </button>
-                            <AnimatePresence>
-                                {isReportMenuOpen && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, scale: 0.95, x: -20 }}
-                                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95, x: -20 }}
-                                        className="absolute right-full mr-2 bottom-0 w-36 rounded-xl shadow-xl z-[40] border overflow-hidden"
-                                        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
-                                    >
+                    
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setIsReportMenuOpen(!isReportMenuOpen)
+                            }}
+                            className="flex flex-col items-center gap-1 cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
+                                <MoreHorizontal size={22} />
+                            </div>
+                            <span className="text-[11px] font-semibold">More</span>
+                        </button>
+                        <AnimatePresence>
+                            {isReportMenuOpen && (
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, x: -20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, x: -20 }}
+                                    className="absolute right-full mr-2 bottom-0 w-40 rounded-xl shadow-xl z-[40] border overflow-hidden"
+                                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                >
+                                    {isSelfPost ? (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setIsReportMenuOpen(false)
+                                                handleDelete()
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                        >
+                                            <Trash2 size={14} />
+                                            Delete Reel
+                                        </button>
+                                    ) : (
                                         <button 
                                             onClick={(e) => {
                                                 e.stopPropagation()
@@ -307,11 +333,11 @@ function ReelPost({ post, active }) {
                                             <AlertCircle size={14} />
                                             Report Reel
                                         </button>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    )}
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
 
                 <AnimatePresence>
@@ -398,23 +424,20 @@ function ReelPost({ post, active }) {
                 >
                     {/* Profile circle + username + caption */}
                     <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-white overflow-hidden flex items-center justify-center">
-                            {post.creator?.avatar ? (
-                                <img
-                                    src={optimizeCloudinaryUrl(post.creator.avatar, { width: 150 })}
-                                    alt={post.creator.username}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <span className="text-sm font-bold text-black">
-                                    {creatorInitial}
-                                </span>
-                            )}
+                        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center">
+                            <Avatar src={post.creator?.avatar} alt={post.creator?.username} size="w-full h-full" isPremium={post.creator?.isPremium} />
                         </div>
                         <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-semibold text-white">
-                                {post.creator?.username || 'User'}
-                            </span>
+                            <div className="flex items-center gap-1">
+                                <span className="text-sm font-semibold text-white">
+                                    {post.creator?.username || 'User'}
+                                </span>
+                                {post.creator?.isPremium && (
+                                    <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                        <Check size={9} className="text-white" strokeWidth={5} />
+                                    </div>
+                                )}
+                            </div>
                             <span className="text-[11px] text-white/70 truncate max-w-[140px]">
                                 {post.caption || ''}
                             </span>
@@ -447,7 +470,7 @@ function ReelPost({ post, active }) {
                     </div>
 
                     {post.musicData && (
-                        <div className="absolute left-0 -bottom-8 flex items-center gap-2 overflow-hidden bg-white/10 backdrop-blur-md rounded-lg px-2 py-1 w-fit max-w-[140px]">
+                        <div className="absolute left-0 -bottom-8 flex items-center gap-2 overflow-hidden w-fit max-w-[140px]">
                             <Music size={10} className="text-white animate-spin-slow" />
                             <div className="flex-1 min-w-0 overflow-hidden">
                                 <div className="whitespace-nowrap animate-scroll-text inline-block">
@@ -605,7 +628,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                 style={{
                     background: isReelsMode ? '#000' : 'var(--color-bg)',
                     '--reels-header-height': '64px',
-                    '--reels-bottom-offset': 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 8px)',
+                    '--reels-bottom-offset': 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 24px)',
                     '--reels-viewport-height': isReelsMode ? '100svh' : 'auto'
                 }}
                 initial={{ opacity: 0 }}

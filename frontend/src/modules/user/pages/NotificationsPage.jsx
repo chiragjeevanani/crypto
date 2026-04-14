@@ -67,13 +67,11 @@ function SuggestionCard({ user }) {
         >
             <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
                 style={{ background: 'var(--color-surface2)' }}>
-                {user.avatar ? (
-                    <img src={optimizeCloudinaryUrl(user.avatar, { width: 80 })} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                    <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
-                        {(user.name || 'U').charAt(0).toUpperCase()}
-                    </span>
-                )}
+                <img 
+                    src={optimizeCloudinaryUrl(user.avatar, { width: 80 })} 
+                    alt={user.name} 
+                    className={`w-full h-full object-cover ${!user.avatar ? 'opacity-60' : ''}`} 
+                />
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{user.name}</p>

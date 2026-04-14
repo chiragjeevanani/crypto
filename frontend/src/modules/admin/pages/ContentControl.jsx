@@ -176,13 +176,26 @@ export default function ContentControl() {
                                 </p>
                                 <p className="text-[10px] text-muted truncate max-w-[200px] font-medium mb-1">{post.content}</p>
                                 {post.isBusiness && (
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                        <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-bold uppercase tracking-wider border border-blue-500/20">
-                                            Promotion
-                                        </span>
-                                        <span className="text-[10px] font-bold text-emerald-500">
-                                            ₹{post.promotion?.totalBudget || 0}
-                                        </span>
+                                    <div className="flex flex-col gap-1.5 mt-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-bold uppercase tracking-wider border border-blue-500/20">
+                                                Promotion
+                                            </span>
+                                            <span className="text-[10px] font-bold text-emerald-500">
+                                                ₹{post.promotion?.totalBudget || 0}
+                                            </span>
+                                        </div>
+                                        {/* Payment Status Badge */}
+                                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border w-fit ${
+                                            post.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                            post.paymentStatus === 'failed' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                                            'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                        }`}>
+                                            {post.paymentStatus === 'paid' ? <CheckCircle className="w-2.5 h-2.5" /> : 
+                                             post.paymentStatus === 'failed' ? <XCircle className="w-2.5 h-2.5" /> : 
+                                             <Clock className="w-2.5 h-2.5" />}
+                                            {post.paymentStatus || 'pending'}
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -8,6 +8,7 @@ import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization';
 import EditorModal from '../editor/EditorModal';
 import { videoService } from '../../services/videoService';
 import { Loader2 } from 'lucide-react';
+import Avatar from '../shared/Avatar';
 
 const STORY_AUDIO_TRACKS = [
     { id: '1', title: 'Trending Now' },
@@ -105,6 +106,7 @@ export default function Stories() {
                 userId: s.user.id,
                 username: s.user.username || s.user.handle || 'User',
                 avatar: s.user.avatar || NO_IMAGE_AVATAR,
+                isPremium: s.user.isPremium,
                 hasUnseen: true,
                 isMe: s.isMe,
                 mediaUrl: s.media?.url,
@@ -143,6 +145,7 @@ export default function Stories() {
                 id: 'me',
                 username: 'Your Story',
                 avatar: profile?.avatar || NO_IMAGE_AVATAR,
+                isPremium: profile?.isPremium,
                 hasUnseen: !!mine,
                 isMe: true,
             };
@@ -153,6 +156,7 @@ export default function Stories() {
                 id: 'me',
                 username: 'Your Story',
                 avatar: profile?.avatar || NO_IMAGE_AVATAR,
+                isPremium: profile?.isPremium,
                 hasUnseen: false,
                 isMe: true,
             };
@@ -202,6 +206,7 @@ export default function Stories() {
                     id: first.user?.id || first.userId,
                     username: first.user?.username || first.user?.handle || (isMe ? 'You' : 'User'),
                     avatar: first.user?.avatar || first.avatar || NO_IMAGE_AVATAR,
+                    isPremium: first.user?.isPremium || first.isPremium,
                     isMe: isMe
                 },
                 stories: userStories.map((s) => ({
@@ -349,13 +354,8 @@ export default function Stories() {
                                     : 'bg-gray-300 dark:bg-zinc-700'
                                     }`}
                             >
-                                <div className="w-full h-full rounded-full border-2 border-black overflow-hidden bg-black">
-                                    <img
-                                        src={optimizeCloudinaryUrl(story.avatar, { width: 120 })}
-                                        alt={story.username}
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
+                                <div className="w-full h-full rounded-full border-2 border-black overflow-hidden bg-black flex items-center justify-center">
+                                    <Avatar src={story.avatar} alt={story.username} size="w-full h-full" isPremium={story.isPremium} />
                                 </div>
                             </div>
 
@@ -521,15 +521,23 @@ export default function Stories() {
 
                             {/* Story Header */}
                             <div className="absolute top-4 left-3 right-3 flex items-center gap-2 z-20">
-                                <img
-                                    src={selectedStory.user?.avatar || NO_IMAGE_AVATAR}
-                                    className="w-8 h-8 rounded-full border border-white/50"
-                                    alt=""
-                                />
-                                <span className="text-white text-xs font-bold drop-shadow-md">
-                                    {selectedStory.user?.username}
-                                </span>
-                                <span className="text-white/70 text-xs ml-2">Story</span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <Avatar 
+                                        src={selectedStory.user?.avatar} 
+                                        size="xs" 
+                                        isPremium={selectedStory.user?.isPremium} 
+                                        className="border border-white/50"
+                                    />
+                                    <span className="text-white text-xs font-bold drop-shadow-md truncate">
+                                        {selectedStory.user?.username}
+                                    </span>
+                                    {selectedStory.user?.isPremium && (
+                                        <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                            <Check size={8} className="text-white" strokeWidth={5} />
+                                        </div>
+                                    )}
+                                </div>
+                                <span className="text-white/70 text-xs ml-2 shrink-0">Story</span>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();

@@ -5,6 +5,7 @@ import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play, Ey
 import { formatCount } from '../utils/formatCurrency'
 import { mockNFTs } from '../data/mockNFTs'
 import { useFeedStore } from '../store/useFeedStore'
+import { useUserStore } from '../store/useUserStore'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { followService } from '../services/followService'
@@ -24,6 +25,7 @@ function getColor(id) {
 export default function UserProfilePage() {
     const { userId } = useParams()
     const navigate = useNavigate()
+    const { profile } = useUserStore()
     const { toggleFollow, posts, loadPosts } = useFeedStore()
     const [activeTab, setActiveTab] = useState('Posts')
     const [activePostIndex, setActivePostIndex] = useState(null)
@@ -147,7 +149,7 @@ export default function UserProfilePage() {
                                 {user.avatar ? (
                                     <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                                 ) : (
-                                    user.username.charAt(0)
+                                    <img src="/person.png" alt={user.username} className="w-full h-full object-cover opacity-60" />
                                 )}
                             </div>
                         </div>
@@ -205,36 +207,38 @@ export default function UserProfilePage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 mt-5">
-                        <motion.button
-                            whileTap={{ scale: 0.96 }}
-                            onClick={handleToggleFollow}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all"
-                            style={
-                                user.isFollowing
-                                    ? { background: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }
-                                    : { background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))', color: '#fff' }
-                            }
-                        >
-                            {user.isFollowing ? (
-                                <span className="flex items-center justify-center gap-1.5">
-                                    <Check size={16} strokeWidth={2.5} /> Following
-                                </span>
-                            ) : (
-                                <span className="flex items-center justify-center gap-1.5">
-                                    <UserPlus size={16} strokeWidth={2.5} /> Follow
-                                </span>
-                            )}
-                        </motion.button>
-                        <motion.button
-                            whileTap={{ scale: 0.96 }}
-                            onClick={() => navigate('/messaging', { state: { openChat: { id: user.id, username: user.username, handle: user.handle, avatar: user.avatar } } })}
-                            className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-                            style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                        >
-                            Message
-                        </motion.button>
-                    </div>
+                    {profile?.id !== userId && (
+                        <div className="flex gap-2 mt-5">
+                            <motion.button
+                                whileTap={{ scale: 0.96 }}
+                                onClick={handleToggleFollow}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all"
+                                style={
+                                    user.isFollowing
+                                        ? { background: 'var(--color-surface2)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }
+                                        : { background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))', color: '#fff' }
+                                }
+                            >
+                                {user.isFollowing ? (
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <Check size={16} strokeWidth={2.5} /> Following
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <UserPlus size={16} strokeWidth={2.5} /> Follow
+                                    </span>
+                                )}
+                            </motion.button>
+                            <motion.button
+                                whileTap={{ scale: 0.96 }}
+                                onClick={() => navigate('/messaging', { state: { openChat: { id: user.id, username: user.username, handle: user.handle, avatar: user.avatar } } })}
+                                className="px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
+                                style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                            >
+                                Message
+                            </motion.button>
+                        </div>
+                    )}
 
                     <SuggestedUsersSection />
                 </div>

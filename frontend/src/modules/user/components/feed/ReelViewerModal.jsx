@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, TrendingUp, MoreHorizontal, AlertCircle, ShieldAlert } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, TrendingUp, MoreHorizontal, AlertCircle, ShieldAlert, Trash2, Check } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useUserStore, getStoredToken } from '../../store/useUserStore'
 import { formatCount } from '../../utils/formatCurrency'
 import { postService } from '../../services/postService'
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 export default function ReelViewerModal({ posts = [], startIndex = null, onClose }) {
     const navigate = useNavigate()
-    const { toggleLike } = useFeedStore()
+    const { profile } = useUserStore()
+    const { toggleLike, deletePost } = useFeedStore()
     const [index, setIndex] = useState(startIndex)
     
     const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
@@ -31,6 +33,17 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
             console.error('Report failed:', error)
         } finally {
             setIsReporting(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this reel?')) return
+        try {
+            await deletePost(post.id)
+            if (posts.length <= 1) onClose()
+            else setIndex(prev => Math.min(posts.length - 2, prev)) // Move to prev or stay at last
+        } catch (error) {
+            alert('Failed to delete reel')
         }
     }
 
@@ -100,7 +113,17 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                 <div className="h-full w-full flex items-center justify-center px-3 py-4">
                     <div className="relative w-full max-w-[430px] h-full max-h-[92vh] rounded-3xl overflow-hidden bg-black border border-white/15 shadow-2xl">
                         {post.media.type === 'video' ? (
-                            <video src={post.media.url} style={{ filter: post.filter || 'none' }} className="w-full h-full object-cover" autoPlay loop playsInline muted />
+                            <video 
+                                src={post.media.url} 
+                                style={{ filter: post.filter || 'none' }} 
+                                className="w-full h-full object-cover" 
+                                autoPlay 
+                                loop 
+                                playsInline 
+                                muted 
+                                preload="auto"
+                                poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
+                            />
                         ) : (
                             <img src={post.media.url} style={{ filter: post.filter || 'none' }} alt={post.caption} className="w-full h-full object-cover" />
                         )}
@@ -138,19 +161,34 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                                             initial={{ opacity: 0, scale: 0.95, x: -20 }}
                                             animate={{ opacity: 1, scale: 1, x: 0 }}
                                             exit={{ opacity: 0, scale: 0.95, x: -20 }}
-                                            className="absolute right-full mr-2 bottom-0 w-36 rounded-xl shadow-xl z-[40] border overflow-hidden"
+                                            className="absolute right-full mr-2 bottom-0 w-40 rounded-xl shadow-xl z-[40] border overflow-hidden"
                                             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                                         >
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    setIsReportMenuOpen(false)
-                                                    setIsReportModalOpen(true)
-                                                }}
-                                                className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
-                                            >
-                                                Report Reel
-                                            </button>
+                                            {post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id) ? (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setIsReportMenuOpen(false)
+                                                        handleDelete()
+                                                    }}
+                                                    className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                                >
+                                                    <Trash2 size={14} />
+                                                    Delete Reel
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setIsReportMenuOpen(false)
+                                                        setIsReportModalOpen(true)
+                                                    }}
+                                                    className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                                >
+                                                    <AlertCircle size={14} />
+                                                    Report Reel
+                                                </button>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>

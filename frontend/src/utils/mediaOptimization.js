@@ -3,15 +3,33 @@
  * Adds auto format, auto quality, and width capping.
  */
 export function optimizeCloudinaryUrl(url, options = {}) {
-    if (!url || typeof url !== 'string' || !url.includes('cloudinary.com')) {
+    if (!url || typeof url !== 'string') {
+        return '/person.png';
+    }
+
+    if (!url.includes('cloudinary.com')) {
         return url;
     }
 
     const { width = 1080, quality = 'auto', format = 'auto', isVideo = false } = options;
 
-    // Split at /upload/
-    const parts = url.split('/upload/');
-    if (parts.length !== 2) return url;
+    // Detect if this is a thumbnail of a video (ends in image extension but might be in /video/ path)
+    const isImageFormat = /\.(jpg|jpeg|png|webp|avif|heic)$/i.test(url);
+    const effectiveIsVideo = isVideo && !isImageFormat;
+
+    // Split at /upload/ - handle both /image/upload, /video/upload or just /upload
+    const uploadMarker = '/upload/';
+    const markerIndex = url.indexOf(uploadMarker);
+    if (markerIndex === -1) return url;
+
+    const prefix = url.substring(0, markerIndex + uploadMarker.length);
+    const remainder = url.substring(markerIndex + uploadMarker.length);
+
+    // If the remainder already contains transformations (e.g. w_200/), skip optimization or handle carefully
+    // For simplicity, if it already has transformations, we'll just return the original URL to avoid breaking it
+    if (remainder.includes('/') && !remainder.startsWith('v') && !remainder.startsWith('crypto-app/')) {
+        return url;
+    }
 
     // Common transformation parts
     const transformations = [
@@ -21,12 +39,12 @@ export function optimizeCloudinaryUrl(url, options = {}) {
         'c_limit' // Maintain aspect ratio but don't upscale
     ];
 
-    if (isVideo) {
-        // Remove f_auto for videos to avoid 416 Range Not Satisfiable errors with partial content requests
+    if (effectiveIsVideo) {
+        // Remove f_auto for videos to avoid 416 Range Not Satisfiable errors
+        // Also remove vc_auto as it causes 400 errors on some Cloudinary setups
         const fIdx = transformations.findIndex(t => t.startsWith('f_'));
         if (fIdx !== -1) transformations.splice(fIdx, 1);
         
-        transformations.push('vc_auto'); 
         if (width > 720) {
             const idx = transformations.findIndex(t => t.startsWith('w_'));
             if (idx !== -1) transformations[idx] = 'w_720';
@@ -36,8 +54,9 @@ export function optimizeCloudinaryUrl(url, options = {}) {
         transformations.push('dpr_auto');
     }
 
-    return `${parts[0]}/upload/${transformations.join(',')}/${parts[1]}`;
+    return `${prefix}${transformations.join(',')}/${remainder}`;
 }
+
 
 export function getThumbnailUrl(url) {
     return optimizeCloudinaryUrl(url, { width: 400, quality: '50' });

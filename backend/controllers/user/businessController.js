@@ -70,6 +70,7 @@ exports.initiatePayment = async (req, res) => {
         amount,
         currency: "INR",
         orderId,
+        keyId: process.env.RAZORPAY_KEY_ID,
         message: "Payment initiated"
       }
     });

@@ -1,6 +1,7 @@
-import { Star } from 'lucide-react'
+import { Star, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCount, formatINR } from '../../utils/formatCurrency'
+import Avatar from '../shared/Avatar'
 
 export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpenFollowing }) {
     return (
@@ -12,16 +13,12 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                     className="flex-shrink-0 p-0.5 rounded-full"
                     style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))' }}
                 >
-                    <div
-                        className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white"
-                        style={{ background: 'var(--color-surface2)' }}
-                    >
-                        {profile.avatar ? (
-                            <img src={profile.avatar} alt={profile.username} className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                            profile.username.charAt(0)
-                        )}
-                    </div>
+                    <Avatar 
+                        src={profile.avatar} 
+                        alt={profile.username} 
+                        size="xl" 
+                        isPremium={profile.isPremium} 
+                    />
                 </div>
 
                 {/* Stats */}
@@ -57,6 +54,11 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                     <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
                         {profile.username}
                     </p>
+                    {profile.isPremium && (
+                        <div className="w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                            <Check size={9} className="text-white" strokeWidth={5} />
+                        </div>
+                    )}
                     {profile.badge && (
                         <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"

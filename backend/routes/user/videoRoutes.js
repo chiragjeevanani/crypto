@@ -15,7 +15,14 @@ router.post('/process-video', upload.fields([{ name: 'video', maxCount: 1 }, { n
             return res.status(400).json({ success: false, message: 'No video provided' });
         }
 
-        const parsedTrim = trim ? JSON.parse(trim) : null;
+        let parsedTrim = null;
+        try {
+            if (trim && trim !== 'undefined' && trim !== 'null') {
+                parsedTrim = JSON.parse(trim);
+            }
+        } catch (e) {
+            console.error('Failed to parse trim:', trim);
+        }
         
         const result = await processVideo({
             file: video,
@@ -24,7 +31,7 @@ router.post('/process-video', upload.fields([{ name: 'video', maxCount: 1 }, { n
             layout: layout || 'single',
             rotation: rotation ? parseInt(rotation) : 0,
             splitRatio: splitRatio ? parseInt(splitRatio) : 50,
-            music: music ? JSON.parse(music) : null
+            music: music && music !== 'undefined' ? JSON.parse(music) : null
         });
 
         // Get full URL for frontend

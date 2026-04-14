@@ -3,6 +3,7 @@ import { Check, UserPlus, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useFeedStore } from '../../store/useFeedStore'
+import Avatar from '../shared/Avatar'
 
 export default function SuggestedUserCard({ user, onRemove }) {
     const navigate = useNavigate()
@@ -43,13 +44,7 @@ export default function SuggestedUserCard({ user, onRemove }) {
             </button>
             <div className="w-20 h-20 rounded-full overflow-hidden mb-2 bg-gradient-to-tr from-yellow-400 to-purple-600 p-0.5">
                 <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center p-0.5">
-                    {user.avatar ? (
-                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                        <div className="w-full h-full rounded-full flex items-center justify-center bg-zinc-700">
-                            <span className="text-2xl font-bold text-white">{(user.username || 'U').charAt(0)}</span>
-                        </div>
-                    )}
+                    <Avatar src={user.avatar} alt={user.username} size="w-full h-full" />
                 </div>
             </div>
             <div className="flex items-center gap-1 w-full justify-center">

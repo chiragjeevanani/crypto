@@ -17,6 +17,7 @@ import SuggestedReelsSection from '../components/feed/SuggestedReelsSection'
 import CampaignHomeCard from '../components/feed/CampaignHomeCard'
 import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
+import ErrorBoundary from '../components/shared/ErrorBoundary'
 
 export default function HomePage() {
     const { posts, postsLoading, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost } = useFeedStore()
@@ -283,7 +284,11 @@ export default function HomePage() {
             )}
 
             {/* Stories Section (Instagram-like) */}
-            {!isExplore && !isReels && <Stories />}
+            {!isExplore && !isReels && (
+                <ErrorBoundary fallback={<div className="h-24" />}>
+                    <Stories />
+                </ErrorBoundary>
+            )}
 
             {!isExplore && !isReels ? (
                 <div className="desktop-feed-grid">
@@ -312,9 +317,13 @@ export default function HomePage() {
                     {/* If feed is empty or very short, show suggestions at the top */}
                     {(feedPosts.length === 0) && !suggestedLoading && (
                         <div className="py-2">
-                             <SuggestedUsersSection />
+                            <ErrorBoundary>
+                                <SuggestedUsersSection />
+                            </ErrorBoundary>
                             {suggestedReels.length > 0 && (
-                                <SuggestedReelsSection reels={suggestedReels} />
+                                <ErrorBoundary>
+                                    <SuggestedReelsSection reels={suggestedReels} />
+                                </ErrorBoundary>
                             )}
                         </div>
                     )}
@@ -335,18 +344,26 @@ export default function HomePage() {
 
                     {feedPosts.map((post, index) => (
                         <div key={post.id}>
-                            {post.postType === 'campaign_card' ? (
-                                <CampaignHomeCard campaign={post.campaign} />
-                            ) : (
-                                <PostCard post={post} onOpen={handleOpenFromFeed} />
-                            )}
+                            <ErrorBoundary>
+                                {post.postType === 'campaign_card' ? (
+                                    <CampaignHomeCard campaign={post.campaign} />
+                                ) : (
+                                    <PostCard post={post} onOpen={handleOpenFromFeed} />
+                                )}
+                            </ErrorBoundary>
                             
                             {/* Suggested Users - shown after the 2nd post (index 1) or after the 1st if it is the only post */}
-                            {((index === 1) || (index === 0 && feedPosts.length === 1)) &&  <SuggestedUsersSection />}
+                            {((index === 1) || (index === 0 && feedPosts.length === 1)) && (
+                                <ErrorBoundary>
+                                    <SuggestedUsersSection />
+                                </ErrorBoundary>
+                            )}
 
                             {/* Suggested Reels - shown after the 5th post (index 4) or at the end if the feed is shorter than 5 */}
                             {((index === 4) || (index === feedPosts.length - 1 && feedPosts.length < 5)) && suggestedReels.length > 0 && (
-                                <SuggestedReelsSection reels={suggestedReels} />
+                                <ErrorBoundary>
+                                    <SuggestedReelsSection reels={suggestedReels} />
+                                </ErrorBoundary>
                             )}
                         </div>
                     ))}
@@ -402,7 +419,7 @@ export default function HomePage() {
                                                     {user.avatar ? (
                                                         <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <User size={16} style={{ color: 'var(--color-muted)' }} />
+                                                        <img src="/person.png" alt={user.username} className="w-full h-full object-cover opacity-60" />
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">

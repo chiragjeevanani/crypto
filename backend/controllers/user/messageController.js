@@ -93,7 +93,10 @@ exports.getConversations = async (req, res) => {
         };
       })
     );
-    res.json({ success: true, conversations: result.filter(Boolean) });
+    res.json({ 
+      success: true, 
+      conversations: result.filter(Boolean).filter(c => c.user.id.toString() !== currentUserId.toString()) 
+    });
   } catch (error) {
     console.error("[Message] getConversations error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch conversations" });

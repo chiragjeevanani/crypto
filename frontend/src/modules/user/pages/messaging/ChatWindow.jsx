@@ -267,9 +267,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                             {msg.payload?.creator?.avatar ? (
                                 <img src={msg.payload.creator.avatar} alt={msg.payload.creator.username} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="text-[10px] font-bold">
-                                    {msg.payload?.creator?.username?.[0]?.toUpperCase() || 'U'}
-                                </div>
+                                <img src="/person.png" alt={msg.payload?.creator?.username} className="w-full h-full object-cover opacity-60" />
                             )}
                         </div>
                         <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-text)' }}>
@@ -377,7 +375,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     )}
                     <div className="relative">
                         <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
-                            {chat.user.avatar ? <img src={chat.user.avatar} alt={chat.user.username} className="w-full h-full object-cover" /> : <div className="text-sm font-bold">{chat.user.username[0].toUpperCase()}</div>}
+                            <img src={chat.user.avatar || '/person.png'} alt={chat.user.username} className={`w-full h-full object-cover ${!chat.user.avatar ? 'opacity-60' : ''}`} />
                         </div>
                         {chat.isOnline && (
                             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
@@ -399,7 +397,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             <div className="flex-1 overflow-y-auto hide-scrollbar p-4 flex flex-col gap-4">
                 <div className="flex flex-col items-center py-8">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center mb-3" style={{ background: 'var(--color-surface2)' }}>
-                        {chat.user.avatar ? <img src={chat.user.avatar} alt={chat.user.username} className="w-full h-full object-cover" /> : <div className="text-xl font-bold">{chat.user.username[0].toUpperCase()}</div>}
+                        <img src={chat.user.avatar || '/person.png'} alt={chat.user.username} className={`w-full h-full object-cover ${!chat.user.avatar ? 'opacity-60' : ''}`} />
                     </div>
                     <h5 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{chat.user.username}</h5>
                     <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; K & Q Reels</p>

@@ -13,6 +13,7 @@ import { useUserStore } from './modules/user/store/useUserStore'
 import { useWalletStore } from './modules/user/store/useWalletStore'
 import { useFeedStore } from './modules/user/store/useFeedStore'
 import { useEffect, useMemo } from 'react'
+import ErrorBoundary from './modules/user/components/shared/ErrorBoundary'
 
 // Admin Modules
 import AdminLayout from './modules/admin/layouts/AdminLayout'
@@ -100,91 +101,93 @@ export default function App() {
     <>
       <GlobalModal />
       <SocketHandler />
-      <Routes>
-        <Route path="/admin/login" element={<LoginPage />} />
-        {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
-        <Route path="/" element={<RootRoute />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/logout" element={<LogoutPage />} />
-        {/* redirect legacy login to admin login */}
-        <Route path="/login" element={<Navigate to="/admin/login" replace />} />
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/admin/login" element={<LoginPage />} />
+          {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
+          <Route path="/" element={<RootRoute />} />
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/logout" element={<LogoutPage />} />
+          {/* redirect legacy login to admin login */}
+          <Route path="/login" element={<Navigate to="/admin/login" replace />} />
 
-        {/* User app: admins are also allowed here */}
-        <Route element={<ProtectedRoute allowedRoles={['User', 'SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
-          <Route path="/*" element={<AppShell />}>
-            <Route path="home" element={<HomePage />} />
-            <Route path="tasks" element={<TasksPage />} />
-            <Route path="tasks/:taskId" element={<TasksPage />} />
-            <Route path="campaigns" element={<CampaignsPage />} />
-            <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
-            <Route path="create" element={<CreatePage />} />
-            <Route path="wallet" element={<WalletPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="search" element={<SearchPage />} />
-            <Route path="messaging" element={<MessagingPage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="user/:userId" element={<UserProfilePage />} />
-            <Route path="terms" element={<TermsConditionsPage />} />
-            <Route path="privacy" element={<PrivacyPolicyPage />} />
-            <Route path="guidelines" element={<CommunityGuidelinesPage />} />
+          {/* User app: admins are also allowed here */}
+          <Route element={<ProtectedRoute allowedRoles={['User', 'SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
+            <Route path="/*" element={<AppShell />}>
+              <Route path="home" element={<HomePage />} />
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="tasks/:taskId" element={<TasksPage />} />
+              <Route path="campaigns" element={<CampaignsPage />} />
+              <Route path="campaigns/:campaignId" element={<CampaignDetailPage />} />
+              <Route path="create" element={<CreatePage />} />
+              <Route path="wallet" element={<WalletPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="search" element={<SearchPage />} />
+              <Route path="messaging" element={<MessagingPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="user/:userId" element={<UserProfilePage />} />
+              <Route path="terms" element={<TermsConditionsPage />} />
+              <Route path="privacy" element={<PrivacyPolicyPage />} />
+              <Route path="guidelines" element={<CommunityGuidelinesPage />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Admin Routes: only admin roles; users with role "User" are redirected to /admin/login */}
-        <Route element={<ProtectedRoute allowedRoles={['SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="users/view/:userId" element={<UserDetailPage />} />
-            <Route path="users/edit/:userId" element={<EditUser />} />
-            <Route path="users/new" element={<UserCreatePage />} />
-            <Route path="content" element={<ContentControl />} />
-            <Route path="content/:postId" element={<ContentDetailPage />} />
-            <Route path="categories" element={<CategoryManagementPage />} />
-            <Route path="campaigns" element={<CampaignManagement />} />
-            <Route path="campaigns/new" element={<CampaignCreatePage />} />
-            <Route path="campaigns/edit/:campaignId" element={<EditCampaign />} />
-            <Route path="voting" element={<VotingManagement />} />
-            <Route path="nfts" element={<NFTModeration />} />
-            <Route path="reports" element={<ReportsManagement />} />
+          {/* Admin Routes: only admin roles; users with role "User" are redirected to /admin/login */}
+          <Route element={<ProtectedRoute allowedRoles={['SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="users/view/:userId" element={<UserDetailPage />} />
+              <Route path="users/edit/:userId" element={<EditUser />} />
+              <Route path="users/new" element={<UserCreatePage />} />
+              <Route path="content" element={<ContentControl />} />
+              <Route path="content/:postId" element={<ContentDetailPage />} />
+              <Route path="categories" element={<CategoryManagementPage />} />
+              <Route path="campaigns" element={<CampaignManagement />} />
+              <Route path="campaigns/new" element={<CampaignCreatePage />} />
+              <Route path="campaigns/edit/:campaignId" element={<EditCampaign />} />
+              <Route path="voting" element={<VotingManagement />} />
+              <Route path="nfts" element={<NFTModeration />} />
+              <Route path="reports" element={<ReportsManagement />} />
 
-            <Route path="wallet" element={<WalletOverview />} />
-            <Route path="wallet/deposits" element={<WalletTransactions />} />
-            <Route path="withdrawals" element={<FinancialManagement />} />
-            <Route path="withdrawals/edit/:settlementId" element={<EditSettlement />} />
-            <Route path="financials" element={<WalletOverview />} />
-            <Route path="gifts" element={<GiftListPage />} />
-            <Route path="gifts/history" element={<GiftHistory />} />
-            <Route path="gifts/create" element={<CreateGift />} />
-            <Route path="gifts/trash" element={<GiftTrash />} />
-            <Route path="commissions" element={<FinancialRules />} />
-            <Route path="advertisers" element={<AdvertiserPanel />} />
+              <Route path="wallet" element={<WalletOverview />} />
+              <Route path="wallet/deposits" element={<WalletTransactions />} />
+              <Route path="withdrawals" element={<FinancialManagement />} />
+              <Route path="withdrawals/edit/:settlementId" element={<EditSettlement />} />
+              <Route path="financials" element={<WalletOverview />} />
+              <Route path="gifts" element={<GiftListPage />} />
+              <Route path="gifts/history" element={<GiftHistory />} />
+              <Route path="gifts/create" element={<CreateGift />} />
+              <Route path="gifts/trash" element={<GiftTrash />} />
+              <Route path="commissions" element={<FinancialRules />} />
+              <Route path="advertisers" element={<AdvertiserPanel />} />
 
-            <Route path="fraud" element={<FraudMonitoring />} />
-            <Route path="suspicious" element={<FraudMonitoring />} />
-            <Route path="audit" element={<AuditLogs />} />
+              <Route path="fraud" element={<FraudMonitoring />} />
+              <Route path="suspicious" element={<FraudMonitoring />} />
+              <Route path="audit" element={<AuditLogs />} />
 
-            {/* platform settings now split into discrete sub‑pages */}
-            <Route path="settings" element={<PlatformSettings />} />
-            <Route path="settings/financial" element={<FinancialRules />} />
-            <Route path="settings/security" element={<SecurityAccess />} />
-            <Route path="settings/promotion" element={<PromotionSettingsPage />} />
-            <Route path="settings/network" element={<NetworkConfig />} />
-            <Route path="transparency" element={<AuditLogs />} />
-            <Route path="profile" element={<AdminProfilePage />} />
-            <Route path="music" element={<MusicManagement />} />
+              {/* platform settings now split into discrete sub‑pages */}
+              <Route path="settings" element={<PlatformSettings />} />
+              <Route path="settings/financial" element={<FinancialRules />} />
+              <Route path="settings/security" element={<SecurityAccess />} />
+              <Route path="settings/promotion" element={<PromotionSettingsPage />} />
+              <Route path="settings/network" element={<NetworkConfig />} />
+              <Route path="transparency" element={<AuditLogs />} />
+              <Route path="profile" element={<AdminProfilePage />} />
+              <Route path="music" element={<MusicManagement />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Public transparency (open) */}
-        <Route path="/transparency" element={<TransparencyPortal />}>
-          <Route index element={<Navigate to="winners" replace />} />
-          <Route path="winners" element={<WinnerAnnouncements />} />
-          <Route path="voting" element={<VotingStats />} />
-          <Route path="logs" element={<PublicAuditLogs />} />
-        </Route>
-      </Routes>
+          {/* Public transparency (open) */}
+          <Route path="/transparency" element={<TransparencyPortal />}>
+            <Route index element={<Navigate to="winners" replace />} />
+            <Route path="winners" element={<WinnerAnnouncements />} />
+            <Route path="voting" element={<VotingStats />} />
+            <Route path="logs" element={<PublicAuditLogs />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
   </>
 
   )

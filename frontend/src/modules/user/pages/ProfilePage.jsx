@@ -20,6 +20,7 @@ import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 
 import { savedPostService } from '../services/savedPostService'
+import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
 const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
@@ -336,12 +337,12 @@ export default function ProfilePage() {
                                     {post.media?.type === 'video' ? (
                                         <>
                                             <video
-                                                src={post.media?.url || post.thumbnail}
-                                                muted
-                                                playsInline
-                                                preload="none"
-                                                poster={post.media?.thumbnail || post.thumbnail}
-                                                className="w-full h-full object-cover"
+                                            src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
+                                            muted
+                                            playsInline
+                                            preload="none"
+                                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.thumbnail, { width: 480, quality: '50' })}
+                                            className="w-full h-full object-cover"
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
@@ -447,9 +448,11 @@ export default function ProfilePage() {
                                 {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}
                                 <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
                                     <div className="w-12 h-12 rounded-full overflow-hidden" style={{ background: 'var(--color-surface)' }}>
-                                        {(editAvatar || profile.avatar)
-                                            ? <img src={editAvatar || profile.avatar} alt={profile.username} className="w-full h-full object-cover" />
-                                            : <div className="w-full h-full flex items-center justify-center text-sm font-bold" style={{ color: 'var(--color-muted)' }}>{(profile.username || user?.name || '').charAt(0)}</div>}
+                                        <img 
+                                            src={editAvatar || profile.avatar || '/person.png'} 
+                                            alt={profile.username} 
+                                            className={`w-full h-full object-cover ${(!editAvatar && !profile.avatar) ? 'opacity-60' : ''}`} 
+                                        />
                                     </div>
                                     <label className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }}>
                                         Change Profile Photo

@@ -89,6 +89,11 @@ const initSocket = (server) => {
           console.error("[Socket] Missing required fields for message:", { sender, receiver, roomId });
           return;
       }
+
+      if (sender.toString() === receiver.toString()) {
+          console.warn("[Socket] User tried to message themselves:", sender);
+          return;
+      }
       
       try {
         // Validate IDs before casting

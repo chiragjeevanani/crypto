@@ -490,3 +490,47 @@ exports.reportPost = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * User module: Delete post.
+ * Owner only.
+ */
+exports.deletePost = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const postId = req.params.id;
+
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+
+    // Verify ownership
+    if (post.creator.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "You are not authorized to delete this post" });
+    }
+
+    // Attempt to delete from Cloudinary if applicable
+    if (post.media?.url && post.media.url.includes("cloudinary.com")) {
+      try {
+        const urlParts = post.media.url.split("/");
+        const fileName = urlParts[urlParts.length - 1].split(".")[0];
+        const folderPath = urlParts.slice(urlParts.indexOf("crypto-app"), urlParts.indexOf(urlParts[urlParts.length - 1])).join("/");
+        const publicId = folderPath ? `${folderPath}/${fileName}` : fileName;
+        
+        await cloudinary.uploader.destroy(publicId, { resource_type: post.media.type === "video" ? "video" : "image" });
+      } catch (cloudinaryErr) {
+        console.error("Error deleting from Cloudinary:", cloudinaryErr);
+      }
+    }
+
+    await Post.deleteOne({ _id: postId });
+    // Cleanup comments
+    await Comment.deleteMany({ post: postId });
+
+    return res.status(200).json({ success: true, message: "Post deleted successfully" });
+  } catch (error) {
+    console.error("Delete Post Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

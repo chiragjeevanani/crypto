@@ -6,6 +6,7 @@ import { postService } from '../services/postService'
 import { useUserStore } from '../store/useUserStore'
 import { useAdminStore } from '../../admin/store/useAdminStore'
 import { SearchShimmer } from '../components/common/SearchShimmer'
+import Avatar from '../components/shared/Avatar'
 
 export default function SearchPage() {
     const navigate = useNavigate()
@@ -171,12 +172,8 @@ export default function SearchPage() {
                                 className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left"
                                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                             >
-                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--color-surface2)' }}>
-                                    {user.avatar ? (
-                                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" loading="lazy" />
-                                    ) : (
-                                        <User size={16} style={{ color: 'var(--color-muted)' }} />
-                                    )}
+                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                                    <Avatar src={user.avatar} alt={user.username} size="md" isPremium={user.isPremium} />
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-1">

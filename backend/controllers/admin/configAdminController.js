@@ -17,7 +17,15 @@ const getConfig = async (req, res) => {
 const updateConfig = async (req, res) => {
   try {
     const updates = {};
-    const fields = ["coinRate", "platformFeePct", "gstPct", "referralLimit", "minWithdrawalCoins"];
+    const fields = [
+      "coinRate", 
+      "platformFeePct", 
+      "gstPct", 
+      "minReferralsForWithdrawal", 
+      "minWithdrawalCoins",
+      "premiumThreshold",
+      "businessPostPriceINR"
+    ];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) updates[field] = Number(req.body[field]);
     });

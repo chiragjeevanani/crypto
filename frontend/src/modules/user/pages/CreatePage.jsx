@@ -175,17 +175,22 @@ export default function CreatePage() {
             return
         }
         
-        setMediaError('') // Clear any previous error
-        
-        if (file.type.startsWith('audio/')) {
-            setMediaFile(file)
-            setMediaPreview(URL.createObjectURL(file))
-            setMediaType('audio')
-            return
-        }
-
+        setMediaError('')
         setOriginalFile(file)
-        setIsEditorOpen(true)
+        
+        const previewUrl = URL.createObjectURL(file)
+        setMediaPreview(previewUrl)
+        setMediaFile(file)
+
+        if (file.type.startsWith('video/')) {
+            setMediaType('video')
+        } else if (file.type.startsWith('audio/')) {
+            setMediaType('audio')
+        } else {
+            setMediaType('image')
+        }
+        
+        setStep(2)
     }
 
     const handleEditorSave = async (editData) => {
@@ -219,7 +224,11 @@ export default function CreatePage() {
             setMediaType('video')
         } catch (err) {
             console.error('Video processing failed:', err)
-            setMediaError('Video processing failed. Please try again.')
+            // Fallback: use the original file if processing fails
+            setMediaFile(editData.file)
+            setMediaPreview(URL.createObjectURL(editData.file))
+            setMediaType('video')
+            setMediaError('Advanced processing failed. Using original video instead.')
         } finally {
             setIsProcessing(false)
         }
@@ -271,17 +280,16 @@ export default function CreatePage() {
             if (isBusiness && newPost?.id) {
                 try {
                     const initRes = await businessService.initiatePayment(newPost.id)
-                    const { amount, orderId, currency } = initRes.data || {}
+                    const { amount, orderId, currency, keyId } = initRes.data || {}
 
-                    setPublishing('Opening Secure Checkout...')
                     const isLoaded = await loadRazorpayScript();
                     if (orderId && isLoaded && typeof window.Razorpay !== 'undefined') {
                         const options = {
-                            key: 'rzp_test_S2tOuYBZiOuLb4', 
-                            amount: amount * 100, // Smallest unit
+                            key: keyId, 
+                            amount: amount * 100,
                             currency: currency || "INR",
                             name: "SocialEarn Promotion",
-                            description: `Promotion for Reel #${newPost.id.slice(-6)}`,
+                            description: `Promotion for Reel #${newPost.id?.slice(-6) || 'new'}`,
                             order_id: orderId,
                             handler: async function (response) {
                                 // Payment Successful
@@ -294,8 +302,6 @@ export default function CreatePage() {
                                     });
 
                                     if (verifyRes.success) {
-                                        // The post is now paid but pending admin approval
-                                        // We can show a success message or redirect
                                         setPublished(true)
                                     }
                                 } catch (err) {
@@ -305,11 +311,11 @@ export default function CreatePage() {
                                 }
                             },
                             prefill: {
-                                name: profile?.name || "",
+                                name: profile?.name || profile?.username || "",
                                 email: profile?.email || "",
                                 contact: profile?.phone || ""
                             },
-                            theme: { color: "#e11d48" }, // Red theme to match app
+                            theme: { color: "#e11d48" },
                             modal: {
                                 ondismiss: function() {
                                     setPublishing(false)
@@ -320,7 +326,7 @@ export default function CreatePage() {
                         const rzp = new window.Razorpay(options);
                         rzp.open();
                     } else {
-                        throw new Error('Razorpay script not loaded or invalid order.')
+                        throw new Error('Razorpay initiation failed or script not loaded.')
                     }
                 } catch (payErr) {
                     console.error("Payment failed:", payErr);
@@ -513,7 +519,7 @@ export default function CreatePage() {
                             <div>
                                 <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Edit Media</p>
                                 {mediaPreview && (
-                                    <div className="w-full rounded-2xl overflow-hidden mb-6 border border-surface" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
+                                    <div className="relative w-full rounded-2xl overflow-hidden mb-6 border border-surface" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
                                         {mediaType === 'video' ? (
                                             <video src={mediaPreview} className="w-full h-full object-cover" style={{ filter: activeFilter }} controls muted />
                                         ) : mediaType === 'audio' ? (
@@ -523,6 +529,16 @@ export default function CreatePage() {
                                             </div>
                                         ) : (
                                             <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" style={{ filter: activeFilter }} />
+                                        )}
+                                        
+                                        {(mediaType === 'video' || mediaType === 'image') && (
+                                            <button 
+                                                onClick={() => setIsEditorOpen(true)}
+                                                className="absolute top-4 right-4 px-4 py-2 rounded-xl text-xs font-bold shadow-lg backdrop-blur-md transition-all active:scale-95"
+                                                style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                            >
+                                                Advanced Editor (Trim/Crop)
+                                            </button>
                                         )}
                                     </div>
                                 )}

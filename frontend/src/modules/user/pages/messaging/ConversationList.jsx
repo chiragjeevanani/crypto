@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { Search, Edit } from 'lucide-react'
+import { Search, Edit, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore } from '../../store/useUserStore'
 import { messageService } from '../../../../services/messageService'
 import { searchService } from '../../services/searchService'
 import { getSocket } from '../../../../socket'
+import Avatar from '../../components/shared/Avatar'
 
 export default function ConversationList({ onSelectChat, selectedChatId }) {
     const { profile } = useUserStore()
@@ -18,14 +19,16 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
     const fetchConversations = useCallback(() => {
         messageService.getConversations()
             .then(data => {
-                setConversations(data)
+                // Filter out conversations with self
+                const filtered = data.filter(c => c.user.id !== profile?.id)
+                setConversations(filtered)
                 setLoading(false)
             })
             .catch(err => {
                 console.error('Fetch conversations error:', err)
                 setLoading(false)
             })
-    }, [])
+    }, [profile?.id])
 
     useEffect(() => {
         setLoading(true)
@@ -115,17 +118,20 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                 const results = await searchService.search(searchQuery)
                 // Map global search results to match the chat format
                 const users = results.users || []
-                const mappedResults = users.map(user => ({
-                    id: null, // Global search might not have a conversation ID yet
-                    user: {
-                        id: user.id || user._id,
-                        username: user.username || user.name,
-                        handle: user.handle,
-                        avatar: user.avatar
-                    },
-                    lastMessage: { text: 'New contact...', timestamp: '' },
-                    isOnline: false
-                }))
+                const mappedResults = users
+                    .filter(user => (user.id || user._id) !== profile?.id) // Filter self from search results
+                    .map(user => ({
+                        id: null, // Global search might not have a conversation ID yet
+                        user: {
+                            id: user.id || user._id,
+                            username: user.username || user.name,
+                            handle: user.handle,
+                            avatar: user.avatar,
+                            isPremium: user.isPremium
+                        },
+                        lastMessage: { text: 'New contact...', timestamp: '' },
+                        isOnline: false
+                    }))
                 setSearchResults(mappedResults)
             } catch (err) {
                 console.error('Global search error:', err)
@@ -196,13 +202,13 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                     {conversations.filter(c => c.isOnline).map(conv => (
                         <div key={`story-${conv.id || conv.user.id}`} className="flex flex-col items-center gap-1 cursor-pointer min-w-14">
                             <div className="relative">
-                                <div className="w-14 h-14 rounded-full p-0.5" style={{ background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)' }}>
-                                    <div className="w-full h-full rounded-full bg-[var(--color-bg)] p-0.5">
-                                        <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'var(--color-surface2)' }}>
-                                            {conv.user.avatar ? <img src={conv.user.avatar} alt={conv.user.username} className="w-full h-full object-cover" /> : <div className="text-xs font-bold">{conv.user.username[0].toUpperCase()}</div>}
-                                        </div>
-                                    </div>
-                                </div>
+                                <Avatar 
+                                    src={conv.user.avatar} 
+                                    alt={conv.user.username} 
+                                    size="lg" 
+                                    isPremium={conv.user.isPremium} 
+                                    className="ring-2 ring-primary ring-offset-2 ring-offset-bg"
+                                />
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
                             </div>
                             <span className="text-[10px] w-full truncate text-center" style={{ color: 'var(--color-muted)' }}>{conv.user.username.split('_')[0]}</span>
@@ -228,18 +234,26 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                             className={`w-full flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface2)] text-left ${selectedChatId === (conv.id || conv.user.id) ? 'bg-[var(--color-surface2)]' : ''}`}
                         >
                             <div className="relative">
-                                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-surface-invert-20)' }}>
-                                    {conv.user.avatar ? <img src={conv.user.avatar} alt={conv.user.username} className="w-full h-full object-cover" /> : (
-                                        <div className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>{conv.user.username[0].toUpperCase()}</div>
-                                    )}
-                                </div>
+                                <Avatar 
+                                    src={conv.user.avatar} 
+                                    alt={conv.user.username} 
+                                    size="lg" 
+                                    isPremium={conv.user.isPremium} 
+                                />
                                 {conv.isOnline && (
                                     <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{conv.user.username}</h4>
+                                    <div className="flex items-center gap-1 min-w-0">
+                                        <h4 className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{conv.user.username}</h4>
+                                        {conv.user.isPremium && (
+                                            <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                                <Check size={9} className="text-white" strokeWidth={5} />
+                                            </div>
+                                        )}
+                                    </div>
                                     <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{conv.lastMessage.timestamp}</span>
                                 </div>
                                 <div className="flex items-center justify-between mt-0.5">

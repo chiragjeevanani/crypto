@@ -405,4 +405,16 @@ export const useFeedStore = create((set, get) => ({
             throw error
         }
     },
+
+    deletePost: async (postId) => {
+        try {
+            await postService.deletePost(postId)
+            set((state) => ({
+                posts: state.posts.filter((p) => String(p.id) !== String(postId))
+            }))
+        } catch (err) {
+            console.error('Failed to delete post:', err)
+            throw err
+        }
+    },
 }))

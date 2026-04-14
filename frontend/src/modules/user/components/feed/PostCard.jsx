@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, UserPlus, Check, Volume2, VolumeX, BriefcaseBusiness, TrendingUp, Sparkles, Send, AlertCircle, ShieldAlert, X, Camera, MessagesSquare, Music, Vote, Eye, ChevronRight, Link2 } from 'lucide-react'
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, UserPlus, Check, Volume2, VolumeX, BriefcaseBusiness, TrendingUp, Sparkles, Send, AlertCircle, ShieldAlert, X, Camera, MessagesSquare, Music, Vote, Eye, ChevronRight, Link2, Trash2 } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore, getStoredToken } from '../../store/useUserStore'
@@ -14,6 +14,7 @@ import { formatCount, formatCurrency, timeAgo } from '../../utils/formatCurrency
 import { playGiftSound } from '../../utils/giftSounds'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import { postService } from '../../services/postService'
+import Avatar from '../shared/Avatar'
 
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
@@ -28,7 +29,7 @@ export default function PostCard({ post, onOpen }) {
     const { 
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
-        savedPostIds, toggleSavePost, voteCampaignSubmission
+        savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost
     } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const navigate = useNavigate()
@@ -65,6 +66,15 @@ export default function PostCard({ post, onOpen }) {
             setIsReporting(false);
         }
     };
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this post?')) return
+        try {
+            await deletePost(post.id)
+        } catch (error) {
+            alert('Failed to delete post')
+        }
+    }
     const videoRef = useRef(null)
     const audioRef = useRef(null)
     const containerRef = useRef(null)
@@ -255,21 +265,12 @@ export default function PostCard({ post, onOpen }) {
                     to={isSelfPost ? '/profile' : `/user/${post.creator?.id || ''}`}
                     className="cursor-pointer"
                 >
-                    <div
-                        className="w-10 h-10 lg:w-11 lg:h-11 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 text-white text-base font-bold shadow-md"
-                        style={{ background: avatarColor }}
-                    >
-                        {post.creator?.avatar ? (
-                            <img
-                                src={optimizeCloudinaryUrl(post.creator.avatar, { width: 150 })}
-                                alt={post.creator.username}
-                                className="w-full h-full object-cover"
-                                onError={(e) => { e.currentTarget.style.display = 'none' }}
-                            />
-                        ) : (
-                            post.creator?.username?.charAt(0) || 'U'
-                        )}
-                    </div>
+                    <Avatar 
+                        src={post.creator?.avatar} 
+                        alt={post.creator?.username} 
+                        size="md" 
+                        isPremium={post.creator?.isPremium} 
+                    />
                 </Link>
                 <div className="flex-1 min-w-0">
                     <Link
@@ -281,8 +282,8 @@ export default function PostCard({ post, onOpen }) {
                                 {post.creator?.username || 'User'}
                             </p>
                             {post.creator?.isPremium && (
-                                <div className="w-3 h-3 lg:w-3.5 lg:h-3.5 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
-                                    <Check size={10} className="text-white" strokeWidth={5} />
+                                <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                    <Check size={9} className="text-white" strokeWidth={5} />
                                 </div>
                             )}
                         </div>
@@ -360,16 +361,30 @@ export default function PostCard({ post, onOpen }) {
                                 className="absolute right-0 top-full mt-2 w-40 rounded-xl shadow-xl z-[40] border overflow-hidden"
                                 style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                             >
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setIsReportMenuOpen(false)
-                                        setIsReportModalOpen(true)
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
-                                >
-                                    Report Post
-                                </button>
+                                {isSelfPost ? (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setIsReportMenuOpen(false)
+                                            handleDelete()
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                    >
+                                        <Trash2 size={14} />
+                                        Delete Post
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setIsReportMenuOpen(false)
+                                            setIsReportModalOpen(true)
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                    >
+                                        Report Post
+                                    </button>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -404,7 +419,7 @@ export default function PostCard({ post, onOpen }) {
                             playsInline
                             muted={isMuted}
                             preload="auto"
-                            poster={post.media?.thumbnail || post.media?.poster}
+                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                             crossOrigin="anonymous"
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
@@ -483,7 +498,7 @@ export default function PostCard({ post, onOpen }) {
                             </button>
                         )}
                         {post.musicData && (
-                            <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1.5 border border-white/10 max-w-[140px]">
+                            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 max-w-[140px]">
                                 <Music size={10} className="text-primary animate-pulse" />
                                 <span className="text-[9px] font-bold text-white truncate">{post.musicData.title}</span>
                             </div>
@@ -732,7 +747,7 @@ export default function PostCard({ post, onOpen }) {
                                                     <div className="flex items-center gap-1.5 mb-0.5">
                                                         <p className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>{item.author?.handle || item.author?.name || 'User'}</p>
                                                         {item.author?.isPremium && (
-                                                            <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5">
+                                                            <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
                                                                 <Check size={8} className="text-white" strokeWidth={5} />
                                                             </div>
                                                         )}

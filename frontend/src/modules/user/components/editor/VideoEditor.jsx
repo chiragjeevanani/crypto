@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Scissors, Columns2, Rows2, RotateCw, Volume2, VolumeX, FastForward, Timer, Music, SlidersHorizontal } from 'lucide-react';
 import MusicSelectionModal from '../feed/MusicSelectionModal';
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Volume2, VolumeX } from 'lucide-react'
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 export default function CampaignReelCard({ campaign, active }) {
     const navigate = useNavigate()
@@ -73,14 +74,15 @@ export default function CampaignReelCard({ campaign, active }) {
                             <video 
                                 key={`vid-${campaign.id}`}
                                 ref={videoRef}
-                                src={`${resolvedBannerUrl}${resolvedBannerUrl.includes('?') ? '&' : '?'}v=${Date.now()}`} 
+                                src={`${optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 720, quality: '60' })}${resolvedBannerUrl.includes('?') ? '&' : '?'}v=${Date.now()}`} 
                                 className="w-full h-full object-cover cursor-pointer" 
                                 muted={isMuted} 
                                 playsInline 
                                 loop 
                                 autoPlay
-                                preload="metadata"
+                                preload="auto"
                                 crossOrigin="anonymous"
+                                poster={optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 480, quality: '50' })}
                                 onClick={toggleMute}
                             />
                         ) : (
@@ -116,7 +118,8 @@ export default function CampaignReelCard({ campaign, active }) {
                     {/* Persistent Volume Toggle */}
                     <button 
                         onClick={toggleMute}
-                        className="absolute bottom-16 right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                        className="absolute right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
+                        style={{ bottom: 'calc(8px + var(--reels-bottom-offset, 64px))' }}
                     >
                         {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                     </button>
