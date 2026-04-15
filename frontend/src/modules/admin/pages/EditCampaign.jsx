@@ -30,6 +30,8 @@ const normalizeCampaign = (campaign) => {
     };
 };
 
+import CampaignSubmissionsReview from '../components/CampaignSubmissionsReview';
+
 export default function EditCampaign() {
     const { campaignId } = useParams();
     const navigate = useNavigate();
@@ -41,6 +43,7 @@ export default function EditCampaign() {
     const creativeInputRef = useRef(null);
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [showSubmissions, setShowSubmissions] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -119,6 +122,14 @@ export default function EditCampaign() {
                 subtitle={`Reconfigure resource allocation and targeting metrics for ${formData.title}.`}
                 actions={
                     <div className="flex gap-3">
+                        <button 
+                            type="button"
+                            onClick={() => setShowSubmissions(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-bg border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
+                        >
+                            <Users className="w-3.5 h-3.5 text-primary" />
+                            Participants
+                        </button>
                         <button
                             onClick={() => navigate('/admin/campaigns')}
                             className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
@@ -137,6 +148,24 @@ export default function EditCampaign() {
                     </div>
                 }
             />
+
+            {showSubmissions && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">
+                    <motion.div 
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-surface border border-surface rounded-[32px] w-full max-w-5xl h-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl shadow-primary/10"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                            <CampaignSubmissionsReview 
+                                campaign={formData} 
+                                onClose={() => setShowSubmissions(false)} 
+                            />
+                        </div>
+                    </motion.div>
+                </div>
+            )}
 
             <AnimatePresence>
                 {showSuccess && (

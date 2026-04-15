@@ -5,7 +5,7 @@ const DEFAULTS = {
   platformFeePct: 10,
   gstPct: 18,
   minReferralsForWithdrawal: 5,
-  minWithdrawalCoins: 50,
+  minWithdrawalCoins: 10,
   premiumThreshold: 100,
   businessPostPriceINR: 499
 };

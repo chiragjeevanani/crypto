@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const COUNTRY_MOBILE_DIGITS = {
+    IN: 10,
+    US: 10,
+    GB: 10,
+    EU: 10,
+    AE: 9
+};
+
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
 const validateEmail = (v) => {
     if (!v?.trim()) return 'Email is required';
-    if (!emailRegex.test(v.trim())) return 'Please enter a valid email address';
+    if (!emailRegex.test(v.trim())) return 'Invalid email format (check domain, e.g. .com, .in)';
     return '';
 };
 const validatePassword = (v) => {
@@ -17,10 +25,18 @@ const validatePassword = (v) => {
     if (!/[a-zA-Z]/.test(v)) return 'Password must contain at least one letter';
     return '';
 };
-const validatePhone = (v) => {
+const validatePhone = (v, countryCode = 'IN') => {
     const digits = (v || '').replace(/\D/g, '');
-    if (digits.length === 0) return ''; // optional
-    if (digits.length !== 10) return 'Phone number must be exactly 10 digits';
+    const required = COUNTRY_MOBILE_DIGITS[countryCode] || 10;
+    if (digits.length === 0) return 'Phone number is required';
+    if (digits.length !== required) return `Phone number must be exactly ${required} digits for this country`;
+    return '';
+};
+
+const validateName = (v) => {
+    if (!v?.trim()) return 'Name is required';
+    if (/\d/.test(v)) return 'Name should only contain alphabets';
+    if (v.trim().length < 2) return 'Name is too short';
     return '';
 };
 
@@ -30,14 +46,17 @@ export default function SignUpPage() {
     const authLoading = useUserStore(state => state.authLoading);
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
+    const [searchParams] = useSearchParams();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         phone: '',
         countryCode: 'IN',
+        referralCode: searchParams.get('ref')?.toUpperCase() || '',
     });
     const [fieldErrors, setFieldErrors] = useState({
+        name: '',
         email: '',
         password: '',
         phone: '',
@@ -45,7 +64,14 @@ export default function SignUpPage() {
     });
 
     const handleChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        let finalValue = value;
+        if (field === 'countryCode') {
+            const requiredDigs = COUNTRY_MOBILE_DIGITS[value] || 10;
+            if (formData.phone.length > requiredDigs) {
+                setFormData(prev => ({ ...prev, phone: prev.phone.slice(0, requiredDigs) }));
+            }
+        }
+        setFormData(prev => ({ ...prev, [field]: finalValue }));
         setAuthError('');
         // clear field error when user types
         if (fieldErrors[field]) {
@@ -56,17 +82,19 @@ export default function SignUpPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setAuthError('');
+        const nameErr = validateName(formData.name);
         const emailErr = validateEmail(formData.email);
         const passwordErr = validatePassword(formData.password);
-        const phoneErr = validatePhone(formData.phone);
+        const phoneErr = validatePhone(formData.phone, formData.countryCode);
         const countryErr = formData.countryCode ? '' : 'Country is required';
         setFieldErrors({
+            name: nameErr,
             email: emailErr,
             password: passwordErr,
             phone: phoneErr,
             country: countryErr,
         });
-        if (emailErr || passwordErr || phoneErr || countryErr) return;
+        if (nameErr || emailErr || passwordErr || phoneErr || countryErr) return;
 
         try {
             await registerUser({
@@ -75,6 +103,7 @@ export default function SignUpPage() {
                 password: formData.password,
                 phone: formData.phone.trim() ? formData.phone.replace(/\D/g, '') : undefined,
                 countryCode: formData.countryCode,
+                referralCode: formData.referralCode.trim().toUpperCase(),
             });
             navigate('/signin');
         } catch (err) {
@@ -109,12 +138,18 @@ export default function SignUpPage() {
                                 <input
                                     type="text"
                                     value={formData.name}
-                                    onChange={(e) => handleChange('name', e.target.value)}
-                                    className="w-full bg-bg border border-surface rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text"
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (/[0-9]/.test(val)) return; // prevent typing numbers
+                                        handleChange('name', val);
+                                    }}
+                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.name ? 'border-red-500' : 'border-surface'}`}
                                     placeholder="Jane Doe"
-                                    required
                                 />
                             </div>
+                            {fieldErrors.name && (
+                                <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.name}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Email</label>
@@ -126,7 +161,6 @@ export default function SignUpPage() {
                                     onChange={(e) => handleChange('email', e.target.value)}
                                     className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.email ? 'border-red-500' : 'border-surface'}`}
                                     placeholder="name@domain.io"
-                                    required
                                 />
                             </div>
                             {fieldErrors.email && (
@@ -143,7 +177,6 @@ export default function SignUpPage() {
                                     onChange={(e) => handleChange('password', e.target.value)}
                                     className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.password ? 'border-red-500' : 'border-surface'}`}
                                     placeholder="••••••••"
-                                    required
                                 />
                             </div>
                             {fieldErrors.password && (
@@ -151,21 +184,24 @@ export default function SignUpPage() {
                             )}
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Phone (10 digits)</label>
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Phone ({COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10} digits)</label>
                             <div className="relative group">
                                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
                                 <input
                                     type="tel"
                                     inputMode="numeric"
-                                    maxLength={10}
+                                    maxLength={COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10}
                                     value={formData.phone}
-                                    onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    onChange={(e) => {
+                                        const required = COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10;
+                                        handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, required));
+                                    }}
                                     className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.phone ? 'border-red-500' : 'border-surface'}`}
-                                    placeholder="9876543210"
+                                    placeholder={`e.g. ${'1234567890'.slice(0, COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10)}`}
                                 />
                             </div>
                             {fieldErrors.phone && (
-                                <p className="text-xs text-red-500 ml-1">{fieldErrors.phone}</p>
+                                <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.phone}</p>
                             )}
                         </div>
                         <div className="space-y-2">
@@ -184,6 +220,19 @@ export default function SignUpPage() {
                             {fieldErrors.country && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.country}</p>
                             )}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Referral Code (Optional)</label>
+                            <div className="relative group">
+                                <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                                <input
+                                    type="text"
+                                    value={formData.referralCode}
+                                    onChange={(e) => handleChange('referralCode', e.target.value.toUpperCase())}
+                                    className="w-full bg-bg border border-surface rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text uppercase placeholder:normal-case"
+                                    placeholder="e.g. USER1234"
+                                />
+                            </div>
                         </div>
                         <button
                             type="submit"

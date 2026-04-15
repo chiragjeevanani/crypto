@@ -22,13 +22,22 @@ export default function ContentControl() {
     const navigate = useNavigate();
     const { posts, loadPosts, handlePostApproval, notify } = useAdminStore();
     const [statusFilter, setStatusFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
     const [categories, setCategories] = useState(getPostCategories());
     const [newCategory, setNewCategory] = useState('');
 
     const filteredPosts = useMemo(() => {
-        if (statusFilter === 'all') return posts;
-        return posts.filter((post) => String(post.status || '').toLowerCase() === statusFilter);
-    }, [posts, statusFilter]);
+        let result = posts;
+        if (statusFilter !== 'all') {
+            result = result.filter((post) => String(post.status || '').toLowerCase() === statusFilter);
+        }
+        if (typeFilter === 'promotion') {
+            result = result.filter((post) => post.isBusiness || post.promotion?.isEnabled);
+        } else if (typeFilter === 'nft') {
+            result = result.filter((post) => post.isNFT);
+        }
+        return result;
+    }, [posts, statusFilter, typeFilter]);
 
     const bulkApprove = async () => {
         const queue = filteredPosts.filter((post) => !['approved', 'rejected'].includes(String(post.status || '').toLowerCase()));
@@ -92,11 +101,23 @@ export default function ContentControl() {
                                 }}
                                 className="bg-transparent outline-none text-[10px] font-semibold uppercase tracking-wider cursor-pointer"
                             >
-                                <option value="all">All</option>
+                                <option value="all">All Status</option>
                                 <option value="pending">Pending</option>
                                 <option value="flagged">Flagged</option>
                                 <option value="approved">Approved</option>
                                 <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider text-text">
+                            <Activity className="w-3.5 h-3.5" />
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                className="bg-transparent outline-none text-[10px] font-semibold uppercase tracking-wider cursor-pointer"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="promotion">Promotions</option>
+                                <option value="nft">NFTs</option>
                             </select>
                         </div>
                         <button
@@ -181,7 +202,11 @@ export default function ContentControl() {
                                             <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-bold uppercase tracking-wider border border-blue-500/20">
                                                 Promotion
                                             </span>
-                                            <span className="text-[10px] font-bold text-emerald-500">
+                                            <span className={`text-[10px] font-bold ${
+                                                post.paymentStatus === 'paid' ? 'text-emerald-500' :
+                                                post.paymentStatus === 'failed' ? 'text-rose-500' :
+                                                'text-amber-500'
+                                            }`}>
                                                 ₹{post.promotion?.totalBudget || 0}
                                             </span>
                                         </div>
@@ -194,7 +219,7 @@ export default function ContentControl() {
                                             {post.paymentStatus === 'paid' ? <CheckCircle className="w-2.5 h-2.5" /> : 
                                              post.paymentStatus === 'failed' ? <XCircle className="w-2.5 h-2.5" /> : 
                                              <Clock className="w-2.5 h-2.5" />}
-                                            {post.paymentStatus || 'pending'}
+                                            {post.paymentStatus === 'paid' ? 'Paid' : post.paymentStatus === 'failed' ? 'Payment Failed' : 'Pending Payment'}
                                         </div>
                                     </div>
                                 )}
@@ -221,10 +246,15 @@ export default function ContentControl() {
                             </button>
                             {post.status !== 'Approved' && (
                                 <button
+                                    disabled={post.isBusiness && post.paymentStatus !== 'paid'}
                                     onClick={() => handlePostApproval(post.id, true)}
-                                    className="p-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all"
+                                    className={`p-1.5 rounded-md border transition-all ${
+                                        post.isBusiness && post.paymentStatus !== 'paid' 
+                                            ? 'bg-muted/5 border-muted/10 opacity-30 cursor-not-allowed' 
+                                            : 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20'
+                                    }`}
                                 >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    <CheckCircle2 className={`w-3.5 h-3.5 ${post.isBusiness && post.paymentStatus !== 'paid' ? 'text-muted' : 'text-emerald-500'}`} />
                                 </button>
                             )}
                             <button

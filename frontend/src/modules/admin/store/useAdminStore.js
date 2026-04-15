@@ -32,6 +32,7 @@ export const useAdminStore = create((set, get) => ({
     settings: null,
     categories: [],
     reports: [],
+    moderationStats: { ads: 0, nfts: 0, reports: 0, withdrawals: 0 },
     prdMetrics: null,
     giftPolicy: {
         allowedINR: [2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -287,10 +288,34 @@ export const useAdminStore = create((set, get) => ({
         }));
     }, "Campaign deleted."),
 
+    loadCampaignSubmissions: (id) => get().execute(async () => {
+        return await campaignService.fetchSubmissions(id);
+    }),
+
+    verifyCampaignSubmission: (campaignId, submissionId, isVerified) => get().execute(async () => {
+        const updated = await campaignService.verifySubmission(campaignId, submissionId, isVerified);
+        return updated;
+    }, isVerified ? "Submission verified." : "Submission marked as unverified."),
+
     // Actions - Moderation
-    loadPosts: () => get().execute(async () => {
-        const posts = await moderationService.fetchPosts();
+    loadPosts: (params) => get().execute(async () => {
+        const posts = await moderationService.fetchPosts(params);
         set({ posts });
+    }),
+
+    loadAdvertiserPosts: (status) => get().execute(async () => {
+        const posts = await moderationService.fetchPosts({ isBusiness: true, status });
+        set({ posts });
+    }),
+
+    loadModerationStats: () => get().execute(async () => {
+        const stats = await moderationService.fetchStats();
+        set({ moderationStats: stats });
+    }),
+
+    acknowledgeAds: () => get().execute(async () => {
+        await moderationService.acknowledgeAds();
+        get().loadModerationStats();
     }),
 
     // Actions - Reports

@@ -18,7 +18,7 @@ import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
-function ReelPost({ post, active }) {
+function ReelPost({ post, active, onClose }) {
     if (!post?.creator) return <ReelFullSkeleton />
     
     const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost } = useFeedStore()
@@ -28,7 +28,9 @@ function ReelPost({ post, active }) {
     const handleLike = () => {
         try {
             if (post.category === 'Campaign' && post.campaign && post.campaignSubmission) {
-                voteCampaignSubmission(post.campaign.id || post.campaign._id, post.campaignSubmission, post.id)
+                const cId = post.campaign.id || post.campaign._id || post.campaign;
+                const sId = post.campaignSubmission.id || post.campaignSubmission._id || post.campaignSubmission;
+                voteCampaignSubmission(cId, sId, post.id)
             } else {
                 toggleLike(post.id)
             }
@@ -64,7 +66,7 @@ function ReelPost({ post, active }) {
         if (gift.price >= 5) triggerCoinRain()
     }
 
-    const [isMuted, setIsMuted] = useState(true)
+    const [isMuted, setIsMuted] = useState(false)
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     
@@ -95,7 +97,7 @@ function ReelPost({ post, active }) {
         if (!window.confirm('Are you sure you want to delete this reel?')) return
         try {
             await deletePost(post.id)
-            if (post.onDelete) post.onDelete(post.id)
+            if (onClose) onClose() // Close modal after delete
         } catch (error) {
             alert('Failed to delete reel')
         }
@@ -127,18 +129,34 @@ function ReelPost({ post, active }) {
             const recordView = useFeedStore.getState().recordView
             if (recordView) recordView(post.id)
 
-            if (videoRef.current) {
-                const playVideo = videoRef.current.play()
-                if (playVideo !== undefined) {
-                    playVideo.catch(() => { /* Autoplay block */ })
+            const playMedia = async () => {
+                try {
+                    // Try unmuted play first as requested by USER
+                    if (videoRef.current) {
+                        videoRef.current.muted = isMuted;
+                        await videoRef.current.play();
+                    }
+                    if (audioRef.current) {
+                        audioRef.current.muted = isMuted;
+                        await audioRef.current.play();
+                    }
+                } catch (err) {
+                    // If blocked by browser (common for unmuted autoplay), fallback to muted to ensure it plays
+                    if (err.name === 'NotAllowedError' && !isMuted) {
+                        setIsMuted(true);
+                        if (videoRef.current) {
+                            videoRef.current.muted = true;
+                            videoRef.current.play().catch(() => {});
+                        }
+                        if (audioRef.current) {
+                            audioRef.current.muted = true;
+                            audioRef.current.play().catch(() => {});
+                        }
+                    }
                 }
-            }
-            if (audioRef.current) {
-                const playAudio = audioRef.current.play()
-                if (playAudio !== undefined) {
-                    playAudio.catch(() => {})
-                }
-            }
+            };
+
+            playMedia();
         } else {
             if (videoRef.current) {
                 videoRef.current.pause()
@@ -149,7 +167,7 @@ function ReelPost({ post, active }) {
                 audioRef.current.currentTime = 0
             }
         }
-    }, [active, post.id])
+    }, [active, post.id, isMuted])
 
     const toggleSave = (e) => {
         e.stopPropagation()
@@ -233,11 +251,27 @@ function ReelPost({ post, active }) {
                         onClick={handleLike}
                         className="flex flex-col items-center gap-1 cursor-pointer"
                     >
-                        <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
-                            <Heart size={22} fill={post.isLiked ? 'currentColor' : 'none'} style={{ color: post.isLiked ? 'var(--color-danger)' : 'white' }} />
+                        <div className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center relative overflow-hidden group">
+                            {post.category === 'Campaign' ? (
+                                <>
+                                    <Sparkles 
+                                        size={24} 
+                                        className={`transition-all duration-300 ${post.isLiked ? 'text-primary scale-110' : 'text-white'}`} 
+                                    />
+                                    {post.isLiked && (
+                                        <motion.div 
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className="absolute inset-0 bg-primary/20 backdrop-blur-[2px]"
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                <Heart size={22} fill={post.isLiked ? 'currentColor' : 'none'} style={{ color: post.isLiked ? 'var(--color-danger)' : 'white' }} />
+                            )}
                         </div>
-                    <span className="text-[11px] font-semibold">
-                            {post.likes ?? 0}
+                        <span className={`text-[11px] font-black uppercase tracking-tighter ${post.isLiked && post.category === 'Campaign' ? 'text-primary' : 'text-white'}`}>
+                            {post.category === 'Campaign' ? (post.isLiked ? 'VOTED' : 'VOTE') : (post.likes ?? 0)}
                         </span>
                     </button>
                     {profile?.id && post.creator?.id && String(profile.id) === String(post.creator.id) && (
@@ -678,8 +712,8 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                 {isReelsMode
                                     ? post?.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
-                                        : <ReelPost post={post} active={activeReelIndex === index} />
-                                    : post && <PostCard post={post} />}
+                                        : <ReelPost post={post} active={activeReelIndex === index} onClose={onClose} />
+                                    : post && <PostCard post={post} onDeleteSuccess={onClose} />}
                             </div>
                         ))}
                     </div>

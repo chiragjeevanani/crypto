@@ -320,11 +320,16 @@ export default function CreatePage() {
                                 ondismiss: function() {
                                     setPublishing(false)
                                     setPublishError('Payment cancelled. Your reel remains as a draft.')
+                                    businessService.failPayment(newPost.id, 'User cancelled')
                                 }
                             }
                         };
-                        const rzp = new window.Razorpay(options);
-                        rzp.open();
+                        if (options.key && options.order_id) {
+                            const rzp = new window.Razorpay(options);
+                            rzp.open();
+                        } else {
+                            throw new Error('Razorpay config incomplete. Check keyId or orderId.');
+                        }
                     } else {
                         throw new Error('Razorpay initiation failed or script not loaded.')
                     }

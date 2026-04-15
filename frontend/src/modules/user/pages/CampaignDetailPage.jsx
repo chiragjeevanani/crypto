@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Trophy, Users, Clock, Upload, Vote, X } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { userCampaignService } from '../services/campaignService'
 import { useModalStore } from '../store/useModalStore'
 import { daysLeft, formatCount } from '../utils/formatCurrency'

@@ -59,6 +59,7 @@ const postSchema = new mongoose.Schema(
     whatsappNumber: { type: String, trim: true, default: "" },
     externalLink: { type: String, trim: true, default: "" },
     isPublished: { type: Boolean, default: false },
+    isAdminViewed: { type: Boolean, default: false },
     promotion: {
       isEnabled: { type: Boolean, default: false },
       dailyBudget: { type: Number, default: 0 },

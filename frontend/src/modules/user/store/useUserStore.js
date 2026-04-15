@@ -90,6 +90,8 @@ function profileFromUser(user) {
         following: 0,
         badge: '',
         totalEarnings: user.earningCoins || 0,
+        referralCode: user.referralCode || '',
+        referralCount: user.referralCount || 0,
         followersList: [],
         followingList: [],
     }
@@ -138,7 +140,19 @@ export const useUserStore = create((set, get) => ({
                 const response = await authService.getMe(token)
                 const user = response.user
                 saveAuthToStorage({ token, refreshToken, user })
-                set({ token, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
+                set((state) => ({ 
+                    token, 
+                    user, 
+                    profile: profileFromUser(user), 
+                    isAuthenticated: true, 
+                    authChecked: true, 
+                    authLoading: false,
+                    kyc: { 
+                        ...state.kyc, 
+                        referredCount: user.referralCount || 0,
+                        referralCode: user.referralCode || ''
+                    }
+                }))
                 return
             }
         } catch (err) {
@@ -230,10 +244,10 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
-    registerUser: async ({ name, email, password, phone, countryCode }) => {
+    registerUser: async ({ name, email, password, phone, countryCode, referralCode }) => {
         set({ authLoading: true, authError: '' })
         try {
-            const response = await authService.register({ name, email, password, phone, countryCode })
+            const response = await authService.register({ name, email, password, phone, countryCode, referralCode })
             const { token, refreshToken, user } = response
             saveAuthToStorage({ token, refreshToken, user })
             set({

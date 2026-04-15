@@ -140,11 +140,23 @@ exports.updatePostStatus = async (req, res) => {
 };
 
 /**
+ * Admin module: acknowledge business ads as viewed.
+ */
+exports.acknowledgeBusinessAds = async (req, res) => {
+  try {
+    await Post.updateMany({ isBusiness: true, status: "pending", isAdminViewed: false }, { isAdminViewed: true });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Admin module: get counts for sidebar badges.
  */
 exports.getModerationStats = async (req, res) => {
   try {
-    const pendingAds = await Post.countDocuments({ isBusiness: true, status: "pending" });
+    const unviewedAds = await Post.countDocuments({ isBusiness: true, status: "pending", isAdminViewed: false });
     const pendingNFTs = await Post.countDocuments({ isNFT: true, status: "pending" });
     const pendingReports = await Report.countDocuments({ status: "pending" });
     const pendingWithdrawals = await Withdrawal.countDocuments({ status: "pending" });
@@ -152,7 +164,7 @@ exports.getModerationStats = async (req, res) => {
     res.status(200).json({
       success: true,
       stats: {
-        ads: pendingAds,
+        ads: unviewedAds,
         nfts: pendingNFTs,
         reports: pendingReports,
         withdrawals: pendingWithdrawals

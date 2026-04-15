@@ -37,7 +37,7 @@ const request = async (path, options = {}) => {
 };
 
 export const authService = {
-  register: ({ name, email, password, phone, countryCode }) =>
+  register: ({ name, email, password, phone, countryCode, referralCode }) =>
     request("/auth/register", {
       method: "POST",
       body: JSON.stringify({
@@ -45,7 +45,8 @@ export const authService = {
         email,
         password,
         ...(phone && { phone }),
-        countryCode: countryCode || "IN"
+        countryCode: countryCode || "IN",
+        referralCode
       })
     }),
 

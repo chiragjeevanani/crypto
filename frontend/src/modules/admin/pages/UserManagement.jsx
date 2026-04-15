@@ -160,7 +160,7 @@ export default function UserManagement() {
                 <div className="xl:col-span-2 space-y-6">
                     <AdminDataTable
                         title="User Directory"
-                        columns={["Identity", "Role", "Posts", "Followers", "KYC", "Rating", "Actions"]}
+                        columns={["Identity", "Role", "Referrals", "Ref By", "KYC", "Actions"]}
                         data={usersData.users.map(user => ({
                             id: user.id,
                             cells: [
@@ -173,16 +173,18 @@ export default function UserManagement() {
                                         >
                                             @{user.name}
                                         </button>
-                                        <p className="text-[9px] text-muted font-bold uppercase">{user.id}</p>
+                                        <p className="text-[9px] text-muted font-bold uppercase">{user.referralCode || 'No Code'}</p>
                                     </div>
                                 </div>,
                                 <span className="text-[10px] font-bold text-muted uppercase">{user.role}</span>,
-                                <span className="text-[10px] font-bold text-text">{user.postsCount ?? 0}</span>,
-                                <span className="text-[10px] font-bold text-text">{user.followersCount ?? 0}</span>,
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-text">{user.referralCount || 0}</span>
+                                    <span className="text-[8px] text-muted uppercase font-bold">Referrals</span>
+                                </div>,
+                                <span className="text-[10px] font-bold text-primary uppercase">{user.referredBy || 'None'}</span>,
                                 <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold border ${user.kycVerified ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                                     {user.kycVerified ? 'VERIFIED' : 'PENDING'}
                                 </span>,
-                                <div className={`w-8 h-1 rounded-full ${user.riskScore === 'Low' ? 'bg-emerald-500' : user.riskScore === 'Medium' ? 'bg-amber-500' : 'bg-rose-500'}`} />,
                                 <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={() => navigate(`/admin/users/edit/${user.id}`)}
@@ -313,7 +315,7 @@ export default function UserManagement() {
 
 
                                 {/* Header */}
-                                <div className="text-center relative">
+                                <div className="text-center relative border-b border-surface pb-6">
                                     <div className="w-20 h-20 rounded-2xl bg-surface2 mx-auto mb-4 border border-surface p-1 shadow-lg">
                                         <img src={userDetail.avatar} className="w-full h-full object-cover rounded-xl" alt="" />
                                     </div>
@@ -324,6 +326,11 @@ export default function UserManagement() {
                                         @{userDetail.name}
                                     </button>
                                     <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">{userDetail.email}</p>
+                                    <div className="mt-2 flex items-center justify-center gap-2">
+                                        <span className="px-2 py-0.5 rounded-lg bg-primary/10 text-primary text-[8px] font-bold uppercase tracking-widest border border-primary/20">
+                                            Code: {userDetail.referralCode || 'N/A'}
+                                        </span>
+                                    </div>
                                     <button
                                         onClick={() => navigate(`/admin/users/edit/${userDetail.id}`)}
                                         className="absolute top-0 right-0 p-2 bg-primary/20 text-primary rounded-full hover:bg-primary/30 transition-colors"
@@ -339,12 +346,12 @@ export default function UserManagement() {
                                 {/* Financial Snapshots */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-4 bg-bg/50 border border-surface rounded-xl text-center">
-                                        <p className="text-[9px] font-bold text-muted uppercase mb-1">Wallet Flow</p>
-                                        <p className="text-sm font-bold text-text">{formatCurrency(userDetail.walletBalance)}</p>
+                                        <p className="text-[9px] font-bold text-muted uppercase mb-1">Referral Count</p>
+                                        <p className="text-sm font-bold text-text">{userDetail.referralCount || 0}</p>
                                     </div>
                                     <div className="p-4 bg-bg/50 border border-surface rounded-xl text-center">
-                                        <p className="text-[9px] font-bold text-muted uppercase mb-1">Total Impact</p>
-                                        <p className="text-sm font-bold text-primary">{formatCurrency(userDetail.totalEarnings)}</p>
+                                        <p className="text-[9px] font-bold text-muted uppercase mb-1">Referred By</p>
+                                        <p className="text-[10px] font-bold text-primary uppercase">{userDetail.referredBy || 'Organic'}</p>
                                     </div>
                                 </div>
 
@@ -375,9 +382,15 @@ export default function UserManagement() {
                                                     {userDetail.isBanned ? 'BLACKLISTED' : 'ACTIVE'}
                                                 </span>
                                             </div>
+                                            <div className="flex justify-between items-center text-[10px] font-bold text-muted uppercase border-b border-surface pb-2">
+                                                <span>KYC Verification</span>
+                                                <span className={userDetail.kycVerified ? 'text-emerald-500' : 'text-amber-500'}>
+                                                    {userDetail.kycVerified ? 'VERIFIED' : 'PENDING'}
+                                                </span>
+                                            </div>
                                             <div className="flex justify-between items-center text-[10px] font-bold text-muted uppercase">
-                                                <span>Risk Factor</span>
-                                                <span className={userDetail.riskScore === 'Low' ? 'text-emerald-500' : 'text-rose-500'}>{userDetail.riskScore}</span>
+                                                <span>Referral Code</span>
+                                                <span className="text-primary">{userDetail.referralCode || 'None'}</span>
                                             </div>
                                         </div>
                                     )}

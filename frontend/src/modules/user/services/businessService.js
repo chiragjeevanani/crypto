@@ -36,5 +36,14 @@ export const businessService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to fetch settings");
     return data.settings;
+  },
+
+  async failPayment(postId, reason) {
+    const response = await fetch(`${BUSINESS_URL}/fail-payment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ postId, reason })
+    });
+    return await response.json().catch(() => ({}));
   }
 };

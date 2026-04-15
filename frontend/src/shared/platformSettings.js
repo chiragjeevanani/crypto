@@ -1,8 +1,8 @@
 const COOKIE_KEY = 'platform_settings';
 
 export const DEFAULT_PLATFORM_SETTINGS = {
-    commission: 15,
-    minWithdrawal: 100,
+    commission: 10,
+    minWithdrawal: 10,
     maintenanceMode: false,
     kycMandatory: true,
     maxVotesPerDay: 50,

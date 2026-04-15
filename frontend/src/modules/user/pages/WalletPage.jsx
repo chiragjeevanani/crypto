@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react'
+import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2, Zap, Share2 } from 'lucide-react'
 import { useWalletStore } from '../store/useWalletStore'
 import { useUserStore } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
@@ -75,7 +75,7 @@ export default function WalletPage() {
     const hasWithdrawalDestination = withdrawMethod === 'upi'
         ? Boolean(withdrawUpiId.trim())
         : Boolean(withdrawAccountNumber.trim()) && Boolean(withdrawIFSC.trim())
-    const canWithdraw = kyc.payoutsUnlocked && !kyc.riskFlag && hasWithdrawalAmount && hasWithdrawalDestination
+    const canWithdraw = (profile.referralCount >= 5) && kyc.payoutsUnlocked && !kyc.riskFlag && hasWithdrawalAmount && hasWithdrawalDestination
 
     useEffect(() => {
         loadWallet()
@@ -109,8 +109,7 @@ export default function WalletPage() {
         setIsProcessingPayment(true)
         setWalletActionMessage('Connecting to Secure Gateway...')
         const result = await initiateRecharge(parsed)
-        
-        if (result?.ok && result.orderId) {
+                if (result?.ok && result.orderId && result.keyId) {
             const options = {
                 key: result.keyId,
                 amount: result.amount,
@@ -119,7 +118,7 @@ export default function WalletPage() {
                 description: "Wallet Recharge",
                 order_id: result.orderId,
                 handler: async function (response) {
-                    setWalletActionMessage('Verifying payment...')
+                    setWalletActionMessage('Verifying payment...');
                     const verification = await verifyPayment(result.transactionId, {
                         razorpay_payment_id: response.razorpay_payment_id,
                         razorpay_order_id: response.razorpay_order_id,
@@ -155,9 +154,11 @@ export default function WalletPage() {
             const rzp = new window.Razorpay(options);
             rzp.open();
         } else {
-            setWalletActionMessage(result?.message || 'Gateway unavailable.');
+            console.error("Razorpay Config Error:", result);
+            setWalletActionMessage(result?.message || 'Gateway config incomplete (Missing Key ID).');
             setIsProcessingPayment(false);
         }
+
     }
 
     useEffect(() => {
@@ -229,6 +230,25 @@ export default function WalletPage() {
         })
     }
 
+    const handleShareReferral = async () => {
+        const shareData = {
+            title: 'K & Q Reels',
+            text: `Join K & Q Reels and start earning! Use my referral code: ${profile.referralCode}`,
+            url: window.location.origin + '/signup?ref=' + (profile.referralCode || '')
+        }
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData)
+            } else {
+                await navigator.clipboard.writeText(shareData.url)
+                setWalletActionMessage('Referral link copied to clipboard!')
+                setTimeout(() => setWalletActionMessage(''), 3000)
+            }
+        } catch (err) {
+            console.error('Share failed:', err)
+        }
+    }
+
     const runWalletAction = (result, successMessage) => {
         if (result?.ok) {
             setWalletActionMessage(successMessage)
@@ -238,7 +258,7 @@ export default function WalletPage() {
     }
 
     return (
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 max-w-2xl mx-auto">
             {/* Header */}
             <h1 className="text-xl font-extrabold mb-4" style={{ color: 'var(--color-text)' }}>Wallet</h1>
             {walletError && (
@@ -248,55 +268,55 @@ export default function WalletPage() {
                 </div>
             )}
 
-            {/* New 3 separate wallet cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Wallet cards - Responsive Scroll UI */}
+            <div className="flex overflow-x-auto gap-4 mb-8 pb-4 no-scrollbar -mx-4 px-4 snap-x md:grid md:grid-cols-3 md:gap-4 md:px-0 md:mx-0">
                 {/* INR Wallet Card */}
                 <motion.div 
                     whileHover={{ y: -2 }}
-                    className="rounded-3xl p-6 relative overflow-hidden shadow-xl"
+                    className="min-w-[280px] md:min-w-0 flex-1 snap-start rounded-[32px] p-6 relative overflow-hidden shadow-xl"
                     style={{ 
                         background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
                         color: '#fff' 
                     }}
                 >
                     <div className="relative z-10">
-                        <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">{currencyCode} WALLET</p>
-                        <h2 className="text-4xl font-black mb-4">
-                            {currencySymbol}{Math.round(inrWallet).toLocaleString()}
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{currencyCode} WALLET</p>
+                        <h2 className="text-4xl font-black mb-4 flex items-baseline gap-1">
+                            <span className="text-xl font-medium opacity-60">{currencySymbol}</span>
+                            {Math.round(inrWallet).toLocaleString()}
                         </h2>
                         <div className="flex gap-2">
                              <button
                                 onClick={() => setActiveTab('Linked')}
-                                className="px-4 py-2 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 transition-colors"
+                                className="px-5 py-2 rounded-2xl text-[11px] font-black bg-white/20 hover:bg-white/30 transition-all active:scale-95"
                             >
                                 Top up
                             </button>
                         </div>
                     </div>
-                    {/* Abstract background element */}
                     <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl" />
                 </motion.div>
 
                 {/* Crypto Wallet Card */}
                 <motion.div 
                     whileHover={{ y: -2 }}
-                    className="rounded-3xl p-6 relative overflow-hidden shadow-xl"
+                    className="min-w-[280px] md:min-w-0 flex-1 snap-start rounded-[32px] p-6 relative overflow-hidden shadow-xl"
                     style={{ 
                         background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
                         color: '#fff' 
                     }}
                 >
                     <div className="relative z-10">
-                        <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">CRYPTO WALLET</p>
-                        <h2 className="text-4xl font-black mb-1">
-                            {Number(cryptoWallet || 0).toFixed(4)} <span className="text-xl font-medium">ETH</span>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">CRYPTO WALLET</p>
+                        <h2 className="text-4xl font-black mb-1 truncate">
+                            {Number(cryptoWallet || 0).toFixed(3)} <span className="text-lg font-medium opacity-60">ETH</span>
                         </h2>
-                        <p className="text-[10px] opacity-70 mb-4">
+                        <p className="text-[10px] font-bold opacity-60 mb-4 uppercase tracking-wider">
                             ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
                         </p>
                         <button
                             onClick={() => setActiveTab('Linked')}
-                            className="px-4 py-2 rounded-xl text-xs font-bold bg-white/20 hover:bg-white/30 transition-colors"
+                            className="px-5 py-2 rounded-2xl text-[11px] font-black bg-white/20 hover:bg-white/30 transition-all active:scale-95"
                         >
                             Manage
                         </button>
@@ -307,7 +327,7 @@ export default function WalletPage() {
                 {/* Earning Wallet Card */}
                 <motion.div 
                     whileHover={{ y: -2 }}
-                    className="rounded-3xl p-6 relative overflow-hidden shadow-xl border border-white/10"
+                    className="min-w-[280px] md:min-w-0 flex-1 snap-start rounded-[32px] p-6 relative overflow-hidden shadow-xl border border-white/10"
                     style={{ 
                         background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
                         color: '#fff' 
@@ -315,36 +335,33 @@ export default function WalletPage() {
                 >
                     <div className="relative z-10">
                         <div className="flex justify-between items-start mb-2">
-                            <p className="text-xs font-bold uppercase tracking-widest opacity-80">EARNING WALLET</p>
-                            {earningsWallet >= platformSettings.minWithdrawal && (
-                                <span className="bg-green-500/30 text-[10px] font-black px-2 py-1 rounded-full uppercase">Ready to Withdraw</span>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">EARNING WALLET</p>
+                            {earningsWallet >= 10 && (
+                                <span className="bg-green-500/30 text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">Ready</span>
                             )}
                         </div>
-                        <h2 className="text-4xl font-black mb-4">
-                            {currencySymbol}{Math.round(earningsWallet).toLocaleString()}
+                        <h2 className="text-4xl font-black mb-4 flex items-baseline gap-1">
+                            <span className="text-xl font-medium opacity-60">{currencySymbol}</span>
+                            {Math.round(earningsWallet).toLocaleString()}
                         </h2>
                         
-                        {/* Withdrawal Progress */}
-                        {earningsWallet < platformSettings.minWithdrawal ? (
+                        {earningsWallet < 10 ? (
                             <div className="mb-4">
-                                <div className="flex justify-between text-[10px] font-bold mb-1 opacity-90">
-                                    <span>Withdrawal Progress</span>
-                                    <span>{Math.round((earningsWallet / platformSettings.minWithdrawal) * 100)}%</span>
+                                <div className="flex justify-between text-[9px] font-black mb-1 opacity-90 uppercase tracking-widest">
+                                    <span>Payout</span>
+                                    <span>{Math.round((earningsWallet / 10) * 100)}%</span>
                                 </div>
-                                <div className="h-2 bg-black/20 rounded-full overflow-hidden">
+                                <div className="h-1.5 bg-black/20 rounded-full overflow-hidden">
                                     <div 
                                         className="h-full bg-white transition-all duration-500" 
-                                        style={{ width: `${Math.min(100, (earningsWallet / platformSettings.minWithdrawal) * 100)}%` }}
+                                        style={{ width: `${Math.min(100, (earningsWallet / 10) * 100)}%` }}
                                     />
                                 </div>
-                                <p className="text-[10px] mt-2 opacity-80 italic">
-                                    Add {currencySymbol}{platformSettings.minWithdrawal - earningsWallet} more to unlock withdrawal
-                                </p>
                             </div>
                         ) : (
                             <button
                                 onClick={() => setActiveTab('Withdraw')}
-                                className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-orange-600 hover:bg-orange-50 transition-colors"
+                                className="px-5 py-2 rounded-2xl text-[11px] font-black bg-white text-orange-600 hover:bg-orange-50 transition-all active:scale-95"
                             >
                                 Withdraw Now
                             </button>
@@ -354,48 +371,47 @@ export default function WalletPage() {
                 </motion.div>
             </div>
 
-            {/* Wallet Actions (Integrated into Tabs if possible, or keeping separate for now) */}
-                <div className="rounded-2xl p-5" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                     <p className="text-sm font-black mb-4" style={{ color: 'var(--color-text)' }}>INR Quick Recharge</p>
-                     <div className="flex flex-wrap gap-2 mb-4">
-                        {[100, 200, 500].map(amt => (
-                            <button
-                                key={amt}
-                                disabled={isProcessingPayment}
-                                onClick={() => handleQuickAdd(amt)}
-                                className="px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm active:scale-95 bg-white dark:bg-zinc-800 text-orange-500 border-orange-500/20"
-                            >
-                                +{currencySymbol}{amt}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="relative mt-2">
-                        <label className="text-[10px] font-black text-muted uppercase tracking-wider mb-2 block">Or Enter Custom Amount</label>
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted">{currencySymbol}</span>
-                                <input
-                                    type="number"
-                                    value={addInrAmount}
-                                    onChange={(e) => setAddInrAmount(e.target.value)}
-                                    placeholder="0.00"
-                                    className="w-full h-11 pl-9 pr-4 rounded-xl border bg-bg text-sm font-black outline-none focus:border-primary transition-all"
-                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                />
-                            </div>
-                            <button
-                                disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
-                                onClick={() => handleQuickAdd(addInrAmount)}
-                                className="px-6 h-11 rounded-xl bg-primary text-black text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 shrink-0"
-                            >
-                                {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Recharge'}
-                            </button>
+            {/* Quick Actions */}
+            <div className="rounded-2xl p-5 mb-6" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                 <p className="text-sm font-black mb-4" style={{ color: 'var(--color-text)' }}>INR Quick Recharge</p>
+                 <div className="flex flex-wrap gap-2 mb-4">
+                    {[100, 200, 500].map(amt => (
+                        <button
+                            key={amt}
+                            disabled={isProcessingPayment}
+                            onClick={() => handleQuickAdd(amt)}
+                            className="px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm active:scale-95 bg-white dark:bg-zinc-800 text-orange-500 border-orange-500/20"
+                        >
+                            +{currencySymbol}{amt}
+                        </button>
+                    ))}
+                </div>
+                <div className="relative mt-2">
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted">{currencySymbol}</span>
+                            <input
+                                type="number"
+                                value={addInrAmount}
+                                onChange={(e) => setAddInrAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full h-11 pl-9 pr-4 rounded-xl border bg-bg text-sm font-black outline-none focus:border-primary transition-all"
+                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                            />
                         </div>
+                        <button
+                            disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
+                            onClick={() => handleQuickAdd(addInrAmount)}
+                            className="px-6 h-11 rounded-xl bg-primary text-black text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 shrink-0"
+                        >
+                            {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Recharge'}
+                        </button>
                     </div>
                 </div>
+            </div>
 
             {walletActionMessage && (
-                <p className="text-[11px] mb-4 text-center font-bold px-4 py-2 rounded-lg bg-orange-500/10 text-orange-600">
+                <p className="text-[11px] mb-6 text-center font-bold px-4 py-2 rounded-lg bg-orange-500/10 text-orange-600">
                     {walletActionMessage}
                 </p>
             )}
@@ -420,49 +436,13 @@ export default function WalletPage() {
                         <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
                             Level {kyc.level} · {kyc.payoutsUnlocked ? 'Payouts enabled' : 'KYC required for payouts'}
                         </p>
-                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
-                            Platform rules: {platformSettings.commission}% fee · Min withdraw {currencySymbol}{platformSettings.minWithdrawal}
-                        </p>
                     </div>
-                </div>
-                {kyc.riskFlag && (
-                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full"
-                        style={{ background: 'rgba(244,63,94,0.12)', color: 'var(--color-danger)' }}>
-                        Risk Hold
-                    </span>
-                )}
-            </div>
-
-            {/* Weekly bar chart */}
-            <div
-                className="rounded-2xl p-4 mb-4"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-            >
-                <p className="text-xs font-semibold mb-3" style={{ color: 'var(--color-muted)' }}>This Week</p>
-                <div className="flex items-end gap-2 h-16">
-                    {weeklyEarnings.map((d, i) => {
-                        const pct = (d.amount / MAX_WEEKLY) * 100
-                        const isToday = i === TODAY_IDX
-                        return (
-                            <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
-                                <div className="w-full rounded-t-sm" style={{
-                                    height: `${pct}%`,
-                                    minHeight: 4,
-                                    background: isToday ? 'var(--color-primary)' : 'var(--color-surface2)',
-                                    transition: 'all 0.3s',
-                                }} />
-                                <span className="text-[10px]" style={{ color: isToday ? 'var(--color-primary)' : 'var(--color-muted)' }}>
-                                    {d.day}
-                                </span>
-                            </div>
-                        )
-                    })}
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b mb-3" style={{ borderColor: 'var(--color-border)' }}>
-                {TABS.map((tab) => {
+            <div className="flex border-b mb-6" style={{ borderColor: 'var(--color-border)' }}>
+                {['Transactions', 'Withdraw', 'Linked'].map((tab) => {
                     const active = tab === activeTab
                     return (
                         <button
@@ -471,7 +451,7 @@ export default function WalletPage() {
                             className="flex-1 pb-2.5 text-sm font-semibold cursor-pointer transition-colors duration-150 relative"
                             style={{ color: active ? 'var(--color-primary)' : 'var(--color-muted)' }}
                         >
-                            {tab}
+                            <span className="relative z-10">{tab}</span>
                             {active && (
                                 <motion.div
                                     layoutId="wallet-tab"
@@ -488,303 +468,402 @@ export default function WalletPage() {
             <AnimatePresence mode="wait">
                 <motion.div
                     key={activeTab}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
                 >
                     {activeTab === 'Transactions' && (
-                        <div>
-                            <div className="mb-3 rounded-xl px-3 py-2 text-[11px] flex items-center justify-between"
-                                style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
-                                <span>Ledger reconciliation</span>
-                                <span className="font-semibold">{earningsLedger.filter((e) => e.status === 'reconciled').length}/{earningsLedger.length} reconciled</span>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between px-2">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-muted">Recent Activity</h3>
+                                <div className="px-3 py-1 bg-surface border rounded-full text-[10px] font-bold text-muted uppercase">Verified</div>
                             </div>
-                            {transactions.map((tx) => (
+                            {transactions.length === 0 ? (
+                                <div className="py-20 text-center space-y-3 opacity-40">
+                                    <div className="w-16 h-16 rounded-3xl bg-surface border mx-auto flex items-center justify-center">
+                                        <CheckSquare size={30} />
+                                    </div>
+                                    <p className="text-sm font-bold uppercase tracking-widest">No transactions yet</p>
+                                </div>
+                            ) : transactions.map((tx) => (
                                 <TransactionItem key={tx.id} tx={tx} currencySymbol={currencySymbol} />
                             ))}
                         </div>
                     )}
 
                     {activeTab === 'Withdraw' && (
-                        <div className="flex flex-col gap-5 py-4">
-                            {kyc.status !== 'verified' ? (
-                                <div className="rounded-3xl p-6" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)' }}>
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-orange-500/10 shrink-0">
-                                            <AlertTriangle size={20} className="text-orange-600" />
+                        <div className="space-y-6">
+                            {/* Referral Code Share Block */}
+                            <div className="rounded-3xl p-6 border shadow-sm space-y-4" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-muted tracking-widest">Your Referral Identity</p>
+                                        <h3 className="text-xl font-black text-primary tracking-tighter uppercase">{profile.referralCode || 'GENERATING...'}</h3>
+                                    </div>
+                                    <button 
+                                        onClick={handleShareReferral}
+                                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-primary text-black text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+                                    >
+                                        <Share2 size={16} />
+                                        Share & Earn
+                                    </button>
+                                </div>
+                                <p className="text-[10px] font-bold text-muted leading-relaxed uppercase tracking-tighter">
+                                    Share this platform with at least 5 friends to unlock your revenue stream.
+                                </p>
+                            </div>
+                            {/* KYC Status Banner */}
+                            {(kyc.status !== 'verified' || (profile.referralCount || 0) < 5) && (
+                                <motion.div 
+                                    className="rounded-[32px] p-8 border backdrop-blur-md shadow-2xl relative overflow-hidden"
+                                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                >
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl" />
+                                    
+                                    <div className="flex items-start gap-5 relative z-10">
+                                        <div className="w-14 h-14 rounded-3xl flex items-center justify-center bg-orange-500/10 shrink-0 shadow-inner">
+                                            <ShieldCheck size={28} className="text-orange-500" />
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-base font-bold text-zinc-900 dark:text-white">KYC Verification Pending</p>
-                                            <p className="text-xs mt-1 text-zinc-500 leading-relaxed">
-                                                To ensure secure transactions, please complete your KYC by uploading your Aadhaar card and completing 5 referrals.
+                                        <div className="flex-1 space-y-1">
+                                            <h3 className="text-lg font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Unlock Withdrawals</h3>
+                                            <p className="text-sm font-medium leading-relaxed opacity-60">
+                                                Complete mandatory KYC and refer 5 members to enable earnings withdrawal.
                                             </p>
-                                            
-                                            <div className="mt-5 space-y-3">
-                                                <input
-                                                    type="text"
-                                                    value={kycReferralCode}
-                                                    onChange={(e) => setKycReferralCode(e.target.value)}
-                                                    placeholder="Enter Referral Code"
-                                                    className="w-full px-4 py-3 rounded-2xl text-sm outline-none border focus:ring-2 ring-orange-500/20 transition-all font-medium"
-                                                    style={{ background: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-                                                />
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed cursor-pointer hover:bg-orange-500/5 transition-colors"
-                                                        style={{ borderColor: 'var(--color-border)' }}>
-                                                        <ShieldCheck size={20} className="text-zinc-400" />
-                                                        <span className="text-[10px] font-bold text-zinc-500 text-center">
-                                                            {kycAadharFront?.name || kyc.aadharFrontName || 'Front Side'}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-8 space-y-6 relative z-10">
+                                        {/* Progress Trackers */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="p-4 rounded-2xl bg-bg/50 border border-border/50">
+                                                <p className="text-[10px] font-black uppercase text-muted tracking-widest mb-2">Referrals</p>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-xl font-black">{profile.referralCount || 0}<span className="text-sm text-muted">/5</span></span>
+                                                    {profile.referralCount >= 5 && <div className="p-1 rounded-full bg-emerald-500"><ShieldCheck size={10} className="text-white" /></div>}
+                                                </div>
+                                                <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                                                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, ((profile.referralCount || 0) / 5) * 100)}%` }} />
+                                                </div>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-bg/50 border border-border/50">
+                                                <p className="text-[10px] font-black uppercase text-muted tracking-widest mb-2">KYC Status</p>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className={`w-3 h-3 rounded-full ${kyc.status === 'verified' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`} />
+                                                    <span className="text-xs font-black uppercase">{kyc.status}</span>
+                                                </div>
+                                                <p className="text-[9px] font-bold text-muted leading-tight">Admin approval pending</p>
+                                            </div>
+                                        </div>
+
+                                        {kyc.status !== 'verified' && (
+                                            <div className="space-y-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group">
+                                                        <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-3"><ShieldCheck size={20} /></div>
+                                                        <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
+                                                            {kycAadharFront?.name || kyc.aadharFrontName?.substring(0,10) || 'FRONT SIDE'}
                                                         </span>
                                                         <input type="file" accept="image/*,.pdf" onChange={(e) => setKycAadharFront(e.target.files?.[0] || null)} className="hidden" />
                                                     </label>
-                                                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed cursor-pointer hover:bg-orange-500/5 transition-colors"
-                                                        style={{ borderColor: 'var(--color-border)' }}>
-                                                        <ShieldCheck size={20} className="text-zinc-400" />
-                                                        <span className="text-[10px] font-bold text-zinc-500 text-center">
-                                                            {kycAadharBack?.name || kyc.aadharBackName || 'Back Side'}
+                                                    <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group">
+                                                        <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all -rotate-3"><ShieldCheck size={20} /></div>
+                                                        <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
+                                                            {kycAadharBack?.name || kyc.aadharBackName?.substring(0,10) || 'BACK SIDE'}
                                                         </span>
                                                         <input type="file" accept="image/*,.pdf" onChange={(e) => setKycAadharBack(e.target.files?.[0] || null)} className="hidden" />
                                                     </label>
                                                 </div>
                                                 
-                                                <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tight">Referral Progress</span>
-                                                        <span className="text-sm font-black text-zinc-900 dark:text-white">
-                                                            {kyc.referredCount} <span className="text-zinc-400">/ {kyc.requiredReferrals}</span>
-                                                        </span>
-                                                    </div>
-                                                    <button
-                                                        onClick={handleReferralIncrement}
-                                                        className="px-4 py-2 rounded-xl text-xs font-black bg-orange-500 text-white shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
-                                                    >
-                                                        +1 Demo
-                                                    </button>
-                                                </div>
-                                                
                                                 <button
                                                     onClick={handleSubmitKYC}
                                                     disabled={!canSubmitKYC}
-                                                    className="w-full py-4 rounded-2xl text-sm font-black bg-zinc-900 dark:bg-white text-white dark:text-black disabled:opacity-30 transition-all shadow-xl"
+                                                    className="w-full py-4 rounded-[20px] text-xs font-black bg-text text-bg disabled:opacity-20 transition-all shadow-xl uppercase tracking-widest hover:scale-[1.01] active:scale-[0.98]"
+                                                    style={{ background: 'var(--color-text)', color: 'var(--color-bg)' }}
                                                 >
-                                                    Submit for Verification
+                                                    {kycMessage ? 'RE-SUBMIT REQUEST' : 'PROCEED TO VERIFICATION'}
+                                                </button>
+                                                {kycMessage && <p className="text-[10px] text-center font-bold text-orange-500">{kycMessage}</p>}
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* Withdrawal Form */}
+                            <div className="rounded-[32px] p-8 border shadow-sm space-y-8" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                                <div className="space-y-4">
+                                    <div className="flex p-1 bg-bg border rounded-2xl" style={{ borderColor: 'var(--color-border)' }}>
+                                        {['upi', 'bank'].map((m) => (
+                                            <button
+                                                key={m}
+                                                onClick={() => setWithdrawMethod(m)}
+                                                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${withdrawMethod === m ? 'bg-primary text-black shadow-md' : 'text-muted'}`}
+                                            >
+                                                {m}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div className="relative group">
+                                            <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-3 mb-2 block">Withdrawal Amount</label>
+                                            <div className="flex items-center px-5 h-16 rounded-[22px] border bg-bg/50 focus-within:ring-4 ring-primary/10 focus-within:border-primary transition-all pr-4" style={{ borderColor: 'var(--color-border)' }}>
+                                                <span className="text-xl font-black mr-2 text-muted">{currencySymbol}</span>
+                                                <input
+                                                    type="number"
+                                                    placeholder={`0.00 (Min. 10)`}
+                                                    value={withdrawAmount}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        setWithdrawAmount(Math.min(val, earningsWallet));
+                                                    }}
+                                                    className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/30"
+                                                />
+                                                <button 
+                                                    onClick={() => setWithdrawAmount(Math.floor(earningsWallet))}
+                                                    className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-tighter hover:bg-primary hover:text-black transition-all"
+                                                >
+                                                    MAX
                                                 </button>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            ) : null}
 
-                            <div className="space-y-4">
-                                <div className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex">
-                                    {['upi', 'bank'].map((m) => (
-                                        <button
-                                            key={m}
-                                            onClick={() => setWithdrawMethod(m)}
-                                            className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${withdrawMethod === m ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-400'}`}
+                                        {/* Payout Breakdown */}
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: withdrawAmount ? 1 : 0, height: withdrawAmount ? 'auto' : 0 }}
+                                            className="overflow-hidden"
                                         >
-                                            {m.toUpperCase()}
-                                        </button>
-                                    ))}
-                                </div>
+                                            <div className="p-5 rounded-[22px] bg-bg border border-border/50 space-y-3">
+                                                <div className="flex justify-between text-xs font-bold text-muted">
+                                                    <span>Requested Amount</span>
+                                                    <span>{currencySymbol}{Number(withdrawAmount || 0).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between text-[11px] font-bold text-red-500/80">
+                                                    <span>Platform Fee ({platformSettings.commission || 10}%)</span>
+                                                    <span>-{currencySymbol}{((Number(withdrawAmount || 0) * (platformSettings.commission || 10)) / 100).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-[11px] font-bold text-red-500/80">
+                                                    <span>GST (18%)</span>
+                                                    <span>-{currencySymbol}{((Number(withdrawAmount || 0) * 18) / 100).toFixed(2)}</span>
+                                                </div>
+                                                <div className="pt-2 border-t border-border/50 flex justify-between items-center">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Final Payout</span>
+                                                    <span className="text-lg font-black text-emerald-500">
+                                                        {currencySymbol}{Math.max(0, Number(withdrawAmount || 0) - (Number(withdrawAmount || 0) * (platformSettings.commission || 10) / 100) - (Number(withdrawAmount || 0) * 18 / 100)).toFixed(2)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
 
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div className="relative">
-                                        <label className="absolute -top-2 left-4 px-1 text-[10px] font-black bg-white dark:bg-[#121212] text-zinc-400 z-10">AMOUNT TO WITHDRAW</label>
-                                        <div className="flex items-center px-4 h-14 rounded-2xl border bg-white dark:bg-zinc-900/50" style={{ borderColor: 'var(--color-border)' }}>
-                                            <span className="text-lg font-black mr-2 text-zinc-900 dark:text-zinc-100">{currencySymbol}</span>
-                                            <input
-                                                type="number"
-                                                placeholder={`Min. ${platformSettings.minWithdrawal}`}
-                                                value={withdrawAmount}
-                                                onChange={(e) => setWithdrawAmount(e.target.value)}
-                                                className="bg-transparent border-none outline-none text-lg font-black w-full"
-                                            />
-                                        </div>
+                                        {withdrawMethod === 'upi' ? (
+                                            <div className="relative group">
+                                                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-3 mb-2 block">UPI ID</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g. yourname@bank"
+                                                    value={withdrawUpiId}
+                                                    onChange={(e) => setWithdrawUpiId(e.target.value)}
+                                                    className="w-full px-5 h-16 rounded-[22px] text-sm outline-none border bg-bg/50 focus:ring-4 ring-primary/10 focus:border-primary transition-all font-bold placeholder:text-muted/30"
+                                                    style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Account Number"
+                                                    value={withdrawAccountNumber}
+                                                    onChange={(e) => setWithdrawAccountNumber(e.target.value)}
+                                                    className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
+                                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="IFSC Code (e.g. SBIN0001234)"
+                                                    value={withdrawIFSC}
+                                                    onChange={(e) => setWithdrawIFSC(e.target.value.toUpperCase())}
+                                                    className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
+                                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {withdrawMethod === 'upi' ? (
-                                        <div className="relative">
-                                            <label className="absolute -top-2 left-4 px-1 text-[10px] font-black bg-white dark:bg-[#121212] text-zinc-400 z-10">UPI ID</label>
-                                            <input
-                                                type="text"
-                                                placeholder="name@bank-id"
-                                                value={withdrawUpiId}
-                                                onChange={(e) => setWithdrawUpiId(e.target.value)}
-                                                className="w-full px-4 h-14 rounded-2xl text-sm outline-none border focus:ring-2 ring-orange-500/20 transition-all font-bold bg-white dark:bg-zinc-900/50"
-                                                style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <input
-                                                type="text"
-                                                placeholder="Account Number"
-                                                value={withdrawAccountNumber}
-                                                onChange={(e) => setWithdrawAccountNumber(e.target.value)}
-                                                className="w-full px-4 h-14 rounded-2xl border font-bold text-sm bg-white dark:bg-zinc-900/50"
-                                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="IFSC Code"
-                                                value={withdrawIFSC}
-                                                onChange={(e) => setWithdrawIFSC(e.target.value.toUpperCase())}
-                                                className="w-full px-4 h-14 rounded-2xl border font-bold text-sm bg-white dark:bg-zinc-900/50"
-                                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                            />
-                                        </>
+                                    <motion.button
+                                        whileHover={{ scale: 1.01 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={async () => {
+                                            const result = await requestWithdrawal(withdrawAmount, withdrawMethod === 'upi'
+                                                ? { type: 'upi', upiId: withdrawUpiId.trim().toLowerCase() }
+                                                : { type: 'bank', accountNumber: withdrawAccountNumber.trim(), ifscCode: withdrawIFSC.trim().toUpperCase() })
+                                            if (result?.ok) {
+                                                runWalletAction(result, 'Withdrawal request transmitted to treasury.')
+                                                setWithdrawAmount('')
+                                            } else {
+                                                runWalletAction(result)
+                                            }
+                                        }}
+                                        disabled={!canWithdraw}
+                                        className="w-full py-5 rounded-[22px] text-xs font-black transition-all shadow-2xl disabled:opacity-20 hover:shadow-primary/20 uppercase tracking-widest"
+                                        style={{
+                                            background: 'var(--color-primary)',
+                                            color: '#000',
+                                        }}
+                                    >
+                                        Execute Payout Request
+                                    </motion.button>
+                                    
+                                    {earningsWallet < (platformSettings.minWithdrawal || 10) && (
+                                        <p className="text-[10px] text-center font-bold text-muted px-6 uppercase tracking-widest opacity-60">
+                                            Balance must be at least {currencySymbol}{platformSettings.minWithdrawal || 10} to initiate payout
+                                        </p>
                                     )}
                                 </div>
-
-                                <motion.button
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={async () => {
-                                        const result = await requestWithdrawal(withdrawAmount, withdrawMethod === 'upi'
-                                            ? { type: 'upi', upiId: withdrawUpiId.trim().toLowerCase() }
-                                            : { type: 'bank', accountNumber: withdrawAccountNumber.trim(), ifscCode: withdrawIFSC.trim().toUpperCase() })
-                                        runWalletAction(result, 'Withdrawal request created successfully!')
-                                        if (result?.ok) setWithdrawAmount('')
-                                    }}
-                                    disabled={!canWithdraw}
-                                    className="w-full py-4 rounded-2xl text-sm font-black transition-all shadow-xl shadow-orange-500/20 disabled:opacity-30"
-                                    style={{
-                                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                                        color: '#fff',
-                                    }}
-                                >
-                                    Proceed to Withdrawal
-                                </motion.button>
-                                
-                                {earningsWallet < platformSettings.minWithdrawal && (
-                                    <p className="text-[10px] text-center font-bold text-zinc-400 px-6 uppercase tracking-wider">
-                                        Need {currencySymbol}{Math.max(0, platformSettings.minWithdrawal - earningsWallet)} more for minimum payout
-                                    </p>
-                                )}
                             </div>
                         </div>
                     )}
 
                     {activeTab === 'Linked' && (
-                        <div className="flex flex-col gap-3 py-2">
-                            {payoutMethods.map((acc) => (
-                                <div
-                                    key={acc.id}
-                                    className="flex items-center gap-3 p-4 rounded-2xl"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                                >
-                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-surface2)' }}>
-                                        <Link size={18} style={{ color: 'var(--color-primary)' }} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                                            {acc.type === 'upi' ? 'UPI' : (acc.bankName || 'Bank Account')}
-                                        </p>
-                                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                                            {acc.type === 'upi' ? acc.upiId : `A/C ${acc.accountNumber} · ${acc.ifscCode}`}
-                                        </p>
-                                    </div>
-                                    {acc.primary && (
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                                            style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--color-success)' }}>
-                                            Primary
-                                        </span>
-                                    )}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between px-2">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-muted">Saved Accounts</h3>
+                                <div className="px-3 py-1 bg-surface border rounded-full text-[10px] font-bold text-muted uppercase">PCI DSS Compliant</div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {payoutMethods.map((acc) => (
+                                    <motion.div
+                                        key={acc.id}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        className="flex items-center gap-4 p-5 rounded-3xl group relative overflow-hidden"
+                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    >
+                                        <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors" />
+                                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-bg shadow-inner relative z-10">
+                                            <Link size={20} className="text-primary" />
+                                        </div>
+                                        <div className="flex-1 relative z-10">
+                                            <p className="text-sm font-black tracking-tight" style={{ color: 'var(--color-text)' }}>
+                                                {acc.type === 'upi' ? 'Unified Payments (UPI)' : (acc.bankName || 'Digital Banking')}
+                                            </p>
+                                            <p className="text-xs font-bold text-muted opacity-60">
+                                                {acc.type === 'upi' ? acc.upiId : `A/C •••• ${acc.accountNumber.slice(-4)} • ${acc.ifscCode}`}
+                                            </p>
+                                        </div>
+                                        {acc.primary && (
+                                            <span className="text-[10px] px-3 py-1 rounded-full font-black uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/10 relative z-10">
+                                                Primary
+                                            </span>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            <div className="mt-8 rounded-[32px] p-8 border shadow-sm space-y-6" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-text uppercase tracking-widest">Connect New Account</h4>
+                                    <p className="text-[10px] font-bold text-muted leading-tight">Linked accounts can be used for instant withdrawals.</p>
                                 </div>
-                            ))}
-                            <div className="mt-2 rounded-2xl p-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Add payout account</p>
-                                <select
-                                    value={linkMethodType}
-                                    onChange={(e) => setLinkMethodType(e.target.value)}
-                                    className="w-full px-3 py-2 mb-2 rounded-lg text-xs outline-none"
-                                    style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                >
-                                    <option value="upi">UPI</option>
-                                    <option value="bank">Bank Account</option>
-                                </select>
-                                {linkMethodType === 'upi' ? (
-                                    <div className="grid grid-cols-1 gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Account holder name"
-                                            value={linkUpiName}
-                                            onChange={(e) => setLinkUpiName(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="name@bank"
-                                            value={linkUpiId}
-                                            onChange={(e) => setLinkUpiId(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Bank name"
-                                            value={linkBankName}
-                                            onChange={(e) => setLinkBankName(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Account holder name"
-                                            value={linkBankAccountHolder}
-                                            onChange={(e) => setLinkBankAccountHolder(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Account number"
-                                            value={linkBankAccountNumber}
-                                            onChange={(e) => setLinkBankAccountNumber(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="IFSC code"
-                                            value={linkBankIFSC}
-                                            onChange={(e) => setLinkBankIFSC(e.target.value.toUpperCase())}
-                                            className="w-full px-3 py-2 rounded-lg text-xs outline-none"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        />
-                                    </div>
-                                )}
-                                <motion.button
-                                    whileTap={{ scale: 0.96 }}
-                                    onClick={() => {
-                                        if (linkMethodType === 'upi') {
-                                            addPayoutMethod({ type: 'upi', holderName: linkUpiName, upiId: linkUpiId })
-                                            setLinkUpiId('')
-                                            setLinkUpiName('')
-                                            return
-                                        }
-                                        addPayoutMethod({
-                                            type: 'bank',
-                                            bankName: linkBankName,
-                                            accountHolder: linkBankAccountHolder,
-                                            accountNumber: linkBankAccountNumber,
-                                            ifscCode: linkBankIFSC,
-                                        })
-                                        setLinkBankName('')
-                                        setLinkBankAccountHolder('')
-                                        setLinkBankAccountNumber('')
-                                        setLinkBankIFSC('')
-                                    }}
-                                    className="w-full py-2 rounded-lg text-xs font-semibold cursor-pointer mt-2"
-                                    style={{ background: 'var(--color-primary)', color: '#fff' }}
-                                >
-                                    Save account
-                                </motion.button>
+                                
+                                <div className="space-y-4">
+                                    <select
+                                        value={linkMethodType}
+                                        onChange={(e) => setLinkMethodType(e.target.value)}
+                                        className="w-full px-5 h-14 rounded-2xl text-[11px] font-black uppercase tracking-widest outline-none bg-bg border appearance-none"
+                                        style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+                                    >
+                                        <option value="upi">UPI ID</option>
+                                        <option value="bank">Direct Bank Account</option>
+                                    </select>
+                                    
+                                    {linkMethodType === 'upi' ? (
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Legal Name (As per Bank)"
+                                                value={linkUpiName}
+                                                onChange={(e) => setLinkUpiName(e.target.value)}
+                                                className="w-full px-5 h-14 rounded-2xl text-sm font-bold bg-bg border outline-none focus:border-primary transition-all"
+                                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="upi-id@bankname"
+                                                value={linkUpiId}
+                                                onChange={(e) => setLinkUpiId(e.target.value)}
+                                                className="w-full px-5 h-14 rounded-2xl text-sm font-bold bg-bg border outline-none focus:border-primary transition-all"
+                                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Bank Center Name"
+                                                value={linkBankName}
+                                                onChange={(e) => setLinkBankName(e.target.value)}
+                                                className="w-full px-5 h-14 rounded-2xl text-sm font-bold bg-bg border"
+                                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Account Holder Legal Name"
+                                                value={linkBankAccountHolder}
+                                                onChange={(e) => setLinkBankAccountHolder(e.target.value)}
+                                                className="w-full px-5 h-14 rounded-2xl text-sm font-bold bg-bg border"
+                                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                            />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Account Number"
+                                                    value={linkBankAccountNumber}
+                                                    onChange={(e) => setLinkBankAccountNumber(e.target.value)}
+                                                    className="w-full px-5 h-14 rounded-2xl text-sm font-bold bg-bg border"
+                                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="IFSC Code"
+                                                    value={linkBankIFSC}
+                                                    onChange={(e) => setLinkBankIFSC(e.target.value.toUpperCase())}
+                                                    className="w-full px-5 h-14 rounded-2xl text-sm font-bold bg-bg border"
+                                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <motion.button
+                                        whileHover={{ scale: 1.01 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={() => {
+                                            if (linkMethodType === 'upi') {
+                                                addPayoutMethod({ type: 'upi', holderName: linkUpiName, upiId: linkUpiId })
+                                                setLinkUpiId('')
+                                                setLinkUpiName('')
+                                                return
+                                            }
+                                            addPayoutMethod({
+                                                type: 'bank',
+                                                bankName: linkBankName,
+                                                accountHolder: linkBankAccountHolder,
+                                                accountNumber: linkBankAccountNumber,
+                                                ifscCode: linkBankIFSC,
+                                            })
+                                            setLinkBankName('')
+                                            setLinkBankAccountHolder('')
+                                            setLinkBankAccountNumber('')
+                                            setLinkBankIFSC('')
+                                        }}
+                                        className="w-full py-4 rounded-[20px] text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                                        style={{ background: 'var(--color-primary)', color: '#000' }}
+                                    >
+                                        Authorize & Link Account
+                                    </motion.button>
+                                </div>
                             </div>
                         </div>
                     )}

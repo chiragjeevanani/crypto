@@ -11,25 +11,38 @@ import {
     CreditCard,
     Users,
     BarChart3,
-    ArrowUpRight
+    ArrowUpRight,
+    AlertCircle,
+    CheckCircle2,
+    XCircle,
+    RefreshCw
 } from 'lucide-react';
 import { AdminPageHeader } from '../components/shared';
+import { useAdminStore } from '../store/useAdminStore';
 
 export default function AdvertiserPanel() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('Overview');
+    const { posts, loadAdvertiserPosts, isLoading, moderationStats, loadModerationStats, acknowledgeAds } = useAdminStore();
+    const [statusFilter, setStatusFilter] = useState('pending');
+
+    React.useEffect(() => {
+        const init = async () => {
+            await loadModerationStats();
+            await loadAdvertiserPosts(statusFilter);
+            // If we are looking at pending ads, acknowledge them to reduce count
+            if (statusFilter === 'pending') {
+                acknowledgeAds();
+            }
+        };
+        init();
+    }, [loadAdvertiserPosts, loadModerationStats, acknowledgeAds, statusFilter]);
 
     const stats = [
-        { label: 'Total Campaigns', value: 24, icon: Megaphone, trend: '+3 this month' },
-        { label: 'Active Reach', value: '1.2M', icon: Users, trend: '↑ 12%' },
-        { label: 'Conversion Rate', value: '3.8%', icon: Target, trend: '↑ 0.5%' },
-        { label: 'Total Budget', value: '₹1,42,300', icon: CreditCard, trend: 'Utilized: 68%' }
-    ];
-
-    const currentCampaigns = [
-        { title: 'Summer Blast 2026', brand: 'CoolDrinks Inc.', budget: '₹25,000', status: 'Live', progress: 65 },
-        { title: 'New App Launch', brand: 'FunGames LLC', budget: '₹7,500', status: 'Draft', progress: 0 },
-        { title: 'Holiday Promo', brand: 'TravelX', budget: '₹12,000', status: 'Paused', progress: 40 }
+        { label: 'Pending Ads', value: moderationStats.ads, icon: Megaphone, trend: 'Requires Review' },
+        { label: 'Active Reach', value: '1.2M', icon: Users, trend: '↑ 12% (Est)' },
+        { label: 'Conversion Rate', value: '3.8%', icon: Target, trend: '↑ 0.5% (Est)' },
+        { label: 'Total Revenue', value: '₹1,42,300', icon: CreditCard, trend: 'Verified: 85%' }
     ];
 
     return (
@@ -53,8 +66,7 @@ export default function AdvertiserPanel() {
                 {[
                     { id: 'Overview', icon: LayoutDashboard },
                     { id: 'Campaigns', icon: Megaphone },
-                    { id: 'Analytics', icon: BarChart3 },
-                    { id: 'Settings', icon: Settings }
+                    { id: 'Analytics', icon: BarChart3 }
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -85,7 +97,7 @@ export default function AdvertiserPanel() {
                                 <div
                                     key={stat.label}
                                     className="p-6 bg-surface border border-surface rounded-2xl hover:border-primary/30 transition-all group cursor-pointer"
-                                    onClick={() => navigate('/admin/campaigns')}
+                                    onClick={() => navigate('/admin/content?type=business')}
                                 >
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="p-2.5 bg-bg rounded-xl border border-surface group-hover:text-primary transition-colors">
@@ -104,45 +116,82 @@ export default function AdvertiserPanel() {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             {/* Main List */}
                             <div className="lg:col-span-2 space-y-4">
-                                <div className="flex items-center justify-between mb-2 px-1">
-                                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text">Recent Campaigns</h3>
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <div className="flex items-center gap-4">
+                                        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text">Advertisement Posts</h3>
+                                        <div className="flex items-center gap-1 p-1 bg-bg border border-surface rounded-lg">
+                                            {['pending', 'approved', 'rejected'].map(s => (
+                                                <button
+                                                    key={s}
+                                                    onClick={() => setStatusFilter(s)}
+                                                    className={`px-3 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all ${statusFilter === s ? 'bg-primary text-black' : 'text-muted hover:text-text'}`}
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                     <button
-                                        onClick={() => navigate('/admin/campaigns')}
+                                        onClick={() => navigate('/admin/content')}
                                         className="text-[10px] font-bold text-primary uppercase tracking-wider hover:underline"
                                     >
-                                        View All
+                                        View Content Queue
                                     </button>
                                 </div>
 
                                 <div className="space-y-3">
-                                    {currentCampaigns.map((camp) => (
+                                    {isLoading ? (
+                                        <div className="py-12 flex flex-col items-center justify-center opacity-40">
+                                            <RefreshCw className="w-8 h-8 animate-spin mb-3" />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Refreshing protocols...</p>
+                                        </div>
+                                    ) : posts.length === 0 ? (
+                                        <div className="py-20 text-center border border-dashed border-surface rounded-3xl">
+                                             <Megaphone className="w-12 h-12 mx-auto text-muted/20 mb-4" />
+                                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted">No {statusFilter} ads found</p>
+                                        </div>
+                                    ) : posts.filter(p => p.isBusiness).map((post) => (
                                         <div
-                                            key={camp.title}
+                                            key={post.id}
                                             className="p-5 bg-surface border border-surface rounded-2xl hover:bg-surface2 transition-all cursor-pointer group"
-                                            onClick={() => navigate('/admin/campaigns')}
+                                            onClick={() => navigate(`/admin/content/${post.id}`)}
                                         >
                                             <div className="flex items-center justify-between mb-3">
-                                                <div>
-                                                    <h4 className="text-sm font-bold text-text group-hover:text-primary transition-colors">{camp.title}</h4>
-                                                    <p className="text-[10px] text-muted font-medium mt-0.5">{camp.brand}</p>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-bg rounded-xl border border-surface overflow-hidden shrink-0 group-hover:border-primary transition-colors">
+                                                        <img src={post.thumbnail} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-text group-hover:text-primary transition-colors truncate max-w-[200px]">{post.caption || 'No Caption'}</h4>
+                                                        <p className="text-[10px] text-muted font-medium mt-0.5">Author: @{post.author}</p>
+                                                    </div>
                                                 </div>
-                                                <span className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wider border ${camp.status === 'Live' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                                        camp.status === 'Draft' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                                            'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                                    }`}>
-                                                    {camp.status}
-                                                </span>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <span className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wider border ${post.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                                            post.status === 'Rejected' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                                                                'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                        }`}>
+                                                        {post.status}
+                                                    </span>
+                                                    <span className={`px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${post.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                                            post.paymentStatus === 'failed' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                                                                'bg-slate-500/10 text-slate-500 border-slate-500/20'
+                                                        }`}>
+                                                        {post.paymentStatus === 'paid' ? <CheckCircle2 size={10} /> : post.paymentStatus === 'failed' ? <XCircle size={10} /> : <AlertCircle size={10} />}
+                                                        Payment: {post.paymentStatus?.toUpperCase() || 'UNKNOWN'}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div className="pt-2">
                                                 <div className="flex justify-between items-center text-[9px] font-bold text-muted uppercase mb-1.5">
-                                                    <span>Budget: {camp.budget}</span>
-                                                    <span>{camp.progress}% Used</span>
+                                                    <span>Budget: ₹{post.promotion?.totalBudget || 0}</span>
+                                                    <span>Duration: {post.promotion?.duration || 'Ongoing'} days</span>
                                                 </div>
                                                 <div className="h-1 bg-bg rounded-full overflow-hidden border border-surface/50">
                                                     <motion.div
                                                         initial={{ width: 0 }}
-                                                        animate={{ width: `${camp.progress}%` }}
-                                                        className={`h-full rounded-full ${camp.status === 'Live' ? 'bg-primary' : 'bg-surface2'}`}
+                                                        animate={{ width: post.status === 'Approved' ? '100%' : '0%' }}
+                                                        className={`h-full rounded-full ${post.paymentStatus === 'paid' ? 'bg-primary' : post.paymentStatus === 'failed' ? 'bg-rose-500' : 'bg-surface2'}`}
                                                     />
                                                 </div>
                                             </div>
@@ -157,25 +206,25 @@ export default function AdvertiserPanel() {
                                     <div className="w-12 h-12 bg-surface2 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-surface">
                                         <Plus className="w-6 h-6 text-muted" />
                                     </div>
-                                    <h4 className="text-sm font-bold text-text mb-2">New Brand?</h4>
+                                    <h4 className="text-sm font-bold text-text mb-2">Manual Ad Inject?</h4>
                                     <p className="text-[10px] text-muted leading-relaxed uppercase tracking-wider mb-5 px-4">
-                                        Onboard your clinical agency to start launching targeted reward protocols.
+                                        Place internal platform announcements or white-label business promotions directly.
                                     </p>
                                     <button
-                                        onClick={() => navigate('/admin/campaigns/new')}
+                                        onClick={() => navigate('/admin/categories')}
                                         className="w-full py-3 bg-surface border border-surface rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-surface2 transition-all"
                                     >
-                                        Start Onboarding
+                                        Configure Categories
                                     </button>
                                 </div>
 
                                 <div className="p-6 bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 rounded-2xl">
                                     <div className="flex items-center gap-3 mb-3">
                                         <TrendingUp className="w-4 h-4 text-primary" />
-                                        <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest">Growth Tip</h4>
+                                        <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest">Revenue Forecast</h4>
                                     </div>
                                     <p className="text-[10px] text-text font-medium leading-relaxed uppercase italic">
-                                        "Campaigns with clear reward micro-interactions see 40% higher retention on the decentralized feed."
+                                        "Ad spend is projected to grow by 15% following the deployment of the reward-payout verification protocol."
                                     </p>
                                 </div>
                             </div>

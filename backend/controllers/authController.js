@@ -29,6 +29,12 @@ const resolveLocaleFromCountry = (countryInput) => {
   return { countryCode: "IN", countryName: "India", currencyCode: "INR", currencySymbol: "₹" };
 };
 
+const generateReferralCode = (name) => {
+  const prefix = String(name || "USER").slice(0, 3).toUpperCase();
+  const random = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}${random}`;
+};
+
 const signAccessToken = (user) =>
   jwt.sign(
     { userId: user._id, role: user.role, type: "access" },
@@ -55,12 +61,15 @@ const safeUser = (user) => ({
   phone: user.phone || "",
   bio: user.bio || "",
   avatar: user.avatar || "",
-  handle: user.handle || ""
+  handle: user.handle || "",
+  referralCode: user.referralCode || "",
+  referralCount: user.referralCount || 0,
+  referredBy: user.referredBy || null
 });
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, phone, countryCode } = req.body;
+    const { name, email, password, phone, countryCode, referralCode: signupReferralCode } = req.body;
 
     if (!name || !email || !password) {
       return res
@@ -82,6 +91,18 @@ const registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const locale = resolveLocaleFromCountry(countryCode);
+    
+    // Check for referrer
+    let referrerId = null;
+    if (signupReferralCode) {
+      const referrer = await User.findOne({ referralCode: String(signupReferralCode).toUpperCase() });
+      if (referrer) {
+        referrerId = referrer._id;
+      }
+    }
+
+    const referralCode = generateReferralCode(name);
+
     const user = await User.create({
       name,
       email: email.toLowerCase(),
@@ -91,8 +112,15 @@ const registerUser = async (req, res) => {
       countryCode: locale.countryCode,
       countryName: locale.countryName,
       currencyCode: locale.currencyCode,
-      currencySymbol: locale.currencySymbol
+      currencySymbol: locale.currencySymbol,
+      referralCode,
+      referredBy: referrerId
     });
+
+    // If referred, increment referrer count
+    if (referrerId) {
+      await User.findByIdAndUpdate(referrerId, { $inc: { referralCount: 1 } });
+    }
 
     const token = signAccessToken(user);
     const refreshToken = signRefreshToken(user);
@@ -219,6 +247,12 @@ const getMe = async (req, res) => {
     const user = await User.findById(req.user.userId).select("-password");
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Auto-generate referral code if missing (for legacy users)
+    if (!user.referralCode) {
+      user.referralCode = generateReferralCode(user.name);
+      await user.save();
     }
 
     return res.status(200).json({ success: true, user: safeUser(user) });

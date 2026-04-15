@@ -24,7 +24,7 @@ function getColor(id) {
     return AVATAR_COLORS[idx] || '#f59e0b'
 }
 
-export default function PostCard({ post, onOpen }) {
+export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     if (!post) return null
     const { 
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
@@ -42,7 +42,7 @@ export default function PostCard({ post, onOpen }) {
     const postComments = commentsByPostId[post.id] ?? []
     const isSelfPost = post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id)
 
-    const [isMuted, setIsMuted] = useState(true)
+    const [isMuted, setIsMuted] = useState(false) // Initially unmute as requested
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
@@ -71,6 +71,7 @@ export default function PostCard({ post, onOpen }) {
         if (!window.confirm('Are you sure you want to delete this post?')) return
         try {
             await deletePost(post.id)
+            if (onDeleteSuccess) onDeleteSuccess()
         } catch (error) {
             alert('Failed to delete post')
         }
@@ -104,13 +105,26 @@ export default function PostCard({ post, onOpen }) {
                     const recordView = useFeedStore.getState().recordView
                     if (recordView) recordView(post.id)
 
-                    if (videoRef.current) {
-                        videoRef.current.play().catch(() => {})
-                    }
-                    if (audioRef.current) {
-                        audioRef.current.currentTime = post.musicStartTime || 0
-                        audioRef.current.play().catch(() => {})
-                    }
+                    const playMedia = async () => {
+                        try {
+                            if (videoRef.current) {
+                                videoRef.current.muted = isMuted;
+                                await videoRef.current.play();
+                            }
+                            if (audioRef.current) {
+                                audioRef.current.muted = isMuted;
+                                if (post.musicStartTime) audioRef.current.currentTime = post.musicStartTime;
+                                await audioRef.current.play();
+                            }
+                        } catch (err) {
+                            if (err.name === 'NotAllowedError' && !isMuted) {
+                                setIsMuted(true);
+                                videoRef.current?.play().catch(() => {});
+                                audioRef.current?.play().catch(() => {});
+                            }
+                        }
+                    };
+                    playMedia();
                 } else {
                     if (videoRef.current) videoRef.current.pause()
                     if (audioRef.current) audioRef.current.pause()

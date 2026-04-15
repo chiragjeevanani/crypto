@@ -120,7 +120,6 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                                 autoPlay 
                                 loop 
                                 playsInline 
-                                muted 
                                 preload="auto"
                                 poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
                             />

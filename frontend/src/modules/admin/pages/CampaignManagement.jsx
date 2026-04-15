@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
+import { formatCount } from '../../user/utils/formatCurrency';
 
 const getProgress = (startDate, endDate) => {
     const start = new Date(startDate).getTime();
@@ -37,11 +38,32 @@ export default function CampaignManagement() {
     const [showSubmissionsReview, setShowSubmissionsReview] = useState(false);
     const [winnerList, setWinnerList] = useState([]);
     const [loadingWinners, setLoadingWinners] = useState(false)
-        const navigate = useNavigate();
+    const [topSubmissions, setTopSubmissions] = useState([]);
+    const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         loadCampaigns();
     }, [loadCampaigns]);
+
+    useEffect(() => {
+        if (selectedCampaign) {
+            const fetchTop = async () => {
+                setLoadingSubmissions(true);
+                try {
+                    const subs = await useAdminStore.getState().loadCampaignSubmissions(selectedCampaign._id || selectedCampaign.id);
+                    setTopSubmissions(subs?.slice(0, 3) || []);
+                } catch (err) {
+                    console.error("Failed to load top submissions", err);
+                } finally {
+                    setLoadingSubmissions(false);
+                }
+            };
+            fetchTop();
+        } else {
+            setTopSubmissions([]);
+        }
+    }, [selectedCampaign]);
 
 
     const handleSuspend = (id) => {
@@ -92,7 +114,10 @@ export default function CampaignManagement() {
                     <AdminDataTable
                         title="Campaign List"
                         columns={["Campaign", "Allocation", "Progress", "Status", "Actions"]}
-                        onRowClick={(camp) => setSelectedCampaign(campaigns.find(c => (c._id || c.id) === camp.id))}
+                        onRowClick={(camp) => {
+                            const target = campaigns.find(c => (c._id || c.id).toString() === camp.id.toString());
+                            setSelectedCampaign(target);
+                        }}
                         data={campaigns.map(camp => ({
                             id: camp._id || camp.id,
                             cells: [
@@ -161,65 +186,113 @@ export default function CampaignManagement() {
                                 exit={{ opacity: 0, x: 20 }}
                                 className="bg-surface border border-surface rounded-lg p-6 space-y-6 sticky top-20 shadow-xl"
                             >
-                                <div className="p-4 bg-bg border border-surface rounded-lg">
-                                    <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted mb-4 flex items-center gap-2">
-                                        <Activity className="w-3 h-3 text-primary" /> Activity Trend
-                                    </h4>
-                                    <div className="h-32 flex items-end justify-around gap-1">
-                                        {[40, 70, 45, 90, 65, 80, 55].map((h, i) => (
-                                            <div key={i} className="flex-1 bg-primary/10 rounded-t-sm relative group">
-                                                <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} className="absolute bottom-0 inset-x-0 bg-primary/40 group-hover:bg-primary transition-colors" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
-                                        <ShieldCheck className="w-3 h-3 text-emerald-500" /> Trust Metrics
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="p-3 bg-bg border border-surface rounded-lg">
-                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Authentic</p>
-                                            <p className="text-base font-bold text-emerald-500">92%</p>
-                                        </div>
-                                        <div className="p-3 bg-bg border border-surface rounded-lg">
-                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Collisions</p>
-                                            <p className="text-base font-bold text-rose-500">12</p>
+                                <div className="p-1 bg-bg border border-surface rounded-2xl overflow-hidden relative group">
+                                    <div className="aspect-[16/9] w-full bg-zinc-950 relative overflow-hidden">
+                                        {selectedCampaign.bannerType === 'video' ? (
+                                            <video src={selectedCampaign.bannerUrl} className="w-full h-full object-cover" autoPlay muted loop />
+                                        ) : (
+                                            <img src={selectedCampaign.bannerUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                        <div className="absolute bottom-4 left-4 right-4">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-1">{selectedCampaign.brandName}</p>
+                                            <h3 className="text-sm font-black text-white leading-tight uppercase tracking-tight">{selectedCampaign.title}</h3>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
                                     <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
-                                        <TrendingUp className="w-3 h-3 text-primary" /> Campaign Analytics
+                                        <TrendingUp className="w-3 h-3 text-primary" /> Campaign Intelligence
                                     </h4>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="p-3 bg-bg border border-surface rounded-lg">
-                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Impressions</p>
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Exposure</p>
                                             <p className="text-base font-bold text-text">{selectedCampaign.analytics?.impressions || 0}</p>
                                         </div>
                                         <div className="p-3 bg-bg border border-surface rounded-lg">
-                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Clicks</p>
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Click Through</p>
                                             <p className="text-base font-bold text-text">{selectedCampaign.analytics?.clicks || 0}</p>
                                         </div>
                                         <div className="p-3 bg-bg border border-surface rounded-lg">
-                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Submissions</p>
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Joined Nodes</p>
                                             <p className="text-base font-bold text-text">{selectedCampaign.analytics?.submissions || 0}</p>
                                         </div>
                                         <div className="p-3 bg-bg border border-surface rounded-lg">
-                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Votes</p>
+                                            <p className="text-[9px] font-bold text-muted uppercase mb-1">Aggregated Votes</p>
                                             <p className="text-base font-bold text-text">{selectedCampaign.analytics?.votes || 0}</p>
                                         </div>
                                     </div>
                                 </div>
 
+                                {/* Participants Overview */}
+                                <div className="space-y-4">
+                                    <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
+                                        <Users className="w-3 h-3 text-blue-500" /> Recent Submissions
+                                    </h4>
+                                    <div className="bg-bg border border-surface rounded-lg divide-y divide-surface overflow-hidden">
+                                        {loadingSubmissions ? (
+                                            <div className="p-8 text-center">
+                                                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                                <p className="text-[8px] font-bold text-muted uppercase tracking-widest">Scanning Submissions...</p>
+                                            </div>
+                                        ) : topSubmissions.length > 0 ? (
+                                            topSubmissions.map((sub, idx) => (
+                                                <div 
+                                                    key={sub._id || sub.id} 
+                                                    onClick={() => setShowSubmissionsReview(true)}
+                                                    className="p-3 flex items-center justify-between hover:bg-surface2 transition-all cursor-pointer group/participant"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-lg bg-zinc-950 border border-surface overflow-hidden relative shrink-0">
+                                                            {sub.reel?.type === 'video' ? (
+                                                                <video src={sub.reel.url} className="w-full h-full object-cover opacity-60 group-hover/participant:opacity-100 transition-opacity" />
+                                                            ) : (
+                                                                <img src={sub.reel?.url} className="w-full h-full object-cover opacity-60 group-hover/participant:opacity-100 transition-opacity" alt="" />
+                                                            )}
+                                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                                                                <p className="text-[6px] font-bold text-white uppercase text-center">{sub.reel?.type || 'media'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-text truncate max-w-[80px]">{sub.user?.name || 'User'}</p>
+                                                            <p className="text-[8px] text-muted uppercase tracking-tighter">@{sub.user?.handle || 'handle'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] font-black text-primary">{formatCount(sub.votes || 0)}</p>
+                                                        <p className="text-[7px] text-muted uppercase">Votes</p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center">
+                                                <p className="text-[9px] text-muted uppercase tracking-widest font-bold">No submissions yet</p>
+                                            </div>
+                                        )}
+                                        {topSubmissions.length > 0 && (
+                                            <button 
+                                                onClick={() => setShowSubmissionsReview(true)}
+                                                className="w-full py-2 text-[8px] font-bold uppercase tracking-[0.15em] text-primary hover:bg-primary/5 transition-all bg-surface/30 border-t border-surface"
+                                            >
+                                                View Complete Registry
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div className="pt-2 space-y-2">
                                     <button
-                                        onClick={() => navigate(`/admin/campaigns/edit/${selectedCampaign._id || selectedCampaign.id}`)}
+                                        onClick={() => setShowSubmissionsReview(true)}
                                         className="w-full flex items-center justify-between px-4 py-3 bg-primary text-black rounded-lg font-bold uppercase tracking-widest text-[9px] shadow-sm active:scale-[0.98] transition-all"
                                     >
-                                        Edit Campaign <ChevronRight className="w-3.5 h-3.5" />
+                                        Full Submissions Review <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => navigate(`/admin/campaigns/edit/${selectedCampaign._id || selectedCampaign.id}`)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-surface2 text-muted hover:text-text rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px]"
+                                    >
+                                        <Edit2 className="w-3.5 h-3.5" /> Reconfigure Mandate
                                     </button>
                                     <button
                                         onClick={() => handleDeclareWinners(selectedCampaign._id || selectedCampaign.id)}
@@ -250,18 +323,6 @@ export default function CampaignManagement() {
                                 >
                                     Close Details
                                 </button>
-
-                                <div className="pt-4 border-t border-surface space-y-3">
-                                    <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted flex items-center gap-2">
-                                        <Users className="w-3 h-3" /> Participation Control
-                                    </h4>
-                                    <button
-                                        onClick={() => setShowSubmissionsReview(true)}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-bg hover:bg-surface2 rounded-lg border border-surface transition-all font-bold uppercase tracking-widest text-[9px] text-text"
-                                    >
-                                        Review Submissions
-                                    </button>
-                                </div>
 
                                 {showSubmissionsReview && (
                                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden animate-in fade-in duration-200">

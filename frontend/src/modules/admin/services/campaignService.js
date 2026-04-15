@@ -100,5 +100,14 @@ export const campaignService = {
         });
         const res = await handle(response);
         return res.submission;
+    },
+    verifySubmission: async (campaignId, submissionId, isVerified) => {
+        const response = await fetch(`${ADMIN_CAMPAIGNS}/${campaignId}/submissions/${submissionId}/verify`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ isVerified })
+        });
+        const res = await handle(response);
+        return res.submission;
     }
 };

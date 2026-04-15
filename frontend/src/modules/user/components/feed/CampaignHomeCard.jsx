@@ -25,25 +25,9 @@ export default function CampaignHomeCard({ campaign }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             onClick={() => navigate(`/campaigns/${campaign.id}`)}
-            className="mx-3 my-6 rounded-[32px] overflow-hidden shadow-xl relative cursor-pointer group bg-surface border border-surface2/50"
+            className="mx-3 my-4 rounded-[32px] overflow-hidden shadow-xl relative cursor-pointer group bg-surface border border-surface2/50"
         >
-            {/* Brand Header */}
-            <div className="px-5 py-3.5 flex items-center justify-between border-b border-surface2/30">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                        {campaign.brandName?.charAt(0) || 'B'}
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">{campaign.brandName}</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-wider">Campaign Creator</p>
-                    </div>
-                </div>
-                <div className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                    Active
-                </div>
-            </div>
-
-            {/* Media Area */}
+            {/* Media Area with Overlay */}
             <div className="relative aspect-[16/10] bg-black/5 overflow-hidden">
                 {resolvedBannerUrl ? (
                     <>
@@ -74,44 +58,61 @@ export default function CampaignHomeCard({ campaign }) {
                     </div>
                 )}
                 
-                {/* Status Tags Overlay on Image */}
-                <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider backdrop-blur-md bg-black/60 border border-white/10 text-white shadow-lg">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                    Featured
+                {/* Brand Header Overlay */}
+                <div className="absolute top-4 left-5 z-20 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-white/30 backdrop-blur-lg bg-black/20 overflow-hidden flex items-center justify-center p-1 shadow-lg">
+                         <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center">
+                            <span className="text-[10px] font-black text-primary">{campaign.brandName?.charAt(0) || 'B'}</span>
+                         </div>
+                    </div>
+                    <div className="flex flex-col">
+                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white leading-none drop-shadow-md">
+                            {campaign.brandName}
+                        </p>
+                        <p className="text-[7px] font-bold text-white/70 uppercase tracking-widest mt-1">Official Campaign</p>
+                    </div>
                 </div>
 
-                <div className="absolute bottom-4 right-4 z-20 px-3 py-1.5 rounded-xl backdrop-blur-md bg-black/60 border border-white/10 text-white shadow-lg">
-                    <p className="text-[7px] uppercase tracking-widest font-black opacity-70">Reward Pool</p>
-                    <p className="text-xs font-black text-emerald-400">{campaign.rewardDetails}</p>
+                {/* Gradient Overlays */}
+                <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black/60 to-transparent z-10" />
+                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent z-10" />
+
+                {/* Title Overlay on Bottom of Image */}
+                <div className="absolute bottom-4 left-5 z-20">
+                    <h3 className="text-xl font-black text-white leading-tight line-clamp-1 drop-shadow-lg">
+                        {campaign.title}
+                    </h3>
+                </div>
+
+                {/* Status/Rewards Overlay */}
+                <div className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-xl">
+                    <p className="text-[8px] font-black text-amber-400 uppercase tracking-[0.2em]">{campaign.rewardDetails}</p>
                 </div>
             </div>
 
-            {/* Details Section (Below Image) */}
-            <div className="p-6 space-y-4">
+            {/* Details Section (Restored Bottom) */}
+            <div className="p-5 space-y-4">
                 <div className="space-y-1.5">
-                    <h3 className="text-lg font-black leading-tight text-text line-clamp-2">
-                        {campaign.title}
-                    </h3>
-                    <p className="text-[11px] text-muted line-clamp-3 leading-relaxed font-medium">
+                    <p className="text-[11px] text-muted line-clamp-2 leading-relaxed font-medium">
                         {campaign.description}
                     </p>
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
-                    <div className="flex -space-x-2">
+                <div className="flex items-center justify-between pt-1">
+                    <div className="flex -space-x-1.5">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="w-6 h-6 rounded-full border-2 border-surface bg-surface2 flex items-center justify-center text-[8px] font-bold text-muted">
-                                {i}
+                            <div key={i} className="w-5 h-5 rounded-full border-2 border-surface bg-surface2 flex items-center justify-center text-[7px] font-black text-muted">
+                                {String.fromCharCode(64 + i)}
                             </div>
                         ))}
-                        <div className="w-6 h-6 rounded-full border-2 border-surface bg-primary/10 flex items-center justify-center text-[8px] font-bold text-primary">
+                        <div className="w-5 h-5 rounded-full border-2 border-surface bg-primary/20 flex items-center justify-center text-[7px] font-black text-primary">
                             +1k
                         </div>
                     </div>
                     
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-primary text-black rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 group-hover:shadow-primary/40">
-                        <span className="text-[11px] font-black uppercase tracking-[0.1em]">Join Now</span>
-                        <ArrowRight size={14} className="translate-x-0 group-hover:translate-x-1 transition-transform" />
+                    <button className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-xl shadow-lg shadow-primary/10 transition-all active:scale-95">
+                        <span className="text-[10px] font-black uppercase tracking-wider">Join Now</span>
+                        <ArrowRight size={12} />
                     </button>
                 </div>
             </div>

@@ -24,7 +24,7 @@ const adminConfigSchema = new mongoose.Schema(
     },
     minWithdrawalCoins: {
       type: Number,
-      default: 50, // 50 RS
+      default: 10, // 10 RS
       min: 0
     },
     premiumThreshold: {

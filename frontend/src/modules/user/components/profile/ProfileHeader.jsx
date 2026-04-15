@@ -1,4 +1,4 @@
-import { Star, Check } from 'lucide-react'
+import { Star, Check, Share2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCount, formatINR } from '../../utils/formatCurrency'
 import Avatar from '../shared/Avatar'
@@ -80,14 +80,41 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
             </div>
 
             {/* Earnings summary */}
-            <div
-                className="mt-3 px-4 py-2.5 rounded-xl flex items-center justify-between"
-                style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
-            >
-                <span className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>Total Earned</span>
-                <span className="text-sm font-extrabold" style={{ color: 'var(--color-primary)' }}>
-                    {formatINR(profile.totalEarnings)}
-                </span>
+            <div className="mt-3 flex gap-2">
+                <div
+                    className="flex-1 px-4 py-2.5 rounded-xl flex items-center justify-between"
+                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
+                >
+                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted">Earned</span>
+                    <span className="text-sm font-extrabold text-primary">
+                        {formatINR(profile.totalEarnings)}
+                    </span>
+                </div>
+                {profile.referralCode && (
+                    <div
+                        className="flex-1 px-4 py-2.5 rounded-xl flex items-center justify-between"
+                        style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}
+                    >
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-indigo-500">Ref Code</span>
+                            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{profile.referralCode}</span>
+                        </div>
+                        <button
+                            onClick={() => {
+                                const text = `Join me on K & Q Reels! Use my referral code: ${profile.referralCode} and start earning. Download now!`;
+                                if (navigator.share) {
+                                    navigator.share({ title: 'K & Q Reels Referral', text, url: window.location.origin });
+                                } else {
+                                    navigator.clipboard.writeText(text);
+                                    alert('Referral link copied to clipboard!');
+                                }
+                            }}
+                            className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center hover:bg-indigo-500/20 transition-colors"
+                        >
+                            <Share2 size={14} className="text-indigo-600 dark:text-indigo-400" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Edit profile button */}

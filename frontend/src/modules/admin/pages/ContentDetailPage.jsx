@@ -13,7 +13,16 @@ export default function ContentDetailPage() {
         if (postId) loadPostDetail(postId);
     }, [postId, loadPostDetail]);
 
-    if (!postDetail && !isLoading) {
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Loading content context...</p>
+            </div>
+        );
+    }
+
+    if (!postDetail) {
         return (
             <div className="space-y-6">
                 <AdminPageHeader
@@ -48,15 +57,19 @@ export default function ContentDetailPage() {
                             Back
                         </button>
                         <button
+                            disabled={postDetail.isBusiness && postDetail.paymentStatus !== 'paid'}
                             onClick={() => handlePostApproval(postDetail.id, true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-emerald-500"
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all
+                                ${postDetail.isBusiness && postDetail.paymentStatus !== 'paid' 
+                                    ? 'bg-muted/10 border border-muted/20 text-muted opacity-50 cursor-not-allowed' 
+                                    : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'}`}
                         >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            Approve
+                            {postDetail.isBusiness && postDetail.paymentStatus !== 'paid' ? 'Payment Pending' : 'Approve'}
                         </button>
                         <button
                             onClick={() => handlePostApproval(postDetail.id, false)}
-                            className="flex items-center gap-2 px-4 py-2 bg-rose-500/15 border border-rose-500/30 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-rose-500"
+                            className="flex items-center gap-2 px-4 py-2 bg-rose-500/15 border border-rose-500/30 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-rose-500 hover:bg-rose-500/20 transition-all"
                         >
                             <XCircle className="w-3.5 h-3.5" />
                             Reject
@@ -77,11 +90,19 @@ export default function ContentDetailPage() {
                         <img src={postDetail?.mediaUrl || postDetail?.thumbnail} alt={postDetail?.id} className="w-full h-[360px] object-cover" />
                     )}
                     <div className="p-5 space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
                             <p className="text-xs font-bold uppercase tracking-[0.2em] text-text">{postDetail?.type}</p>
                             <span className="px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                                 {postDetail?.status}
                             </span>
+                            {postDetail?.isBusiness && (
+                                <span className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border
+                                    ${postDetail.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
+                                      postDetail.paymentStatus === 'failed' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 
+                                      'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                                    Payment: {postDetail.paymentStatus?.toUpperCase() || 'PENDING'}
+                                </span>
+                            )}
                         </div>
                         <p className="text-sm text-text leading-relaxed">{postDetail?.content}</p>
                         <div className="p-3 rounded-xl bg-bg border border-surface">

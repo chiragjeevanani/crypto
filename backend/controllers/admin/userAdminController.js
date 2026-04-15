@@ -26,10 +26,12 @@ function toAdminUserSummary(user, extra = {}) {
     walletBalance: 0,
     totalEarnings: 0,
     campaigns: 0,
-    isBanned: false,
-    isSuspicious: false,
-    referralCode: "",
-    referredCount: 0,
+    isBanned: user.isBanned || false,
+    isSuspicious: user.isSuspicious || false,
+    referralCode: user.referralCode || "",
+    referralCount: user.referralCount || 0,
+    referredBy: user.referredBy ? (user.referredBy.name || "User") : "None",
+    referredById: user.referredBy ? (user.referredBy._id || user.referredBy).toString() : null,
     aadharFront: "",
     aadharBack: "",
     avatar: user.avatar || "",
@@ -56,7 +58,8 @@ exports.listUsers = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("name email role avatar createdAt followers following")
+      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious")
+      .populate("referredBy", "name")
       .lean()
       .exec();
 
@@ -109,6 +112,7 @@ exports.getUserDetail = async (req, res) => {
     const user = await User.findById(userId)
       .populate("followers", "name handle avatar _id")
       .populate("following", "name handle avatar _id")
+      .populate("referredBy", "name email _id")
       .lean()
       .exec();
     if (!user) {

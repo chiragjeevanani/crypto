@@ -25,6 +25,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { useUserStore } from '../../user/store/useUserStore';
+import { useAdminStore } from '../store/useAdminStore';
 import { simplifyAdminCopy } from '../utils/simplifyCopy';
 import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
 
@@ -131,6 +132,28 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
     const [expandedItems, setExpandedItems] = useState({});
     const location = useLocation();
     const { user, profile } = useUserStore();
+    const { moderationStats, loadModerationStats } = useAdminStore();
+
+    React.useEffect(() => {
+        loadModerationStats();
+        // Refresh stats every 30 seconds for real-time feel
+        const interval = setInterval(loadModerationStats, 30000);
+        return () => clearInterval(interval);
+    }, [loadModerationStats]);
+
+    // Dynamic menu groups with badges
+    const groups = React.useMemo(() => {
+        return menuGroups.map(group => ({
+            ...group,
+            items: group.items.map(item => {
+                if (item.label === 'Advertisers') return { ...item, badge: moderationStats.ads > 0 ? moderationStats.ads : null };
+                if (item.label === 'NFT Review') return { ...item, badge: moderationStats.nfts > 0 ? moderationStats.nfts : null };
+                if (item.label === 'Reports') return { ...item, badge: moderationStats.reports > 0 ? moderationStats.reports : null };
+                if (item.label === 'Withdrawals') return { ...item, badge: moderationStats.withdrawals > 0 ? moderationStats.withdrawals : null };
+                return item;
+            })
+        }));
+    }, [moderationStats]);
 
     const toggleSubmenu = (label) => {
         setExpandedItems(prev => ({
@@ -175,7 +198,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
 
             {/* Menu Sections */}
             <div className="flex-1 overflow-y-auto hide-scrollbar py-6 px-3 space-y-8">
-                {menuGroups.map((group, gIdx) => (
+                {groups.map((group, gIdx) => (
                     <div key={group.title}>
                         <AnimatePresence>
                             {!isCollapsed && (
