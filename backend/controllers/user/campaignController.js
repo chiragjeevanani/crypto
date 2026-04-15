@@ -161,7 +161,8 @@ exports.submitEntry = async (req, res) => {
         category: "Campaign",
         campaign: campaign._id,
         campaignSubmission: submission._id,
-        status: "approved"
+        status: "approved",
+        isPublished: true
       });
       await CampaignSubmission.updateOne(
         { _id: submission._id },

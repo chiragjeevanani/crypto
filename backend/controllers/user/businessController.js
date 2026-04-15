@@ -165,3 +165,25 @@ exports.getSettings = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Handle failed or cancelled payment for a business post.
+ * POST /api/business/fail-payment
+ */
+exports.failPayment = async (req, res) => {
+  try {
+    const { postId, reason } = req.body;
+    if (!postId) return res.status(400).json({ success: false, message: "Post ID is required" });
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+
+    post.paymentStatus = "failed";
+    post.history.push({ action: `Payment failed/cancelled. Reason: ${reason || "User cancelled"}` });
+    await post.save();
+
+    return res.status(200).json({ success: true, message: "Post marked as failed payment" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

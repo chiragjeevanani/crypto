@@ -8,7 +8,8 @@ const {
   deleteCampaign,
   getSubmissions,
   declareWinners,
-  markRewardDistributed
+  markRewardDistributed,
+  verifySubmission
 } = require("../../controllers/admin/campaignAdminController");
 const { protect, authorize } = require("../../middleware/authMiddleware");
 
@@ -25,5 +26,6 @@ router.delete("/:id", deleteCampaign);
 router.get("/:id/submissions", getSubmissions);
 router.post("/:id/declare-winners", declareWinners);
 router.patch("/:id/winners/:submissionId/distribute", markRewardDistributed);
+router.patch("/:id/submissions/:submissionId/verify", verifySubmission);
 
 module.exports = router;

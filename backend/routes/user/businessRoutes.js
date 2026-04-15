@@ -7,5 +7,6 @@ const { protect } = require("../../middleware/authMiddleware");
 router.post("/initiate-payment", protect, businessController.initiatePayment);
 router.post("/verify-payment", protect, businessController.verifyPayment);
 router.get("/settings", protect, businessController.getSettings);
+router.post("/fail-payment", protect, businessController.failPayment);
 
 module.exports = router;

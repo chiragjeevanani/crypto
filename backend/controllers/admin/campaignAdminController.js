@@ -194,3 +194,20 @@ exports.markRewardDistributed = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.verifySubmission = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { isVerified } = req.body;
+    const submission = await CampaignSubmission.findByIdAndUpdate(
+      submissionId,
+      { isVerified: Boolean(isVerified) },
+      { new: true }
+    ).populate("user", "name handle avatar role");
+    
+    if (!submission) return res.status(404).json({ success: false, message: "Submission not found" });
+    return res.status(200).json({ success: true, submission });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

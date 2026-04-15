@@ -1,4 +1,6 @@
 const Post = require("../../models/Post");
+const Report = require("../../models/Report");
+const Withdrawal = require("../../models/Withdrawal");
 const { getBaseUrl, mediaUrlFromPost, populateCreator } = require("../../utils/postHelpers");
 
 /**
@@ -11,10 +13,12 @@ exports.getPosts = async (req, res) => {
     const statusFilter = req.query.status;
     const creatorId = req.query.creator;
     const isNFT = req.query.isNFT;
+    const isBusiness = req.query.isBusiness;
     let query = Post.find();
     if (statusFilter) query = query.where("status").equals(statusFilter);
     if (creatorId) query = query.where("creator").equals(creatorId);
     if (isNFT === "true" || isNFT === "1") query = query.where("isNFT").equals(true);
+    if (isBusiness === "true" || isBusiness === "1") query = query.where("isBusiness").equals(true);
     const posts = await populateCreator(query).sort({ createdAt: -1 }).limit(500).exec();
     const adminList = posts.map((p) => {
       const url = mediaUrlFromPost(p, baseUrl);
@@ -31,6 +35,7 @@ exports.getPosts = async (req, res) => {
         mediaUrl: url,
         mediaType: p.media?.type || "image",
         isBusiness: Boolean(p.isBusiness),
+        paymentStatus: p.paymentStatus || "pending",
         promotion: p.promotion || null,
         isNFT: Boolean(p.isNFT),
         history: p.history || [],
@@ -62,13 +67,14 @@ exports.getPostById = async (req, res) => {
         mediaUrl: mediaUrlFromPost(post, baseUrl),
         mediaType: post.media?.type || "image",
         isBusiness: Boolean(post.isBusiness),
+        paymentStatus: post.paymentStatus || "pending",
         promotion: post.promotion || null,
         createdAt: post.createdAt,
         status: post.status,
         flagReason: "Pending review",
         reportCount: 0,
         aiRiskScore: "—",
-        moderationNotes: post.isBusiness ? "Business Promotion: Review ad budget and content." : "Review and approve or reject.",
+        moderationNotes: post.isBusiness ? `Business Promotion: [Payment: ${post.paymentStatus?.toUpperCase()}] Review ad budget and content.` : "Review and approve or reject.",
         authorStats: { followers: 0, posts: 0, previousFlags: 0 },
         reports: []
       }
@@ -87,6 +93,12 @@ exports.updatePostStatus = async (req, res) => {
     const { approved, reason } = req.body;
     const post = await Post.findById(id);
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+
+    // Enforce payment check for business posts
+    if (approved && post.isBusiness && post.paymentStatus !== "paid") {
+      return res.status(400).json({ success: false, message: "Cannot approve an ad post with unpaid or failed status." });
+    }
+
     post.status = approved ? "approved" : "rejected";
     if (approved) {
       post.isPublished = true;
@@ -124,5 +136,29 @@ exports.updatePostStatus = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Admin module: get counts for sidebar badges.
+ */
+exports.getModerationStats = async (req, res) => {
+  try {
+    const pendingAds = await Post.countDocuments({ isBusiness: true, status: "pending" });
+    const pendingNFTs = await Post.countDocuments({ isNFT: true, status: "pending" });
+    const pendingReports = await Report.countDocuments({ status: "pending" });
+    const pendingWithdrawals = await Withdrawal.countDocuments({ status: "pending" });
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        ads: pendingAds,
+        nfts: pendingNFTs,
+        reports: pendingReports,
+        withdrawals: pendingWithdrawals
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
