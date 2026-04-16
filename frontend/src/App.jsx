@@ -143,7 +143,9 @@ export default function App() {
               <Route path="users/new" element={<UserCreatePage />} />
               <Route path="content" element={<ContentControl />} />
               <Route path="content/:postId" element={<ContentDetailPage />} />
+              <Route path="moderation" element={<Navigate to="/admin/content" replace />} />
               <Route path="categories" element={<CategoryManagementPage />} />
+
               <Route path="campaigns" element={<CampaignManagement />} />
               <Route path="campaigns/new" element={<CampaignCreatePage />} />
               <Route path="campaigns/edit/:campaignId" element={<EditCampaign />} />
@@ -155,23 +157,21 @@ export default function App() {
               <Route path="wallet/deposits" element={<WalletTransactions />} />
               <Route path="withdrawals" element={<FinancialManagement />} />
               <Route path="withdrawals/edit/:settlementId" element={<EditSettlement />} />
-              <Route path="financials" element={<WalletOverview />} />
               <Route path="gifts" element={<GiftListPage />} />
               <Route path="gifts/history" element={<GiftHistory />} />
               <Route path="gifts/create" element={<CreateGift />} />
               <Route path="gifts/trash" element={<GiftTrash />} />
-              <Route path="commissions" element={<FinancialRules />} />
               <Route path="advertisers" element={<AdvertiserPanel />} />
 
-              <Route path="fraud" element={<FraudMonitoring />} />
-              <Route path="suspicious" element={<FraudMonitoring />} />
               <Route path="audit" element={<AuditLogs />} />
+
 
               {/* platform settings now split into discrete sub‑pages */}
               <Route path="settings" element={<PlatformSettings />} />
               <Route path="settings/financial" element={<FinancialRules />} />
               <Route path="settings/security" element={<SecurityAccess />} />
               <Route path="settings/promotion" element={<PromotionSettingsPage />} />
+
               <Route path="settings/network" element={<NetworkConfig />} />
               <Route path="transparency" element={<AuditLogs />} />
               <Route path="profile" element={<AdminProfilePage />} />

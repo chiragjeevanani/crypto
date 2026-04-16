@@ -7,7 +7,9 @@ import { moderationService } from '../services/moderationService';
 import { settingsService } from '../services/settingsService';
 import { reportService } from '../services/reportService';
 import { financialService } from '../services/financialService';
+import { dashboardService } from '../services/dashboardService';
 import { useCampaignStore } from '../../user/store/useCampaignStore';
+
 import { patchKYCSubmission } from '../../../shared/kycSync';
 import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
 import { getStoredToken } from '../../user/store/useUserStore';
@@ -34,7 +36,9 @@ export const useAdminStore = create((set, get) => ({
     reports: [],
     moderationStats: { ads: 0, nfts: 0, reports: 0, withdrawals: 0 },
     prdMetrics: null,
+    dashboardStats: null,
     giftPolicy: {
+
         allowedINR: [2, 3, 4, 5, 6, 7, 8, 9, 10],
         strictMode: true,
     },
@@ -600,7 +604,21 @@ export const useAdminStore = create((set, get) => ({
         }));
     }, "Settlement rail reconciled."),
 
+    financialStats: null,
+    transactionsData: { transactions: [], total: 0, page: 1, totalPages: 1 },
+
+    loadFinancials: () => get().execute(async () => {
+        const stats = await dashboardService.fetchFinancials();
+        set({ financialStats: stats });
+    }),
+
+    loadTransactions: (params) => get().execute(async () => {
+        const data = await dashboardService.fetchTransactions(params);
+        set({ transactionsData: data });
+    }),
+
     linkCampaignClosureAudit: (campaignId) => get().execute(async () => {
+
         const closure = get().campaignClosures.find((entry) => entry.id === campaignId);
         if (!closure) return;
         set((state) => ({
@@ -632,7 +650,13 @@ export const useAdminStore = create((set, get) => ({
         return await campaignService.markRewardDistributed(campaignId, submissionId);
     }, "Reward marked as distributed."),
 
+    loadDashboardStats: () => get().execute(async () => {
+        const stats = await dashboardService.fetchStats();
+        set({ dashboardStats: stats });
+    }),
+
     computePRDMetrics: () => get().execute(async () => {
+
         const voteVolume = useCampaignStore
             .getState()
             .campaigns.reduce((acc, campaign) => acc + campaign.submissions.reduce((s, sub) => s + sub.votes, 0), 0);

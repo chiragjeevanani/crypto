@@ -90,9 +90,14 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
 
                 <div className="relative group">
                     <button className="flex items-center gap-3 p-1 rounded-lg hover:bg-surface2 transition-all">
-                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-[10px] text-black shadow-md">
-                            {(user?.name || 'AD').slice(0, 2).toUpperCase()}
+                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-[10px] text-black shadow-md overflow-hidden shrink-0">
+                            {user?.avatar ? (
+                                <img src={user.avatar} alt="Me" className="w-full h-full object-cover" />
+                            ) : (
+                                (user?.name || 'AD').slice(0, 2).toUpperCase()
+                            )}
                         </div>
+
                         <div className="hidden lg:block text-left pr-2">
                             <p className="text-[10px] font-bold text-text leading-tight uppercase tracking-wider truncate max-w-[120px]">{user?.name || getRoleLabel(user?.role)}</p>
                             <div className="flex items-center gap-1 mt-0.5">

@@ -6,7 +6,7 @@ import { Heart } from 'lucide-react'
 const ICON_COUNT = 18
 const COLORS = ['#FF1E1E', '#FFD700', '#00FF00', '#00BFFF', '#FF4500', '#FF69B4']
 
-export default function HeartRainAnimation({ trigger, icon, onComplete }) {
+export default function HeartRainAnimation({ trigger, icon, soundUrl, onComplete }) {
     const [elements, setElements] = useState([])
     const lastTriggerRef = useRef(0)
 
@@ -24,12 +24,14 @@ export default function HeartRainAnimation({ trigger, icon, onComplete }) {
         setElements(newElements)
         
         // Play sound
-        try {
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3')
-            audio.volume = 0.3
-            audio.play().catch(() => {})
-        } catch (e) {
-            // ignore
+        if (soundUrl) {
+            try {
+                const audio = new Audio(soundUrl)
+                audio.volume = 0.5
+                audio.play().catch(() => {})
+            } catch (e) {
+                // ignore
+            }
         }
 
         setTimeout(() => {

@@ -15,7 +15,7 @@ import {
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const recentTransactions = [
     { id: 'TX-401', user: 'Alex_Pro', type: 'Gift Payout', amount: 450.00, status: 'Settled', date: '2m ago' },
@@ -25,27 +25,79 @@ const recentTransactions = [
 ];
 
 export default function WalletOverview() {
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { ledger, settlementRails, prdMetrics, loadLedger, loadSettlementRails, computePRDMetrics, isLoading } = useAdminStore();
+    const [search, setSearch] = React.useState('');
+    const [type, setType] = React.useState(searchParams.get('type') || '');
+    const [page, setPage] = React.useState(1);
+
+    const { 
+        financialStats, 
+        transactionsData, 
+        settlementRails, 
+        loadFinancials, 
+        loadTransactions, 
+        loadSettlementRails, 
+        isLoading 
+    } = useAdminStore();
 
     useEffect(() => {
-        loadLedger();
+        loadFinancials();
         loadSettlementRails();
-        computePRDMetrics();
-    }, [loadLedger, loadSettlementRails, computePRDMetrics]);
+    }, [loadFinancials, loadSettlementRails]);
+
+    useEffect(() => {
+        loadTransactions({ page, search, type, limit: 10 });
+    }, [loadTransactions, page, search, type]);
+
+    const stats = [
+        {
+            label: 'Total Platform Revenue',
+            value: formatCurrency(financialStats?.totalRevenue || 0),
+            change: 'Lifetime earnings',
+            icon: Wallet,
+            color: 'primary',
+            path: '#'
+        },
+        {
+            label: 'Promotion Revenue',
+            value: formatCurrency(financialStats?.promotionRevenue || 0),
+            change: 'Ad spend volume',
+            icon: TrendingUp,
+            color: 'purple-500',
+            path: '#'
+        },
+        {
+            label: 'Wallet Recharges',
+            value: formatCurrency(financialStats?.walletRechargeRevenue || 0),
+            change: 'Direct deposits',
+            icon: CreditCard,
+            color: 'emerald-500',
+            path: '#'
+        },
+        {
+            label: 'Platform Commissions',
+            value: formatCurrency(financialStats?.commissions || 0),
+            change: 'Service fees generated',
+            icon: History,
+            color: 'amber-500',
+            path: '#'
+        },
+    ];
+
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
-                title="Financial Overview"
-                subtitle="Track money flow, payouts, and settlements."
+                title="Financial Ecosystem"
+                subtitle="High-fidelity telemetry for platform revenue and liquidity flow."
                 actions={
                     <>
                         <button
-                            onClick={() => loadLedger()}
+                            onClick={() => { loadFinancials(); loadTransactions({ page, search, type }); }}
                             className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
                         >
                             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                            Refresh Data
+                            Sync Intelligence
                         </button>
                         <button
                             onClick={() => navigate('/admin/withdrawals')}
@@ -54,110 +106,191 @@ export default function WalletOverview() {
                             <Plus className="w-3.5 h-3.5" />
                             Manage Withdrawals
                         </button>
-                        <button
-                            onClick={() => navigate('/admin/settings/financial')}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
-                        >
-                            Finance Rules
-                        </button>
                     </>
                 }
             />
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                {/* Main Balance Card */}
-                <div className="xl:col-span-2 bg-primary border border-primary/20 rounded-lg p-6 text-black relative overflow-hidden group">
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="p-2.5 rounded-lg bg-black/5 border border-black/5">
-                                <Wallet className="w-6 h-6" />
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-black/50">Total Platform Vault</p>
-                                <p className="text-[9px] font-mono mt-0.5 opacity-60">ID: 0x882...99a</p>
-                            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {stats.map((stat, i) => (
+                    <AdminStatCard
+                        key={stat.label}
+                        label={stat.label}
+                        value={stat.value}
+                        change={stat.change}
+                        icon={stat.icon}
+                        color={stat.color}
+                        path={stat.path}
+                        delay={i * 0.05}
+                    />
+                ))}
+            </div>
+
+            <div className="bg-surface border border-surface rounded-lg p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-text">Global Ledger Operations</h4>
+                        <p className="text-[9px] text-muted font-medium uppercase tracking-wider mt-1 opacity-60">Verified transactional state machine</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted group-hover:text-primary transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Search by name, email, handle..."
+                                value={search}
+                                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                                className="pl-9 pr-4 py-2 bg-bg border border-surface rounded-lg text-[10px] font-medium text-text placeholder:text-muted/50 focus:border-primary/50 transition-all w-64"
+                            />
                         </div>
 
-                        <div className="mt-8">
-                            <h2 className="text-4xl font-semibold tracking-tighter mb-2">{formatCurrency(1482094.20)}</h2>
-                            <div className="flex items-center gap-2 text-[10px] font-semibold text-black/60 uppercase tracking-wider">
-                                <TrendingUp className="w-3.5 h-3.5" />
-                                +12.4% yield from last quarter
-                            </div>
+                        <div className="flex bg-bg border border-surface rounded-lg p-1">
+                            {[
+                                { id: '', label: 'All' },
+                                { id: 'recharge', label: 'Recharges' },
+                                { id: 'promotion', label: 'Promotions' },
+                                { id: 'withdrawal', label: 'Payouts' },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => { setType(tab.id); setPage(1); }}
+                                    className={`px-4 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${
+                                        type === tab.id 
+                                            ? 'bg-primary text-black' 
+                                            : 'text-muted hover:text-text'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Secondary Stats */}
-                <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <AdminStatCard label="Total Payouts" value={formatCurrency(42801)} change={prdMetrics ? `Processing Time ${prdMetrics.payoutLatency}` : "-2.4%"} icon={ArrowDownRight} color="emerald-500" />
-                    <AdminStatCard label="Held Funds" value={formatCurrency(12400)} change={prdMetrics ? `Daily Users ${prdMetrics.dauProxy}` : "+8.1%"} icon={CreditCard} color="indigo-500" />
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-surface">
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted">Transaction Details</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-center">Entity</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-center">Type</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-center">Amount</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-surface/50">
+                            {transactionsData.transactions.map((tx) => (
+                                <tr key={tx._id} className="group hover:bg-surface2/30 transition-colors">
+                                    <td className="py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-surface2 border border-surface overflow-hidden">
+                                                {tx.userId?.avatar ? (
+                                                    <img src={tx.userId.avatar} alt={tx.userId.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-muted">
+                                                        {tx.userId?.name.charAt(0)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-text group-hover:text-primary transition-colors">{tx.userId?.name}</p>
+                                                <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{tx.userId?.handle || 'System Node'}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="py-4 text-center">
+                                        <p className="text-[9px] font-mono text-muted uppercase tracking-widest">
+                                            {tx._id.slice(-8).toUpperCase()}
+                                        </p>
+                                    </td>
+                                    <td className="py-4 text-center">
+                                        <span className="px-2 py-0.5 rounded-md bg-surface2 border border-surface text-[8px] font-bold text-muted uppercase tracking-widest">
+                                            {tx.referenceType === 'payment_gateway' ? 'Recharge' : tx.referenceType === 'post' ? 'Promotion' : tx.type}
+                                        </span>
+                                    </td>
+                                    <td className="py-4 text-center">
+                                        <p className={`text-xs font-black tracking-tight ${tx.amount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                            {tx.amount ? formatCurrency(tx.amount) : `${tx.coins} Coins`}
+                                        </p>
+                                    </td>
+                                    <td className="py-4 text-right">
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-bold uppercase tracking-widest">
+                                            <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                                            {tx.status}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {!isLoading && transactionsData.transactions.length === 0 && (
+                        <div className="py-20 text-center">
+                            <p className="text-[10px] text-muted uppercase font-bold opacity-40">No records matching the current vector</p>
+                        </div>
+                    )}
                 </div>
+
+                {/* Pagination */}
+                {transactionsData.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-8 pt-8 border-t border-surface">
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest">
+                            Page {transactionsData.page} of {transactionsData.totalPages}
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                disabled={page === 1}
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                className="px-4 py-1.5 bg-surface border border-surface rounded-lg text-[9px] font-bold uppercase tracking-wider text-text hover:bg-surface2 disabled:opacity-30 transition-all"
+                            >
+                                Prev
+                            </button>
+                            <button
+                                disabled={page === transactionsData.totalPages}
+                                onClick={() => setPage(p => Math.min(transactionsData.totalPages, p + 1))}
+                                className="px-4 py-1.5 bg-surface border border-surface rounded-lg text-[9px] font-bold uppercase tracking-wider text-text hover:bg-surface2 disabled:opacity-30 transition-all"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            <div className="bg-surface border border-surface rounded-lg p-5">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Performance Summary</h4>
-                <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Daily Users</p><p className="text-sm font-bold text-text">{prdMetrics?.dauProxy || 0}</p></div>
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Avg Gifts</p><p className="text-sm font-bold text-text">{prdMetrics?.avgGiftsPerUser || 0}</p></div>
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Participation</p><p className="text-sm font-bold text-text">{prdMetrics?.campaignParticipation || 0}</p></div>
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Votes</p><p className="text-sm font-bold text-text">{prdMetrics?.voteVolume || 0}</p></div>
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Processing Time</p><p className="text-sm font-bold text-text">{prdMetrics?.payoutLatency || '--'}</p></div>
-                    <div className="p-3 rounded-lg bg-bg border border-surface text-center"><p className="text-[9px] text-muted uppercase">Retention</p><p className="text-sm font-bold text-text">{prdMetrics?.brandRetentionProxy || '--'}</p></div>
+            <div className="bg-surface border border-surface rounded-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-text">Settlement Rail Health</h4>
+                        <p className="text-[9px] text-muted font-medium uppercase tracking-wider mt-1 opacity-60">Payout processing node status</p>
+                    </div>
+                    <History className="w-4 h-4 text-muted" />
                 </div>
-            </div>
-
-            <div className="bg-surface border border-surface rounded-lg p-5">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Settlement Rail Health</h4>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {settlementRails.map((rail) => (
-                        <div key={rail.id} className="flex items-center justify-between p-3 bg-bg border border-surface rounded-lg">
-                            <div>
-                                <p className="text-xs font-semibold text-text">{rail.name}</p>
-                                <p className="text-[9px] text-muted uppercase tracking-wider">Reconciled {rail.reconciled} · Pending {rail.pending}</p>
+                        <div key={rail.id} className="p-4 bg-bg border border-surface rounded-lg hover:border-primary/20 transition-all">
+                            <div className="flex justify-between items-start mb-4">
+                                <p className="text-[10px] font-bold text-text uppercase tracking-widest">{rail.name}</p>
+                                <span className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-widest ${
+                                    rail.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                                }`}>
+                                    {rail.status}
+                                </span>
                             </div>
-                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold uppercase tracking-wider border ${rail.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>{rail.status}</span>
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-[9px]">
+                                    <span className="text-muted uppercase">Reconciled</span>
+                                    <span className="text-text font-bold">{rail.reconciled}</span>
+                                </div>
+                                <div className="flex justify-between text-[9px]">
+                                    <span className="text-muted uppercase">Pending</span>
+                                    <span className="text-text font-bold">{rail.pending}</span>
+                                </div>
+                            </div>
+                            <p className="mt-4 text-[8px] text-muted font-medium uppercase tracking-wider italic text-center">Last Run: {rail.lastRun}</p>
                         </div>
                     ))}
                 </div>
             </div>
-
-            <AdminDataTable
-                title="Ledger Operations"
-                columns={["Transaction ID", "Actor", "Module", "Amount", "Status"]}
-                data={ledger.map(tx => ({
-                    id: tx.id,
-                    cells: [
-                        <div>
-                            <p className="text-xs font-mono font-medium text-text">{tx.id}</p>
-                            <p className="text-[9px] text-muted font-medium uppercase tracking-wider">0x...{tx.id.split('-')[1]}</p>
-                        </div>,
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-surface2 border border-surface flex items-center justify-center text-[9px] font-semibold text-text">
-                                {tx.user[0]}
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold text-text">@{tx.user}</p>
-                                <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{tx.date}</p>
-                            </div>
-                        </div>,
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">{tx.type}</span>,
-                        <span className={`text-xs font-semibold ${tx.amount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {tx.amount > 0 ? '+' : ''}{formatCurrency(tx.amount)}
-                        </span>,
-                        <div className="flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${tx.status === 'Settled' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-text">{tx.status}</span>
-                        </div>
-                    ]
-                }))}
-            />
-
-            <div className="flex items-center justify-center py-4">
-                <button className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted hover:text-primary transition-all group">
-                    Consolidate Ledger & Export for Tax Compliance <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </button>
-            </div>
         </div>
     );
 }
+

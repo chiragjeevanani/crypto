@@ -67,8 +67,18 @@ export default function UserProfilePage() {
             }
         }
         load()
+
+        const onFollowChanged = (e) => {
+            // Re-fetch only if it's the current profile being viewed
+            if (String(e.detail.creatorId) === String(id)) {
+                load()
+            }
+        }
+        window.addEventListener('user-follow-changed', onFollowChanged)
+
         return () => {
             cancelled = true
+            window.removeEventListener('user-follow-changed', onFollowChanged)
         }
     }, [userId])
 

@@ -224,8 +224,13 @@ export default function ProfilePage() {
             }
         }
         load()
+
+        const onFollowChanged = () => load()
+        window.addEventListener('user-follow-changed', onFollowChanged)
+
         return () => {
             cancelled = true
+            window.removeEventListener('user-follow-changed', onFollowChanged)
         }
     }, [profile.id])
 

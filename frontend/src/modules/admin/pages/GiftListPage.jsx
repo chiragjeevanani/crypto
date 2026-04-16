@@ -9,7 +9,7 @@ export default function GiftListPage() {
     const navigate = useNavigate()
     const { gifts, loadGifts, updateGift, removeGift, toggleGiftStatus, isLoading, giftPolicy } = useAdminStore()
     const [editingGift, setEditingGift] = useState(null)
-    const [formData, setFormData] = useState({ name: '', price: 2, icon: '🎁', status: 'Active' })
+    const [formData, setFormData] = useState({ name: '', price: 2, icon: '🎁', status: 'Active', soundUrl: '', soundFile: null })
 
     useEffect(() => {
         loadGifts()
@@ -22,6 +22,7 @@ export default function GiftListPage() {
             price: Number(gift.price || 2),
             icon: gift.icon || '🎁',
             status: gift.status || 'Active',
+            soundUrl: gift.soundUrl || '',
         })
     }
 
@@ -29,7 +30,17 @@ export default function GiftListPage() {
         event.preventDefault()
         if (!editingGift) return
         const safePrice = Math.max(2, Math.min(10, Math.round(Number(formData.price || 2))))
-        await updateGift(editingGift.id, { ...formData, price: safePrice, value: safePrice })
+        
+        const submissionData = new FormData();
+        submissionData.append('name', formData.name);
+        submissionData.append('price', safePrice);
+        submissionData.append('value', safePrice);
+        submissionData.append('icon', formData.icon);
+        submissionData.append('status', formData.status);
+        if (formData.soundUrl) submissionData.append('soundUrl', formData.soundUrl);
+        if (formData.soundFile) submissionData.append('sound', formData.soundFile);
+
+        await updateGift(editingGift.id, submissionData)
         setEditingGift(null)
     }
 
@@ -141,6 +152,22 @@ export default function GiftListPage() {
                                     className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
                                     placeholder="Emoji"
                                 />
+                                <input
+                                    type="url"
+                                    value={formData.soundUrl}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, soundUrl: e.target.value }))}
+                                    className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
+                                    placeholder="Sound URL (Music)"
+                                />
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest ml-1">Or Upload File</p>
+                                    <input
+                                        type="file"
+                                        accept="audio/*"
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, soundFile: e.target.files[0] }))}
+                                        className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-xs text-text outline-none file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[9px] file:font-bold file:bg-primary/20 file:text-primary"
+                                    />
+                                </div>
                             </div>
                             <button
                                 type="submit"

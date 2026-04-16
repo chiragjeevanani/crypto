@@ -46,7 +46,8 @@ export default function NFTModeration() {
                 collection: 'User Submission',
                 originalityScore: 'N/A',
                 status: p.status.toLowerCase(),
-                image: p.mediaUrl,
+                image: p.mediaUrl || p.thumbnail,
+                mediaType: p.mediaType || (p.media?.type),
                 rejectReason: p.rejectReason || '',
                 history: Array.isArray(p.history) && p.history.length > 0 
                     ? p.history.map(h => ({ date: new Date(h.date || Date.now()).toLocaleString(), action: h.action }))
@@ -139,7 +140,11 @@ export default function NFTModeration() {
                             className="bg-surface border border-surface rounded-lg overflow-hidden group hover:border-primary/20 transition-all shadow-sm flex flex-col sm:flex-row h-full"
                         >
                             <div className="sm:w-2/5 aspect-square sm:aspect-auto relative bg-bg shrink-0">
-                                <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
+                                {['video', 'reel'].includes(nft.mediaType?.toLowerCase()) || (nft.image || '').match(/\.(mp4|m4v|mov|webm)$/i) ? (
+                                    <video src={nft.image} className="w-full h-full object-cover" muted autoPlay loop playsInline />
+                                ) : (
+                                    <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
+                                )}
                                 {nft.status === 'pending' && parseFloat(nft.originalityScore) < 50 && (
                                     <div className="absolute top-3 left-3 p-1.5 bg-rose-500 text-white rounded-md shadow-lg animate-pulse">
                                         <AlertCircle className="w-3.5 h-3.5" />

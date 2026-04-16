@@ -470,7 +470,8 @@ const listActiveGifts = async (req, res) => {
         icon: g.icon || "🎁",
         price: g.price,
         value: g.value,
-        usage: g.usage || 0
+        usage: g.usage || 0,
+        soundUrl: g.soundUrl
       }))
     });
   } catch (error) {

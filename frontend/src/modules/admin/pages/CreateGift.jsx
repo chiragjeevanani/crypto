@@ -19,7 +19,9 @@ export default function CreateGift() {
         name: '',
         price: 0,
         icon: '🎁',
-        status: 'Active'
+        status: 'Active',
+        soundUrl: '',
+        soundFile: null
     });
 
     const handleSubmit = async (e) => {
@@ -30,7 +32,17 @@ export default function CreateGift() {
                 alert(`Policy violation: allowed gift range is ₹2 to ₹10.`);
                 return;
             }
-            await addGift({ ...formData, price: safePrice, value: safePrice });
+            
+            const submissionData = new FormData();
+            submissionData.append('name', formData.name);
+            submissionData.append('price', safePrice);
+            submissionData.append('value', safePrice);
+            submissionData.append('icon', formData.icon);
+            submissionData.append('status', formData.status);
+            if (formData.soundUrl) submissionData.append('soundUrl', formData.soundUrl);
+            if (formData.soundFile) submissionData.append('sound', formData.soundFile);
+
+            await addGift(submissionData);
             navigate('/admin/gifts');
         } catch (err) {
             console.error('Failed to initialize asset:', err);
@@ -128,6 +140,28 @@ export default function CreateGift() {
                                     />
                                     <p className="text-[9px] text-muted uppercase tracking-wider">
                                         Allowed range: ₹2 to ₹10
+                                    </p>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Sound URL</label>
+                                    <input
+                                        type="url"
+                                        placeholder="https://example.com/sound.mp3"
+                                        value={formData.soundUrl}
+                                        onChange={(e) => setFormData({ ...formData, soundUrl: e.target.value })}
+                                        className="w-full bg-bg border border-surface rounded-xl p-4 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 text-text transition-all"
+                                    />
+                                </div>
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Or Upload Sound File</label>
+                                    <input
+                                        type="file"
+                                        accept="audio/*"
+                                        onChange={(e) => setFormData({ ...formData, soundFile: e.target.files[0] })}
+                                        className="w-full bg-bg border border-surface rounded-xl p-4 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 text-text transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
+                                    />
+                                    <p className="text-[9px] text-muted uppercase tracking-wider">
+                                        Playback triggered on gift interaction.
                                     </p>
                                 </div>
                             </div>
