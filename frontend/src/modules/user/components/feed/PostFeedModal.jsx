@@ -59,7 +59,6 @@ function ReelPost({ post, active, onClose }) {
             return
         }
         sendGift(post.id, gift)
-        playGiftSound(gift.id)
         const creatorIdStr = String(post.creator?._id || post.creator?.id || '')
         const profileIdStr = String(profile?._id || profile?.id || '')
         if (creatorIdStr === profileIdStr) addGiftEarning(gift.price)

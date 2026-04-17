@@ -27,6 +27,11 @@ const giftSchema = new mongoose.Schema(
       enum: ["Active", "Inactive", "Deleted"],
       default: "Active"
     },
+    soundUrl: {
+      type: String,
+      trim: true,
+      default: null
+    },
     usage: {
       type: Number,
       default: 0

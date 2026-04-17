@@ -178,6 +178,12 @@ export const useFeedStore = create((set, get) => ({
             const res = await followService.toggleFollow(creatorId)
             const isFollowing = !!res.following
             const followerCount = typeof res.followerCount === 'number' ? res.followerCount : null
+            
+            // Dispatch global event for other components to sync
+            window.dispatchEvent(new CustomEvent('user-follow-changed', { 
+                detail: { creatorId, isFollowing, followerCount } 
+            }))
+
             set((state) => ({
                 posts: state.posts.map((p) =>
                     p.creator?.id === creatorId

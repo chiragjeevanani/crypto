@@ -26,10 +26,22 @@ export default function ContentControl() {
     const [categories, setCategories] = useState(getPostCategories());
     const [newCategory, setNewCategory] = useState('');
 
+    const stats = useMemo(() => {
+        const pending = posts.filter(p => String(p.status || '').toLowerCase() === 'pending' || !p.status).length;
+        const flagged = posts.filter(p => String(p.status || '').toLowerCase() === 'flagged').length;
+        const approved = posts.filter(p => String(p.status || '').toLowerCase() === 'approved').length;
+        const rejected = posts.filter(p => String(p.status || '').toLowerCase() === 'rejected').length;
+        return { pending, flagged, approved, rejected };
+    }, [posts]);
+
     const filteredPosts = useMemo(() => {
         let result = posts;
         if (statusFilter !== 'all') {
-            result = result.filter((post) => String(post.status || '').toLowerCase() === statusFilter);
+            result = result.filter((post) => {
+                const s = String(post.status || '').toLowerCase();
+                if (statusFilter === 'pending') return s === 'pending' || s === '';
+                return s === statusFilter;
+            });
         }
         if (typeFilter === 'promotion') {
             result = result.filter((post) => post.isBusiness || post.promotion?.isEnabled);
@@ -131,10 +143,38 @@ export default function ContentControl() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <AdminStatCard label="Pending Review" value="124" change="+8" icon={Clock} color="primary" />
-                <AdminStatCard label="Flagged Today" value="18" change="High Risk" icon={ShieldAlert} color="rose-500" />
-                <AdminStatCard label="Auto-Removed" value="452" change="+12" icon={CheckCircle} color="emerald-500" />
-                <AdminStatCard label="Avg Wait Time" value="12m" change="-2m" icon={Activity} color="indigo-500" />
+                <AdminStatCard 
+                    label="Pending Review" 
+                    value={stats.pending} 
+                    change="+8" 
+                    icon={Clock} 
+                    color="primary" 
+                    onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
+                />
+                <AdminStatCard 
+                    label="Flagged Today" 
+                    value={stats.flagged} 
+                    change="High Risk" 
+                    icon={ShieldAlert} 
+                    color="rose-500" 
+                    onClick={() => setStatusFilter(statusFilter === 'flagged' ? 'all' : 'flagged')}
+                />
+                <AdminStatCard 
+                    label="Rejected/Removed" 
+                    value={stats.rejected} 
+                    change="+12" 
+                    icon={XCircle} 
+                    color="emerald-500" 
+                    onClick={() => setStatusFilter(statusFilter === 'rejected' ? 'all' : 'rejected')}
+                />
+                <AdminStatCard 
+                    label="Approved Content" 
+                    value={stats.approved} 
+                    change="-2m" 
+                    icon={CheckCircle} 
+                    color="indigo-500" 
+                    onClick={() => setStatusFilter(statusFilter === 'approved' ? 'all' : 'approved')}
+                />
             </div>
 
             <div className="bg-surface border border-surface rounded-xl p-4">
@@ -176,7 +216,7 @@ export default function ContentControl() {
                                 onClick={() => navigate(`/admin/content/${post.id}`)}
                                 className="w-10 h-10 rounded-lg bg-surface2 overflow-hidden border border-surface cursor-pointer relative"
                             >
-                                {post.mediaType === 'video' ? (
+                                {['video', 'reel'].includes(post.mediaType?.toLowerCase()) || (post.thumbnail || '').match(/\.(mp4|m4v|mov|webm)$/i) ? (
                                     <video 
                                         src={post.thumbnail} 
                                         className="w-full h-full object-cover" 

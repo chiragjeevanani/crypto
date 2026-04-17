@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { simplifyAdminCopy } from '../../utils/simplifyCopy';
 
-export default function AdminStatCard({ label, value, change, icon: Icon, color = 'primary', delay = 0, path }) {
+export default function AdminStatCard({ label, value, change, icon: Icon, color = 'primary', delay = 0, path, onClick }) {
     const simpleLabel = simplifyAdminCopy(label);
     const simpleChange = simplifyAdminCopy(change);
 
@@ -34,7 +34,8 @@ export default function AdminStatCard({ label, value, change, icon: Icon, color 
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.3 }}
-            className={`bg-surface border border-surface p-5 rounded-lg relative overflow-hidden group hover:border-primary/20 transition-all shadow-sm ${path ? 'cursor-pointer' : ''}`}
+            className={`bg-surface border border-surface p-5 rounded-lg relative overflow-hidden group hover:border-primary/20 transition-all shadow-sm ${path || onClick ? 'cursor-pointer' : ''}`}
+            onClick={onClick}
         >
             {path ? (
                 <Link to={path} className="block w-full h-full">

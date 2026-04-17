@@ -8,6 +8,7 @@ const toAdminGift = (gift) => ({
   value: gift.value,
   status: gift.status,
   usage: gift.usage || 0,
+  soundUrl: gift.soundUrl,
   deletedAt: gift.deletedAt
 });
 
@@ -41,10 +42,15 @@ exports.listTrashGifts = async (req, res) => {
 
 exports.createGift = async (req, res) => {
   try {
-    const { name, price, icon, status } = req.body || {};
+    const { name, price, icon, status, soundUrl } = req.body || {};
     const numericPrice = Math.max(0, Number(price || 0));
     if (!name || !Number.isFinite(numericPrice)) {
       return res.status(400).json({ success: false, message: "Name and price are required" });
+    }
+
+    let finalSoundUrl = soundUrl || null;
+    if (req.file) {
+      finalSoundUrl = `/uploads/${req.file.filename}`;
     }
 
     const gift = await Gift.create({
@@ -52,7 +58,8 @@ exports.createGift = async (req, res) => {
       icon: icon || "🎁",
       price: numericPrice,
       value: numericPrice,
-      status: status || "Active"
+      status: status || "Active",
+      soundUrl: finalSoundUrl
     });
 
     return res.status(201).json({ success: true, gift: toAdminGift(gift) });
@@ -64,7 +71,7 @@ exports.createGift = async (req, res) => {
 exports.updateGift = async (req, res) => {
   try {
     const id = req.params.id;
-    const { name, price, icon, status } = req.body || {};
+    const { name, price, icon, status, soundUrl } = req.body || {};
 
     const update = {};
     if (name !== undefined) update.name = String(name).trim();
@@ -75,6 +82,12 @@ exports.updateGift = async (req, res) => {
       update.value = numericPrice;
     }
     if (status !== undefined) update.status = status;
+    
+    if (req.file) {
+      update.soundUrl = `/uploads/${req.file.filename}`;
+    } else if (soundUrl !== undefined) {
+      update.soundUrl = soundUrl || null;
+    }
 
     const gift = await Gift.findByIdAndUpdate(id, update, { new: true }).exec();
     if (!gift) {

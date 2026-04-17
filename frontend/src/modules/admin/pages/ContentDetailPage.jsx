@@ -80,14 +80,14 @@ export default function ContentDetailPage() {
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <div className="xl:col-span-2 bg-surface border border-surface rounded-2xl overflow-hidden relative min-h-[360px]">
-                    {postDetail?.mediaType === 'video' ? (
+                    {['video', 'reel'].includes(postDetail?.mediaType?.toLowerCase()) || (postDetail?.mediaUrl || postDetail?.thumbnail || '').match(/\.(mp4|m4v|mov|webm)$/i) ? (
                         <video 
                             src={postDetail?.mediaUrl || postDetail?.thumbnail} 
                             controls 
                             className="w-full h-full max-h-[500px] object-cover" 
                         />
                     ) : (
-                        <img src={postDetail?.mediaUrl || postDetail?.thumbnail} alt={postDetail?.id} className="w-full h-[360px] object-cover" />
+                        <img src={postDetail?.mediaUrl || postDetail?.thumbnail} alt={postDetail?.content || postDetail?.id} className="w-full h-[360px] object-cover" />
                     )}
                     <div className="p-5 space-y-4">
                         <div className="flex items-center gap-3">

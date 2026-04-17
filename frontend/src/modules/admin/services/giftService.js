@@ -28,13 +28,14 @@ export const giftService = {
     },
 
     createGift: async (giftData) => {
+        const isFormData = giftData instanceof FormData;
         const res = await fetch(ADMIN_GIFTS, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
+                ...(isFormData ? {} : { "Content-Type": "application/json" }),
                 ...getAuthHeaders()
             },
-            body: JSON.stringify(giftData)
+            body: isFormData ? giftData : JSON.stringify(giftData)
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.message || "Failed to create gift");
@@ -42,13 +43,14 @@ export const giftService = {
     },
 
     updateGift: async (id, giftData) => {
+        const isFormData = giftData instanceof FormData;
         const res = await fetch(`${ADMIN_GIFTS}/${id}`, {
             method: "PATCH",
             headers: {
-                "Content-Type": "application/json",
+                ...(isFormData ? {} : { "Content-Type": "application/json" }),
                 ...getAuthHeaders()
             },
-            body: JSON.stringify(giftData)
+            body: isFormData ? giftData : JSON.stringify(giftData)
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.message || "Failed to update gift");

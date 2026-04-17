@@ -29,6 +29,8 @@ const adminCategoryRoutes = require("./routes/admin/categoryRoutes");
 const userNotificationRoutes = require("./routes/user/notificationRoutes");
 const userVideoRoutes = require("./routes/user/videoRoutes");
 const adminReportRoutes = require("./routes/admin/reportRoutes");
+const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
+
 
 const app = express();
 
@@ -58,6 +60,7 @@ app.use("/api/music", musicRoutes);
 app.use("/api/admin/music", musicRoutes);
 app.use("/api/user/business", businessRoutes); // alias
 app.use("/api/admin/content", adminModerationRoutes);
+app.use("/api/admin/dashboard", adminDashboardRoutes); // Moved up for priority
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/gifts", adminGiftRoutes);
 app.use("/api/admin/campaigns", adminCampaignRoutes);
@@ -72,6 +75,7 @@ app.use("/api/payment", userPaymentRoutes);
 app.use("/api/notifications", userNotificationRoutes);
 app.use("/api/video", userVideoRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
+
 
 // 404 handler
 app.use((req, res, next) => {

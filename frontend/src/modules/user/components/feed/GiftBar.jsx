@@ -27,6 +27,7 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
     const [rainTrigger, setRainTrigger] = useState(0)
     const [activeIcon, setActiveIcon] = useState('')
     const [confirmingGift, setConfirmingGift] = useState(null)
+    const [activeSound, setActiveSound] = useState(null)
     const sentAtRef = useRef([])
 
 
@@ -44,8 +45,16 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
         if (sentAtRef.current.length >= maxGiftsPerMinute) return
         sentAtRef.current.push(now)
         
-        // Trigger rain with specific icon
+        // Normalize sound URL if it's a local upload
+        let soundUrl = gift.soundUrl
+        if (soundUrl && soundUrl.startsWith('/uploads')) {
+            const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')
+            soundUrl = `${apiBase}${soundUrl}`
+        }
+
+        // Trigger rain with specific icon and sound
         setActiveIcon(gift.emoji)
+        setActiveSound(soundUrl)
         setRainTrigger(prev => prev + 1)
         
         onGift(gift)
@@ -102,6 +111,7 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
             <HeartRainAnimation 
                 trigger={rainTrigger} 
                 icon={activeIcon}
+                soundUrl={activeSound}
                 onComplete={() => {}} 
             />
 

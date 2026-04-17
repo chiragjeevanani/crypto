@@ -98,17 +98,17 @@ const menuGroups = [
                     { label: 'Deleted Gifts', path: '/admin/gifts/trash' }
                 ]
             },
-            { icon: History, label: 'Finance Rules', path: '/admin/financials' },
         ]
     },
     {
         title: 'Safety',
+
         items: [
             { icon: ShieldAlert, label: 'Reports', path: '/admin/reports', badge: 'New' },
-            { icon: ShieldAlert, label: 'Fraud Checks', path: '/admin/fraud' },
             { icon: Terminal, label: 'Audit Logs', path: '/admin/audit' },
         ]
     },
+
     {
         title: 'Settings',
         items: [
@@ -118,7 +118,7 @@ const menuGroups = [
                 label: 'Platform Settings',
                 path: '/admin/settings',
                 children: [
-                    { label: 'Finance', path: '/admin/settings/financial' },
+                    { label: 'Financial', path: '/admin/settings/financial' },
                     { label: 'Security', path: '/admin/settings/security' },
                     { label: 'Promotion', path: '/admin/settings/promotion' },
                     { label: 'Network', path: '/admin/settings/network' }
@@ -127,6 +127,7 @@ const menuGroups = [
         ]
     }
 ];
+
 
 export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile }) {
     const [expandedItems, setExpandedItems] = useState({});
@@ -307,9 +308,14 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
             {/* User Profile Hook - shows logged-in admin role from DB */}
             <div className="p-4 border-t border-surface/50">
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : 'p-2.5 bg-surface2/50 rounded-lg border border-surface group cursor-pointer hover:bg-surface2 transition-all'}`}>
-                    <div className="w-8 h-8 rounded-lg bg-bg border border-surface flex items-center justify-center font-bold text-[10px] text-primary shrink-0">
-                        {(user?.name || getRoleLabel(user?.role)).slice(0, 2).toUpperCase()}
+                    <div className="w-8 h-8 rounded-lg bg-bg border border-surface flex items-center justify-center font-bold text-[10px] text-primary shrink-0 overflow-hidden">
+                        {user?.avatar ? (
+                            <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            (user?.name || getRoleLabel(user?.role)).slice(0, 2).toUpperCase()
+                        )}
                     </div>
+
                         <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-extrabold truncate text-primary uppercase tracking-wider leading-none mb-1">
                                 {user?.role || 'User'}
