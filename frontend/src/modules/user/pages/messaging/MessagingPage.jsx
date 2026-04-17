@@ -59,7 +59,7 @@ export default function MessagingPage() {
     }
 
     return (
-        <div className="flex h-screen w-full overflow-hidden" style={{ background: 'var(--color-bg)' }}>
+        <div className="flex w-full overflow-hidden" style={{ background: 'var(--color-bg)', height: isMobile ? 'calc(100dvh - 64px)' : '100dvh' }}>
             {/* Desktop: Sidebar + Chat */}
             {!isMobile && (
                 <>

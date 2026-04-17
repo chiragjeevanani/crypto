@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useUserStore } from '../../store/useUserStore'
 import { getSocket } from '../../../../socket'
 import { messageService } from '../../../../services/messageService'
+import Avatar from '../../components/shared/Avatar'
 
 export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost }) {
     const navigate = useNavigate()
@@ -14,6 +15,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const messagesEndRef = useRef(null)
     const [roomId, setRoomId] = useState('')
     const [isOtherTyping, setIsOtherTyping] = useState(false)
+    const [isOnline, setIsOnline] = useState(chat?.isOnline || false)
     const typingTimeoutRef = useRef(null)
     const fileInputRef = useRef(null)
     const [isUploading, setIsUploading] = useState(false)
@@ -85,11 +87,18 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             setMessages(prev => prev.map(m => m.id === data.id ? { ...m, status: data.status } : m))
         }
 
+        const handleStatusChanged = (data) => {
+            if (data.userId === chat.user.id) {
+                setIsOnline(data.status === 'online')
+            }
+        }
+
         socket.on('receive_message', handleReceiveMessage)
         socket.on('user_typing', handleUserTyping)
         socket.on('user_stop_typing', handleUserStopTyping)
         socket.on('messages_seen_update', handleMessagesSeenUpdate)
         socket.on('message_status_sent', handleStatusSent)
+        socket.on('user_status_changed', handleStatusChanged)
 
         return () => {
             socket.off('receive_message', handleReceiveMessage)
@@ -97,8 +106,9 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             socket.off('user_stop_typing', handleUserStopTyping)
             socket.off('messages_seen_update', handleMessagesSeenUpdate)
             socket.off('message_status_sent', handleStatusSent)
+            socket.off('user_status_changed', handleStatusChanged)
         }
-    }, [roomId, profile.id])
+    }, [roomId, profile.id, chat.user.id])
 
     useEffect(() => {
         scrollToBottom()
@@ -241,12 +251,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     {msg.sender === 'me' && (
                         <div className="flex justify-end mt-0.5">
                             {msg.status === 'seen' ? (
-                                <div className="flex -space-x-1">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                </div>
+                                <div className="text-[10px] text-blue-400 font-bold leading-none">✓✓</div>
+                            ) : msg.status === 'delivered' ? (
+                                <div className="text-[10px] text-white/70 leading-none">✓✓</div>
                             ) : (
-                                <div className="text-[10px] opacity-70">✓</div>
+                                <div className="text-[10px] text-white/50 leading-none">✓</div>
                             )}
                         </div>
                     )}
@@ -366,7 +375,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b backdrop-blur-md" style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}>
                 <div className="flex items-center gap-3">
                     {onBack && (
                         <button onClick={onBack} className="p-1 -ml-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors">
@@ -374,21 +383,21 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         </button>
                     )}
                     <div className="relative">
-                        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
-                            <img src={chat.user.avatar || '/person.png'} alt={chat.user.username} className={`w-full h-full object-cover ${!chat.user.avatar ? 'opacity-60' : ''}`} />
-                        </div>
-                        {chat.isOnline && (
+                        <Avatar 
+                            src={chat.user.avatar} 
+                            alt={chat.user.username} 
+                            size="md" 
+                        />
+                        {isOnline && (
                             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
                         )}
                     </div>
                     <div className="min-w-0">
                         <h4 className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{chat.user.username}</h4>
-                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{chat.isOnline ? 'Active now' : 'Seen last 2h'}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{isOnline ? 'Active now' : 'Offline'}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <Phone size={18} style={{ color: 'var(--color-text)' }} className="cursor-pointer" />
-                    <Video size={20} style={{ color: 'var(--color-text)' }} className="cursor-pointer" />
                     <Info size={20} style={{ color: 'var(--color-text)' }} className="cursor-pointer" />
                 </div>
             </div>

@@ -320,7 +320,7 @@ export default function AppShell() {
             </aside>
 
             <main className="app-shell-main flex-1 overflow-y-auto hide-scrollbar pb-safe md:pb-6 md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]">
-                <div className="mx-auto w-full md:max-w-[620px] lg:max-w-[680px]">
+                <div className="mx-auto w-full md:max-w-[620px] lg:max-w-[680px] min-h-full flex flex-col">
                     <Outlet />
                 </div>
             </main>

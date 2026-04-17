@@ -46,6 +46,7 @@ export default function ReportsManagement() {
 
     const filteredReports = reports.filter(r => {
         if (filter === 'all') return true;
+        if (filter === 'resolved') return r.status === 'resolved' || r.status === 'ignored';
         return r.status === filter;
     });
 
@@ -78,9 +79,33 @@ export default function ReportsManagement() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <AdminStatCard label="Total Reports" value={stats.total} icon={AlertCircle} color="primary" />
-                <AdminStatCard label="Pending Review" value={stats.pending} icon={ShieldAlert} color="rose-500" />
-                <AdminStatCard label="Successfully Resolved" value={stats.resolved} icon={CheckCircle2} color="emerald-500" />
+                <div onClick={() => setFilter('all')} className="cursor-pointer group">
+                    <AdminStatCard 
+                        label="Total Reports" 
+                        value={stats.total} 
+                        icon={AlertCircle} 
+                        color="primary" 
+                        className={filter === 'all' ? 'ring-2 ring-primary' : ''}
+                    />
+                </div>
+                <div onClick={() => setFilter('pending')} className="cursor-pointer group">
+                    <AdminStatCard 
+                        label="Pending Review" 
+                        value={stats.pending} 
+                        icon={ShieldAlert} 
+                        color="rose-500" 
+                        className={filter === 'pending' ? 'ring-2 ring-rose-500' : ''}
+                    />
+                </div>
+                <div onClick={() => setFilter('resolved')} className="cursor-pointer group">
+                    <AdminStatCard 
+                        label="Successfully Resolved" 
+                        value={stats.resolved} 
+                        icon={CheckCircle2} 
+                        color="emerald-500" 
+                        className={filter === 'resolved' ? 'ring-2 ring-emerald-500' : ''}
+                    />
+                </div>
             </div>
 
             <AdminDataTable
@@ -155,15 +180,13 @@ export default function ReportsManagement() {
                                     </button>
                                 </>
                             )}
-                            {report.post && (
                                 <button
                                     onClick={() => setSelectedReport(report)}
-                                    title="View Post Details"
+                                    title="View Report Details"
                                     className="p-1.5 rounded-md bg-surface2 hover:bg-surface border border-surface transition-all"
                                 >
                                     <Eye className="w-3.5 h-3.5 text-muted" />
                                 </button>
-                            )}
                         </div>
                     ]
                 }))}
@@ -190,31 +213,38 @@ export default function ReportsManagement() {
                         >
                             {/* Media Section */}
                             <div className="flex-1 bg-black/40 relative overflow-hidden flex items-center justify-center">
-                                {selectedReport.post?.mediaType === 'video' ? (
-                                    <video
-                                        src={optimizeCloudinaryUrl(selectedReport.post.mediaUrl, { isVideo: true })}
-                                        className="w-full h-full object-contain"
-                                        controls
-                                        autoPlay
-                                        crossOrigin="anonymous"
-                                    />
-                                ) : selectedReport.post?.mediaType === 'audio' ? (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="p-10 rounded-full bg-surface2/50 backdrop-blur-lg">
-                                            <Music size={48} className="text-primary" />
-                                        </div>
-                                        <audio
-                                            src={selectedReport.post.mediaUrl}
+                                {selectedReport.post ? (
+                                    selectedReport.post.mediaType === 'video' ? (
+                                        <video
+                                            src={optimizeCloudinaryUrl(selectedReport.post.mediaUrl, { isVideo: true })}
+                                            className="w-full h-full object-contain"
                                             controls
-                                            className="absolute bottom-4 left-4 right-4"
+                                            autoPlay
+                                            crossOrigin="anonymous"
                                         />
-                                    </div>
+                                    ) : selectedReport.post.mediaType === 'audio' ? (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="p-10 rounded-full bg-surface2/50 backdrop-blur-lg">
+                                                <Music size={48} className="text-primary" />
+                                            </div>
+                                            <audio
+                                                src={selectedReport.post.mediaUrl}
+                                                controls
+                                                className="absolute bottom-4 left-4 right-4"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <img
+                                            src={optimizeCloudinaryUrl(selectedReport.post.mediaUrl, { width: 1080 })}
+                                            className="w-full h-full object-contain"
+                                            alt="Reported content"
+                                        />
+                                    )
                                 ) : (
-                                    <img
-                                        src={optimizeCloudinaryUrl(selectedReport.post?.mediaUrl, { width: 1080 })}
-                                        className="w-full h-full object-contain"
-                                        alt="Reported content"
-                                    />
+                                    <div className="flex flex-col items-center gap-4 text-muted">
+                                        <ShieldOff size={48} className="opacity-20" />
+                                        <p className="text-xs font-bold uppercase tracking-widest opacity-40">Content has been removed</p>
+                                    </div>
                                 )}
                                 <button
                                     onClick={() => setSelectedReport(null)}
@@ -232,8 +262,10 @@ export default function ReportsManagement() {
                                             <User size={18} className="text-muted" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black">{selectedReport.post?.creator?.displayHandle}</p>
-                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">CONTENT CREATOR</p>
+                                            <p className="text-sm font-black">{selectedReport.post?.creator?.displayHandle || 'System User'}</p>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                                                {selectedReport.post ? 'CONTENT CREATOR' : 'USER IDENTITY'}
+                                            </p>
                                         </div>
                                     </div>
                                     <span className="px-3 py-1 rounded-full bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest border border-rose-500/20">
@@ -257,26 +289,39 @@ export default function ReportsManagement() {
                                     </div>
                                 )}
 
-                                <div className="flex gap-4 pt-4 border-t border-surface2">
-                                    <button
-                                        onClick={() => {
-                                            handleReportAction(selectedReport.id, 'ignore');
-                                            setSelectedReport(null);
-                                        }}
-                                        className="flex-1 py-4 rounded-2xl font-bold text-xs bg-surface2 hover:brightness-95 transition-all text-text uppercase tracking-widest"
-                                    >
-                                        Ignore Report
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleReportAction(selectedReport.id, 'delete');
-                                            setSelectedReport(null);
-                                        }}
-                                        className="flex-3 py-4 rounded-2xl font-bold text-xs bg-rose-500 text-white shadow-xl shadow-rose-500/20 hover:brightness-110 transition-all uppercase tracking-widest"
-                                    >
-                                        Reject & Remove Content
-                                    </button>
-                                </div>
+                                {selectedReport.status === 'pending' ? (
+                                    <div className="flex gap-4 pt-4 border-t border-surface2">
+                                        <button
+                                            onClick={() => {
+                                                handleReportAction(selectedReport.id, 'ignore');
+                                                setSelectedReport(null);
+                                            }}
+                                            className="flex-1 py-4 rounded-2xl font-bold text-xs bg-surface2 hover:brightness-95 transition-all text-text uppercase tracking-widest"
+                                        >
+                                            Ignore Report
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleReportAction(selectedReport.id, 'delete');
+                                                setSelectedReport(null);
+                                            }}
+                                            className="flex-3 py-4 rounded-2xl font-bold text-xs bg-rose-500 text-white shadow-xl shadow-rose-500/20 hover:brightness-110 transition-all uppercase tracking-widest"
+                                        >
+                                            Reject & Remove Content
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="pt-4 border-t border-surface2">
+                                        <div className={`p-4 rounded-2xl flex items-center justify-center gap-2 border ${
+                                            selectedReport.status === 'ignored' ? 'bg-surface2 border-surface text-muted' : 'bg-emerald-500/5 border-emerald-500/10 text-emerald-500'
+                                        }`}>
+                                            <CheckCircle2 size={16} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                                Case {selectedReport.status === 'ignored' ? 'Closed (Ignored)' : 'Resolved (Content Removed)'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </motion.div>

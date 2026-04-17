@@ -41,7 +41,6 @@ export function optimizeCloudinaryUrl(url, options = {}) {
 
     if (effectiveIsVideo) {
         // Remove f_auto for videos to avoid 416 Range Not Satisfiable errors
-        // Also remove vc_auto as it causes 400 errors on some Cloudinary setups
         const fIdx = transformations.findIndex(t => t.startsWith('f_'));
         if (fIdx !== -1) transformations.splice(fIdx, 1);
         
@@ -49,9 +48,6 @@ export function optimizeCloudinaryUrl(url, options = {}) {
             const idx = transformations.findIndex(t => t.startsWith('w_'));
             if (idx !== -1) transformations[idx] = 'w_720';
         }
-    } else {
-        // Image specific optimizations
-        transformations.push('dpr_auto');
     }
 
     return `${prefix}${transformations.join(',')}/${remainder}`;

@@ -23,6 +23,7 @@ exports.getMessages = async (req, res) => {
       text: m.text,
       type: m.type,
       payload: m.payload,
+      status: m.status,
       timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     }));
 
