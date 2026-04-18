@@ -36,6 +36,16 @@ const adminConfigSchema = new mongoose.Schema(
       type: Number,
       default: 499,
       min: 0
+    },
+    auctionListingFeeINR: {
+      type: Number,
+      default: 500,
+      min: 0
+    },
+    auctionCommissionPct: {
+      type: Number,
+      default: 10,
+      min: 0
     }
   },
   { timestamps: true }

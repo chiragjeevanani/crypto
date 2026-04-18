@@ -11,6 +11,7 @@ exports.toggleFollowUser = async (req, res) => {
   try {
     const currentUserId = req.user?.userId;
     const targetUserId = req.params.id;
+    console.log(`[Follow] User ${currentUserId} toggling follow on ${targetUserId}`);
 
     if (!currentUserId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -59,24 +60,39 @@ exports.toggleFollowUser = async (req, res) => {
 
     const followerCount = targetUser.followers.length;
     const followingCount = currentUser.following.length;
+    console.log(`[Follow] Success. ${isAlreadyFollower ? 'Unfollowed' : 'Followed'}. Counts: followers=${followerCount}, following=${followingCount}`);
 
     // Notify target user when someone new follows them
     if (!isAlreadyFollower) {
       const senderHandle = currentUser.handle ? `@${currentUser.handle}` : currentUser.name;
+      const isTargetFollowingSender = targetUser.following?.some(id => id && id.toString() === curStr);
+      
+      const title = isTargetFollowingSender 
+        ? `${senderHandle} followed you back!` 
+        : `${senderHandle} started following you`;
+      
+      const subtitle = isTargetFollowingSender
+        ? "You're both following each other now!"
+        : "Follow them back to stay connected.";
+
+      console.log(`[Follow] Creating notification for ${tgtStr}. Title: ${title}`);
+
       const notif = await createNotification({
         recipientId: targetUserId,
         senderId: currentUserId,
         type: "follow",
-        title: `${senderHandle} started following you`,
-        subtitle: "Tap to view their profile.",
-        meta: { followerId: currentUserId.toString() }
+        title,
+        subtitle,
+        meta: { followerId: currentUserId.toString(), canFollowBack: !isTargetFollowingSender }
       });
+
       if (notif) {
+        console.log(`[Follow] Notification saved. ID: ${notif._id}. Emitting to socket...`);
         emitToUser(String(targetUserId), "notification", {
           id: notif._id.toString(),
           type: "follow",
-          title: notif.title,
-          subtitle: notif.subtitle,
+          title,
+          subtitle,
           createdAt: notif.createdAt,
           isRead: false,
           meta: notif.meta,
@@ -87,6 +103,8 @@ exports.toggleFollowUser = async (req, res) => {
             avatar: currentUser.avatar
           }
         });
+      } else {
+        console.warn(`[Follow] createNotification returned null for ${tgtStr}`);
       }
     }
 

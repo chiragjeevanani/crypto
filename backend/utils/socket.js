@@ -32,6 +32,17 @@ const broadcastAll = (event, data) => {
   _io.emit(event, data);
 };
 
+/**
+ * Broadcast an event to a specific room.
+ * @param {string} roomId 
+ * @param {string} event 
+ * @param {object} data 
+ */
+const broadcastToRoom = (roomId, event, data) => {
+    if (!_io || !roomId) return;
+    _io.to(roomId).emit(event, data);
+};
+
 const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
@@ -177,5 +188,5 @@ const initSocket = (server) => {
   return io;
 };
 
-module.exports = { initSocket, emitToUser, broadcastAll };
+module.exports = { initSocket, emitToUser, broadcastAll, broadcastToRoom };
 

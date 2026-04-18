@@ -64,12 +64,14 @@ const safeUser = (user) => ({
   handle: user.handle || "",
   referralCode: user.referralCode || "",
   referralCount: user.referralCount || 0,
-  referredBy: user.referredBy || null
+  referredBy: user.referredBy || null,
+  state: user.state || "",
+  language: user.language || "English"
 });
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, phone, countryCode, referralCode: signupReferralCode } = req.body;
+    const { name, email, password, phone, countryCode, state, language, referralCode: signupReferralCode } = req.body;
 
     if (!name || !email || !password) {
       return res
@@ -114,7 +116,9 @@ const registerUser = async (req, res) => {
       currencyCode: locale.currencyCode,
       currencySymbol: locale.currencySymbol,
       referralCode,
-      referredBy: referrerId
+      referredBy: referrerId,
+      state: state || "",
+      language: language || "English"
     });
 
     // If referred, increment referrer count
@@ -265,7 +269,7 @@ const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
     const baseUrl = getBaseUrl(req);
-    const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode"];
+    const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language"];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {

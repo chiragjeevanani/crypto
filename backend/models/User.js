@@ -96,6 +96,16 @@ const userSchema = new mongoose.Schema(
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     dismissedSuggestions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    state: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    language: {
+      type: String,
+      trim: true,
+      default: "English"
+    },
     isPremium: {
       type: Boolean,
       default: false

@@ -7,7 +7,9 @@ const DEFAULTS = {
   minReferralsForWithdrawal: 5,
   minWithdrawalCoins: 10,
   premiumThreshold: 100,
-  businessPostPriceINR: 499
+  businessPostPriceINR: 499,
+  auctionListingFeeINR: 500,
+  auctionCommissionPct: 10
 };
 
 const getAdminConfig = async (session = null) => {
@@ -28,6 +30,8 @@ const getAdminConfig = async (session = null) => {
     minWithdrawalCoins: Number(obj.minWithdrawalCoins) || DEFAULTS.minWithdrawalCoins,
     premiumThreshold: Number(obj.premiumThreshold) || DEFAULTS.premiumThreshold,
     businessPostPriceINR: Number(obj.businessPostPriceINR) || DEFAULTS.businessPostPriceINR,
+    auctionListingFeeINR: Number(obj.auctionListingFeeINR) || DEFAULTS.auctionListingFeeINR,
+    auctionCommissionPct: Number(obj.auctionCommissionPct) || DEFAULTS.auctionCommissionPct,
     id: obj._id
   };
 };

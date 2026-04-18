@@ -26,6 +26,8 @@ exports.getNotifications = async (req, res) => {
       }),
       Notification.countDocuments({ recipientId, isRead: false })
     ]);
+    
+    console.log(`[Notifications] Found ${notifications.length} for recipient ${recipientId}. Unread: ${unreadCount}, Total: ${total}`);
 
     const formatted = notifications.map((n) => ({
       id: n._id.toString(),

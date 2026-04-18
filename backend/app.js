@@ -30,6 +30,8 @@ const userNotificationRoutes = require("./routes/user/notificationRoutes");
 const userVideoRoutes = require("./routes/user/videoRoutes");
 const adminReportRoutes = require("./routes/admin/reportRoutes");
 const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
+const auctionRoutes = require("./routes/auctionRoutes");
+const { processEndedAuctions } = require("./controllers/auctionController");
 
 
 const app = express();
@@ -75,6 +77,10 @@ app.use("/api/payment", userPaymentRoutes);
 app.use("/api/notifications", userNotificationRoutes);
 app.use("/api/video", userVideoRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
+app.use("/api/auctions", auctionRoutes);
+
+// Background job for auctions
+setInterval(processEndedAuctions, 60 * 1000); // Check every minute
 
 
 // 404 handler
