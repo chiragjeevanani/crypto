@@ -22,13 +22,16 @@ import ErrorBoundary from '../components/shared/ErrorBoundary'
 
 export default function HomePage() {
     const { 
-        posts, postsLoading, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
+        posts, postsLoading, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
         reelFeed, reelFeedLoading, reelFeedError, loadReelFeed
     } = useFeedStore()
     const { profile } = useUserStore()
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
-    useEffect(() => { loadPosts() }, [loadPosts])
+    useEffect(() => { 
+        loadPosts() 
+        loadNotifications()
+    }, [loadPosts, loadNotifications])
     const [searchParams] = useSearchParams()
     const [query, setQuery] = useState('')
     const [postFilter, setPostFilter] = useState('all')
@@ -267,14 +270,14 @@ export default function HomePage() {
                             onClick={() => {
                                 navigate('/notifications')
                             }}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer relative"
+                            className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer relative transition-transform active:scale-90"
                             style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
                         >
-                            <Bell size={16} />
+                            <Bell size={18} />
                             {unreadNotifications > 0 && (
-                                <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
-                                    style={{ background: 'var(--color-danger)', color: '#fff' }}>
-                                    {Math.min(9, unreadNotifications)}
+                                <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center shadow-[0_2px_8px_rgba(239,68,68,0.4)] border-2 border-[var(--color-bg)]"
+                                    style={{ background: '#ef4444', color: '#fff' }}>
+                                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
                                 </span>
                             )}
                         </button>

@@ -9,7 +9,8 @@ const DEFAULTS = {
   premiumThreshold: 100,
   businessPostPriceINR: 499,
   auctionListingFeeINR: 500,
-  auctionCommissionPct: 10
+  auctionCommissionPct: 10,
+  adminNotificationMobiles: []
 };
 
 const getAdminConfig = async (session = null) => {

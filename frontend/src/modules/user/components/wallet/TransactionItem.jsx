@@ -18,27 +18,32 @@ export default function TransactionItem({ tx, currencySymbol = '₹' }) {
     const isCredit = tx.amount > 0
 
     return (
-        <div className="flex items-center gap-3 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
+        <div className="flex items-center gap-4 py-4 group" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${meta.color}18` }}
+                className="w-10 h-10 rounded-[14px] flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
+                style={{ background: `${meta.color}15` }}
             >
-                <Icon size={16} style={{ color: meta.color }} strokeWidth={2} />
+                <Icon size={16} style={{ color: meta.color }} strokeWidth={2.5} />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>
+                <p className="text-sm font-black tracking-tight" style={{ color: 'var(--color-text)' }}>
                     {tx.title}
                 </p>
-                <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                    {meta.label} · {timeAgo(tx.date)} · {tx.status}
+                <p className="text-[10px] font-bold mt-0.5 opacity-60 uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
+                    {meta.label} · {timeAgo(tx.date)}
                 </p>
             </div>
-            <span
-                className="text-sm font-bold flex-shrink-0"
-                style={{ color: isCredit ? 'var(--color-success)' : 'var(--color-danger)' }}
-            >
-                {isCredit ? '+' : ''}{currencySymbol}{Math.abs(tx.amount)}
-            </span>
+            <div className="flex flex-col items-end gap-0.5">
+                <span
+                    className="text-sm font-black"
+                    style={{ color: isCredit ? 'var(--color-success)' : 'var(--color-danger)' }}
+                >
+                    {isCredit ? '+' : ''}{currencySymbol}{Math.abs(tx.amount).toLocaleString()}
+                </span>
+                <span className="text-[8px] font-black uppercase tracking-tighter opacity-40">
+                    {tx.status}
+                </span>
+            </div>
         </div>
     )
 }

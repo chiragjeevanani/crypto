@@ -44,7 +44,8 @@ const mapConfigToSettings = (config) => ({
     minWithdrawal: Number(config?.minWithdrawalCoins || 0),
     coinRate: Number(config?.coinRate || 0),
     gstPct: Number(config?.gstPct || 0),
-    referralLimit: Number(config?.referralLimit || 0)
+    referralLimit: Number(config?.referralLimit || 0),
+    adminNotificationMobiles: config?.adminNotificationMobiles || ['', '', '', '']
 });
 
 export const settingsService = {
@@ -60,6 +61,11 @@ export const settingsService = {
         if (newSettings.coinRate !== undefined) payload.coinRate = Number(newSettings.coinRate);
         if (newSettings.gstPct !== undefined) payload.gstPct = Number(newSettings.gstPct);
         if (newSettings.referralLimit !== undefined) payload.referralLimit = Number(newSettings.referralLimit);
+        
+        if (newSettings.adminNotificationMobiles !== undefined) {
+            // Filter out empty strings to keep only valid numbers
+            payload.adminNotificationMobiles = newSettings.adminNotificationMobiles.filter(m => m && m.trim() !== '');
+        }
 
         const data = await request("/admin/config", {
             method: "PUT",

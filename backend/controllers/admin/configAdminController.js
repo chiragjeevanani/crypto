@@ -24,10 +24,17 @@ const updateConfig = async (req, res) => {
       "minReferralsForWithdrawal", 
       "minWithdrawalCoins",
       "premiumThreshold",
-      "businessPostPriceINR"
+      "businessPostPriceINR",
+      "adminNotificationMobiles"
     ];
     fields.forEach((field) => {
-      if (req.body[field] !== undefined) updates[field] = Number(req.body[field]);
+      if (req.body[field] !== undefined) {
+          if (field === "adminNotificationMobiles") {
+              updates[field] = req.body[field];
+          } else {
+              updates[field] = Number(req.body[field]);
+          }
+      }
     });
 
     let config = await AdminConfig.findOne().exec();

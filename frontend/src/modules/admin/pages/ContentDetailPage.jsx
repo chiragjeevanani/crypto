@@ -56,24 +56,35 @@ export default function ContentDetailPage() {
                             <ArrowLeft className="w-3.5 h-3.5" />
                             Back
                         </button>
-                        <button
-                            disabled={postDetail.isBusiness && postDetail.paymentStatus !== 'paid'}
-                            onClick={() => handlePostApproval(postDetail.id, true)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all
-                                ${postDetail.isBusiness && postDetail.paymentStatus !== 'paid' 
-                                    ? 'bg-muted/10 border border-muted/20 text-muted opacity-50 cursor-not-allowed' 
-                                    : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'}`}
-                        >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            {postDetail.isBusiness && postDetail.paymentStatus !== 'paid' ? 'Payment Pending' : 'Approve'}
-                        </button>
-                        <button
-                            onClick={() => handlePostApproval(postDetail.id, false)}
-                            className="flex items-center gap-2 px-4 py-2 bg-rose-500/15 border border-rose-500/30 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-rose-500 hover:bg-rose-500/20 transition-all"
-                        >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Reject
-                        </button>
+                        {postDetail.status === 'Pending' && (
+                            <>
+                                <button
+                                    disabled={postDetail.isBusiness && postDetail.paymentStatus !== 'paid'}
+                                    onClick={() => handlePostApproval(postDetail.id, true)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all
+                                        ${postDetail.isBusiness && postDetail.paymentStatus !== 'paid' 
+                                            ? 'bg-muted/10 border border-muted/20 text-muted opacity-50 cursor-not-allowed' 
+                                            : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'}`}
+                                >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    {postDetail.isBusiness && postDetail.paymentStatus !== 'paid' ? 'Payment Pending' : 'Approve'}
+                                </button>
+                                <button
+                                    onClick={() => handlePostApproval(postDetail.id, false)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-rose-500/15 border border-rose-500/30 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-rose-500 hover:bg-rose-500/20 transition-all"
+                                >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    Reject
+                                </button>
+                            </>
+                        )}
+                        {postDetail.status !== 'Pending' && (
+                            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border
+                                ${postDetail.status === 'Approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'}`}>
+                                {postDetail.status === 'Approved' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                                {postDetail.status}
+                            </div>
+                        )}
                     </div>
                 }
             />

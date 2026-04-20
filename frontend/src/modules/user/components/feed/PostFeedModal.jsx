@@ -19,7 +19,7 @@ import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
-const ReelPostInner = ({ post, active, onClose }) => {
+const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
     if (!post?.creator) return <ReelFullSkeleton />
 
     const {
@@ -172,11 +172,24 @@ const ReelPostInner = ({ post, active, onClose }) => {
                 try {
                     if (video) {
                         video.muted = isMuted
-                        if (isCurrent) await video.play()
+                        // Ensure video is ready to play
+                        if (video.readyState >= 2) {
+                            if (isCurrent) await video.play()
+                        } else {
+                            video.oncanplay = async () => {
+                                if (isCurrent && active) await video.play()
+                            }
+                        }
                     }
                     if (audio) {
                         audio.muted = isMuted
-                        if (isCurrent) await audio.play()
+                        if (audio.readyState >= 2) {
+                            if (isCurrent) await audio.play()
+                        } else {
+                            audio.oncanplay = async () => {
+                                if (isCurrent && active) await audio.play()
+                            }
+                        }
                     }
                 } catch (err) {
                     if (err.name === 'NotAllowedError' && !isMuted && isCurrent) {
@@ -189,17 +202,25 @@ const ReelPostInner = ({ post, active, onClose }) => {
             if (video) {
                 video.pause()
                 video.currentTime = 0
+                video.oncanplay = null
             }
             if (audio) {
                 audio.pause()
                 audio.currentTime = 0
+                audio.oncanplay = null
             }
         }
 
         return () => {
             isCurrent = false
-            if (video) video.pause()
-            if (audio) audio.pause()
+            if (video) {
+                video.pause()
+                video.oncanplay = null
+            }
+            if (audio) {
+                audio.pause()
+                audio.oncanplay = null
+            }
         }
     }, [active, post.id, isMuted])
 
@@ -215,13 +236,13 @@ const ReelPostInner = ({ post, active, onClose }) => {
                     <video
                         key={`vid-${post.id}`}
                         ref={videoRef}
-                        src={`${optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '60' })}${post.media?.url?.includes('?') ? '&' : '?'}v=${Date.now()}`}
+                        src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
                         className="w-full h-full object-cover cursor-pointer"
                         style={{ filter: post.filter || 'none' }}
                         loop
                         muted={isMuted}
                         playsInline
-                        preload="auto"
+                        preload={active || shouldPreload ? "auto" : "metadata"}
                         poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
                         crossOrigin="anonymous"
                         onClick={toggleMute}
@@ -649,7 +670,7 @@ const ReelPostInner = ({ post, active, onClose }) => {
                 {post.musicData && (
                     <audio
                         ref={audioRef}
-                        src={`${post.musicData.audioUrl}${post.musicData.audioUrl.includes('?') ? '&' : '?'}v=${Date.now()}`}
+                        src={post.musicData.audioUrl}
                         type="audio/mpeg"
                         loop
                         muted={isMuted}
@@ -840,7 +861,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                 {isReelsMode
                                     ? post?.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
-                                        : <ReelPost post={post} active={activeReelIndex === index} onClose={onClose} />
+                                        : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && Math.abs(index - activeReelIndex) <= 1} onClose={onClose} />
                                     : post && <PostCard post={post} onDeleteSuccess={onClose} />}
                             </div>
                         ))}

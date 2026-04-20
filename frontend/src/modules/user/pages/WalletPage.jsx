@@ -258,9 +258,14 @@ export default function WalletPage() {
     }
 
     return (
-        <div className="px-4 pt-4 max-w-2xl mx-auto">
+        <div className="px-4 md:px-6 pt-4 md:pt-8 max-w-2xl mx-auto pb-safe">
             {/* Header */}
-            <h1 className="text-xl font-extrabold mb-4" style={{ color: 'var(--color-text)' }}>Wallet</h1>
+            <div className="flex items-center justify-between mb-8">
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Wallet</h1>
+                <div className="p-2 rounded-2xl bg-surface border border-border/50">
+                    <ShieldCheck size={20} className="text-primary" />
+                </div>
+            </div>
             {walletError && (
                 <div className="mb-4 rounded-xl px-3 py-2 text-xs font-semibold"
                     style={{ background: 'rgba(244,63,94,0.12)', color: 'var(--color-danger)' }}>
@@ -268,144 +273,157 @@ export default function WalletPage() {
                 </div>
             )}
 
-            {/* Wallet cards - Responsive Scroll UI */}
-            <div className="flex overflow-x-auto gap-4 mb-8 pb-4 no-scrollbar -mx-4 px-4 snap-x md:grid md:grid-cols-3 md:gap-4 md:px-0 md:mx-0">
+            {/* Wallet cards - Stacked Vertical for Single View */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
                 {/* INR Wallet Card */}
                 <motion.div 
-                    whileHover={{ y: -2 }}
-                    className="min-w-[280px] md:min-w-0 flex-1 snap-start rounded-[32px] p-6 relative overflow-hidden shadow-xl"
+                    whileHover={{ scale: 1.01 }}
+                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
                     style={{ 
                         background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
                         color: '#fff' 
                     }}
                 >
-                    <div className="relative z-10">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{currencyCode} WALLET</p>
-                        <h2 className="text-4xl font-black mb-4 flex items-baseline gap-1">
-                            <span className="text-xl font-medium opacity-60">{currencySymbol}</span>
-                            {Math.round(inrWallet).toLocaleString()}
-                        </h2>
-                        <div className="flex gap-2">
-                             <button
-                                onClick={() => setActiveTab('Linked')}
-                                className="px-5 py-2 rounded-2xl text-[11px] font-black bg-white/20 hover:bg-white/30 transition-all active:scale-95"
-                            >
-                                Top up
-                            </button>
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">{currencyCode} BALANCE</p>
+                            <h2 className="text-2xl font-black flex items-baseline gap-1">
+                                <span className="text-sm font-medium opacity-50">{currencySymbol}</span>
+                                {Math.round(inrWallet).toLocaleString()}
+                            </h2>
                         </div>
+                        <button
+                            onClick={() => setActiveTab('Linked')}
+                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all active:scale-95 uppercase tracking-widest"
+                        >
+                            Top up
+                        </button>
                     </div>
-                    <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+                    <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
                 </motion.div>
 
                 {/* Crypto Wallet Card */}
                 <motion.div 
-                    whileHover={{ y: -2 }}
-                    className="min-w-[280px] md:min-w-0 flex-1 snap-start rounded-[32px] p-6 relative overflow-hidden shadow-xl"
+                    whileHover={{ scale: 1.01 }}
+                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
                     style={{ 
                         background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
                         color: '#fff' 
                     }}
                 >
-                    <div className="relative z-10">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">CRYPTO WALLET</p>
-                        <h2 className="text-4xl font-black mb-1 truncate">
-                            {Number(cryptoWallet || 0).toFixed(3)} <span className="text-lg font-medium opacity-60">ETH</span>
-                        </h2>
-                        <p className="text-[10px] font-bold opacity-60 mb-4 uppercase tracking-wider">
-                            ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
-                        </p>
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">CRYPTO ASSETS</p>
+                            <div className="flex items-baseline gap-2">
+                                <h2 className="text-xl font-black truncate">
+                                    {Number(cryptoWallet || 0).toFixed(3)} <span className="text-xs font-medium opacity-50">ETH</span>
+                                </h2>
+                                <span className="text-[9px] font-bold opacity-50 uppercase tracking-wider">
+                                    ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
                         <button
                             onClick={() => setActiveTab('Linked')}
-                            className="px-5 py-2 rounded-2xl text-[11px] font-black bg-white/20 hover:bg-white/30 transition-all active:scale-95"
+                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all active:scale-95 uppercase tracking-widest"
                         >
                             Manage
                         </button>
                     </div>
-                    <div className="absolute bottom-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+                    <div className="absolute bottom-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
                 </motion.div>
 
                 {/* Earning Wallet Card */}
                 <motion.div 
-                    whileHover={{ y: -2 }}
-                    className="min-w-[280px] md:min-w-0 flex-1 snap-start rounded-[32px] p-6 relative overflow-hidden shadow-xl border border-white/10"
+                    whileHover={{ scale: 1.01 }}
+                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
                     style={{ 
                         background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
                         color: '#fff' 
                     }}
                 >
-                    <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">EARNING WALLET</p>
-                            {earningsWallet >= 10 && (
-                                <span className="bg-green-500/30 text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">Ready</span>
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70">EARNING WALLET</p>
+                                {earningsWallet >= 10 && (
+                                    <span className="bg-white/20 backdrop-blur-md text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase">Unlock</span>
+                                )}
+                            </div>
+                            <h2 className="text-2xl font-black flex items-baseline gap-1">
+                                <span className="text-sm font-medium opacity-50">{currencySymbol}</span>
+                                {Math.round(earningsWallet).toLocaleString()}
+                            </h2>
+                        </div>
+                        
+                        <div className="ml-4">
+                            {earningsWallet < 10 ? (
+                                <div className="w-24 space-y-1">
+                                    <div className="flex justify-between text-[7px] font-black opacity-70 uppercase tracking-widest leading-none">
+                                        <span>Payout Goal</span>
+                                        <span>{Math.round((earningsWallet / 10) * 100)}%</span>
+                                    </div>
+                                    <div className="h-1 bg-black/20 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-white transition-all duration-700" 
+                                            style={{ width: `${Math.min(100, (earningsWallet / 10) * 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setActiveTab('Withdraw')}
+                                    className="px-4 py-2 rounded-xl text-[10px] font-black bg-white text-orange-600 hover:bg-orange-50 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-black/5"
+                                >
+                                    Withdraw
+                                </button>
                             )}
                         </div>
-                        <h2 className="text-4xl font-black mb-4 flex items-baseline gap-1">
-                            <span className="text-xl font-medium opacity-60">{currencySymbol}</span>
-                            {Math.round(earningsWallet).toLocaleString()}
-                        </h2>
-                        
-                        {earningsWallet < 10 ? (
-                            <div className="mb-4">
-                                <div className="flex justify-between text-[9px] font-black mb-1 opacity-90 uppercase tracking-widest">
-                                    <span>Payout</span>
-                                    <span>{Math.round((earningsWallet / 10) * 100)}%</span>
-                                </div>
-                                <div className="h-1.5 bg-black/20 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-white transition-all duration-500" 
-                                        style={{ width: `${Math.min(100, (earningsWallet / 10) * 100)}%` }}
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => setActiveTab('Withdraw')}
-                                className="px-5 py-2 rounded-2xl text-[11px] font-black bg-white text-orange-600 hover:bg-orange-50 transition-all active:scale-95"
-                            >
-                                Withdraw Now
-                            </button>
-                        )}
                     </div>
-                    <div className="absolute top-[10%] right-[-15%] w-48 h-48 bg-white/10 rounded-full blur-3xl rotate-45" />
+                    <div className="absolute top-[-10%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
                 </motion.div>
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-2xl p-5 mb-6" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                 <p className="text-sm font-black mb-4" style={{ color: 'var(--color-text)' }}>INR Quick Recharge</p>
-                 <div className="flex flex-wrap gap-2 mb-4">
-                    {[100, 200, 500].map(amt => (
-                        <button
-                            key={amt}
-                            disabled={isProcessingPayment}
-                            onClick={() => handleQuickAdd(amt)}
-                            className="px-4 py-2 rounded-xl text-[11px] font-black transition-all border shadow-sm active:scale-95 bg-white dark:bg-zinc-800 text-orange-500 border-orange-500/20"
-                        >
-                            +{currencySymbol}{amt}
-                        </button>
-                    ))}
-                </div>
-                <div className="relative mt-2">
-                    <div className="flex gap-2">
-                        <div className="relative flex-1">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted">{currencySymbol}</span>
-                            <input
-                                type="number"
-                                value={addInrAmount}
-                                onChange={(e) => setAddInrAmount(e.target.value)}
-                                placeholder="0.00"
-                                className="w-full h-11 pl-9 pr-4 rounded-xl border bg-bg text-sm font-black outline-none focus:border-primary transition-all"
-                                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                            />
+            <div className="rounded-[24px] p-6 mb-8 bg-surface border border-border/40 shadow-sm relative overflow-hidden group">
+                <div className="relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-4 flex items-center gap-2">
+                        <Zap size={12} className="text-primary" />
+                        Quick Recharge
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {[100, 200, 500].map(amt => (
+                            <button
+                                key={amt}
+                                disabled={isProcessingPayment}
+                                onClick={() => handleQuickAdd(amt)}
+                                className="px-4 py-2 rounded-xl text-[10px] font-black transition-all border border-border/20 shadow-sm active:scale-95 bg-bg hover:bg-surface2 text-primary uppercase tracking-widest"
+                            >
+                                +{currencySymbol}{amt}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="relative">
+                        <div className="flex gap-2">
+                            <div className="relative flex-1 group/input">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted group-focus-within/input:text-primary transition-colors">{currencySymbol}</span>
+                                <input
+                                    type="number"
+                                    value={addInrAmount}
+                                    onChange={(e) => setAddInrAmount(e.target.value)}
+                                    placeholder="Enter custom amount"
+                                    className="w-full h-12 pl-10 pr-4 rounded-xl border-2 bg-bg text-sm font-black outline-none border-transparent focus:border-primary/30 focus:bg-surface transition-all"
+                                    style={{ color: 'var(--color-text)' }}
+                                />
+                            </div>
+                            <button
+                                disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
+                                onClick={() => handleQuickAdd(addInrAmount)}
+                                className="px-8 h-12 rounded-xl bg-primary text-black text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 shrink-0"
+                            >
+                                {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Recharge'}
+                            </button>
                         </div>
-                        <button
-                            disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
-                            onClick={() => handleQuickAdd(addInrAmount)}
-                            className="px-6 h-11 rounded-xl bg-primary text-black text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 shrink-0"
-                        >
-                            {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Recharge'}
-                        </button>
                     </div>
                 </div>
             </div>
@@ -424,39 +442,39 @@ export default function WalletPage() {
             </div>
 
             <div
-                className="rounded-2xl p-3 mb-4 flex items-center justify-between gap-3"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                className="rounded-2xl p-4 mb-8 flex items-center justify-between gap-4 bg-surface/50 border border-border/30 backdrop-blur-sm"
             >
-                <div className="flex items-center gap-2">
-                    <ShieldCheck size={15} style={{ color: kyc.status === 'verified' ? 'var(--color-success)' : 'var(--color-primary)' }} />
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <ShieldCheck size={20} className={kyc.status === 'verified' ? 'text-success' : 'text-primary'} />
+                    </div>
                     <div>
-                        <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
-                            Compliance Status: {kyc.status.toUpperCase()}
+                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-0.5">
+                            Status: <span className={kyc.status === 'verified' ? 'text-success' : 'text-primary'}>{kyc.status.toUpperCase()}</span>
                         </p>
-                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
-                            Level {kyc.level} · {kyc.payoutsUnlocked ? 'Payouts enabled' : 'KYC required for payouts'}
+                        <p className="text-xs font-bold text-text truncate">
+                            Level {kyc.level} · {kyc.payoutsUnlocked ? 'Payouts enabled' : 'KYC required'}
                         </p>
                     </div>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b mb-6" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="flex border-b border-border/30 mb-8 overflow-x-auto no-scrollbar">
                 {['Transactions', 'Withdraw', 'Linked'].map((tab) => {
                     const active = tab === activeTab
                     return (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className="flex-1 pb-2.5 text-sm font-semibold cursor-pointer transition-colors duration-150 relative"
+                            className="flex-1 min-w-fit px-4 pb-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap"
                             style={{ color: active ? 'var(--color-primary)' : 'var(--color-muted)' }}
                         >
                             <span className="relative z-10">{tab}</span>
                             {active && (
                                 <motion.div
                                     layoutId="wallet-tab"
-                                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                                    style={{ background: 'var(--color-primary)' }}
+                                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary"
                                 />
                             )}
                         </button>
@@ -578,7 +596,7 @@ export default function WalletPage() {
                                                 <button
                                                     onClick={handleSubmitKYC}
                                                     disabled={!canSubmitKYC}
-                                                    className="w-full py-4 rounded-[20px] text-xs font-black bg-text text-bg disabled:opacity-20 transition-all shadow-xl uppercase tracking-widest hover:scale-[1.01] active:scale-[0.98]"
+                                                    className="w-full py-4 rounded-[20px] text-[10px] font-black bg-text text-bg disabled:opacity-20 transition-all shadow-xl uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98]"
                                                     style={{ background: 'var(--color-text)', color: 'var(--color-bg)' }}
                                                 >
                                                     {kycMessage ? 'RE-SUBMIT REQUEST' : 'PROCEED TO VERIFICATION'}
@@ -593,12 +611,12 @@ export default function WalletPage() {
                             {/* Withdrawal Form */}
                             <div className="rounded-[32px] p-8 border shadow-sm space-y-8" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
                                 <div className="space-y-4">
-                                    <div className="flex p-1 bg-bg border rounded-2xl" style={{ borderColor: 'var(--color-border)' }}>
+                                    <div className="flex p-1 bg-surface border border-border/30 rounded-2xl">
                                         {['upi', 'bank'].map((m) => (
                                             <button
                                                 key={m}
                                                 onClick={() => setWithdrawMethod(m)}
-                                                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${withdrawMethod === m ? 'bg-primary text-black shadow-md' : 'text-muted'}`}
+                                                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${withdrawMethod === m ? 'bg-primary text-black shadow-lg' : 'text-muted hover:text-text'}`}
                                             >
                                                 {m}
                                             </button>
@@ -607,22 +625,22 @@ export default function WalletPage() {
 
                                     <div className="space-y-6">
                                         <div className="relative group">
-                                            <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-3 mb-2 block">Withdrawal Amount</label>
-                                            <div className="flex items-center px-5 h-16 rounded-[22px] border bg-bg/50 focus-within:ring-4 ring-primary/10 focus-within:border-primary transition-all pr-4" style={{ borderColor: 'var(--color-border)' }}>
+                                            <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 mb-3 block">Withdrawal Amount</label>
+                                            <div className="flex items-center px-5 h-14 rounded-2xl border-2 border-border/20 bg-bg transition-all group-within:border-primary/30 group-within:bg-surface">
                                                 <span className="text-xl font-black mr-2 text-muted">{currencySymbol}</span>
                                                 <input
                                                     type="number"
-                                                    placeholder={`0.00 (Min. 10)`}
+                                                    placeholder={`0.00`}
                                                     value={withdrawAmount}
                                                     onChange={(e) => {
                                                         const val = Number(e.target.value);
                                                         setWithdrawAmount(Math.min(val, earningsWallet));
                                                     }}
-                                                    className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/30"
+                                                    className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/20"
                                                 />
                                                 <button 
                                                     onClick={() => setWithdrawAmount(Math.floor(earningsWallet))}
-                                                    className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-tighter hover:bg-primary hover:text-black transition-all"
+                                                    className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-black transition-all"
                                                 >
                                                     MAX
                                                 </button>
@@ -706,13 +724,13 @@ export default function WalletPage() {
                                             }
                                         }}
                                         disabled={!canWithdraw}
-                                        className="w-full py-5 rounded-[22px] text-xs font-black transition-all shadow-2xl disabled:opacity-20 hover:shadow-primary/20 uppercase tracking-widest"
+                                        className="w-full py-4 rounded-2xl text-[10px] font-black transition-all shadow-2xl disabled:opacity-20 hover:shadow-primary/30 uppercase tracking-[0.2em] shadow-primary/20"
                                         style={{
                                             background: 'var(--color-primary)',
                                             color: '#000',
                                         }}
                                     >
-                                        Execute Payout Request
+                                        Execute Payout
                                     </motion.button>
                                     
                                     {earningsWallet < (platformSettings.minWithdrawal || 10) && (

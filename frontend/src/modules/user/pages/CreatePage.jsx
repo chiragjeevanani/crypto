@@ -439,20 +439,30 @@ export default function CreatePage() {
                 </div>
             )}
             {/* Header */}
-            <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <div className="flex items-center justify-between mb-3">
-                    <h1 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>Create Post</h1>
-                    <span className="text-xs font-medium" style={{ color: 'var(--color-muted)' }}>
-                        Step {step} of {STEPS.length}
-                    </span>
+            <div className="px-6 pt-6 pb-4 bg-[var(--color-bg)] sticky top-0 z-[100]" style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex flex-col">
+                        <h1 className="text-xl font-black tracking-tight text-[var(--color-text)] uppercase">Studio</h1>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-[0.3em] opacity-50">Content Pipeline</p>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                            Step {step}/7
+                        </span>
+                    </div>
                 </div>
+                
                 {/* Step progress bar */}
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 px-0.5">
                     {STEPS.map((s) => (
                         <div
                             key={s.id}
-                            className="flex-1 h-1 rounded-full transition-all duration-300"
-                            style={{ background: s.id <= step ? 'var(--color-primary)' : 'var(--color-surface2)' }}
+                            className={`flex-1 h-1 rounded-full transition-all duration-700 ${s.id <= step ? 'shadow-[0_0_8px_rgba(var(--color-primary-rgb),0.3)]' : ''}`}
+                            style={{ 
+                                background: s.id <= step 
+                                    ? 'linear-gradient(90deg, var(--color-primary), var(--color-primary2))' 
+                                    : 'rgba(148, 163, 184, 0.08)' 
+                            }}
                         />
                     ))}
                 </div>
@@ -470,48 +480,85 @@ export default function CreatePage() {
                     >
                         {/* Step 1: Upload Media */}
                         {step === 1 && (
-                            <div>
-                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Upload Media</p>
+                            <div className="space-y-6">
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-bold tracking-tight text-[var(--color-text)]">Create Something New</h2>
+                                    <p className="text-[10px] uppercase font-bold tracking-widest text-[#94a3b8]">Select your masterpiece high-quality format</p>
+                                </div>
+
                                 {mediaError && (
-                                    <div className="mb-4 p-3 rounded-xl flex items-center gap-2" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                                        <X size={16} className="text-red-500" />
-                                        <p className="text-xs font-bold text-red-500">{mediaError}</p>
-                                    </div>
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="p-3 rounded-2xl flex items-center gap-2 bg-red-500/10 border border-red-500/20"
+                                    >
+                                        <X size={14} className="text-red-500" />
+                                        <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">{mediaError}</p>
+                                    </motion.div>
                                 )}
-                                <label className="cursor-pointer block">
+
+                                <label className="relative group block cursor-pointer">
                                     <div
-                                        className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed"
+                                        className="w-full rounded-[2.5rem] flex flex-col items-center justify-center border-4 border-dashed transition-all duration-500 relative overflow-hidden active:scale-[0.98]"
                                         style={{
-                                            aspectRatio: '4/3',
-                                            background: mediaPreview ? 'transparent' : 'var(--color-surface)',
-                                            borderColor: 'var(--color-border)',
-                                            overflow: 'hidden',
+                                            aspectRatio: '1/1',
+                                            background: mediaPreview ? 'transparent' : 'linear-gradient(135deg, var(--color-surface), var(--color-bg))',
+                                            borderColor: 'rgba(148, 163, 184, 0.15)',
                                         }}
                                     >
+                                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                        
                                         {mediaPreview ? (
-                                            mediaType === 'video' ? (
-                                                <video src={mediaPreview} className="w-full h-full object-cover" controls muted />
-                                            ) : mediaType === 'audio' ? (
-                                                <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4" style={{ background: 'var(--color-surface2)' }}>
-                                                    <Music size={40} style={{ color: 'var(--color-primary)' }} />
-                                                    <audio src={mediaPreview} controls className="w-full max-w-xs" />
+                                            <div className="w-full h-full relative group/preview">
+                                                {mediaType === 'video' ? (
+                                                    <video src={mediaPreview} className="w-full h-full object-cover rounded-[2rem]" controls muted />
+                                                ) : mediaType === 'audio' ? (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center gap-6 p-8 bg-[var(--color-surface)]">
+                                                        <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center relative">
+                                                            <div className="absolute inset-0 rounded-full animate-ping bg-primary/20"></div>
+                                                            <Music size={40} className="text-primary relative z-10" />
+                                                        </div>
+                                                        <audio src={mediaPreview} controls className="w-full max-w-xs" />
+                                                    </div>
+                                                ) : (
+                                                    <img src={mediaPreview} alt="preview" className="w-full h-full object-cover rounded-[2rem]" />
+                                                )}
+                                                
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                                    <p className="text-white text-xs font-bold uppercase tracking-widest">Change Media</p>
                                                 </div>
-                                            ) : (
-                                                <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
-                                            )
+                                            </div>
                                         ) : (
-                                            <>
-                                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                                                    style={{ background: 'var(--color-surface2)' }}>
-                                                    <Upload size={24} style={{ color: 'var(--color-primary)' }} />
+                                            <div className="flex flex-col items-center gap-6 p-8 relative z-10">
+                                                {/* Upload Icon with Animated Glow */}
+                                                <div className="relative">
+                                                    <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                                                    <div className="w-20 h-20 rounded-[2rem] bg-surface2 flex items-center justify-center border border-white/5 relative z-10 shadow-2xl">
+                                                        <Upload size={32} className="text-primary group-hover:-translate-y-1 transition-transform duration-300" />
+                                                    </div>
                                                 </div>
-                                                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                                                    Tap to upload
-                                                </p>
-                                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                                                    Image, Video or Audio (Max 10MB)
-                                                </p>
-                                            </>
+
+                                                <div className="text-center space-y-2">
+                                                    <p className="text-lg font-black tracking-tight text-[var(--color-text)]">Drag or Tap to Select</p>
+                                                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] opacity-60">High Performance Formats</p>
+                                                </div>
+
+                                                {/* Format Badges */}
+                                                <div className="flex items-center gap-3 pt-4">
+                                                    {[
+                                                        { ico: Image, lbl: 'IMG' },
+                                                        { ico: Video, lbl: 'MP4' },
+                                                        { ico: Music, lbl: 'MP3' }
+                                                    ].map((fmt, i) => (
+                                                        <div key={i} className="flex flex-col items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center border border-white/5">
+                                                                <fmt.ico size={12} className="text-muted" />
+                                                            </div>
+                                                            <span className="text-[8px] font-black text-muted opacity-40 uppercase">{fmt.lbl}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                     <input type="file" accept="image/*,video/*,audio/*" className="hidden" onChange={handleMediaChange} />
@@ -521,189 +568,221 @@ export default function CreatePage() {
 
                         {/* Step 2: Edit Media */}
                         {step === 2 && (
-                            <div>
-                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Edit Media</p>
-                                {mediaPreview && (
-                                    <div className="relative w-full rounded-2xl overflow-hidden mb-6 border border-surface" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
-                                        {mediaType === 'video' ? (
-                                            <video src={mediaPreview} className="w-full h-full object-cover" style={{ filter: activeFilter }} controls muted />
-                                        ) : mediaType === 'audio' ? (
-                                            <div className="p-4 flex flex-col items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
-                                                <Music size={32} style={{ color: 'var(--color-primary)' }} />
-                                                <audio src={mediaPreview} controls className="w-full" />
-                                            </div>
-                                        ) : (
-                                            <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" style={{ filter: activeFilter }} />
-                                        )}
-                                        
-                                        {(mediaType === 'video' || mediaType === 'image') && (
-                                            <button 
-                                                onClick={() => setIsEditorOpen(true)}
-                                                className="absolute top-4 right-4 px-4 py-2 rounded-xl text-xs font-bold shadow-lg backdrop-blur-md transition-all active:scale-95"
-                                                style={{ background: 'var(--color-primary)', color: '#fff' }}
-                                            >
-                                                Advanced Editor (Trim/Crop)
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {(mediaType === 'image' || mediaType === 'video') && (
-                                <div className="overflow-x-auto hide-scrollbar pb-2">
-                                    <div className="flex gap-3 px-1 w-max">
-                                        {FILTERS.map(f => (
-                                            <div
-                                                key={f.name}
-                                                className="flex flex-col items-center gap-1 cursor-pointer"
-                                                onClick={() => setActiveFilter(f.value)}
-                                            >
-                                                <div
-                                                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeFilter === f.value ? 'border-primary scale-105' : 'border-transparent'}`}
-                                                >
-                                                    {mediaType === 'video' ? (
-                                                        <video
-                                                            src={mediaPreview}
-                                                            className="w-full h-full object-cover"
-                                                            style={{ filter: f.value }}
-                                                            muted
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={mediaPreview || "https://i.pravatar.cc/150"}
-                                                            className="w-full h-full object-cover"
-                                                            style={{ filter: f.value }}
-                                                            alt={f.name}
-                                                        />
-                                                    )}
-                                                </div>
-                                                <span className="text-[10px] font-semibold" style={{ color: activeFilter === f.value ? 'var(--color-primary)' : 'var(--color-text)' }}>
-                                                    {f.name}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                            <div className="space-y-8">
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-bold tracking-tight text-[var(--color-text)]">Enhance Media</h2>
+                                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted opacity-60">Apply neural filters and sonic layers</p>
                                 </div>
+
+                                {mediaPreview && (
+                                    <div className="relative group/edit shadow-2xl rounded-[2rem] overflow-hidden border border-white/5 bg-black">
+                                        <div className="w-full relative" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '1/1' }}>
+                                            {mediaType === 'video' ? (
+                                                <video src={mediaPreview} className="w-full h-full object-cover" style={{ filter: activeFilter }} controls muted />
+                                            ) : mediaType === 'audio' ? (
+                                                <div className="p-10 flex flex-col items-center gap-6 bg-gradient-to-br from-surface to-bg">
+                                                    <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
+                                                        <Music size={32} className="text-primary" />
+                                                    </div>
+                                                    <audio src={mediaPreview} controls className="w-full" />
+                                                </div>
+                                            ) : (
+                                                <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" style={{ filter: activeFilter }} />
+                                            )}
+
+                                            <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent flex justify-end">
+                                                {(mediaType === 'video' || mediaType === 'image') && (
+                                                    <button 
+                                                        onClick={() => setIsEditorOpen(true)}
+                                                        className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl backdrop-blur-md transition-all active:scale-95 bg-primary text-black flex items-center gap-2"
+                                                    >
+                                                        <Search size={14} /> Master Editor
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
 
-                                <div className="mt-8">
-                                    <p className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-                                        <Music size={16} /> Add Music
-                                    </p>
+                                {(mediaType === 'image' || mediaType === 'video') && (
+                                    <div className="space-y-4">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] opacity-40 px-1">Neural Filters</p>
+                                        <div className="overflow-x-auto hide-scrollbar -mx-4 px-4 pb-4">
+                                            <div className="flex gap-4 w-max">
+                                                {FILTERS.map(f => (
+                                                    <div
+                                                        key={f.name}
+                                                        className="flex flex-col items-center gap-3 cursor-pointer group"
+                                                        onClick={() => setActiveFilter(f.value)}
+                                                    >
+                                                        <div
+                                                            className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 ${activeFilter === f.value ? 'border-primary ring-4 ring-primary/20 scale-110' : 'border-surface2'}`}
+                                                        >
+                                                            {mediaType === 'video' ? (
+                                                                <video
+                                                                    src={mediaPreview}
+                                                                    className="w-full h-full object-cover"
+                                                                    style={{ filter: f.value }}
+                                                                    muted
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={mediaPreview || "https://i.pravatar.cc/150"}
+                                                                    className="w-full h-full object-cover"
+                                                                    style={{ filter: f.value }}
+                                                                    alt={f.name}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${activeFilter === f.value ? 'text-primary' : 'text-muted group-hover:text-text'}`}>
+                                                            {f.name}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text)] opacity-40 px-1 mb-4">Sonic Layer</p>
                                     {!selectedMusic ? (
                                          <button 
                                              type="button"
                                              onClick={() => setIsMusicModalOpen(true)}
-                                             className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed transition-all text-sm font-semibold"
-                                             style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+                                             className="w-full flex flex-col items-center justify-center gap-4 py-8 rounded-[2rem] border-2 border-dashed border-white/10 bg-surface/30 hover:bg-surface/50 hover:border-primary/30 transition-all group"
                                          >
-                                             <Music size={18} />
-                                             Select Background Track
+                                             <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform">
+                                                <Music size={20} className="text-muted group-hover:text-primary" />
+                                             </div>
+                                             <div className="text-center">
+                                                <p className="text-xs font-black uppercase tracking-widest text-text">Choose Soundtrack</p>
+                                                <p className="text-[9px] text-muted font-bold uppercase tracking-wider mt-1">Universal Music Library</p>
+                                             </div>
                                          </button>
                                      ) : (
                                          <div 
-                                             className="p-4 rounded-2xl relative group"
-                                             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-primary)' }}
+                                             className="p-6 rounded-[2rem] relative bg-surface border border-primary/20 shadow-xl"
                                          >
-                                             <div className="flex items-center gap-3">
-                                                 <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)', color: '#000' }}>
-                                                     {selectedMusic.thumbnail ? <img src={selectedMusic.thumbnail} className="w-full h-full rounded-lg object-cover" /> : <Music size={20} />}
+                                             <div className="flex items-center gap-4">
+                                                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-primary/20 relative overflow-hidden">
+                                                     {selectedMusic.thumbnail ? <img src={selectedMusic.thumbnail} className="w-full h-full object-cover" /> : <Music size={24} className="text-primary" />}
+                                                     <div className="absolute inset-0 bg-black/20"></div>
                                                   </div>
                                                  <div className="flex-1 min-w-0">
-                                                     <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{selectedMusic.title}</p>
-                                                     <p className="text-[10px] truncate" style={{ color: 'var(--color-muted)' }}>{selectedMusic.artist}</p>
+                                                     <p className="text-sm font-black truncate text-text">{selectedMusic.title}</p>
+                                                     <p className="text-[9px] font-bold truncate text-muted uppercase tracking-widest mt-0.5">{selectedMusic.artist}</p>
                                                  </div>
-                                                 <button 
-                                                      type="button"
-                                                      onClick={() => {
-                                                          if (isPlayingMusic) {
-                                                              previewMusicRef.current.pause();
-                                                              setIsPlayingMusic(false);
-                                                          } else {
-                                                              previewMusicRef.current.src = selectedMusic.audioUrl;
-                                                              previewMusicRef.current.currentTime = musicStartTime;
-                                                              previewMusicRef.current.play();
-                                                              setIsPlayingMusic(true);
-                                                          }
-                                                      }}
-                                                      className={`p-2 rounded-full ${isPlayingMusic ? 'bg-primary text-black' : 'bg-surface2 text-muted'}`}
-                                                  >
-                                                      {isPlayingMusic ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-                                                  </button>
-                                                  <button 
-                                                      type="button"
-                                                      onClick={() => {
-                                                          setSelectedMusic(null);
-                                                          setIsPlayingMusic(false);
-                                                          if (previewMusicRef.current) previewMusicRef.current.pause();
-                                                      }}
-                                                      className="p-1.5 rounded-full"
-                                                      style={{ color: 'var(--color-muted)' }}
-                                                  >
-                                                      <X size={16} />
-                                                  </button>
-                                              </div>
-                                              
-                                              <div className="mt-4">
-                                                  <div className="flex items-center justify-between mb-1.5">
-                                                      <span className="text-[10px] font-bold" style={{ color: 'var(--color-muted)' }}>Start Time</span>
-                                                      <span className="text-[10px] font-mono" style={{ color: 'var(--color-primary)' }}>{Math.floor(musicStartTime)}s</span>
-                                                  </div>
-                                                  <input 
-                                                      type="range"
-                                                      min="0"
-                                                      max={Math.max(0, (selectedMusic.duration || 0) - 15)}
-                                                      value={musicStartTime}
-                                                      onChange={(e) => {
-                                                          const val = Number(e.target.value);
-                                                          setMusicStartTime(val);
-                                                          if (isPlayingMusic && previewMusicRef.current) {
-                                                              previewMusicRef.current.currentTime = val;
-                                                          }
-                                                      }}
-                                                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
-                                                      style={{ background: 'var(--color-border)' }}
-                                                  />
-                                              </div>
-                                          </div>
-                                      )}
+                                                 <div className="flex items-center gap-2">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (isPlayingMusic) {
+                                                                previewMusicRef.current.pause();
+                                                                setIsPlayingMusic(false);
+                                                            } else {
+                                                                previewMusicRef.current.src = selectedMusic.audioUrl;
+                                                                previewMusicRef.current.currentTime = musicStartTime;
+                                                                previewMusicRef.current.play();
+                                                                setIsPlayingMusic(true);
+                                                            }
+                                                        }}
+                                                        className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${isPlayingMusic ? 'bg-primary text-black' : 'bg-surface2 text-muted'}`}
+                                                    >
+                                                        {isPlayingMusic ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="translate-x-0.5" fill="currentColor" />}
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedMusic(null);
+                                                            setIsPlayingMusic(false);
+                                                            if (previewMusicRef.current) previewMusicRef.current.pause();
+                                                        }}
+                                                        className="w-10 h-10 rounded-full flex items-center justify-center bg-surface2 text-muted hover:text-rose-500 transition-colors"
+                                                    >
+                                                        <X size={18} />
+                                                    </button>
+                                                 </div>
+                                               </div>
+                                               
+                                               <div className="mt-8 pt-6 border-t border-white/5">
+                                                   <div className="flex items-center justify-between mb-4">
+                                                       <div className="flex flex-col">
+                                                           <span className="text-[10px] font-black uppercase tracking-widest text-text">Synchronization</span>
+                                                           <span className="text-[9px] font-bold text-muted uppercase tracking-wider mt-0.5">Define track offset</span>
+                                                       </div>
+                                                       <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black font-mono border border-primary/20">
+                                                            T-{Math.floor(musicStartTime)}s
+                                                       </span>
+                                                   </div>
+                                                   <input 
+                                                       type="range"
+                                                       min="0"
+                                                       max={Math.max(0, (selectedMusic.duration || 0) - 15)}
+                                                       value={musicStartTime}
+                                                       onChange={(e) => {
+                                                           const val = Number(e.target.value);
+                                                           setMusicStartTime(val);
+                                                           if (isPlayingMusic && previewMusicRef.current) {
+                                                               previewMusicRef.current.currentTime = val;
+                                                           }
+                                                       }}
+                                                       className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-primary bg-surface2"
+                                                   />
+                                               </div>
+                                           </div>
+                                       )}
                                 </div>
-
                             </div>
                         )}
 
                         {/* Step 3: Caption */}
                         {step === 3 && (
-                            <div>
-                                <p className="text-base font-bold mb-4" style={{ color: 'var(--color-text)' }}>Add Caption</p>
+                            <div className="space-y-6">
+                                <div className="space-y-1">
+                                    <h2 className="text-xl font-bold tracking-tight text-[var(--color-text)]">Final Touches</h2>
+                                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted opacity-60">Add context and engagement hooks</p>
+                                </div>
+
                                 {mediaPreview && (
-                                    <div className="w-full rounded-xl overflow-hidden mb-4" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '4/3' }}>
+                                    <div className="w-full rounded-[2rem] overflow-hidden shadow-xl border border-white/5" style={{ aspectRatio: mediaType === 'audio' ? 'auto' : '1/1' }}>
                                         {mediaType === 'video' ? (
                                             <video src={mediaPreview} className="w-full h-full object-cover" muted />
                                         ) : mediaType === 'audio' ? (
-                                            <div className="p-3 flex items-center gap-2" style={{ background: 'var(--color-surface2)' }}>
-                                                <Music size={24} style={{ color: 'var(--color-primary)' }} />
-                                                <audio src={mediaPreview} controls className="flex-1" />
+                                            <div className="p-6 flex items-center gap-4 bg-surface">
+                                                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                                                    <Music size={24} className="text-primary" />
+                                                </div>
+                                                <audio src={mediaPreview} controls className="flex-1 px-1" />
                                             </div>
                                         ) : (
                                             <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" style={{ filter: activeFilter }} />
                                         )}
                                     </div>
                                 )}
-                                <textarea
-                                    {...register('caption')}
-                                    rows={4}
-                                    placeholder="Write something compelling..."
-                                    className="w-full resize-none rounded-xl px-4 py-3 text-sm outline-none"
-                                    style={{
-                                        background: 'var(--color-surface)',
-                                        color: 'var(--color-text)',
-                                        border: '1px solid var(--color-border)',
-                                        lineHeight: '1.6',
-                                    }}
-                                />
-                                <div className="flex justify-end mt-1">
-                                    <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                                        {caption.length}/300
-                                    </span>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between px-1">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-text opacity-40">Creative Caption</p>
+                                        <span className={`text-[10px] font-black font-mono transition-colors ${caption.length > 280 ? 'text-rose-500' : 'text-primary'}`}>
+                                            {caption.length}/300
+                                        </span>
+                                    </div>
+                                    <div className="relative group">
+                                        <textarea
+                                            {...register('caption')}
+                                            rows={6}
+                                            placeholder="Write something compelling..."
+                                            className="w-full resize-none rounded-[1.5rem] px-6 py-5 text-sm font-medium outline-none transition-all duration-300 bg-surface border border-white/5 focus:border-primary/30 focus:shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.05)]"
+                                            style={{
+                                                color: 'var(--color-text)',
+                                                lineHeight: '1.7',
+                                            }}
+                                        />
+                                        <div className="absolute right-4 bottom-4 opacity-0 group-focus-within:opacity-100 transition-opacity">
+                                            <FileText size={16} className="text-primary/30" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1059,55 +1138,51 @@ export default function CreatePage() {
             </div>
 
             {/* Navigation buttons */}
-            <div
-                className="flex gap-3 px-4 py-4"
-                style={{ borderTop: '1px solid var(--color-border)' }}
-            >
-                {step > 1 && (
-                    <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setStep(step - 1)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold cursor-pointer"
-                        style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                    >
-                        <ChevronLeft size={16} /> Previous
-                    </motion.button>
-                )}
-                {step < 7 ? (
-                    <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setStep(step + 1)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold cursor-pointer"
-                        style={{
-                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))',
-                            color: '#fff',
-                        }}
-                    >
-                        Next <ArrowRight size={16} />
-                    </motion.button>
-                ) : (
-                    <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handlePublish}
-                        disabled={!!publishing}
-                        className="flex-1 py-3 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-75 relative overflow-hidden"
-                        style={{
-                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))',
-                            color: '#fff',
-                        }}
-                    >
-                        <div className="flex items-center justify-center gap-2">
-                            {publishing && (
-                                <motion.div 
-                                    animate={{ rotate: 360 }}
-                                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                                />
+            <div className="px-6 py-8 bg-[var(--color-bg)]/80 backdrop-blur-xl border-t border-white/5 sticky bottom-0 z-[100]">
+                <div className="flex gap-4 max-w-lg mx-auto">
+                    {step > 1 && (
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setStep(step - 1)}
+                            className="flex-1 flex items-center justify-center gap-2 py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest transition-all duration-300 bg-surface border border-white/5 text-muted hover:text-text hover:bg-surface2"
+                        >
+                            <ChevronLeft size={16} /> Previous
+                        </motion.button>
+                    )}
+                    {step < 7 ? (
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setStep(step + 1)}
+                            disabled={step === 1 && !mediaFile}
+                            className={`flex-[2] flex items-center justify-center gap-3 py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 shadow-xl relative overflow-hidden
+                                ${step === 1 && !mediaFile ? 'opacity-30 grayscale cursor-not-allowed' : 'bg-primary text-black hover:shadow-primary/20'}`}
+                        >
+                            <span className="relative z-10">Next Stage</span>
+                            <ArrowRight size={16} className="relative z-10" />
+                            {!(step === 1 && !mediaFile) && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
                             )}
-                            {typeof publishing === 'string' ? publishing : (publishing ? (isBusiness ? 'Processing...' : 'Publishing...') : (isBusiness ? `Pay ₹${totalBudget} & Publish` : '🚀 Publish'))}
-                        </div>
-                    </motion.button>
-                )}
+                        </motion.button>
+                    ) : (
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handlePublish}
+                            disabled={!!publishing}
+                            className="flex-[2] py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] bg-primary text-black transition-all duration-500 shadow-xl shadow-primary/20 relative overflow-hidden"
+                        >
+                            <div className="flex items-center justify-center gap-3 relative z-10">
+                                {publishing && (
+                                    <motion.div 
+                                        animate={{ rotate: 360 }}
+                                        transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                        className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full"
+                                    />
+                                )}
+                                {typeof publishing === 'string' ? publishing : (publishing ? (isBusiness ? 'Processing...' : 'Publishing...') : (isBusiness ? `Commit & Pay ₹${totalBudget}` : '🚀 Launch Post'))}
+                            </div>
+                        </motion.button>
+                    )}
+                </div>
             </div>
             <AnimatePresence>
                 {isMusicModalOpen && (

@@ -122,6 +122,37 @@ export default function FinancialRules() {
                         </div>
                     </div>
                 </section>
+                
+                <section className="space-y-6 pt-6 border-t border-surface2">
+                    <div className="flex items-center gap-3">
+                        <AlertTriangle className="w-4 h-4 text-primary" />
+                        <h3 className="font-semibold text-sm text-text uppercase tracking-wider">Admin Notification Mobiles</h3>
+                    </div>
+                    <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-lg">
+                        <p className="text-[10px] text-amber-500/80 font-medium leading-relaxed uppercase tracking-wider">
+                            Set up to 4 mobile numbers to receive alerts for NFT promotions and Withdrawals.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {[0, 1, 2, 3].map((idx) => (
+                            <div key={idx} className="space-y-2">
+                                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Mobile Number {idx + 1}</label>
+                                <input
+                                    type="text"
+                                    value={formData.adminNotificationMobiles?.[idx] || ''}
+                                    placeholder="+91 9999999999"
+                                    onChange={(e) => {
+                                        const nextMobiles = [...(formData.adminNotificationMobiles || ['', '', '', ''])];
+                                        nextMobiles[idx] = e.target.value;
+                                        handleChange('adminNotificationMobiles', nextMobiles);
+                                    }}
+                                    className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text placeholder:text-muted/30"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </section>
             </div>
 
             <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-lg flex items-start gap-4">

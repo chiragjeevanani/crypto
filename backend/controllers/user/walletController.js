@@ -6,6 +6,7 @@ const Withdrawal = require("../../models/Withdrawal");
 const { getAdminConfig } = require("../../utils/adminConfig");
 const { createNotification } = require("./notificationController");
 const { emitToUser, broadcastAll } = require("../../utils/socket");
+const { notifyAdmins } = require("../../utils/adminNotifier");
 
 const getIdempotencyKey = (req) =>
   (req.headers["idempotency-key"] || req.body.idempotencyKey || "").toString().trim() || null;
@@ -445,6 +446,18 @@ const withdraw = async (req, res) => {
       });
     } finally {
       session.endSession();
+    }
+
+    // Notify Admins for Withdrawal Request
+    try {
+        const user = await User.findById(userId).select("name handle");
+        await notifyAdmins(`Withdrawal request of ₹${withdrawal.finalAmount.toFixed(2)} (${withdrawal.coins} coins) submitted by ${user?.name || 'User'} (${user?.handle || '@user'}). Please review and approve.`, {
+            type: "withdrawal_request",
+            title: "New Withdrawal Request",
+            referenceId: withdrawal._id
+        });
+    } catch (err) {
+        console.error("Error in withdrawal notification:", err);
     }
 
     return res.status(201).json({

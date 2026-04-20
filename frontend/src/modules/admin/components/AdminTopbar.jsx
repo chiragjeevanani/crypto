@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Search,
     Bell,
@@ -14,12 +14,26 @@ import {
 } from 'lucide-react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../user/store/useUserStore';
+import { useAdminStore } from '../store/useAdminStore';
 import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
 
 export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMenuOpen }) {
     const { darkMode, toggleDarkMode, logout, user, profile } = useUserStore();
+    const { 
+        adminNotifications, 
+        unreadAdminNotificationsCount, 
+        loadAdminNotifications, 
+        readAdminNotification 
+    } = useAdminStore();
     const location = useLocation();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        loadAdminNotifications();
+        // Polling for new notifications every 60 seconds
+        const timer = setInterval(loadAdminNotifications, 60000);
+        return () => clearInterval(timer);
+    }, [loadAdminNotifications]);
 
     // Generate breadcrumbs from path
     const pathnames = location.pathname.split('/').filter((x) => x);
@@ -81,10 +95,85 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                     {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
 
-                <button className="relative p-2.5 rounded-lg hover:bg-surface2 text-muted transition-colors" title="System Alerts">
-                    <Bell className="w-4 h-4" />
-                    <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-rose-500 rounded-full border-2 border-surface"></span>
-                </button>
+                <div className="relative group/notif">
+                    <button 
+                        className="relative p-2.5 rounded-lg hover:bg-surface2 text-muted transition-colors" 
+                        title="System Alerts"
+                    >
+                        <Bell className="w-4 h-4" />
+                        {unreadAdminNotificationsCount > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] font-black flex items-center justify-center shadow-[0_2px_8px_rgba(244,63,94,0.4)] border-2 border-surface"
+                                style={{ background: '#f43f5e', color: '#fff' }}>
+                                {unreadAdminNotificationsCount > 99 ? '99+' : unreadAdminNotificationsCount}
+                            </span>
+                        )}
+                    </button>
+
+                    {/* Notifications Dropdown */}
+                    <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover/notif:opacity-100 group-hover/notif:visible transition-all duration-200 transform origin-top-right translate-y-1 group-hover/notif:translate-y-0 z-50">
+                        <div className="w-80 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden">
+                            <div className="px-4 py-3 border-b border-surface flex items-center justify-between">
+                                <h3 className="text-[10px] font-black uppercase tracking-widest text-text">Notifications</h3>
+                                {unreadAdminNotificationsCount > 0 && (
+                                    <button 
+                                        onClick={() => readAdminNotification('all')}
+                                        className="text-[9px] font-bold text-primary hover:underline uppercase"
+                                    >
+                                        Mark all as read
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
+                                {adminNotifications.length > 0 ? (
+                                    adminNotifications.map((notif) => (
+                                        <div 
+                                            key={notif.id || notif._id}
+                                            onClick={() => {
+                                                readAdminNotification(notif.id || notif._id);
+                                                if (notif.type === 'withdrawal_request') navigate('/admin/withdrawals');
+                                                else if (notif.type === 'nft_promotion') navigate('/admin/nfts');
+                                                else navigate('/admin');
+                                            }}
+                                            className={`p-4 border-b border-surface/50 hover:bg-primary/5 transition-colors cursor-pointer relative ${!notif.isRead ? 'bg-primary/[0.02]' : ''}`}
+                                        >
+                                            {!notif.isRead && (
+                                                <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-full"></div>
+                                            )}
+                                            <div className="flex items-start gap-3">
+                                                <div className={`p-1.5 rounded-lg shrink-0 ${
+                                                    notif.type === 'withdrawal_request' ? 'bg-amber-500/10 text-amber-500' :
+                                                    notif.type === 'nft_promotion' ? 'bg-blue-500/10 text-blue-500' :
+                                                    'bg-primary/10 text-primary'
+                                                }`}>
+                                                    {notif.type === 'withdrawal_request' ? <Settings size={14} /> : <Bell size={14} />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[10px] font-bold text-text truncate uppercase tracking-tight">{notif.title}</p>
+                                                    <p className="text-[10px] text-muted leading-relaxed mt-0.5 line-clamp-2">{notif.message}</p>
+                                                    <p className="text-[8px] text-muted/50 mt-2 font-bold uppercase tracking-widest">
+                                                        {new Date(notif.createdAt).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="p-8 text-center">
+                                        <Bell className="w-8 h-8 text-muted/20 mx-auto mb-2" />
+                                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">No active alerts</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-2 bg-surface2/30 border-t border-surface text-center">
+                                <button className="text-[9px] font-bold text-muted hover:text-text uppercase tracking-widest transition-colors">
+                                    Archive Center
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <div className="h-5 w-px bg-surface mx-2"></div>
 

@@ -46,6 +46,14 @@ const adminConfigSchema = new mongoose.Schema(
       type: Number,
       default: 10,
       min: 0
+    },
+    adminNotificationMobiles: {
+      type: [String],
+      default: [],
+      validate: [
+        (val) => val.length <= 4,
+        "Cannot exceed 4 mobile numbers"
+      ]
     }
   },
   { timestamps: true }

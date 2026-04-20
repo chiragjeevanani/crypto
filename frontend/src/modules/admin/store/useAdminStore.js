@@ -9,6 +9,7 @@ import { reportService } from '../services/reportService';
 import { financialService } from '../services/financialService';
 import { dashboardService } from '../services/dashboardService';
 import { useCampaignStore } from '../../user/store/useCampaignStore';
+import { notificationService } from '../services/notificationService';
 
 import { patchKYCSubmission } from '../../../shared/kycSync';
 import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
@@ -54,6 +55,8 @@ export const useAdminStore = create((set, get) => ({
         { id: 'rail_crypto', name: 'Crypto Payout', status: 'active', reconciled: 15, pending: 1, lastRun: '2 mins ago' },
     ],
     campaignClosures: [],
+    adminNotifications: [],
+    unreadAdminNotificationsCount: 0,
 
     // UI States
     isLoading: false,
@@ -678,6 +681,28 @@ export const useAdminStore = create((set, get) => ({
     notify: (type, message) => set({
         lastSharedAction: { type: type === 'error' ? 'error' : 'success', message, timestamp: Date.now() },
     }),
+
+    // Actions - Notifications
+    loadAdminNotifications: (page) => get().execute(async () => {
+        const { notifications, unreadCount } = await notificationService.fetchNotifications(page);
+        set({ adminNotifications: notifications, unreadAdminNotificationsCount: unreadCount });
+    }),
+
+    readAdminNotification: (id) => get().execute(async () => {
+        await notificationService.markAsRead(id);
+        const unreadCount = id === 'all' ? 0 : Math.max(0, get().unreadAdminNotificationsCount - 1);
+        set(state => ({
+            unreadAdminNotificationsCount: unreadCount,
+            adminNotifications: state.adminNotifications.map(n => (id === 'all' || n.id === id || n._id === id) ? { ...n, isRead: true } : n)
+        }));
+    }),
+
+    deleteAdminNotification: (id) => get().execute(async () => {
+        await notificationService.deleteNotification(id);
+        set(state => ({
+            adminNotifications: state.adminNotifications.filter(n => (n.id !== id && n._id !== id))
+        }));
+    }, "Notification dismissed."),
 
     // Global clear notification
     clearNotification: () => set({ lastSharedAction: null })

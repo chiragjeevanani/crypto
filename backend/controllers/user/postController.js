@@ -11,6 +11,7 @@ const { getBaseUrl, formatPostForUserFeed, populateCreator, resolveUrl } = requi
 const { getAdminConfig } = require("../../utils/adminConfig");
 const { UPLOAD_DIR } = require("../../utils/upload");
 const { cloudinary } = require("../../utils/cloudinary");
+const { notifyAdmins } = require("../../utils/adminNotifier");
 
 /**
  * User module: create post. Requires token (protect) and role User (authorize).
@@ -118,6 +119,16 @@ exports.createPost = async (req, res) => {
       musicStartTime: Number(body.musicStartTime) || 0,
       history: [{ action: isBusiness ? "Promotion Submission created" : (isNFT ? "NFT Submission created" : "Post created") }]
     });
+
+    // Notify Admins for NFT or Business Promotion
+    if (isNFT || isBusiness) {
+      const typeStr = isNFT ? "NFT" : "Business Promotion";
+      await notifyAdmins(`New ${typeStr} submission by ${user.name} (${user.handle || '@user'}). Please review and approve.`, {
+          type: "nft_promotion",
+          title: `New ${typeStr} Submission`,
+          referenceId: postDoc._id
+      });
+    }
 
     // Populate musicId immediately for the response
     const post = await Post.findById(postDoc._id)

@@ -52,7 +52,7 @@ export default function AppShell() {
     const view = searchParams.get('view')
 
     const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore()
-    const { posts, pushNotification, unreadNotifications: notifTotal } = useFeedStore()
+    const { posts, pushNotification, unreadNotifications: notifTotal, loadNotifications } = useFeedStore()
     const { kyc, setKYCFromSync, user, profile } = useUserStore()
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
 
@@ -206,11 +206,12 @@ export default function AppShell() {
             }
         }
         hydrateCampaigns()
+        loadNotifications()
         fetchAuctions('live') // Initial fetch for indicator
         return () => {
             mounted = false
         }
-    }, [pushNotification, fetchAuctions])
+    }, [pushNotification, fetchAuctions, loadNotifications])
 
 
 
@@ -297,10 +298,10 @@ export default function AppShell() {
                                 )}
                                 {item.key === 'notifications' && notifTotal > 0 && (
                                     <span 
-                                        className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold text-white"
-                                        style={{ background: 'var(--color-primary)' }}
+                                        className="ml-auto min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1.5 text-[10px] font-black text-white shadow-[0_2px_8px_rgba(239,68,68,0.4)] border-2 border-[var(--color-surface)]"
+                                        style={{ background: '#ef4444' }}
                                     >
-                                        {notifTotal}
+                                        {notifTotal > 99 ? '99+' : notifTotal}
                                     </span>
                                 )}
                                 {item.key === 'auctions' && liveAuctionCount > 0 && (

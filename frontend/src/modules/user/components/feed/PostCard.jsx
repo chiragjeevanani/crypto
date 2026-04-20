@@ -109,12 +109,25 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         try {
                             if (videoRef.current) {
                                 videoRef.current.muted = isMuted;
-                                await videoRef.current.play();
+                                // Handle buffering
+                                if (videoRef.current.readyState >= 2) {
+                                    await videoRef.current.play();
+                                } else {
+                                    videoRef.current.oncanplay = async () => {
+                                        await videoRef.current?.play();
+                                    };
+                                }
                             }
                             if (audioRef.current) {
                                 audioRef.current.muted = isMuted;
                                 if (post.musicStartTime) audioRef.current.currentTime = post.musicStartTime;
-                                await audioRef.current.play();
+                                if (audioRef.current.readyState >= 2) {
+                                    await audioRef.current.play();
+                                } else {
+                                    audioRef.current.oncanplay = async () => {
+                                        await audioRef.current?.play();
+                                    };
+                                }
                             }
                         } catch (err) {
                             if (err.name === 'NotAllowedError' && !isMuted) {
@@ -126,8 +139,14 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                     };
                     playMedia();
                 } else {
-                    if (videoRef.current) videoRef.current.pause()
-                    if (audioRef.current) audioRef.current.pause()
+                    if (videoRef.current) {
+                        videoRef.current.pause()
+                        videoRef.current.oncanplay = null
+                    }
+                    if (audioRef.current) {
+                        audioRef.current.pause()
+                        audioRef.current.oncanplay = null
+                    }
                 }
             },
             { threshold: 0.3 }
@@ -425,7 +444,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         )}
                         <video
                             ref={videoRef}
-                            src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '60' })}
+                            src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
                             className="w-full h-full object-cover"
                             style={{ filter: post.filter || 'none' }}
                             loop
