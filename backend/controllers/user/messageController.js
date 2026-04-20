@@ -148,7 +148,7 @@ exports.uploadMedia = async (req, res) => {
     res.json({ 
         success: true, 
         url, 
-        type: isImage ? "image" : (isVideo || isAudio ? "file" : "file"),
+        type: isImage ? "image" : (isVideo ? "video" : (isAudio ? "audio" : "file")),
         mimeType: file.mimetype,
         name: file.originalname
     });

@@ -50,7 +50,11 @@ export function optimizeCloudinaryUrl(url, options = {}) {
         }
     }
 
-    return `${prefix}${transformations.join(',')}/${remainder}`;
+    // Clean up: join with comma and remove any leading/trailing slashes to avoid double slashes
+    const transformationString = transformations.filter(Boolean).join(',');
+    const cleanRemainder = remainder.startsWith('/') ? remainder.substring(1) : remainder;
+
+    return `${prefix}${transformationString}/${cleanRemainder}`;
 }
 
 

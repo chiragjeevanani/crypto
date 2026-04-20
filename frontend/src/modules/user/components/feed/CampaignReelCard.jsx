@@ -46,24 +46,36 @@ export default function CampaignReelCard({ campaign, active }) {
     }
 
     useEffect(() => {
+        let isCurrent = true
+        const video = videoRef.current
+        const audio = audioRef.current
+
         if (active) {
-            if (videoRef.current) {
-                videoRef.current.play().catch(() => {})
+            if (video) {
+                video.muted = isMuted
+                video.play().catch(() => {})
             }
-            if (audioRef.current) {
-                audioRef.current.play().catch(() => {})
+            if (audio) {
+                audio.muted = isMuted
+                audio.play().catch(() => {})
             }
         } else {
-            if (videoRef.current) {
-                videoRef.current.pause()
-                videoRef.current.currentTime = 0
+            if (video) {
+                video.pause()
+                video.currentTime = 0
             }
-            if (audioRef.current) {
-                audioRef.current.pause()
-                audioRef.current.currentTime = 0
+            if (audio) {
+                audio.pause()
+                audio.currentTime = 0
             }
         }
-    }, [active])
+
+        return () => {
+            isCurrent = false
+            if (video) video.pause()
+            if (audio) audio.pause()
+        }
+    }, [active, isMuted])
 
     return (
         <div className="relative flex flex-col h-full items-center justify-center bg-black">
@@ -79,7 +91,6 @@ export default function CampaignReelCard({ campaign, active }) {
                                 muted={isMuted} 
                                 playsInline 
                                 loop 
-                                autoPlay
                                 preload="auto"
                                 crossOrigin="anonymous"
                                 poster={optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 480, quality: '50' })}

@@ -63,6 +63,8 @@ export default function ProfilePage() {
             email: profile.email || '',
             phone: profile.phone || '',
             bio: profile.bio,
+            state: profile.state || '',
+            language: profile.language || 'English',
         },
     })
 
@@ -100,6 +102,8 @@ export default function ProfilePage() {
                 email: data.email,
                 phone: data.phone,
                 bio: data.bio,
+                state: data.state,
+                language: data.language,
             })
             await loadPosts()
             setSettingsOpen(false)
@@ -131,8 +135,10 @@ export default function ProfilePage() {
             email: profile.email || '',
             phone: profile.phone || '',
             bio: profile.bio,
+            state: profile.state || '',
+            language: profile.language || 'English',
         })
-    }, [profile.id, profile.email, profile.fullName, profile.username, profile.handle, profile.phone, profile.bio])
+    }, [profile.id, profile.email, profile.fullName, profile.username, profile.handle, profile.phone, profile.bio, profile.state, profile.language])
     useEffect(() => {
         if (!editOpen) return
         resetEditForm({ username: profile.username, bio: profile.bio })
@@ -626,6 +632,19 @@ export default function ProfilePage() {
                                         <input {...settingsForm.register('handle')} placeholder="@handle" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('email')} placeholder="Email" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('phone')} placeholder="Phone Number" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                        <select {...settingsForm.register('state')} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>
+                                            <option value="">Select State</option>
+                                            {[
+                                                "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+                                            ].map(s => (
+                                                <option key={s} value={s}>{s}</option>
+                                            ))}
+                                        </select>
+                                        <select {...settingsForm.register('language')} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>
+                                            {["English", "Hindi", "Gujarati", "Marathi", "Bengali", "Telugu", "Tamil", "Kannada", "Malayalam"].map(l => (
+                                                <option key={l} value={l}>{l}</option>
+                                            ))}
+                                        </select>
                                         <textarea {...settingsForm.register('bio')} rows={3} placeholder="Bio" className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <button type="submit" disabled={profileSaving} className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-primary)', color: '#fff' }}>{profileSaving ? 'Saving...' : 'Save Personal Information'}</button>
                                     </form>

@@ -66,6 +66,8 @@ const defaultProfile = {
     totalEarnings: 0,
     followersList: [],
     followingList: [],
+    state: '',
+    language: 'English',
 }
 
 function profileFromUser(user) {
@@ -94,6 +96,8 @@ function profileFromUser(user) {
         referralCount: user.referralCount || 0,
         followersList: [],
         followingList: [],
+        state: user.state || '',
+        language: user.language || 'English',
     }
 }
 
@@ -244,10 +248,10 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
-    registerUser: async ({ name, email, password, phone, countryCode, referralCode }) => {
+    registerUser: async ({ name, email, password, phone, countryCode, state, language, referralCode }) => {
         set({ authLoading: true, authError: '' })
         try {
-            const response = await authService.register({ name, email, password, phone, countryCode, referralCode })
+            const response = await authService.register({ name, email, password, phone, countryCode, state, language, referralCode })
             const { token, refreshToken, user } = response
             saveAuthToStorage({ token, refreshToken, user })
             set({

@@ -23,20 +23,36 @@ const formatTime = (dateString) => {
 }
 
 const groupByDate = (notifications) => {
-    const today = new Date()
-    const yesterday = new Date(today)
+    if (!notifications || notifications.length === 0) return []
+    
+    const today = new Date().toDateString()
+    const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toDateString()
 
-    const isToday = (d) => new Date(d).toDateString() === today.toDateString()
-    const isYesterday = (d) => new Date(d).toDateString() === yesterday.toDateString()
+    const groupMap = new Map()
 
-    const groups = { Today: [], Yesterday: [], Earlier: [] }
     for (const n of notifications) {
-        if (isToday(n.createdAt)) groups.Today.push(n)
-        else if (isYesterday(n.createdAt)) groups.Yesterday.push(n)
-        else groups.Earlier.push(n)
+        if (!n.createdAt) continue
+        const d = new Date(n.createdAt)
+        const dStr = d.toDateString()
+        
+        let label
+        if (dStr === today) {
+            label = 'Today'
+        } else if (dStr === yesterdayStr) {
+            label = 'Yesterday'
+        } else {
+            label = d.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })
+        }
+
+        if (!groupMap.has(label)) {
+            groupMap.set(label, [])
+        }
+        groupMap.get(label).push(n)
     }
-    return groups
+
+    return Array.from(groupMap.entries()).map(([label, items]) => ({ label, items }))
 }
 
 // ─── Suggestion Card ─────────────────────────────────────────────────────────
@@ -133,12 +149,25 @@ export default function NotificationsPage() {
     } = useFeedStore()
 
     const [selectedNotification, setSelectedNotification] = useState(null)
+    const [followingIds, setFollowingIds] = useState(new Set())
 
     useEffect(() => {
         loadNotifications()
         loadSuggestions()
         markNotificationsRead()
     }, [])
+
+    const handleFollowBack = async (e, userId) => {
+        e.stopPropagation()
+        if (followingIds.has(userId)) return
+        try {
+            await followService.toggleFollow(userId)
+            setFollowingIds(prev => new Set([...prev, userId]))
+            loadSuggestions() // Refresh suggestions after follow
+        } catch (err) {
+            console.error('Follow back failed:', err)
+        }
+    }
 
     const groups = useMemo(() => groupByDate(notifications), [notifications])
 
@@ -206,11 +235,11 @@ export default function NotificationsPage() {
                         <p className="text-xs mt-1">No new activity to show</p>
                     </div>
                 ) : (
-                    Object.entries(groups).map(([groupLabel, items]) => {
+                    groups.map(({ label, items }) => {
                         if (items.length === 0) return null
                         return (
-                            <div key={groupLabel}>
-                                <p className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-40">{groupLabel}</p>
+                            <div key={label}>
+                                <p className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-40">{label}</p>
                                 <div className="space-y-3">
                                     {items.map((item) => (
                                         <motion.div
@@ -231,14 +260,22 @@ export default function NotificationsPage() {
                                                     style={{ background: 'var(--color-primary)' }} />
                                             )}
                                             <div
-                                                className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-12"
+                                                className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:rotate-12 overflow-hidden"
                                                 style={{
                                                     background: 'linear-gradient(135deg, var(--color-surface2), var(--color-bg))',
                                                     color: 'var(--color-primary)',
                                                     border: '1px solid var(--color-border)'
                                                 }}
                                             >
-                                                <NotifIcon type={item.type} />
+                                                {item.type === 'follow' && item.sender?.avatar ? (
+                                                    <img 
+                                                        src={optimizeCloudinaryUrl(item.sender.avatar, { width: 100 })} 
+                                                        className="w-full h-full object-cover"
+                                                        alt="sender"
+                                                    />
+                                                ) : (
+                                                    <NotifIcon type={item.type} />
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0 py-0.5">
                                                 <div className="flex justify-between items-start mb-1">
@@ -249,9 +286,26 @@ export default function NotificationsPage() {
                                                         {formatTime(item.createdAt)}
                                                     </span>
                                                 </div>
-                                                <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--color-muted)' }}>
-                                                    {item.subtitle}
-                                                </p>
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--color-muted)' }}>
+                                                        {item.subtitle}
+                                                    </p>
+                                                    {item.type === 'follow' && item.meta?.canFollowBack && !followingIds.has(item.meta.followerId) && (
+                                                        <button
+                                                            onClick={(e) => handleFollowBack(e, item.meta.followerId)}
+                                                            className="flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all hover:scale-105 active:scale-95"
+                                                            style={{ background: 'var(--color-primary)', color: '#000' }}
+                                                        >
+                                                            Follow Back
+                                                        </button>
+                                                    )}
+                                                    {followingIds.has(item.meta?.followerId) && (
+                                                        <span className="flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider opacity-50"
+                                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
+                                                            Following
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </motion.div>
                                     ))}

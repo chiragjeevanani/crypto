@@ -6,7 +6,6 @@ const protect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
@@ -15,6 +14,7 @@ const protect = (req, res, next) => {
     if (decoded.type === "refresh") {
       return res.status(401).json({ success: false, message: "Use access token for this request" });
     }
+    console.log(`[Auth] Decoded token:`, decoded);
     req.user = decoded;
     return next();
   } catch (error) {

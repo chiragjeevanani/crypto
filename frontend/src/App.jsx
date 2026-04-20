@@ -71,6 +71,10 @@ import MessagingPage from './modules/user/pages/messaging/MessagingPage'
 import NotificationsPage from './modules/user/pages/NotificationsPage'
 import GlobalModal from './modules/user/components/common/GlobalModal'
 import SocketHandler from './modules/user/components/common/SocketHandler'
+import AuctionListingPage from './modules/auction/pages/AuctionListingPage'
+import AuctionDetailPage from './modules/auction/pages/AuctionDetailPage'
+import CreateAuctionPage from './modules/auction/pages/CreateAuctionPage'
+import AdminAuctionManagement from './modules/admin/pages/AdminAuctionManagement'
 
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
@@ -130,6 +134,9 @@ export default function App() {
               <Route path="terms" element={<TermsConditionsPage />} />
               <Route path="privacy" element={<PrivacyPolicyPage />} />
               <Route path="guidelines" element={<CommunityGuidelinesPage />} />
+              <Route path="auctions" element={<AuctionListingPage />} />
+              <Route path="auctions/:id" element={<AuctionDetailPage />} />
+              <Route path="auctions/create" element={<CreateAuctionPage />} />
             </Route>
           </Route>
 
@@ -176,6 +183,7 @@ export default function App() {
               <Route path="transparency" element={<AuditLogs />} />
               <Route path="profile" element={<AdminProfilePage />} />
               <Route path="music" element={<MusicManagement />} />
+              <Route path="auctions" element={<AdminAuctionManagement />} />
             </Route>
           </Route>
 

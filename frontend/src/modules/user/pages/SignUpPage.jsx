@@ -53,6 +53,8 @@ export default function SignUpPage() {
         password: '',
         phone: '',
         countryCode: 'IN',
+        state: '',
+        language: 'English',
         referralCode: searchParams.get('ref')?.toUpperCase() || '',
     });
     const [fieldErrors, setFieldErrors] = useState({
@@ -61,6 +63,7 @@ export default function SignUpPage() {
         password: '',
         phone: '',
         country: '',
+        state: '',
     });
 
     const handleChange = (field, value) => {
@@ -93,8 +96,9 @@ export default function SignUpPage() {
             password: passwordErr,
             phone: phoneErr,
             country: countryErr,
+            state: formData.state ? '' : 'State is required',
         });
-        if (nameErr || emailErr || passwordErr || phoneErr || countryErr) return;
+        if (nameErr || emailErr || passwordErr || phoneErr || countryErr || !formData.state) return;
 
         try {
             await registerUser({
@@ -103,6 +107,8 @@ export default function SignUpPage() {
                 password: formData.password,
                 phone: formData.phone.trim() ? formData.phone.replace(/\D/g, '') : undefined,
                 countryCode: formData.countryCode,
+                state: formData.state,
+                language: formData.language,
                 referralCode: formData.referralCode.trim().toUpperCase(),
             });
             navigate('/signin');
@@ -220,6 +226,36 @@ export default function SignUpPage() {
                             {fieldErrors.country && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.country}</p>
                             )}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">State</label>
+                            <select
+                                value={formData.state}
+                                onChange={(e) => handleChange('state', e.target.value)}
+                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.state ? 'border-red-500' : 'border-surface'}`}
+                            >
+                                <option value="">Select State</option>
+                                {[
+                                    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+                                ].map(state => (
+                                    <option key={state} value={state}>{state}</option>
+                                ))}
+                            </select>
+                            {fieldErrors.state && (
+                                <p className="text-xs text-red-500 ml-1">{fieldErrors.state}</p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Preferred Language</label>
+                            <select
+                                value={formData.language}
+                                onChange={(e) => handleChange('language', e.target.value)}
+                                className="w-full bg-bg border border-surface rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text"
+                            >
+                                {["English", "Hindi", "Gujarati", "Marathi", "Bengali", "Telugu", "Tamil", "Kannada", "Malayalam"].map(lang => (
+                                    <option key={lang} value={lang}>{lang}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Referral Code (Optional)</label>

@@ -43,9 +43,13 @@ export const useFeedStore = create((set, get) => ({
     commentsByPostId: {},
     commentsLoading: {},
     savedPostIds: new Set(),
+    reelFeed: [],
+    reelFeedLoading: false,
+    reelFeedError: null,
 
     addPost: (post) => set((state) => ({
         posts: [post, ...state.posts],
+        reelFeed: post.media?.type === 'video' ? [post, ...state.reelFeed] : state.reelFeed
     })),
 
     loadPosts: async () => {
@@ -62,15 +66,35 @@ export const useFeedStore = create((set, get) => ({
         }
     },
 
+    loadReelFeed: async (interval = 6) => {
+        set({ reelFeedLoading: true, reelFeedError: null })
+        try {
+            const { reelFeedService } = await import('../services/reelFeedService')
+            const items = await reelFeedService.getFeed(interval)
+            set({ reelFeed: items || [] })
+        } catch (err) {
+            set({ reelFeedError: err?.message || 'Failed to load reels feed' })
+        } finally {
+            set({ reelFeedLoading: false })
+        }
+    },
+
     fetchSinglePost: async (postId) => {
         if (!postId) return null
         try {
             const res = await postService.getPostById(postId)
             if (res?.post) {
                 set((state) => {
-                    const exists = state.posts.find(p => p.id === res.post.id)
-                    if (exists) return { ...state }
-                    return { posts: [res.post, ...state.posts] }
+                    const existsInPosts = state.posts.find(p => String(p.id || p._id) === String(res.post.id || res.post._id))
+                    const existsInReels = state.reelFeed.find(p => String(p.id || p._id) === String(res.post.id || res.post._id))
+                    
+                    const nextPosts = existsInPosts ? state.posts : [res.post, ...state.posts]
+                    let nextReels = state.reelFeed
+                    if (!existsInReels && res.post.media?.type === 'video') {
+                        nextReels = [res.post, ...state.reelFeed]
+                    }
+                    
+                    return { posts: nextPosts, reelFeed: nextReels }
                 })
                 return res.post
             }
@@ -108,22 +132,49 @@ export const useFeedStore = create((set, get) => ({
     suggestionsLoading: false,
 
     toggleLike: async (postId) => {
+        // Optimistic update
+        let originalPosts = null
+        let originalReels = null
+
+        set((state) => {
+            originalPosts = [...state.posts]
+            originalReels = [...state.reelFeed]
+
+            const updateItem = (p) => {
+                if (String(p.id || p._id) === String(postId)) {
+                    const isLiked = !p.isLiked
+                    return { 
+                        ...p, 
+                        isLiked, 
+                        likes: isLiked ? (p.likes || 0) + 1 : Math.max(0, (p.likes || 1) - 1) 
+                    }
+                }
+                return p
+            }
+
+            return { 
+                posts: state.posts.map(updateItem),
+                reelFeed: state.reelFeed.map(updateItem)
+            }
+        })
+
         try {
             const res = await postService.likePost(postId)
+            const syncItem = (p) => 
+                (String(p.id || p._id) === String(postId))
+                    ? { ...p, isLiked: res.liked, likes: res.likes ?? (res.liked ? p.likes + 1 : p.likes - 1) }
+                    : p
+
             set((state) => ({
-                posts: state.posts.map((p) =>
-                    p.id === postId
-                        ? { ...p, isLiked: res.liked, likes: res.likes ?? (res.liked ? p.likes + 1 : p.likes - 1) }
-                        : p
-                ),
+                posts: state.posts.map(syncItem),
+                reelFeed: state.reelFeed.map(syncItem)
             }))
-        } catch {
-            set((state) => ({
-                posts: state.posts.map((p) =>
-                    p.id === postId
-                        ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
-                        : p
-                ),
+        } catch (err) {
+            console.error('[Store] Like error:', err)
+            // Rollback on error
+            set(() => ({
+                posts: originalPosts || [],
+                reelFeed: originalReels || []
             }))
         }
     },
@@ -184,35 +235,39 @@ export const useFeedStore = create((set, get) => ({
                 detail: { creatorId, isFollowing, followerCount } 
             }))
 
+            const updateItem = (p) => 
+                p.creator?.id === creatorId
+                    ? {
+                        ...p,
+                        creator: {
+                            ...p.creator,
+                            isFollowing,
+                            followers: followerCount !== null ? followerCount : p.creator?.followers,
+                        },
+                    }
+                    : p
+
             set((state) => ({
-                posts: state.posts.map((p) =>
-                    p.creator?.id === creatorId
-                        ? {
-                            ...p,
-                            creator: {
-                                ...p.creator,
-                                isFollowing,
-                                followers: followerCount !== null ? followerCount : p.creator?.followers,
-                            },
-                        }
-                        : p
-                ),
+                posts: state.posts.map(updateItem),
+                reelFeed: state.reelFeed.map(updateItem)
             }))
             return res
         } catch (error) {
             // Fallback: optimistic toggle in UI only
+            const updateItemFallback = (p) => 
+                p.creator?.id === creatorId
+                    ? {
+                        ...p,
+                        creator: {
+                            ...p.creator,
+                            isFollowing: !p.creator?.isFollowing,
+                        },
+                    }
+                    : p
+
             set((state) => ({
-                posts: state.posts.map((p) =>
-                    p.creator?.id === creatorId
-                        ? {
-                            ...p,
-                            creator: {
-                                ...p.creator,
-                                isFollowing: !p.creator?.isFollowing,
-                            },
-                        }
-                        : p
-                ),
+                posts: state.posts.map(updateItemFallback),
+                reelFeed: state.reelFeed.map(updateItemFallback)
             }))
             throw error
         }
@@ -226,11 +281,13 @@ export const useFeedStore = create((set, get) => ({
             const comment = res?.comment
             set((state) => {
                 const nextComments = [...(state.commentsByPostId[postId] || []), comment].filter(Boolean)
+                const updateItem = (p) => 
+                    p.id === postId ? { ...p, comments: res.commentCount ?? (p.comments || 0) + 1 } : p
+
                 return {
                     commentsByPostId: { ...state.commentsByPostId, [postId]: nextComments },
-                    posts: state.posts.map((p) =>
-                        p.id === postId ? { ...p, comments: res.commentCount ?? (p.comments || 0) + 1 } : p
-                    ),
+                    posts: state.posts.map(updateItem),
+                    reelFeed: state.reelFeed.map(updateItem)
                 }
             })
             return comment
@@ -245,12 +302,15 @@ export const useFeedStore = create((set, get) => ({
             const res = await postService.sharePost(postId)
             const raw = res?.shares
             const count = typeof raw === 'number' ? raw : (raw != null ? Number(raw) : null)
+            
+            const updateItem = (p) => 
+                String(p.id) === idStr
+                    ? { ...p, shares: count !== null && !Number.isNaN(count) ? count : (p.shares || 0) }
+                    : p
+
             set((s) => ({
-                posts: s.posts.map((p) =>
-                    String(p.id) === idStr
-                        ? { ...p, shares: count !== null && !Number.isNaN(count) ? count : (p.shares || 0) }
-                        : p,
-                ),
+                posts: s.posts.map(updateItem),
+                reelFeed: s.reelFeed.map(updateItem),
                 notifications: [
                     {
                         id: `share_${Date.now()}`,
@@ -264,7 +324,6 @@ export const useFeedStore = create((set, get) => ({
             }))
         } catch {
             // If the API fails, do not change the local share count.
-            // This keeps the UI consistent with the database (shares are stored in DB only).
         }
     },
 
@@ -272,10 +331,12 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await postService.recordView(postId)
             if (res.success && !res.alreadyViewed) {
+                const updateItem = (p) => 
+                    p.id === postId ? { ...p, views: res.views } : p
+
                 set((state) => ({
-                    posts: state.posts.map((p) =>
-                        p.id === postId ? { ...p, views: res.views } : p
-                    ),
+                    posts: state.posts.map(updateItem),
+                    reelFeed: state.reelFeed.map(updateItem)
                 }))
             }
         } catch {
@@ -398,12 +459,14 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await userCampaignService.vote(campaignId, submissionId)
             if (res.success) {
+                const updateItem = (p) => 
+                    String(p.id) === String(postId)
+                        ? { ...p, votes: res.votes, hasVoted: true }
+                        : p
+
                 set((state) => ({
-                    posts: state.posts.map((p) =>
-                        String(p.id) === String(postId)
-                            ? { ...p, votes: res.votes, hasVoted: true }
-                            : p
-                    ),
+                    posts: state.posts.map(updateItem),
+                    reelFeed: state.reelFeed.map(updateItem)
                 }))
             }
             return res
@@ -416,7 +479,8 @@ export const useFeedStore = create((set, get) => ({
         try {
             await postService.deletePost(postId)
             set((state) => ({
-                posts: state.posts.filter((p) => String(p.id) !== String(postId))
+                posts: state.posts.filter((p) => String(p.id) !== String(postId)),
+                reelFeed: state.reelFeed.filter((p) => String(p.id) !== String(postId))
             }))
         } catch (err) {
             console.error('Failed to delete post:', err)

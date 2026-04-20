@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Search, Bell, Wallet, User, MessageCircle } from 'lucide-react'
+import { Search, Bell, Wallet, User, MessageCircle, Gavel } from 'lucide-react'
+import { useAuctionStore } from '../../auction/store/useAuctionStore'
 import { searchService } from '../services/searchService'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
@@ -20,8 +21,12 @@ import { getSocket } from '../../../socket'
 import ErrorBoundary from '../components/shared/ErrorBoundary'
 
 export default function HomePage() {
-    const { posts, postsLoading, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost } = useFeedStore()
+    const { 
+        posts, postsLoading, notifications, unreadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
+        reelFeed, reelFeedLoading, reelFeedError, loadReelFeed
+    } = useFeedStore()
     const { profile } = useUserStore()
+    const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
     useEffect(() => { loadPosts() }, [loadPosts])
     const [searchParams] = useSearchParams()
@@ -58,9 +63,6 @@ export default function HomePage() {
         () => posts.filter((post) => post.media?.type === 'video'),
         [posts],
     )
-    const [reelFeed, setReelFeed] = useState([])
-    const [reelFeedLoading, setReelFeedLoading] = useState(false)
-    const [reelFeedError, setReelFeedError] = useState('')
 
     const reelsStartIndex = useMemo(() => {
         if (!isReels || reelFeed.length === 0) return null
@@ -86,34 +88,15 @@ export default function HomePage() {
 
     useEffect(() => {
         if (!isReels) return
-        let mounted = true
-        const load = () => {
-            setReelFeedLoading(true)
-            reelFeedService.getFeed(6)
-                .then((items) => {
-                    if (mounted) {
-                        setReelFeed(items || [])
-                        setReelFeedError('')
-                    }
-                })
-                .catch((err) => {
-                    if (mounted) {
-                        setReelFeed([])
-                        setReelFeedError(err?.message || 'Failed to load reels feed')
-                    }
-                })
-                .finally(() => {
-                    if (mounted) setReelFeedLoading(false)
-                })
-        }
-        load()
-        const onRefresh = () => load()
+        
+        loadReelFeed(6)
+        
+        const onRefresh = () => loadReelFeed(6)
         window.addEventListener('reels-feed-refresh', onRefresh)
         return () => {
-            mounted = false
             window.removeEventListener('reels-feed-refresh', onRefresh)
         }
-    }, [isReels])
+    }, [isReels, loadReelFeed])
 
     useEffect(() => {
         if (!isExplore) return
@@ -158,6 +141,9 @@ export default function HomePage() {
         socket.on('receive_message', handleMsg)
         socket.on('messages_seen_update', handleSeen)
 
+        // Ensure live count is hydrated
+        fetchAuctions('live')
+
         return () => {
             socket.off('receive_message', handleMsg)
             socket.off('messages_seen_update', handleSeen)
@@ -170,9 +156,7 @@ export default function HomePage() {
             const idx = reelFeed.findIndex((p) => String(p.id) === String(currentPostId))
             if (idx === -1) {
                 // Not in current list, fetch it
-                fetchSinglePost(currentPostId).then((p) => {
-                    if (p) setReelFeed(prev => [p, ...prev])
-                })
+                fetchSinglePost(currentPostId)
             }
         } else {
             const idx = posts.findIndex((post) => String(post.id) === String(currentPostId))
@@ -228,6 +212,21 @@ export default function HomePage() {
                         K & Q Reels
                     </span>
                     <div className="relative flex items-center gap-2">
+                        <button
+                            onClick={() => navigate('/auctions')}
+                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden relative"
+                            style={{ 
+                                background: 'rgba(244, 63, 94, 0.1)', 
+                                color: 'var(--color-danger)',
+                                border: '1px solid rgba(244, 63, 94, 0.3)'
+                            }}
+                            aria-label="Auctions"
+                        >
+                            <Gavel size={16} className="animate-pulse" />
+                            {liveAuctionCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-bg animate-ping" />
+                            )}
+                        </button>
                         <button
                             onClick={() => {
                                 setQuery('')

@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { memo, useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music, Eye, Check, MoreHorizontal, AlertCircle, X, Trash2 } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import PostCard from './PostCard'
 import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
@@ -11,41 +12,72 @@ import { triggerCoinRain } from '../shared/CoinRain'
 import { playGiftSound } from '../../utils/giftSounds'
 import GiftBar from './GiftBar'
 import PostSplat from './PostSplat'
-import { formatCurrency, formatCount } from '../../utils/formatCurrency'
+import { formatCurrency, formatCount, timeAgo } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import Avatar from '../shared/Avatar'
 import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
-function ReelPost({ post, active, onClose }) {
+const ReelPostInner = ({ post, active, onClose }) => {
     if (!post?.creator) return <ReelFullSkeleton />
-    
-    const { toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost } = useFeedStore()
+
+    const {
+        toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost,
+        voteCampaignSubmission, deletePost, toggleFollow, loadComments, addComment, commentsByPostId, commentsLoading
+    } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const { profile } = useUserStore()
     const navigate = useNavigate()
-    const handleLike = () => {
+    const creatorInitial = (post.creator?.username || 'U').charAt(0)
+    const splat = splats[post.id]
+    const earnings = earningsByPostId?.[post.id] ?? post.earnings ?? 0
+    const isSelfPost = profile?._id && post.creator?._id && String(profile._id) === String(post.creator._id)
+
+    const [showComments, setShowComments] = useState(false)
+    const [commentDraft, setCommentDraft] = useState('')
+    const postComments = commentsByPostId[post.id] ?? []
+
+    useEffect(() => {
+        if (showComments && post.id) loadComments(post.id)
+    }, [showComments, post.id, loadComments])
+
+    const handleComment = (e) => {
+        if (e) e.stopPropagation()
+        setShowComments(true)
+    }
+
+    const handleAddComment = async () => {
+        const text = commentDraft.trim()
+        if (!text) return
+        try {
+            await addComment(post.id, text)
+            setCommentDraft('')
+        } catch { /* ignore */ }
+    }
+
+    const handleLike = async (e) => {
+        if (e) e.stopPropagation()
+        const id = post.id || post._id
+        console.log('[Reel] handleLike clicked for ID:', id)
+        if (!id) return
+
         try {
             if (post.category === 'Campaign' && post.campaign && post.campaignSubmission) {
                 const cId = post.campaign.id || post.campaign._id || post.campaign;
                 const sId = post.campaignSubmission.id || post.campaignSubmission._id || post.campaignSubmission;
-                voteCampaignSubmission(cId, sId, post.id)
+                await voteCampaignSubmission(cId, sId, id)
             } else {
-                toggleLike(post.id)
+                await toggleLike(id)
             }
-        } catch {
-            // ignore errors for now
+        } catch (err) {
+            console.error('[Reel] Like error:', err)
         }
     }
-
-    const creatorInitial = (post.creator?.username || 'U').charAt(0)
-    const splat = splats[post.id]
-    const earnings = earningsByPostId?.[post.id] ?? post.earnings ?? 0
     const handleGift = async (gift) => {
         const receiverId = post.creator?._id || post.creator?.id
         const postId = post._id || post.id
-        
+
         const result = await performGift({
             gift,
             receiverId,
@@ -68,7 +100,7 @@ function ReelPost({ post, active, onClose }) {
     const [isMuted, setIsMuted] = useState(false)
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
-    
+
     // Reporting state
     const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
     const [isReportModalOpen, setIsReportModalOpen] = useState(false)
@@ -109,14 +141,14 @@ function ReelPost({ post, active, onClose }) {
         if (e) e.stopPropagation()
         const nextMuted = !isMuted
         setIsMuted(nextMuted)
-        
+
         if (audioRef.current) {
             audioRef.current.muted = nextMuted
-            if (!nextMuted) audioRef.current.play().catch(() => {})
+            if (!nextMuted) audioRef.current.play().catch(() => { })
         }
         if (videoRef.current) {
             videoRef.current.muted = nextMuted
-            if (!nextMuted) videoRef.current.play().catch(() => {})
+            if (!nextMuted) videoRef.current.play().catch(() => { })
         }
 
         setShowMuteIndicator(true)
@@ -127,53 +159,53 @@ function ReelPost({ post, active, onClose }) {
         if (active) {
             const recordView = useFeedStore.getState().recordView
             if (recordView) recordView(post.id)
+        }
+    }, [active, post.id])
 
+    useEffect(() => {
+        let isCurrent = true
+        const video = videoRef.current
+        const audio = audioRef.current
+
+        if (active) {
             const playMedia = async () => {
                 try {
-                    // Try unmuted play first as requested by USER
-                    if (videoRef.current) {
-                        videoRef.current.muted = isMuted;
-                        await videoRef.current.play();
+                    if (video) {
+                        video.muted = isMuted
+                        if (isCurrent) await video.play()
                     }
-                    if (audioRef.current) {
-                        audioRef.current.muted = isMuted;
-                        await audioRef.current.play();
+                    if (audio) {
+                        audio.muted = isMuted
+                        if (isCurrent) await audio.play()
                     }
                 } catch (err) {
-                    // If blocked by browser (common for unmuted autoplay), fallback to muted to ensure it plays
-                    if (err.name === 'NotAllowedError' && !isMuted) {
-                        setIsMuted(true);
-                        if (videoRef.current) {
-                            videoRef.current.muted = true;
-                            videoRef.current.play().catch(() => {});
-                        }
-                        if (audioRef.current) {
-                            audioRef.current.muted = true;
-                            audioRef.current.play().catch(() => {});
-                        }
+                    if (err.name === 'NotAllowedError' && !isMuted && isCurrent) {
+                        setIsMuted(true)
                     }
                 }
-            };
-
-            playMedia();
+            }
+            playMedia()
         } else {
-            if (videoRef.current) {
-                videoRef.current.pause()
-                videoRef.current.currentTime = 0
+            if (video) {
+                video.pause()
+                video.currentTime = 0
             }
-            if (audioRef.current) {
-                audioRef.current.pause()
-                audioRef.current.currentTime = 0
+            if (audio) {
+                audio.pause()
+                audio.currentTime = 0
             }
+        }
+
+        return () => {
+            isCurrent = false
+            if (video) video.pause()
+            if (audio) audio.pause()
         }
     }, [active, post.id, isMuted])
 
-    const toggleSave = (e) => {
-        e.stopPropagation()
-        toggleSavePost(post.id)
-    }
 
-    const isSelfPost = profile?.id && post.creator?.id && String(profile.id) === String(post.creator.id)
+
+
 
     return (
         <div className="relative flex flex-col h-full bg-black items-center justify-center">
@@ -189,7 +221,6 @@ function ReelPost({ post, active, onClose }) {
                         loop
                         muted={isMuted}
                         playsInline
-                        autoPlay
                         preload="auto"
                         poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
                         crossOrigin="anonymous"
@@ -222,7 +253,7 @@ function ReelPost({ post, active, onClose }) {
                 </AnimatePresence>
 
                 {/* Persistent Volume Toggle */}
-                <button 
+                <button
                     onClick={toggleMute}
                     className="absolute right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
                     style={{ bottom: 'calc(8px + var(--reels-bottom-offset, 64px))' }}
@@ -242,7 +273,7 @@ function ReelPost({ post, active, onClose }) {
 
                 {/* Right-side actions (Instagram-style) */}
                 <div
-                    className="absolute right-2 flex flex-col items-center gap-4 text-white"
+                    className="absolute right-2 flex flex-col items-center gap-4 text-white z-40"
                     style={{ bottom: 'calc(96px + var(--reels-bottom-offset, 0px))' }}
                 >
                     <button
@@ -253,12 +284,12 @@ function ReelPost({ post, active, onClose }) {
                         <div className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center relative overflow-hidden group">
                             {post.category === 'Campaign' ? (
                                 <>
-                                    <Sparkles 
-                                        size={24} 
-                                        className={`transition-all duration-300 ${post.isLiked ? 'text-primary scale-110' : 'text-white'}`} 
+                                    <Sparkles
+                                        size={24}
+                                        className={`transition-all duration-300 ${post.isLiked ? 'text-primary scale-110' : 'text-white'}`}
                                     />
                                     {post.isLiked && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
                                             className="absolute inset-0 bg-primary/20 backdrop-blur-[2px]"
@@ -266,14 +297,14 @@ function ReelPost({ post, active, onClose }) {
                                     )}
                                 </>
                             ) : (
-                                <Heart size={22} fill={post.isLiked ? 'currentColor' : 'none'} style={{ color: post.isLiked ? 'var(--color-danger)' : 'white' }} />
+                                <Heart size={22} fill={post.isLiked ? 'currentColor' : 'none'} style={{ color: post.isLiked ? '#ff3b30' : 'white' }} />
                             )}
                         </div>
                         <span className={`text-[11px] font-black uppercase tracking-tighter ${post.isLiked && post.category === 'Campaign' ? 'text-primary' : 'text-white'}`}>
                             {post.category === 'Campaign' ? (post.isLiked ? 'VOTED' : 'VOTE') : (post.likes ?? 0)}
                         </span>
                     </button>
-                    {profile?.id && post.creator?.id && String(profile.id) === String(post.creator.id) && (
+                    {isSelfPost && (
                         <div className="flex flex-col items-center gap-1">
                             <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
                                 <Eye size={22} className="text-white" />
@@ -285,6 +316,7 @@ function ReelPost({ post, active, onClose }) {
                     )}
                     <button
                         type="button"
+                        onClick={handleComment}
                         className="flex flex-col items-center gap-1 cursor-pointer"
                     >
                         <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
@@ -296,7 +328,10 @@ function ReelPost({ post, active, onClose }) {
                     </button>
                     <button
                         type="button"
-                        onClick={toggleSave}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            toggleSavePost(post.id)
+                        }}
                         className="flex flex-col items-center gap-1 cursor-pointer"
                     >
                         <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
@@ -318,7 +353,7 @@ function ReelPost({ post, active, onClose }) {
                             {post.shares ?? 0}
                         </span>
                     </button>
-                    
+
                     <div className="relative">
                         <button
                             type="button"
@@ -335,7 +370,7 @@ function ReelPost({ post, active, onClose }) {
                         </button>
                         <AnimatePresence>
                             {isReportMenuOpen && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, scale: 0.95, x: -20 }}
                                     animate={{ opacity: 1, scale: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, x: -20 }}
@@ -343,7 +378,7 @@ function ReelPost({ post, active, onClose }) {
                                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                                 >
                                     {isSelfPost ? (
-                                        <button 
+                                        <button
                                             onClick={(e) => {
                                                 e.stopPropagation()
                                                 setIsReportMenuOpen(false)
@@ -355,7 +390,7 @@ function ReelPost({ post, active, onClose }) {
                                             Delete Reel
                                         </button>
                                     ) : (
-                                        <button 
+                                        <button
                                             onClick={(e) => {
                                                 e.stopPropagation()
                                                 setIsReportMenuOpen(false)
@@ -397,7 +432,7 @@ function ReelPost({ post, active, onClose }) {
                                     </button>
                                 </div>
                                 <p className="text-[12px] mb-6 opacity-60 font-medium" style={{ color: 'var(--color-text)' }}>Help us understand what's wrong.</p>
-                                
+
                                 <div className="space-y-2 mb-6 max-h-[40vh] overflow-y-auto pr-1">
                                     {['Spam', 'Harassment', 'Inappropriate', 'Illegal', 'Intellectual Property', 'Other'].map((option) => (
                                         <button
@@ -517,7 +552,99 @@ function ReelPost({ post, active, onClose }) {
                             </div>
                         </div>
                     )}
-                </div>
+                </div>                {typeof document !== 'undefined' && createPortal(
+                    <AnimatePresence>
+                        {showComments && (
+                            <>
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setShowComments(false)}
+                                    className="fixed inset-0 bg-black/80 z-[200]"
+                                />
+                                <motion.div
+                                    initial={{ y: '100%' }}
+                                    animate={{ y: 0 }}
+                                    exit={{ y: '100%' }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                    className="fixed bottom-0 left-0 right-0 h-[75%] md:h-[70%] bg-white text-zinc-900 rounded-t-[32px] z-[210] overflow-hidden flex flex-col md:max-w-[520px] lg:max-w-[560px] mx-auto shadow-2xl"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="p-4 flex items-center justify-between border-b border-zinc-100 sticky top-0 bg-white z-10 px-6">
+                                        <h4 className="font-bold flex items-center gap-2 text-base text-zinc-900">
+                                            Comments
+                                            <span className="text-sm font-normal opacity-40">({post.comments || 0})</span>
+                                        </h4>
+                                        <button
+                                            onClick={() => setShowComments(false)}
+                                            className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 bg-zinc-50/50">
+                                        {commentsLoading[post.id] ? (
+                                            <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-40">
+                                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                                <p className="text-sm">Loading comments...</p>
+                                            </div>
+                                        ) : postComments.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-24 opacity-20">
+                                                <MessageCircle size={56} strokeWidth={1.5} className="mb-4" />
+                                                <p className="text-base font-medium">No comments yet</p>
+                                                <p className="text-xs mt-1">Start the conversation!</p>
+                                            </div>
+                                        ) : (
+                                            postComments.map((comment) => (
+                                                <div key={comment.id} className="flex gap-3.5">
+                                                    <div className="w-9 h-9 rounded-full bg-white flex-shrink-0 flex items-center justify-center overflow-hidden border border-zinc-200 shadow-sm">
+                                                        {comment.author?.avatar ? (
+                                                            <img src={comment.author.avatar} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-sm font-bold text-zinc-300">{(comment.author?.name || 'U')[0]}</span>
+                                                        )
+                                                        }
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className="text-sm font-extrabold text-zinc-900 truncate max-w-[120px]">{comment.author?.handle || comment.author?.name || 'User'}</span>
+                                                            <span className="text-[10px] text-zinc-400 shrink-0">{timeAgo(comment.createdAt)}</span>
+                                                        </div>
+                                                        <p className="text-[13px] leading-relaxed text-zinc-700 break-words font-medium">{comment.text}</p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    <div className="p-4 border-t border-zinc-100 bg-white safe-area-bottom px-6">
+                                        <div className="flex items-center gap-3 bg-zinc-100 rounded-2xl px-4 py-2 border border-zinc-200 transition-all focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-white focus-within:shadow-sm">
+                                            <input
+                                                type="text"
+                                                value={commentDraft}
+                                                onChange={(e) => setCommentDraft(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                                                placeholder="Add a comment..."
+                                                className="flex-1 bg-transparent border-none outline-none text-[13px] py-1 text-zinc-900 placeholder:text-zinc-400"
+                                            />
+                                            <button
+                                                onClick={handleAddComment}
+                                                disabled={!commentDraft.trim()}
+                                                className="text-primary font-bold text-sm disabled:opacity-30 px-2 transition-all active:scale-95 disabled:scale-100"
+                                            >
+                                                Post
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>,
+                    document.body
+                )}
+
 
                 {post.musicData && (
                     <audio
@@ -536,6 +663,8 @@ function ReelPost({ post, active, onClose }) {
         </div>
     )
 }
+
+const ReelPost = memo(ReelPostInner)
 
 export default function PostFeedModal({ posts = [], startIndex = null, onClose, forceReels = false }) {
     const containerRef = useRef(null)
@@ -597,12 +726,12 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
 
     useEffect(() => {
         if (!isOpen || !isReelsMode) return
-        
+
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
                     const ratio = entry.intersectionRatio
-                    if (entry.isIntersecting && ratio > 0.6) {
+                    if (entry.isIntersecting && ratio >= 0.8) {
                         const index = parseInt(entry.target.getAttribute('data-index'))
                         if (!isNaN(index)) {
                             setActiveReelIndex(index)
@@ -612,7 +741,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
             },
             {
                 root: containerRef.current,
-                threshold: [0, 0.5, 0.6, 0.7, 0.8, 1.0], 
+                threshold: [0.8],
             }
         )
 
@@ -624,7 +753,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
 
         return () => observer.disconnect()
     }, [isOpen, isReelsMode, loopedPosts])
-    
+
     useEffect(() => {
         if (!isOpen || posts.length <= 1) return
         const container = containerRef.current
@@ -700,14 +829,14 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                 >
                     <div className="mx-auto w-full md:max-w-[460px] lg:max-w-[520px]">
                         {loopedPosts.map((post, index) => (
-                                <div
-                                    key={`${post.id}-${index}`}
-                                    ref={(node) => {
-                                        if (node) postRefs.current[index] = node
-                                    }}
-                                    className="snap-start snap-always shrink-0 w-full reels-item"
-                                    data-index={index}
-                                >
+                            <div
+                                key={`${post.id}-${index}`}
+                                ref={(node) => {
+                                    if (node) postRefs.current[index] = node
+                                }}
+                                className="snap-start snap-always shrink-0 w-full reels-item"
+                                data-index={index}
+                            >
                                 {isReelsMode
                                     ? post?.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />

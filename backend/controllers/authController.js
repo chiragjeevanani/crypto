@@ -339,7 +339,9 @@ const updateAvatar = async (req, res) => {
     if (useCloudinary) {
       const uploadResult = await cloudinary.uploader.upload(localPath, {
         resource_type: "image",
-        folder: "crypto-app/avatars"
+        folder: "crypto-app/avatars",
+        type: "upload",
+        access_mode: "public"
       });
       avatarUrl = uploadResult.secure_url;
       fs.unlink(localPath, () => {});

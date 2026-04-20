@@ -43,7 +43,9 @@ exports.createPost = async (req, res) => {
           : "image";
         const uploadResult = await cloudinary.uploader.upload(localPath, {
           resource_type: "auto",
-          folder: "crypto-app/posts"
+          folder: "crypto-app/posts",
+          type: "upload",
+          access_mode: "public"
         });
         mediaUrl = uploadResult.secure_url;
         if (file.mimetype.startsWith("video/")) mediaType = "video";
@@ -300,26 +302,40 @@ exports.toggleLike = async (req, res) => {
   try {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
-    const post = await Post.findById(req.params.id);
+    
+    const postId = req.params.id;
+    // 1. Fetch current like status once
+    const post = await Post.findById(postId).select("likedBy");
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
-    const likedBy = post.likedBy || [];
+
     const idStr = userId.toString();
-    const hasLiked = likedBy.some((oid) => oid && oid.toString() === idStr);
-    if (hasLiked) {
-      post.likedBy = likedBy.filter((oid) => oid.toString() !== idStr);
-      post.likes = Math.max(0, (post.likes || 0) - 1);
-    } else {
-      post.likedBy = [...likedBy, userId];
-      post.likes = (post.likes || 0) + 1;
+    const hasLiked = (post.likedBy || []).some((oid) => oid && oid.toString() === idStr);
+
+    // 2. Perform atomic update
+    const update = hasLiked 
+      ? { $pull: { likedBy: userId }, $inc: { likes: -1 } }
+      : { $addToSet: { likedBy: userId }, $inc: { likes: 1 } };
+
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      update,
+      { new: true, runValidators: true }
+    );
+
+    // Ensure likes never goes negative (sanity check)
+    if (updatedPost.likes < 0) {
+      updatedPost.likes = 0;
+      await updatedPost.save();
     }
-    await post.save();
+
     return res.status(200).json({
       success: true,
       liked: !hasLiked,
-      likes: post.likes
+      likes: updatedPost.likes
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("Toggle Like Error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Error toggling like" });
   }
 };
 
@@ -404,22 +420,30 @@ exports.sharePost = async (req, res) => {
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
     const postId = req.params.id;
     if (!postId) return res.status(400).json({ success: false, message: "Post id is required" });
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).select("sharedBy shares");
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
-    post.sharedBy.push(userId);
-    post.shares = (post.shares || 0) + 1;
-    await post.save();
 
-    const sharesCount = Number(post.shares) || 0;
+    const alreadyShared = (post.sharedBy || []).some(id => id && id.toString() === userId.toString());
+    
+    let updatedPost = post;
+    if (!alreadyShared) {
+      updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        { $addToSet: { sharedBy: userId }, $inc: { shares: 1 } },
+        { new: true }
+      );
+    }
+
     return res.status(200).json({
       success: true,
-      shares: sharesCount,
+      shares: updatedPost.shares,
       added: !alreadyShared
     });
   } catch (error) {
     if (error.name === "CastError" && error.path === "_id") {
       return res.status(400).json({ success: false, message: "Invalid post id" });
     }
+    console.error("Share Post Error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -432,21 +456,23 @@ exports.recordView = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
     
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id).select("viewedBy views");
     if (!post) return res.status(404).json({ success: false, message: "Post not found" });
 
-    const viewedBy = post.viewedBy || [];
-    const hasViewed = viewedBy.some(v => v && v.toString() === userId.toString());
+    const hasViewed = (post.viewedBy || []).some(v => v && v.toString() === userId.toString());
 
+    let updatedPost = post;
     if (!hasViewed) {
-      post.viewedBy.push(userId);
-      post.views = (post.views || 0) + 1;
-      await post.save();
+      updatedPost = await Post.findByIdAndUpdate(
+        req.params.id,
+        { $addToSet: { viewedBy: userId }, $inc: { views: 1 } },
+        { new: true }
+      );
     }
 
     return res.status(200).json({
       success: true,
-      views: post.views,
+      views: updatedPost.views,
       alreadyViewed: hasViewed
     });
   } catch (error) {

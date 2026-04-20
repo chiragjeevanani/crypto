@@ -19,6 +19,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const typingTimeoutRef = useRef(null)
     const fileInputRef = useRef(null)
     const [isUploading, setIsUploading] = useState(false)
+    const [selectedImage, setSelectedImage] = useState(null)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -339,15 +340,52 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         if (msg.type === 'image') {
             return (
                 <div 
-                    className={`max-w-[70%] rounded-2xl overflow-hidden border ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
+                    className={`max-w-[70%] rounded-2xl overflow-hidden border cursor-pointer ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                    onClick={() => setSelectedImage(msg.payload.url)}
                 >
                     <img src={msg.payload.url} alt="shared image" className="max-w-full h-auto object-cover max-h-60" />
-                    {msg.sender === 'me' && (
-                        <div className="flex justify-end p-1 absolute bottom-1 right-1">
-                             {msg.status === 'seen' ? '✓✓' : '✓'}
+                </div>
+            )
+        }
+
+        if (msg.type === 'video') {
+            return (
+                <div 
+                    className={`max-w-[80%] rounded-2xl overflow-hidden border ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
+                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                >
+                    <video 
+                        src={msg.payload.url} 
+                        controls 
+                        className="max-w-full h-auto max-h-80"
+                        preload="metadata"
+                    />
+                </div>
+            )
+        }
+
+        if (msg.type === 'audio') {
+            const isMe = msg.sender === 'me'
+            return (
+                <div 
+                    className={`max-w-[80%] px-4 py-3 rounded-2xl flex flex-col gap-2 ${isMe ? 'text-white self-end rounded-br-none' : 'bg-[var(--color-surface2)] text-[var(--color-text)] self-start rounded-bl-none'}`}
+                    style={isMe ? { background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))' } : {}}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isMe ? 'bg-white/20' : 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'}`}>
+                            <PlayCircle size={18} />
                         </div>
-                    )}
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-bold truncate">{msg.payload.name || 'Audio contribution'}</p>
+                        </div>
+                    </div>
+                    <audio 
+                        src={msg.payload.url} 
+                        controls 
+                        className={`w-full h-8 ${isMe ? 'brightness-200 contrast-50' : ''}`}
+                        style={{ filter: isMe ? 'invert(1) hue-rotate(180deg)' : 'none' }}
+                    />
                 </div>
             )
         }
@@ -521,9 +559,14 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     className="hidden" 
                                     ref={fileInputRef} 
                                     onChange={handleFileUpload} 
-                                    accept="image/*,video/*,application/pdf"
+                                    accept="image/*,video/*,audio/*,.mp3,.wav,.m4a,application/pdf"
                                 />
-                                <button type="button" className="p-1 rounded-full hover:bg-[var(--color-surface2)]">
+                                <button 
+                                    type="button" 
+                                    className={`p-1 rounded-full hover:bg-[var(--color-surface2)] ${isUploading ? 'animate-pulse opacity-50' : ''}`}
+                                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                >
                                     <Paperclip size={19} style={{ color: 'var(--color-text)' }} />
                                 </button>
                             </>
@@ -531,6 +574,34 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     </div>
                 </form>
             </div>
+
+            {/* Image Preview Lightbox */}
+            <AnimatePresence>
+                {selectedImage && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSelectedImage(null)}
+                        className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+                    >
+                        <motion.button
+                            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
+                            onClick={() => setSelectedImage(null)}
+                        >
+                            <X size={24} />
+                        </motion.button>
+                        <motion.img
+                            initial={{ scale: 0.9 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.9 }}
+                            src={selectedImage}
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

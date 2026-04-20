@@ -13,6 +13,7 @@ import {
     PlayCircle,
     MessageCircle,
     Bell,
+    Gavel
 } from 'lucide-react'
 import BottomNavbar from '../components/shared/BottomNavbar'
 import CoinRain from '../components/shared/CoinRain'
@@ -28,6 +29,7 @@ import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import { getUserNFTListings } from '../../../shared/nftListings'
 import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
+import { useAuctionStore } from '../../auction/store/useAuctionStore'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
@@ -35,6 +37,7 @@ const SIDEBAR_ITEMS = [
     { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
     { label: 'Campaigns', to: '/campaigns', icon: Megaphone, key: 'campaigns' },
     { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
+    { label: 'Auctions', to: '/auctions', icon: Gavel, key: 'auctions' },
     { label: 'Notifications', to: '/notifications', icon: Bell, key: 'notifications' },
     { label: 'Messages', to: '/messaging', icon: MessageCircle, key: 'messaging' },
     { label: 'Wallet', to: '/wallet', icon: Wallet, key: 'wallet' },
@@ -51,6 +54,7 @@ export default function AppShell() {
     const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore()
     const { posts, pushNotification, unreadNotifications: notifTotal } = useFeedStore()
     const { kyc, setKYCFromSync, user, profile } = useUserStore()
+    const { liveAuctionCount, fetchAuctions } = useAuctionStore()
 
     const [activeCampaigns, setActiveCampaigns] = useState([])
     const [campaignLoading, setCampaignLoading] = useState(false)
@@ -202,10 +206,11 @@ export default function AppShell() {
             }
         }
         hydrateCampaigns()
+        fetchAuctions('live') // Initial fetch for indicator
         return () => {
             mounted = false
         }
-    }, [pushNotification])
+    }, [pushNotification, fetchAuctions])
 
 
 
@@ -296,6 +301,13 @@ export default function AppShell() {
                                         style={{ background: 'var(--color-primary)' }}
                                     >
                                         {notifTotal}
+                                    </span>
+                                )}
+                                {item.key === 'auctions' && liveAuctionCount > 0 && (
+                                    <span 
+                                        className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[8px] font-black text-white bg-red-600 animate-pulse uppercase"
+                                    >
+                                        Live
                                     </span>
                                 )}
                             </Link>

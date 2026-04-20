@@ -21,6 +21,7 @@ import {
     Target,
     PanelLeftClose,
     ChevronDown,
+    Gavel
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -57,6 +58,7 @@ const menuGroups = [
             { icon: Box, label: 'NFT Review', path: '/admin/nfts' },
             { icon: Vote, label: 'Voting', path: '/admin/voting' },
             { icon: Music, label: 'Music', path: '/admin/music' },
+            { icon: Gavel, label: 'Auctions', path: '/admin/auctions' },
         ]
     },
     {
@@ -151,6 +153,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                 if (item.label === 'NFT Review') return { ...item, badge: moderationStats.nfts > 0 ? moderationStats.nfts : null };
                 if (item.label === 'Reports') return { ...item, badge: moderationStats.reports > 0 ? moderationStats.reports : null };
                 if (item.label === 'Withdrawals') return { ...item, badge: moderationStats.withdrawals > 0 ? moderationStats.withdrawals : null };
+                if (item.label === 'Auctions') return { ...item, badge: moderationStats.pendingAuctions > 0 ? moderationStats.pendingAuctions : null };
                 return item;
             })
         }));
