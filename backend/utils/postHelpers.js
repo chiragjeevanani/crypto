@@ -129,7 +129,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
 
 function populateCreator(query) {
   return query
-    .populate("creator", "name email handle avatar role earningCoins isPremium")
+    .populate("creator", "name email handle avatar role earningCoins isPremium bio")
     .populate("campaign", "title brandName bannerUrl rewardDetails status isActive")
     .populate("campaignSubmission", "votes voters")
     .populate("musicId", "title artist audioUrl duration thumbnail")

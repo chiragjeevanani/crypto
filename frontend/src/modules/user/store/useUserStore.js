@@ -365,31 +365,46 @@ export const useUserStore = create((set, get) => ({
                 }
             }
             const payload = {}
-            const name = data.name ?? data.fullName ?? data.username
+            // Normalize name from various possible frontend keys
+            // Priority: Explicit 'name' > 'fullName' > 'username' > existing user name
+            const name = data.name ?? data.fullName ?? data.username ?? get().user?.name
             if (name !== undefined) payload.name = name
+            
             if (data.email !== undefined) payload.email = data.email
             if (data.phone !== undefined) payload.phone = data.phone
+            
+            // Ensure bio is passed even if it's an empty string
             if (data.bio !== undefined) payload.bio = data.bio
+            
             if (data.avatar !== undefined) payload.avatar = data.avatar
-            if (data.handle !== undefined) payload.handle = data.handle?.startsWith('@') ? data.handle.slice(1) : data.handle
+            if (data.handle !== undefined) {
+                payload.handle = data.handle?.startsWith('@') ? data.handle.slice(1) : data.handle
+            }
+            if (data.state !== undefined) payload.state = data.state
+            if (data.language !== undefined) payload.language = data.language
+
+            console.log("[Store] Final Update Payload:", payload);
+
             let user = mergedUser
             if (Object.keys(payload).length > 0) {
                 const response = await authService.updateProfile(token, payload)
+                if (response?._v) console.log("[Store] Backend Version:", response._v);
                 if (response?.user) {
+                    console.log("[Store] Profile updated successfully from backend response");
                     user = { ...user, ...response.user }
                 } else {
+                    console.warn("[Store] Backend did not return user object, falling back to local merge");
                     user = { ...user, ...payload }
                 }
             }
-            try {
-                const me = await authService.getMe(token)
-                if (me?.user) user = { ...user, ...me.user }
-            } catch {
-                // keep local update if refresh fails
-            }
+
+            // Sync with storage and state
             saveAuthToStorage({ token, user })
             set({ user, profile: profileFromUser(user) })
+            
+            return { success: true, user }
         } catch (err) {
+            console.error("[Store] Profile update failed:", err.message)
             throw err
         }
     },

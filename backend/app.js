@@ -32,10 +32,12 @@ const adminReportRoutes = require("./routes/admin/reportRoutes");
 const adminNotificationRoutes = require("./routes/admin/notificationRoutes");
 const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
 const auctionRoutes = require("./routes/auctionRoutes");
+const locationRoutes = require("./routes/locationRoutes");
 const { processEndedAuctions } = require("./controllers/auctionController");
 
 
 const app = express();
+app.set("etag", false);
 
 app.use(compression());
 app.use(cors());
@@ -80,6 +82,7 @@ app.use("/api/video", userVideoRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
 app.use("/api/auctions", auctionRoutes);
+app.use("/api/location", locationRoutes);
 
 // Background job for auctions
 setInterval(processEndedAuctions, 60 * 1000); // Check every minute

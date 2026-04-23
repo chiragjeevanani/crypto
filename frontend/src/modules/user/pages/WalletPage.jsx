@@ -278,17 +278,17 @@ export default function WalletPage() {
                 {/* INR Wallet Card */}
                 <motion.div 
                     whileHover={{ scale: 1.01 }}
-                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
+                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/10"
                     style={{ 
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                        background: 'linear-gradient(135deg, #FF9933 0%, #F45D22 100%)', 
                         color: '#fff' 
                     }}
                 >
                     <div className="relative z-10 flex items-center justify-between">
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">{currencyCode} BALANCE</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-90 mb-1">{currencyCode} BALANCE</p>
                             <h2 className="text-2xl font-black flex items-baseline gap-1">
-                                <span className="text-sm font-medium opacity-50">{currencySymbol}</span>
+                                <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
                                 {Math.round(inrWallet).toLocaleString()}
                             </h2>
                         </div>
@@ -305,32 +305,32 @@ export default function WalletPage() {
                 {/* Crypto Wallet Card */}
                 <motion.div 
                     whileHover={{ scale: 1.01 }}
-                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
+                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-black/5"
                     style={{ 
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
-                        color: '#fff' 
+                        background: 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)', 
+                        color: '#000' 
                     }}
                 >
                     <div className="relative z-10 flex items-center justify-between">
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">CRYPTO ASSETS</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">CRYPTO ASSETS</p>
                             <div className="flex items-baseline gap-2">
                                 <h2 className="text-xl font-black truncate">
-                                    {Number(cryptoWallet || 0).toFixed(3)} <span className="text-xs font-medium opacity-50">ETH</span>
+                                    {Number(cryptoWallet || 0).toFixed(3)} <span className="text-xs font-medium opacity-40">ETH</span>
                                 </h2>
-                                <span className="text-[9px] font-bold opacity-50 uppercase tracking-wider">
+                                <span className="text-[9px] font-bold opacity-40 uppercase tracking-wider">
                                     ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
                                 </span>
                             </div>
                         </div>
                         <button
                             onClick={() => setActiveTab('Linked')}
-                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all active:scale-95 uppercase tracking-widest"
+                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-black/5 hover:bg-black/10 transition-all active:scale-95 uppercase tracking-widest"
                         >
                             Manage
                         </button>
                     </div>
-                    <div className="absolute bottom-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+                    <div className="absolute bottom-[-20%] right-[-10%] w-24 h-24 bg-black/5 rounded-full blur-2xl" />
                 </motion.div>
 
                 {/* Earning Wallet Card */}
@@ -338,20 +338,20 @@ export default function WalletPage() {
                     whileHover={{ scale: 1.01 }}
                     className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
                     style={{ 
-                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                        background: 'linear-gradient(135deg, #138808 0%, #0B6604 100%)', 
                         color: '#fff' 
                     }}
                 >
                     <div className="relative z-10 flex items-center justify-between">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-70">EARNING WALLET</p>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80">EARNING WALLET</p>
                                 {earningsWallet >= 10 && (
                                     <span className="bg-white/20 backdrop-blur-md text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase">Unlock</span>
                                 )}
                             </div>
                             <h2 className="text-2xl font-black flex items-baseline gap-1">
-                                <span className="text-sm font-medium opacity-50">{currencySymbol}</span>
+                                <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
                                 {Math.round(earningsWallet).toLocaleString()}
                             </h2>
                         </div>
@@ -373,7 +373,7 @@ export default function WalletPage() {
                             ) : (
                                 <button
                                     onClick={() => setActiveTab('Withdraw')}
-                                    className="px-4 py-2 rounded-xl text-[10px] font-black bg-white text-orange-600 hover:bg-orange-50 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-black/5"
+                                    className="px-4 py-2 rounded-xl text-[10px] font-black bg-white text-emerald-700 hover:bg-emerald-50 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-black/5"
                                 >
                                     Withdraw
                                 </button>
@@ -389,7 +389,7 @@ export default function WalletPage() {
                 <div className="relative z-10">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-4 flex items-center gap-2">
                         <Zap size={12} className="text-primary" />
-                        Quick Recharge
+                        Recharge your wallet
                     </p>
                     <div className="flex flex-wrap gap-2 mb-6">
                         {[100, 200, 500].map(amt => (
@@ -406,22 +406,28 @@ export default function WalletPage() {
                     <div className="relative">
                         <div className="flex gap-2">
                             <div className="relative flex-1 group/input">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-muted group-focus-within/input:text-primary transition-colors">{currencySymbol}</span>
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary transition-colors group-focus-within/input:scale-110 transition-transform">{currencySymbol}</span>
                                 <input
                                     type="number"
                                     value={addInrAmount}
                                     onChange={(e) => setAddInrAmount(e.target.value)}
                                     placeholder="Enter custom amount"
-                                    className="w-full h-12 pl-10 pr-4 rounded-xl border-2 bg-bg text-sm font-black outline-none border-transparent focus:border-primary/30 focus:bg-surface transition-all"
+                                    className="w-full h-12 pl-10 pr-4 rounded-xl border-2 bg-primary/10 text-sm font-black outline-none border-primary/30 focus:border-primary focus:bg-primary/20 transition-all placeholder:text-primary/60"
                                     style={{ color: 'var(--color-text)' }}
                                 />
                             </div>
                             <button
                                 disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
                                 onClick={() => handleQuickAdd(addInrAmount)}
-                                className="px-8 h-12 rounded-xl bg-primary text-black text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 shrink-0"
+                                className="px-8 h-12 rounded-xl text-white text-[10px] font-black uppercase tracking-widest shadow-lg transition-all disabled:opacity-60 shrink-0 active:scale-95 hover:brightness-110"
+                                style={{ 
+                                    background: 'linear-gradient(135deg, #F39C12 0%, #D35400 100%)',
+                                    boxShadow: (isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0) 
+                                        ? 'none' 
+                                        : '0 10px 15px -3px rgba(211, 84, 0, 0.4)'
+                                }}
                             >
-                                {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Recharge'}
+                                {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Recharge'}
                             </button>
                         </div>
                     </div>

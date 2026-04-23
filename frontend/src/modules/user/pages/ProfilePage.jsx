@@ -76,7 +76,7 @@ export default function ProfilePage() {
         setProfileSaving(true)
         try {
             await updateProfile({
-                name: data.username || profile.fullName,
+                name: data.username,
                 bio: data.bio,
                 ...(editAvatarFile ? { avatarFile: editAvatarFile } : {}),
             })
@@ -96,7 +96,7 @@ export default function ProfilePage() {
         setProfileSaving(true)
         try {
             await updateProfile({
-                fullName: data.fullName,
+                name: data.fullName,
                 username: data.username,
                 handle: data.handle?.startsWith('@') ? data.handle : `@${data.handle || ''}`,
                 email: data.email,

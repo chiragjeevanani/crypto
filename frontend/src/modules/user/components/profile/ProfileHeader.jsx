@@ -48,7 +48,7 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                 </div>
             </div>
 
-            {/* Name + badge */}
+            {/* Name + badge + handle + bio */}
             <div className="mt-3">
                 <div className="flex items-center gap-2">
                     <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
@@ -72,9 +72,14 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
                     {profile.handle}
                 </p>
-                {profile.bio && (
-                    <p className="text-sm mt-1.5" style={{ color: 'var(--color-sub)' }}>
+                {/* BIO - Now clearly visible after the name/handle */}
+                {profile.bio ? (
+                    <p className="text-sm mt-2 font-medium leading-relaxed" style={{ color: 'var(--color-sub)' }}>
                         {profile.bio}
+                    </p>
+                ) : (
+                    <p className="text-[11px] mt-1.5 italic opacity-50" style={{ color: 'var(--color-muted)' }}>
+                        Add a bio to tell people about yourself...
                     </p>
                 )}
             </div>

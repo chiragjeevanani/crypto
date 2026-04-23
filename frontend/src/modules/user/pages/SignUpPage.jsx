@@ -3,13 +3,12 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
+import { authService } from '../../auth/services/authService';
 
 const COUNTRY_MOBILE_DIGITS = {
-    IN: 10,
-    US: 10,
-    GB: 10,
-    EU: 10,
-    AE: 9
+    IN: 10, US: 10, GB: 10, EU: 10, AE: 9,
+    OM: 8, JO: 9, CH: 9, CA: 10, AU: 9,
+    SG: 8, RU: 10, FR: 9
 };
 
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
@@ -47,6 +46,10 @@ export default function SignUpPage() {
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
     const [searchParams] = useSearchParams();
+    const [countries, setCountries] = useState([]);
+    const [states, setStates] = useState([]);
+    const [loadingLocations, setLoadingLocations] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -57,6 +60,7 @@ export default function SignUpPage() {
         language: 'English',
         referralCode: searchParams.get('ref')?.toUpperCase() || '',
     });
+
     const [fieldErrors, setFieldErrors] = useState({
         name: '',
         email: '',
@@ -65,6 +69,44 @@ export default function SignUpPage() {
         country: '',
         state: '',
     });
+
+    // Fetch countries on mount
+    React.useEffect(() => {
+        const fetchCountries = async () => {
+            try {
+                const res = await authService.getCountries();
+                if (res.success) {
+                    setCountries(res.countries);
+                }
+            } catch (err) {
+                console.error('Failed to fetch countries:', err);
+            }
+        };
+        fetchCountries();
+    }, []);
+
+    // Fetch states when country changes
+    React.useEffect(() => {
+        const fetchStates = async () => {
+            if (!formData.countryCode) return;
+            setLoadingLocations(true);
+            try {
+                const res = await authService.getStates(formData.countryCode);
+                if (res.success) {
+                    setStates(res.states);
+                    // Reset state selection if current state is not in new list
+                    if (res.states.length > 0 && !res.states.find(s => s.name === formData.state)) {
+                        setFormData(prev => ({ ...prev, state: '' }));
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch states:', err);
+            } finally {
+                setLoadingLocations(false);
+            }
+        };
+        fetchStates();
+    }, [formData.countryCode]);
 
     const handleChange = (field, value) => {
         let finalValue = value;
@@ -90,15 +132,21 @@ export default function SignUpPage() {
         const passwordErr = validatePassword(formData.password);
         const phoneErr = validatePhone(formData.phone, formData.countryCode);
         const countryErr = formData.countryCode ? '' : 'Country is required';
+        
+        // Only require state if there are states available for this country
+        const stateRequired = states.length > 0;
+        const stateErr = (stateRequired && !formData.state) ? 'State is required' : '';
+
         setFieldErrors({
             name: nameErr,
             email: emailErr,
             password: passwordErr,
             phone: phoneErr,
             country: countryErr,
-            state: formData.state ? '' : 'State is required',
+            state: stateErr,
         });
-        if (nameErr || emailErr || passwordErr || phoneErr || countryErr || !formData.state) return;
+
+        if (nameErr || emailErr || passwordErr || phoneErr || countryErr || stateErr) return;
 
         try {
             await registerUser({
@@ -107,7 +155,7 @@ export default function SignUpPage() {
                 password: formData.password,
                 phone: formData.phone.trim() ? formData.phone.replace(/\D/g, '') : undefined,
                 countryCode: formData.countryCode,
-                state: formData.state,
+                state: formData.state || "Default", // Provide fallback if no state selected
                 language: formData.language,
                 referralCode: formData.referralCode.trim().toUpperCase(),
             });
@@ -117,7 +165,6 @@ export default function SignUpPage() {
             if (msg.toLowerCase().includes('email already registered')) {
                 setFieldErrors(prev => ({ ...prev, email: 'Email already registered' }));
             }
-            // authError is set by store; keep it for generic errors
         }
     };
 
@@ -217,29 +264,51 @@ export default function SignUpPage() {
                                 onChange={(e) => handleChange('countryCode', e.target.value)}
                                 className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.country ? 'border-red-500' : 'border-surface'}`}
                             >
-                                <option value="IN">India (₹)</option>
-                                <option value="US">United States ($)</option>
-                                <option value="GB">United Kingdom (£)</option>
-                                <option value="EU">Eurozone (€)</option>
-                                <option value="AE">UAE (AED)</option>
+                                {countries.length > 0 ? (
+                                    countries.map(c => (
+                                        <option key={c.code} value={c.code}>
+                                            {c.flag} {c.name} ({c.currencySymbol})
+                                        </option>
+                                    ))
+                                ) : (
+                                    <>
+                                        <option value="IN">India (₹)</option>
+                                        <option value="US">United States ($)</option>
+                                        <option value="GB">United Kingdom (£)</option>
+                                        <option value="EU">Eurozone (€)</option>
+                                        <option value="AE">UAE (AED)</option>
+                                    </>
+                                )}
                             </select>
                             {fieldErrors.country && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.country}</p>
                             )}
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">State</label>
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
+                                {loadingLocations ? 'Loading States...' : 'State'}
+                            </label>
                             <select
                                 value={formData.state}
                                 onChange={(e) => handleChange('state', e.target.value)}
                                 className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.state ? 'border-red-500' : 'border-surface'}`}
+                                disabled={loadingLocations}
                             >
                                 <option value="">Select State</option>
-                                {[
-                                    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
-                                ].map(state => (
-                                    <option key={state} value={state}>{state}</option>
-                                ))}
+                                {states.length > 0 ? (
+                                    states.map(s => (
+                                        <option key={s.name} value={s.name}>{s.name}</option>
+                                    ))
+                                ) : !loadingLocations && formData.countryCode === 'IN' ? (
+                                    // Fallback for India if DB is empty
+                                    [
+                                        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi"
+                                    ].map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))
+                                ) : (
+                                    <option value="Default">Other / Not Listed</option>
+                                )}
                             </select>
                             {fieldErrors.state && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.state}</p>

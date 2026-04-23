@@ -211,9 +211,15 @@ export default function UserProfilePage() {
                         <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
                             {user.handle}
                         </p>
-                        <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--color-sub)' }}>
-                            {user.bio || 'Digital Creator & NFT Collector. Sharing daily vibes and exclusive content. 📸✨'}
-                        </p>
+                        {user.bio ? (
+                            <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--color-sub)' }}>
+                                {user.bio}
+                            </p>
+                        ) : (
+                            <p className="text-[11px] mt-1.5 italic opacity-50" style={{ color: 'var(--color-muted)' }}>
+                                No bio available
+                            </p>
+                        )}
                     </div>
 
                     {/* Actions */}

@@ -6,10 +6,15 @@ const request = async (path, options = {}) => {
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   try {
     response = await fetch(`${API_BASE}${path}`, {
+      method: options.method || "GET",
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
         ...(options.headers || {})
       },
+      cache: "no-store",
       ...options
     });
   } catch (err) {
@@ -91,5 +96,8 @@ export const authService = {
       headers: { Authorization: `Bearer ${token}` },
       body: formData
     });
-  }
+  },
+
+  getCountries: () => request("/location/countries"),
+  getStates: (countryCode) => request(`/location/states/${countryCode}`)
 };

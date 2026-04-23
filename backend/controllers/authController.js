@@ -49,25 +49,26 @@ const signRefreshToken = (user) =>
     { expiresIn: refreshExpiry }
   );
 
-const safeUser = (user) => ({
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  countryCode: user.countryCode || "IN",
-  countryName: user.countryName || "India",
-  currencyCode: user.currencyCode || "INR",
-  currencySymbol: user.currencySymbol || "₹",
-  phone: user.phone || "",
-  bio: user.bio || "",
-  avatar: user.avatar || "",
-  handle: user.handle || "",
-  referralCode: user.referralCode || "",
-  referralCount: user.referralCount || 0,
-  referredBy: user.referredBy || null,
-  state: user.state || "",
-  language: user.language || "English"
-});
+const safeUser = (user) => {
+  const safe = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar: user.avatar || "",
+    phone: user.phone || "",
+    bio: user.bio || "",
+    handle: user.handle || "",
+    countryCode: user.countryCode || "",
+    referralCount: user.referralCount || 0,
+    referralCode: user.referralCode || "",
+    isPremium: user.isPremium || false,
+    state: user.state || "",
+    language: user.language || "English",
+  };
+  console.log(`[Backend] SafeUser output:`, safe);
+  return safe;
+};
 
 const registerUser = async (req, res) => {
   try {
@@ -268,6 +269,9 @@ const getMe = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log(`[Backend] Updating profile for user: ${userId}`);
+    console.log(`[Backend] Received Body:`, req.body);
+
     const baseUrl = getBaseUrl(req);
     const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language"];
     const updates = {};
@@ -301,6 +305,7 @@ const updateProfile = async (req, res) => {
         }
       }
     }
+    console.log(`[Backend] Final Updates Object:`, updates);
 
     const user = await User.findByIdAndUpdate(
       userId,
@@ -312,7 +317,7 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    return res.status(200).json({ success: true, user: safeUser(user) });
+    return res.status(200).json({ success: true, user: safeUser(user), _v: "v1.1-fixed" });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
