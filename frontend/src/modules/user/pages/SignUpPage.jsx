@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { authService } from '../../auth/services/authService';
@@ -50,6 +50,28 @@ export default function SignUpPage() {
     const [states, setStates] = useState([]);
     const [loadingLocations, setLoadingLocations] = useState(false);
 
+    const [isStateOpen, setIsStateOpen] = useState(false);
+    const [stateSearch, setStateSearch] = useState('');
+    const stateDropdownRef = useRef(null);
+    
+    const [isCountryOpen, setIsCountryOpen] = useState(false);
+    const [countrySearch, setCountrySearch] = useState('');
+    const countryDropdownRef = useRef(null);
+
+    // Handle click outside to close dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (stateDropdownRef.current && !stateDropdownRef.current.contains(event.target)) {
+                setIsStateOpen(false);
+            }
+            if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
+                setIsCountryOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -85,11 +107,24 @@ export default function SignUpPage() {
         fetchCountries();
     }, []);
 
+    const filteredStates = states.filter(s => 
+        s.name.toLowerCase().includes(stateSearch.toLowerCase())
+    );
+
+    const filteredCountries = countries.filter(c => 
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) || 
+        c.code.toLowerCase().includes(countrySearch.toLowerCase())
+    );
+
+    const selectedCountry = countries.find(c => c.code === formData.countryCode) || 
+                          { name: 'India', code: 'IN', flag: '🇮🇳', currencySymbol: '₹' };
+
     // Fetch states when country changes
     React.useEffect(() => {
         const fetchStates = async () => {
             if (!formData.countryCode) return;
             setLoadingLocations(true);
+            setStateSearch(''); // Reset search
             try {
                 const res = await authService.getStates(formData.countryCode);
                 if (res.success) {
@@ -257,59 +292,142 @@ export default function SignUpPage() {
                                 <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.phone}</p>
                             )}
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative" ref={countryDropdownRef}>
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Country</label>
-                            <select
-                                value={formData.countryCode}
-                                onChange={(e) => handleChange('countryCode', e.target.value)}
-                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.country ? 'border-red-500' : 'border-surface'}`}
+                            
+                            {/* Custom Country Dropdown */}
+                            <div 
+                                onClick={() => setIsCountryOpen(!isCountryOpen)}
+                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium flex items-center justify-between cursor-pointer transition-all ${isCountryOpen ? 'border-primary ring-1 ring-primary/20' : 'border-surface'}`}
                             >
-                                {countries.length > 0 ? (
-                                    countries.map(c => (
-                                        <option key={c.code} value={c.code}>
-                                            {c.flag} {c.name} ({c.currencySymbol})
-                                        </option>
-                                    ))
-                                ) : (
-                                    <>
-                                        <option value="IN">India (₹)</option>
-                                        <option value="US">United States ($)</option>
-                                        <option value="GB">United Kingdom (£)</option>
-                                        <option value="EU">Eurozone (€)</option>
-                                        <option value="AE">UAE (AED)</option>
-                                    </>
+                                <span className="flex items-center gap-2 text-text">
+                                    {selectedCountry.flag} {selectedCountry.name} ({selectedCountry.currencySymbol})
+                                </span>
+                                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
+                            </div>
+
+                            <AnimatePresence>
+                                {isCountryOpen && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-[60] left-0 right-0 top-full mt-2 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                                    >
+                                        <div className="p-2 border-b border-white/5 bg-white/5">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                                                <input 
+                                                    autoFocus
+                                                    type="text"
+                                                    placeholder="Search countries..."
+                                                    value={countrySearch}
+                                                    onChange={(e) => setCountrySearch(e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full bg-bg border border-surface rounded-lg py-2 pl-9 pr-4 text-xs outline-none focus:border-primary/50 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                            {filteredCountries.length > 0 ? (
+                                                filteredCountries.map(c => (
+                                                    <div 
+                                                        key={c.code}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleChange('countryCode', c.code);
+                                                            setIsCountryOpen(false);
+                                                        }}
+                                                        className="px-4 py-2.5 text-sm hover:bg-primary/10 cursor-pointer flex items-center justify-between group transition-colors"
+                                                    >
+                                                        <span className={formData.countryCode === c.code ? 'text-primary font-semibold' : 'text-text'}>
+                                                            {c.flag} {c.name} ({c.currencySymbol})
+                                                        </span>
+                                                        {formData.countryCode === c.code && <Check className="w-4 h-4 text-primary" />}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-4 text-xs text-muted text-center italic">
+                                                    No countries found matching "{countrySearch}"
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
                                 )}
-                            </select>
+                            </AnimatePresence>
+
                             {fieldErrors.country && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.country}</p>
                             )}
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative" ref={stateDropdownRef}>
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
                                 {loadingLocations ? 'Loading States...' : 'State'}
                             </label>
-                            <select
-                                value={formData.state}
-                                onChange={(e) => handleChange('state', e.target.value)}
-                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.state ? 'border-red-500' : 'border-surface'}`}
-                                disabled={loadingLocations}
+                            
+                            {/* Custom Searchable Dropdown */}
+                            <div 
+                                onClick={() => !loadingLocations && setIsStateOpen(!isStateOpen)}
+                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium flex items-center justify-between cursor-pointer transition-all ${isStateOpen ? 'border-primary ring-1 ring-primary/20' : 'border-surface'} ${loadingLocations ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                <option value="">Select State</option>
-                                {states.length > 0 ? (
-                                    states.map(s => (
-                                        <option key={s.name} value={s.name}>{s.name}</option>
-                                    ))
-                                ) : !loadingLocations && formData.countryCode === 'IN' ? (
-                                    // Fallback for India if DB is empty
-                                    [
-                                        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi"
-                                    ].map(state => (
-                                        <option key={state} value={state}>{state}</option>
-                                    ))
-                                ) : (
-                                    <option value="Default">Other / Not Listed</option>
+                                <span className={formData.state ? 'text-text' : 'text-muted'}>
+                                    {formData.state || "Select State"}
+                                </span>
+                                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isStateOpen ? 'rotate-180' : ''}`} />
+                            </div>
+
+                            <AnimatePresence>
+                                {isStateOpen && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute z-50 left-0 right-0 top-full mt-2 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                                    >
+                                        <div className="p-2 border-b border-white/5 bg-white/5">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                                                <input 
+                                                    autoFocus
+                                                    type="text"
+                                                    placeholder="Search states..."
+                                                    value={stateSearch}
+                                                    onChange={(e) => setStateSearch(e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full bg-bg border border-surface rounded-lg py-2 pl-9 pr-4 text-xs outline-none focus:border-primary/50 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                            {filteredStates.length > 0 ? (
+                                                filteredStates.map(s => (
+                                                    <div 
+                                                        key={s.name}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleChange('state', s.name);
+                                                            setIsStateOpen(false);
+                                                        }}
+                                                        className="px-4 py-2.5 text-sm hover:bg-primary/10 cursor-pointer flex items-center justify-between group transition-colors"
+                                                    >
+                                                        <span className={formData.state === s.name ? 'text-primary font-semibold' : 'text-text'}>
+                                                            {s.name}
+                                                        </span>
+                                                        {formData.state === s.name && <Check className="w-4 h-4 text-primary" />}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-4 text-xs text-muted text-center italic">
+                                                    No states found matching "{stateSearch}"
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
                                 )}
-                            </select>
+                            </AnimatePresence>
+
                             {fieldErrors.state && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.state}</p>
                             )}

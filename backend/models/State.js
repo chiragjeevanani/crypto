@@ -11,6 +11,11 @@ const stateSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    countryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Country",
+      required: true
+    },
     countryCode: {
       type: String,
       required: true,
@@ -22,6 +27,7 @@ const stateSchema = new mongoose.Schema(
 );
 
 // Index for fast lookup by country
+stateSchema.index({ countryId: 1 });
 stateSchema.index({ countryCode: 1 });
 
 module.exports = mongoose.model("State", stateSchema);
