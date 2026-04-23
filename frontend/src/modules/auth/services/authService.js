@@ -5,17 +5,23 @@ const request = async (path, options = {}) => {
   let response;
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   try {
+    const headers = {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      ...(options.headers || {})
+    };
+
+    if (!isFormData) {
+      headers["Content-Type"] = "application/json";
+    }
+
     response = await fetch(`${API_BASE}${path}`, {
       method: options.method || "GET",
-      headers: {
-        ...(isFormData ? {} : { "Content-Type": "application/json" }),
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-        ...(options.headers || {})
-      },
+      headers,
+      body: options.body,
       cache: "no-store",
-      ...options
+      signal: options.signal
     });
   } catch (err) {
     const msg = err?.message || "";
@@ -99,5 +105,32 @@ export const authService = {
   },
 
   getCountries: () => request("/location/countries"),
-  getStates: (countryCode) => request(`/location/states/${countryCode}`)
+  getStates: (countryCode) => request(`/location/states/${countryCode}`),
+
+  // Admin Location Management
+  saveCountry: (token, data) => 
+    request("/location/admin/country", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data)
+    }),
+  
+  deleteCountry: (token, code) => 
+    request(`/location/admin/country/${code}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+
+  addState: (token, data) => 
+    request("/location/admin/state", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data)
+    }),
+
+  deleteState: (token, id) => 
+    request(`/location/admin/state/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    })
 };

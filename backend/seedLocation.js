@@ -16,47 +16,39 @@ if (dnsServers.length > 0) {
 }
 
 const countries = [
-  { name: "India", code: "IN", currencyCode: "INR", currencySymbol: "₹", flag: "🇮🇳" },
-  { name: "United States", code: "US", currencyCode: "USD", currencySymbol: "$", flag: "🇺🇸" },
-  { name: "United Kingdom", code: "UK", currencyCode: "GBP", currencySymbol: "£", flag: "🇬🇧" },
-  { name: "Eurozone", code: "EU", currencyCode: "EUR", currencySymbol: "€", flag: "🇪🇺" },
-  { name: "UAE", code: "AE", currencyCode: "AED", currencySymbol: "AED", flag: "🇦🇪" },
-  { name: "Oman", code: "OM", currencyCode: "OMR", currencySymbol: "OMR", flag: "🇴🇲" },
-  { name: "Jordan", code: "JO", currencyCode: "JOD", currencySymbol: "JOD", flag: "🇯🇴" },
-  { name: "Switzerland", code: "CH", currencyCode: "CHF", currencySymbol: "CHF", flag: "🇨🇭" },
-  { name: "Canada", code: "CA", currencyCode: "CAD", currencySymbol: "$", flag: "🇨🇦" },
-  { name: "Australia", code: "AU", currencyCode: "AUD", currencySymbol: "$", flag: "🇦🇺" },
-  { name: "Singapore", code: "SG", currencyCode: "SGD", currencySymbol: "$", flag: "🇸🇬" },
-  { name: "Russia", code: "RU", currencyCode: "RUB", currencySymbol: "₽", flag: "🇷🇺" },
-  { name: "France", code: "FR", currencyCode: "EUR", currencySymbol: "€", flag: "🇫🇷" },
+  { name: "India", code: "IN", currencyCode: "INR", currencySymbol: "₹", flag: "🇮🇳", inrValue: 1 },
+  { name: "United States", code: "US", currencyCode: "USD", currencySymbol: "$", flag: "🇺🇸", inrValue: 93 },
+  { name: "United Kingdom", code: "UK", currencyCode: "GBP", currencySymbol: "£", flag: "🇬🇧", inrValue: 126 },
+  { name: "Eurozone", code: "EU", currencyCode: "EUR", currencySymbol: "€", flag: "🇪🇺", inrValue: 110 },
+  { name: "Kuwait", code: "KW", currencyCode: "KWD", currencySymbol: "KWD", flag: "🇰🇼", inrValue: 304 },
+  { name: "Bahrain", code: "BH", currencyCode: "BHD", currencySymbol: "BHD", flag: "🇧🇭", inrValue: 248 },
+  { name: "Oman", code: "OM", currencyCode: "OMR", currencySymbol: "OMR", flag: "🇴🇲", inrValue: 245 },
+  { name: "Canada", code: "CA", currencyCode: "CAD", currencySymbol: "$", flag: "🇨🇦", inrValue: 68 },
+  { name: "Australia", code: "AU", currencyCode: "AUD", currencySymbol: "$", flag: "🇦🇺", inrValue: 70 },
+  { name: "Switzerland", code: "CH", currencyCode: "CHF", currencySymbol: "CHF", flag: "🇨🇭", inrValue: 120 },
+  { name: "Singapore", code: "SG", currencyCode: "SGD", currencySymbol: "$", flag: "🇸🇬", inrValue: 74 },
+  { name: "UAE", code: "AE", currencyCode: "AED", currencySymbol: "AED", flag: "🇦🇪", inrValue: 25 },
+  { name: "New Zealand", code: "NZ", currencyCode: "NZD", currencySymbol: "$", flag: "🇳🇿", inrValue: 55 },
+  { name: "Saudi Arabia", code: "SA", currencyCode: "SAR", currencySymbol: "SAR", flag: "🇸🇦", inrValue: 25 },
+  { name: "Qatar", code: "QA", currencyCode: "QAR", currencySymbol: "QAR", flag: "🇶🇦", inrValue: 26 },
 ];
 
 const statesData = {
-  IN: [
-    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", 
-    "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", 
-    "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", 
-    "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Chandigarh", "Jammu and Kashmir"
-  ],
-  US: [
-    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", 
-    "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", 
-    "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", 
-    "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", 
-    "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", 
-    "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
-  ],
+  IN: ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi"],
+  US: ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"],
   UK: ["England", "Scotland", "Wales", "Northern Ireland"],
   CA: ["Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador", "Nova Scotia", "Ontario", "Prince Edward Island", "Quebec", "Saskatchewan"],
-  AU: ["New South Wales", "Queensland", "South Australia", "Tasmania", "Victoria", "Western Australia", "Northern Territory", "Australian Capital Territory"],
+  AU: ["New South Wales", "Queensland", "South Australia", "Tasmania", "Victoria", "Western Australia"],
   AE: ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah"],
+  KW: ["Al Asimah", "Hawalli", "Farwaniya", "Mubarak Al-Kabeer", "Ahmadi", "Jahra"],
+  BH: ["Capital", "Muharraq", "Northern", "Southern"],
   OM: ["Muscat", "Dhofar", "Musandam", "Al Buraymi", "Ad Dakhiliyah", "Al Batinah North", "Al Batinah South", "Ash Sharqiyah North", "Ash Sharqiyah South", "Ad Dhahirah", "Al Wusta"],
   CH: ["Zurich", "Berne", "Lucerne", "Uri", "Schwyz", "Obwalden", "Nidwalden", "Glarus", "Zug", "Fribourg", "Solothurn", "Basel-Stadt", "Basel-Landschaft", "Schaffhausen", "Appenzell Ausserrhoden", "Appenzell Innerrhoden", "St. Gallen", "Grisons", "Aargau", "Thurgau", "Ticino", "Vaud", "Valais", "Neuchâtel", "Geneva", "Jura"],
-  FR: ["Auvergne-Rhône-Alpes", "Bourgogne-Franche-Comté", "Brittany", "Centre-Val de Loire", "Corsica", "Grand Est", "Hauts-de-France", "Île-de-France", "Normandy", "Nouvelle-Aquitaine", "Occitanie", "Pays de la Loire", "Provence-Alpes-Côte d'Azur"],
-  RU: ["Moscow", "Saint Petersburg", "Novosibirsk", "Yekaterinburg", "Nizhny Novgorod", "Kazan", "Chelyabinsk", "Omsk", "Samara", "Rostov-on-Don", "Ufa", "Volgograd", "Perm", "Krasnoyarsk", "Voronezh"],
-  JO: ["Amman", "Irbid", "Zarqa", "Aqaba", "Mafraq", "Jarash", "Ajloun", "Balqa", "Madaba", "Karak", "Tafilah", "Ma'an"],
   SG: ["Central Singapore", "North East", "North West", "South East", "South West"],
-  EU: ["Germany", "Italy", "Spain", "Netherlands", "Belgium", "Austria", "Portugal", "Greece", "Finland", "Ireland"] // Eurozone members as 'states' for simple selection
+  NZ: ["Auckland", "Wellington", "Canterbury", "Waikato", "Bay of Plenty", "Manawatu-Wanganui", "Otago", "Southland"],
+  SA: ["Riyadh", "Makkah", "Madinah", "Eastern Province", "Asir", "Tabuk", "Hail", "Northern Borders", "Jazan", "Najran", "Al Bahah", "Al Jawf", "Al-Qassim"],
+  QA: ["Doha", "Al Rayyan", "Al Wakrah", "Al Khor", "Al Shamal", "Al Daayen", "Umm Salal", "Al Shahaniya"],
+  EU: ["Germany", "Italy", "Spain", "Netherlands", "Belgium", "Austria", "Portugal", "Greece", "Finland", "Ireland"]
 };
 
 const seedDB = async () => {

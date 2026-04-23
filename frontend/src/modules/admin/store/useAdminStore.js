@@ -10,6 +10,7 @@ import { financialService } from '../services/financialService';
 import { dashboardService } from '../services/dashboardService';
 import { useCampaignStore } from '../../user/store/useCampaignStore';
 import { notificationService } from '../services/notificationService';
+import { authService } from '../../auth/services/authService';
 
 import { patchKYCSubmission } from '../../../shared/kycSync';
 import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
@@ -35,6 +36,8 @@ export const useAdminStore = create((set, get) => ({
     settings: null,
     categories: [],
     reports: [],
+    countries: [],
+    states: [],
     moderationStats: { ads: 0, nfts: 0, reports: 0, withdrawals: 0 },
     prdMetrics: null,
     dashboardStats: null,
@@ -452,6 +455,61 @@ export const useAdminStore = create((set, get) => ({
             }));
         }
     }, "Subcategory removed."),
+
+    // Actions - Locations
+    loadCountries: () => get().execute(async () => {
+        const data = await authService.getCountries();
+        if (data.success) {
+            set({ countries: data.countries });
+        }
+    }),
+
+    loadStates: (code) => get().execute(async () => {
+        const data = await authService.getStates(code);
+        if (data.success) {
+            set({ states: data.states });
+        }
+    }),
+
+    saveCountry: (formData) => get().execute(async () => {
+        const token = getStoredToken();
+        const data = await authService.saveCountry(token, formData);
+        if (data.success) {
+            set(state => ({
+                countries: state.countries.find(c => c.code === data.country.code)
+                    ? state.countries.map(c => c.code === data.country.code ? data.country : c)
+                    : [...state.countries, data.country]
+            }));
+            return data.country;
+        }
+    }, "Country data synchronized."),
+
+    deleteCountry: (code) => get().execute(async () => {
+        const token = getStoredToken();
+        const data = await authService.deleteCountry(token, code);
+        if (data.success) {
+            set(state => ({ countries: state.countries.filter(c => c.code !== code) }));
+        }
+    }, "Country removed from protocol."),
+
+    addState: (formData) => get().execute(async () => {
+        const token = getStoredToken();
+        const data = await authService.addState(token, formData);
+        if (data.success) {
+            set(state => ({ states: [...state.states, data.state] }));
+            get().loadCountries(); // Refresh state counts
+            return data.state;
+        }
+    }, "State node added."),
+
+    deleteState: (id) => get().execute(async () => {
+        const token = getStoredToken();
+        const data = await authService.deleteState(token, id);
+        if (data.success) {
+            set(state => ({ states: state.states.filter(s => s._id !== id) }));
+            get().loadCountries(); // Refresh state counts
+        }
+    }, "State node removed."),
 
     loadPostDetail: (id) => get().execute(async () => {
         const postDetail = await moderationService.fetchPostDetail(id);

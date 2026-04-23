@@ -28,6 +28,10 @@ const countrySchema = new mongoose.Schema(
     flag: {
       type: String,
       trim: true
+    },
+    inrValue: {
+      type: Number,
+      default: 1
     }
   },
   { timestamps: true }

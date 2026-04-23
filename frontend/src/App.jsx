@@ -75,6 +75,7 @@ import AuctionListingPage from './modules/auction/pages/AuctionListingPage'
 import AuctionDetailPage from './modules/auction/pages/AuctionDetailPage'
 import CreateAuctionPage from './modules/auction/pages/CreateAuctionPage'
 import AdminAuctionManagement from './modules/admin/pages/AdminAuctionManagement'
+import LocationManagement from './modules/admin/pages/LocationManagement'
 
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
@@ -184,6 +185,7 @@ export default function App() {
               <Route path="profile" element={<AdminProfilePage />} />
               <Route path="music" element={<MusicManagement />} />
               <Route path="auctions" element={<AdminAuctionManagement />} />
+              <Route path="locations" element={<LocationManagement />} />
             </Route>
           </Route>
 

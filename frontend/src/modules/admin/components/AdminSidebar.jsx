@@ -59,6 +59,7 @@ const menuGroups = [
             { icon: Vote, label: 'Voting', path: '/admin/voting' },
             { icon: Music, label: 'Music', path: '/admin/music' },
             { icon: Gavel, label: 'Auctions', path: '/admin/auctions' },
+            { icon: Globe, label: 'Locations', path: '/admin/locations' },
         ]
     },
     {
