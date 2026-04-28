@@ -12,6 +12,7 @@ import { followService } from '../services/followService'
 import { searchService } from '../services/searchService'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
+import Avatar from '../components/shared/Avatar'
 
 const TABS = ['Posts', 'NFTs']
 
@@ -148,19 +149,17 @@ export default function UserProfilePage() {
                 <div className="px-4 pt-6 pb-4">
                     <div className="flex items-start gap-4">
                         {/* Avatar */}
-                        <div
-                            className="flex-shrink-0 p-0.5 rounded-full"
-                            style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))' }}
-                        >
+                        <div className="flex-shrink-0">
                             <div
-                                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-xl overflow-hidden"
+                                className="w-20 h-20 rounded-full shadow-xl overflow-hidden"
                                 style={{ background: avatarColor }}
                             >
-                                {user.avatar ? (
-                                    <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
-                                ) : (
-                                    <img src="/person.png" alt={user.username} className="w-full h-full object-cover opacity-60" />
-                                )}
+                                <Avatar 
+                                    src={!user.avatar || user.avatar === 'null' || user.avatar === 'undefined' ? null : user.avatar} 
+                                    alt={user.username} 
+                                    className="w-full h-full"
+                                    size="w-full h-full" 
+                                />
                             </div>
                         </div>
 

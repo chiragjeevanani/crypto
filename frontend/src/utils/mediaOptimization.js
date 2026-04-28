@@ -3,7 +3,7 @@
  * Adds auto format, auto quality, and width capping.
  */
 export function optimizeCloudinaryUrl(url, options = {}) {
-    if (!url || typeof url !== 'string') {
+    if (!url || typeof url !== 'string' || url === 'null' || url === 'undefined') {
         return '/person.png';
     }
 

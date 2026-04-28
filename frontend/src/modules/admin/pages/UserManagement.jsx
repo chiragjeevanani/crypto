@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../store/useAdminStore';
 import { AdminPageHeader, AdminDataTable } from '../components/shared';
+import Avatar from '../../user/components/shared/Avatar';
 import { formatCurrency } from '../utils/currency';
 
 export default function UserManagement() {
@@ -165,7 +166,7 @@ export default function UserManagement() {
                             id: user.id,
                             cells: [
                                 <div className="flex items-center gap-3">
-                                    <img src={user.avatar} className="w-8 h-8 rounded-lg border border-surface" alt="" />
+                                    <Avatar src={user.avatar} size="w-8 h-8" className="rounded-lg border border-surface" />
                                     <div>
                                         <button
                                             onClick={() => navigate(`/admin/users/view/${user.id}`)}
@@ -317,7 +318,7 @@ export default function UserManagement() {
                                 {/* Header */}
                                 <div className="text-center relative border-b border-surface pb-6">
                                     <div className="w-20 h-20 rounded-2xl bg-surface2 mx-auto mb-4 border border-surface p-1 shadow-lg">
-                                        <img src={userDetail.avatar} className="w-full h-full object-cover rounded-xl" alt="" />
+                                        <Avatar src={userDetail.avatar} size="w-full h-full" className="rounded-xl" />
                                     </div>
                                     <button
                                         onClick={() => navigate(`/admin/users/view/${userDetail.id}`)}

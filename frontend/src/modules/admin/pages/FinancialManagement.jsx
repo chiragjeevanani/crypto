@@ -47,6 +47,8 @@ export default function FinancialManagement() {
     const [withdrawalFilter, setWithdrawalFilter] = useState('all');
     const [reviewWithdrawal, setReviewWithdrawal] = useState(null);
     const [userSnapshot, setUserSnapshot] = useState(null);
+    const [actionModal, setActionModal] = useState({ show: false, type: '', id: null, title: '', message: '', color: '' });
+    const [rejectionReason, setRejectionReason] = useState('');
 
 
     const navigate = useNavigate();
@@ -79,18 +81,26 @@ export default function FinancialManagement() {
     };
 
     const handleApprove = (id) => {
-        if (window.confirm('Broadcast approval to network? This will dedicate vault liquidity.')) {
-            approveWithdrawal(id);
-            setReviewWithdrawal(null);
-        }
+        setActionModal({
+            show: true,
+            type: 'approve',
+            id,
+            title: 'Confirm Approval',
+            message: 'Broadcast approval to network? This will dedicate vault liquidity.',
+            color: 'emerald-500'
+        });
     };
 
     const handleReject = (id) => {
-        const reason = window.prompt('Provide mandatory rejection cause for protocol log:');
-        if (reason) {
-            rejectWithdrawal(id, reason);
-            setReviewWithdrawal(null);
-        }
+        setRejectionReason('');
+        setActionModal({
+            show: true,
+            type: 'reject',
+            id,
+            title: 'Reject Protocol',
+            message: 'Provide mandatory rejection cause for protocol log:',
+            color: 'rose-500'
+        });
     };
 
 
@@ -174,7 +184,7 @@ export default function FinancialManagement() {
                                 </div>
                             </div>,
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">{w.method}</span>,
-                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-semibold uppercase tracking-wider border ${w.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-semibold uppercase tracking-wider border ${w.status === 'pending' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' :
                                 w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                                     'bg-rose-500/10 text-rose-500 border-rose-500/20'
                                 }`}>
@@ -282,7 +292,7 @@ export default function FinancialManagement() {
                                         <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{reviewWithdrawal.userId?.phone || 'No phone'}</p>
                                     </div>
                                     <div className="mt-4 flex items-center justify-center gap-2">
-                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${reviewWithdrawal.status === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${reviewWithdrawal.status === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'
                                             }`}>
                                             Account Status: {reviewWithdrawal.status || 'Unknown'}
                                         </span>
@@ -348,10 +358,9 @@ export default function FinancialManagement() {
                                             </div>
                                         </div>
 
-                                        {/* KYC Documents */}
                                         <div className="space-y-3">
                                             <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted flex items-center gap-2">
-                                                <ShieldCheck className="w-4 h-4 text-primary" /> Government Proof
+                                                <ShieldCheck className="w-4 h-4 text-primary" /> Verified Identifiers
                                             </h5>
                                             <div className="p-4 bg-surface/30 border border-surface rounded-xl space-y-4">
                                                 <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
@@ -364,27 +373,7 @@ export default function FinancialManagement() {
                                                         <p className="text-text">{reviewWithdrawal.kycDetails?.panNumber || 'N/A'}</p>
                                                     </div>
                                                 </div>
-                                                
-                                                <div className="space-y-3">
-                                                    {reviewWithdrawal.documents?.aadharFrontUrl && (
-                                                        <div className="space-y-1">
-                                                            <p className="text-[9px] font-bold text-muted uppercase">Aadhar Front</p>
-                                                            <img src={reviewWithdrawal.documents.aadharFrontUrl} alt="Aadhar Front" className="w-full rounded-lg border border-surface cursor-zoom-in" onClick={() => window.open(reviewWithdrawal.documents.aadharFrontUrl)} />
-                                                        </div>
-                                                    )}
-                                                    {reviewWithdrawal.documents?.aadharBackUrl && (
-                                                        <div className="space-y-1">
-                                                            <p className="text-[9px] font-bold text-muted uppercase">Aadhar Back</p>
-                                                            <img src={reviewWithdrawal.documents.aadharBackUrl} alt="Aadhar Back" className="w-full rounded-lg border border-surface cursor-zoom-in" onClick={() => window.open(reviewWithdrawal.documents.aadharBackUrl)} />
-                                                        </div>
-                                                    )}
-                                                    {reviewWithdrawal.documents?.panCardUrl && (
-                                                        <div className="space-y-1">
-                                                            <p className="text-[9px] font-bold text-muted uppercase">PAN Card</p>
-                                                            <img src={reviewWithdrawal.documents.panCardUrl} alt="PAN Card" className="w-full rounded-lg border border-surface cursor-zoom-in" onClick={() => window.open(reviewWithdrawal.documents.panCardUrl)} />
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                <p className="text-[8px] font-bold text-muted uppercase italic">Document images are securely stored in the User's KYC Record.</p>
                                             </div>
                                         </div>
 
@@ -435,6 +424,71 @@ export default function FinancialManagement() {
                             </div>
                         </motion.div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Custom Action Modal */}
+            <AnimatePresence>
+                {actionModal.show && (
+                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                            onClick={() => setActionModal({ ...actionModal, show: false })}
+                        />
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-md p-8 rounded-[32px] border bg-bg shadow-2xl space-y-6"
+                            style={{ borderColor: 'var(--color-border)' }}
+                        >
+                            <div className="space-y-2 text-center">
+                                <h3 className="text-xl font-black uppercase tracking-tight" style={{ color: `var(--color-${actionModal.type === 'approve' ? 'emerald-500' : 'rose-500'})` || actionModal.color }}>
+                                    {actionModal.title}
+                                </h3>
+                                <p className="text-xs font-bold text-muted uppercase tracking-widest">{actionModal.message}</p>
+                            </div>
+
+                            {actionModal.type === 'reject' && (
+                                <textarea 
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    placeholder="e.g. Account details incorrect or transaction limit reached..."
+                                    className="w-full h-32 p-4 rounded-2xl border bg-surface text-sm font-bold outline-none focus:border-primary transition-all resize-none"
+                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                />
+                            )}
+
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setActionModal({ ...actionModal, show: false })}
+                                    className="flex-1 py-4 rounded-xl bg-surface border font-black text-[10px] uppercase tracking-widest hover:bg-surface2 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    disabled={(actionModal.type === 'reject' && !rejectionReason.trim()) || isLoading}
+                                    onClick={() => {
+                                        if (actionModal.type === 'approve') {
+                                            approveWithdrawal(actionModal.id);
+                                        } else {
+                                            rejectWithdrawal(actionModal.id, rejectionReason);
+                                        }
+                                        setActionModal({ ...actionModal, show: false });
+                                        setReviewWithdrawal(null);
+                                    }}
+                                    className={`flex-1 py-4 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-lg transition-all ${
+                                        actionModal.type === 'approve' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-rose-500 shadow-rose-500/20'
+                                    }`}
+                                >
+                                    {isLoading ? 'Processing...' : actionModal.type === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Gavel, Clock, Trophy, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../../user/utils/formatCurrency';
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization';
+import Avatar from '../../user/components/shared/Avatar';
 
 const getAssetUrl = (path) => {
     if (!path) return '/default-avatar.png';
@@ -114,7 +115,7 @@ export default function AuctionListingPage() {
 
                             <div className="pt-2 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <img src={getAssetUrl(auction.creator?.avatar || '/default-avatar.png')} className="w-6 h-6 rounded-full border border-border" />
+                                    <Avatar src={auction.creator?.avatar} alt={auction.creator?.handle || auction.creator?.name} size="w-6 h-6" className="rounded-full border" style={{ borderColor: 'var(--color-border)' }} />
                                     <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>@{auction.creator?.handle || auction.creator?.name}</span>
                                 </div>
                                 <div className="flex items-center text-primary font-bold text-xs uppercase tracking-widest gap-1">

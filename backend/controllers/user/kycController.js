@@ -40,6 +40,9 @@ const submitKyc = async (req, res) => {
         status: "pending"
       });
     }
+    
+    // Update User model to reflect pending status
+    await User.findByIdAndUpdate(userId, { kycStatus: 'pending' });
 
     return res.status(201).json({ 
       success: true, 

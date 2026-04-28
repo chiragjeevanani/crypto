@@ -142,6 +142,10 @@ export default function NFTModeration() {
                             <div className="sm:w-2/5 aspect-square sm:aspect-auto relative bg-bg shrink-0">
                                 {['video', 'reel'].includes(nft.mediaType?.toLowerCase()) || (nft.image || '').match(/\.(mp4|m4v|mov|webm)$/i) ? (
                                     <video src={nft.image} className="w-full h-full object-cover" muted autoPlay loop playsInline />
+                                ) : ['audio', 'music'].includes(nft.mediaType?.toLowerCase()) || (nft.image || '').match(/\.(mp3|wav|ogg)$/i) ? (
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-surface2 p-4">
+                                        <audio src={nft.image} controls className="w-full" />
+                                    </div>
                                 ) : (
                                     <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
                                 )}

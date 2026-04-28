@@ -16,6 +16,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../user/store/useUserStore';
 import { useAdminStore } from '../store/useAdminStore';
 import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
+import Avatar from '../../user/components/shared/Avatar';
 
 export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMenuOpen }) {
     const { darkMode, toggleDarkMode, logout, user, profile } = useUserStore();
@@ -180,11 +181,7 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                 <div className="relative group">
                     <button className="flex items-center gap-3 p-1 rounded-lg hover:bg-surface2 transition-all">
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-[10px] text-black shadow-md overflow-hidden shrink-0">
-                            {user?.avatar ? (
-                                <img src={user.avatar} alt="Me" className="w-full h-full object-cover" />
-                            ) : (
-                                (user?.name || 'AD').slice(0, 2).toUpperCase()
-                            )}
+                        <Avatar src={user?.avatar} size="w-full h-full" alt="Me" />
                         </div>
 
                         <div className="hidden lg:block text-left pr-2">

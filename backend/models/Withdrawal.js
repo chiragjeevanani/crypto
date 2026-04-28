@@ -54,11 +54,6 @@ const withdrawalSchema = new mongoose.Schema(
       aadharNumber: String,
       panNumber: String
     },
-    documents: {
-      aadharFrontUrl: String,
-      aadharBackUrl: String,
-      panCardUrl: String
-    },
     status: {
       type: String,
       enum: ["pending", "success", "rejected"],

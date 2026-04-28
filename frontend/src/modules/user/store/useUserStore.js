@@ -158,9 +158,10 @@ export const useUserStore = create((set, get) => ({
                     authLoading: false,
                     kyc: { 
                         ...state.kyc, 
-                        status: user.kycStatus || 'unverified',
+                        status: user.kyc?.status || user.kycStatus || 'unverified',
                         referredCount: user.referralCount || 0,
                         referralCode: user.referralCode || '',
+                        rejectionReason: user.kyc?.rejectionReason || '',
                         // Preserve local URLs if backend doesn't send them (to avoid base64 bloat)
                         aadharFrontUrl: user.kyc?.documents?.aadharFrontUrl || state.kyc.aadharFrontUrl || '',
                         aadharBackUrl: user.kyc?.documents?.aadharBackUrl || state.kyc.aadharBackUrl || '',
@@ -384,33 +385,48 @@ export const useUserStore = create((set, get) => ({
                     mergedUser = { ...mergedUser, ...uploadRes.user }
                 }
             }
+            // Construct payload with explicit field checks
             const payload = {}
-            // Normalize name from various possible frontend keys
-            // Priority: Explicit 'name' > 'fullName' > 'username' > existing user name
-            const name = data.name ?? data.fullName ?? data.username ?? get().user?.name
-            if (name !== undefined) payload.name = name
             
+            // Handle name logic: prioritize explicit name, then fullName, then username
+            // In the Settings menu, fullName corresponds to 'name' in DB, 
+            // while username might be a legacy field or display name.
+            if (data.name !== undefined) {
+                payload.name = data.name
+            } else if (data.fullName !== undefined) {
+                payload.name = data.fullName
+            } else if (data.username !== undefined) {
+                payload.name = data.username
+            }
+
             if (data.email !== undefined) payload.email = data.email
             if (data.phone !== undefined) payload.phone = data.phone
             
-            // Ensure bio is passed even if it's an empty string
-            if (data.bio !== undefined) payload.bio = data.bio
-            
+            // Ensure bio is passed if it exists in the data object
+            if (data.bio !== undefined) {
+                payload.bio = data.bio
+                console.log("[Store] Bio update detected:", data.bio);
+            }
+
             if (data.avatar !== undefined) payload.avatar = data.avatar
+            
             if (data.handle !== undefined) {
+                // Remove @ if user added it manually
                 payload.handle = data.handle?.startsWith('@') ? data.handle.slice(1) : data.handle
             }
+            
             if (data.state !== undefined) payload.state = data.state
             if (data.language !== undefined) payload.language = data.language
 
-            console.log("[Store] Final Update Payload:", payload);
+            console.log("[Store] Final Update Payload sent to backend:", payload);
 
             let user = mergedUser
             if (Object.keys(payload).length > 0) {
                 const response = await authService.updateProfile(token, payload)
-                if (response?._v) console.log("[Store] Backend Version:", response._v);
+                if (response?._v) console.log("[Store] Backend API Version:", response._v);
+                
                 if (response?.user) {
-                    console.log("[Store] Profile updated successfully from backend response");
+                    console.log("[Store] Profile updated successfully. New Name:", response.user.name, "New Bio:", response.user.bio);
                     user = { ...user, ...response.user }
                 } else {
                     console.warn("[Store] Backend did not return user object, falling back to local merge");

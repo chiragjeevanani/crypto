@@ -182,7 +182,8 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                                                         setIsReportMenuOpen(false)
                                                         setIsReportModalOpen(true)
                                                     }}
-                                                    className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                                    className="w-full px-4 py-3 text-left text-sm font-semibold transition-colors flex items-center gap-2"
+                                                    style={{ color: 'var(--color-text)' }}
                                                 >
                                                     <AlertCircle size={14} />
                                                     Report Reel

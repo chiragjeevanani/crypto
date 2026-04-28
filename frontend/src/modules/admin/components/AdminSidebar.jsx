@@ -29,6 +29,7 @@ import { useUserStore } from '../../user/store/useUserStore';
 import { useAdminStore } from '../store/useAdminStore';
 import { simplifyAdminCopy } from '../utils/simplifyCopy';
 import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
+import Avatar from '../../user/components/shared/Avatar';
 
 const menuGroups = [
     {
@@ -315,11 +316,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
             <div className="p-4 border-t border-surface/50">
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : 'p-2.5 bg-surface2/50 rounded-lg border border-surface group cursor-pointer hover:bg-surface2 transition-all'}`}>
                     <div className="w-8 h-8 rounded-lg bg-bg border border-surface flex items-center justify-center font-bold text-[10px] text-primary shrink-0 overflow-hidden">
-                        {user?.avatar ? (
-                            <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                            (user?.name || getRoleLabel(user?.role)).slice(0, 2).toUpperCase()
-                        )}
+                        <Avatar src={user?.avatar} size="w-full h-full" />
                     </div>
 
                         <div className="flex-1 min-w-0">

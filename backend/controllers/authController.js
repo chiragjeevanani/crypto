@@ -72,6 +72,7 @@ const safeUser = (user, kyc = null) => {
         status: kyc.status,
         aadharNumber: kyc.aadharNumber,
         panNumber: kyc.panNumber,
+        rejectionReason: kyc.rejectionReason || "",
         // Only send document presence to keep payload light and avoid base64 crashes
         hasAadharFront: !!kyc.documents?.aadharFrontUrl,
         hasAadharBack: !!kyc.documents?.aadharBackUrl,
@@ -287,8 +288,10 @@ const updateProfile = async (req, res) => {
     const baseUrl = getBaseUrl(req);
     const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language"];
     const updates = {};
+    console.log("[Backend] Incoming update data:", req.body);
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
+        console.log(`[Backend] Field '${key}' update detected:`, req.body[key]);
         if (key === "phone" && req.body[key]) {
           const digits = String(req.body[key]).replace(/\D/g, "");
           if (digits.length !== 10) {

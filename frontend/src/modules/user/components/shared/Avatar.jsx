@@ -19,7 +19,7 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
 
     useEffect(() => {
         // Initially try the optimized version
-        if (src) {
+        if (src && src !== 'null' && src !== 'undefined') {
             setImgSrc(optimizeCloudinaryUrl(src, { width: 200, quality: '80' }));
             setHasAttemptedRaw(false);
         } else {
@@ -35,7 +35,6 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
         } else if (imgSrc !== NO_IMAGE_AVATAR) {
             // Already tried raw, or or not a cloudinary URL, go to placeholder
             setImgSrc(NO_IMAGE_AVATAR);
-            e.target.classList.add('opacity-60');
         }
     };
 
@@ -45,7 +44,7 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
                 <img 
                     src={imgSrc} 
                     alt={alt}
-                    className={`w-full h-full object-cover transition-opacity duration-200 ${imgSrc === NO_IMAGE_AVATAR ? 'opacity-60' : ''}`}
+                    className={`w-full h-full object-cover transition-opacity duration-200`}
                     onError={handleError}
                     {...props}
                 />

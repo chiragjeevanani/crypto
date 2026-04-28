@@ -13,6 +13,8 @@ const KycManagement = () => {
     const [selectedKyc, setSelectedKyc] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [actionModal, setActionModal] = useState({ show: false, type: '', id: null, title: '', message: '', color: '' });
+    const [rejectionReason, setRejectionReason] = useState('');
 
     const fetchSubmissions = async () => {
         try {
@@ -239,7 +241,16 @@ const KycManagement = () => {
                                             <div className="grid grid-cols-2 gap-4">
                                                 <button 
                                                     disabled={actionLoading}
-                                                    onClick={() => handleAction(selectedKyc._id, 'verified')}
+                                                    onClick={() => {
+                                                        setActionModal({
+                                                            show: true,
+                                                            type: 'verified',
+                                                            id: selectedKyc._id,
+                                                            title: 'Approve Identity',
+                                                            message: 'Confirm that this user has provided valid government documentation.',
+                                                            color: 'emerald-500'
+                                                        });
+                                                    }}
                                                     className="py-4 rounded-2xl bg-emerald-500 text-black font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                                                 >
                                                     <Check size={16} strokeWidth={3} /> Approve
@@ -247,8 +258,15 @@ const KycManagement = () => {
                                                 <button 
                                                     disabled={actionLoading}
                                                     onClick={() => {
-                                                        const notes = prompt('Reason for rejection:');
-                                                        if (notes) handleAction(selectedKyc._id, 'rejected', notes);
+                                                        setRejectionReason('');
+                                                        setActionModal({
+                                                            show: true,
+                                                            type: 'rejected',
+                                                            id: selectedKyc._id,
+                                                            title: 'Reject Identity',
+                                                            message: 'Provide a reason for the user to correct their details.',
+                                                            color: 'rose-500'
+                                                        });
                                                     }}
                                                     className="py-4 rounded-2xl bg-rose-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                                                 >
@@ -297,6 +315,66 @@ const KycManagement = () => {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Custom Action Modal */}
+            <AnimatePresence>
+                {actionModal.show && (
+                    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                            onClick={() => setActionModal({ ...actionModal, show: false })}
+                        />
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-md p-8 rounded-[32px] border bg-surface shadow-2xl space-y-6"
+                            style={{ borderColor: 'var(--color-border)' }}
+                        >
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-black uppercase tracking-tight" style={{ color: `var(--color-${actionModal.type === 'verified' ? 'emerald-500' : 'rose-500'})` || actionModal.color }}>
+                                    {actionModal.title}
+                                </h3>
+                                <p className="text-xs font-bold text-muted uppercase tracking-widest">{actionModal.message}</p>
+                            </div>
+
+                            {actionModal.type === 'rejected' && (
+                                <textarea 
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    placeholder="e.g. Aadhar back image is blurry or PAN number doesn't match..."
+                                    className="w-full h-32 p-4 rounded-2xl border bg-bg text-sm font-bold outline-none focus:border-primary transition-all resize-none"
+                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                />
+                            )}
+
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setActionModal({ ...actionModal, show: false })}
+                                    className="flex-1 py-4 rounded-xl bg-bg border font-black text-[10px] uppercase tracking-widest hover:bg-surface2 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    disabled={(actionModal.type === 'rejected' && !rejectionReason.trim()) || actionLoading}
+                                    onClick={() => {
+                                        handleAction(actionModal.id, actionModal.type, rejectionReason);
+                                        setActionModal({ ...actionModal, show: false });
+                                    }}
+                                    className={`flex-1 py-4 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-lg transition-all ${
+                                        actionModal.type === 'verified' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-rose-500 shadow-rose-500/20'
+                                    }`}
+                                >
+                                    {actionLoading ? 'Processing...' : actionModal.type === 'verified' ? 'Confirm Approval' : 'Confirm Reject'}
+                                </button>
                             </div>
                         </motion.div>
                     </div>

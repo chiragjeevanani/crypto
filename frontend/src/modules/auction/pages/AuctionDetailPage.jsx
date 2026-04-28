@@ -5,6 +5,7 @@ import { Clock, Gavel, Trophy, ArrowLeft, History, Info, Send, CreditCard } from
 import { formatCurrency } from '../../user/utils/formatCurrency';
 import { useUserStore } from '../../user/store/useUserStore';
 import { useFeedStore } from '../../user/store/useFeedStore';
+import Avatar from '../../user/components/shared/Avatar';
 
 const getAssetUrl = (path) => {
     if (!path) return '/default-avatar.png';
@@ -193,7 +194,7 @@ export default function AuctionDetailPage() {
                                     <div key={bid._id} className="flex items-center justify-between p-3 rounded-xl bg-surface2 border border-border/50">
                                         <div className="flex items-center gap-3">
                                             <div className="relative">
-                                                <img src={getAssetUrl(bid.userId?.avatar || '/default-avatar.png')} className="w-10 h-10 rounded-full object-cover" />
+                                                <Avatar src={bid.userId?.avatar} alt={bid.userId?.handle || bid.userId?.name} size="w-10 h-10" />
                                                 {idx === 0 && (
                                                     <div className="absolute -top-1 -right-1 bg-primary p-1 rounded-full border-2 border-surface2">
                                                         <Trophy size={8} className="text-white" />
@@ -220,7 +221,7 @@ export default function AuctionDetailPage() {
                     ) : (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2">
-                                <img src={getAssetUrl(currentAuction.creator?.avatar || '/default-avatar.png')} className="w-8 h-8 rounded-full border border-border" />
+                                <Avatar src={currentAuction.creator?.avatar} alt={currentAuction.creator?.handle || currentAuction.creator?.name} size="w-8 h-8" className="rounded-full border border-border" />
                                 <div>
                                     <p className="text-xs font-bold">@{currentAuction.creator?.handle || currentAuction.creator?.name}</p>
                                     <p className="text-[10px] text-muted">Auction Creator • {currentAuction.creator?.countryCode}</p>

@@ -7,7 +7,7 @@ const TYPE_META = {
     task: { icon: CheckSquare, color: 'var(--color-primary)', label: 'Task' },
     nft: { icon: Gem, color: 'var(--color-purple)', label: 'NFT' },
     nft_buy: { icon: ArrowUpRight, color: 'var(--color-primary)', label: 'NFT Buy' },
-    withdraw: { icon: ArrowUpRight, color: 'var(--color-muted)', label: 'Withdraw' },
+    withdraw: { icon: ArrowUpRight, color: '#FF9933', label: 'Withdraw' },
     topup: { icon: ArrowDownLeft, color: 'var(--color-success)', label: 'Top Up' },
     transfer: { icon: ArrowUpRight, color: 'var(--color-muted)', label: 'Transfer' },
 }

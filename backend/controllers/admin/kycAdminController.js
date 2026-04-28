@@ -1,5 +1,6 @@
 const KycSubmission = require("../../models/KycSubmission");
 const User = require("../../models/User");
+const Notification = require("../../models/Notification");
 
 /**
  * List all KYC submissions
@@ -55,6 +56,21 @@ const reviewKyc = async (req, res) => {
         $set: { kycStatus: 'rejected' }
       });
     }
+
+    // Send Notification to user
+    await Notification.create({
+      recipientId: submission.userId,
+      type: "system",
+      title: status === 'verified' ? "KYC Approved! 🎉" : "KYC Rejected ❌",
+      subtitle: status === 'verified' 
+        ? "Your account is now verified. Monetization and withdrawals are unlocked." 
+        : `Reason: ${rejectionReason || "Documentation did not meet our guidelines."}`,
+      meta: { 
+        status, 
+        rejectionReason: status === 'rejected' ? rejectionReason : undefined,
+        reviewId: submission._id 
+      }
+    });
 
     return res.status(200).json({ 
       success: true, 

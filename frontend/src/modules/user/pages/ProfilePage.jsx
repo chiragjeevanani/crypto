@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, Heart, MessageCircle } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, Heart, MessageCircle, Music } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
@@ -50,7 +50,7 @@ export default function ProfilePage() {
     const [following, setFollowing] = useState([])
     const [joinedCampaigns, setJoinedCampaigns] = useState([])
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
-    const nftListings = useMemo(() => profilePosts.filter(p => p.isNFT), [profilePosts])
+    const nftListings = useMemo(() => profilePosts.filter(p => p.isNFT || p.postType === 'nft'), [profilePosts])
     const [savedPosts, setSavedPosts] = useState([])
     const [savedLoading, setSavedLoading] = useState(false)
 
@@ -75,16 +75,19 @@ export default function ProfilePage() {
         setProfileSaveError('')
         setProfileSaving(true)
         try {
+            console.log("[Profile] Attempting Edit Update with:", data);
             await updateProfile({
-                name: data.username,
+                name: data.username, // From the modal 'Display Name' input
                 bio: data.bio,
                 ...(editAvatarFile ? { avatarFile: editAvatarFile } : {}),
             })
-            await loadPosts()
+            if (typeof loadPosts === 'function') await loadPosts()
             setEditAvatar(null)
             setEditAvatarFile(null)
             setEditOpen(false)
+            resetEditForm() // Clear form state
         } catch (err) {
+            console.error("[Profile] Edit error:", err);
             setProfileSaveError(err?.message || 'Failed to save profile')
         } finally {
             setProfileSaving(false)
@@ -95,8 +98,9 @@ export default function ProfilePage() {
         setProfileSaveError('')
         setProfileSaving(true)
         try {
+            console.log("[Profile] Attempting Settings Update with:", data);
             await updateProfile({
-                name: data.fullName,
+                name: data.fullName, // Priority name in Settings
                 username: data.username,
                 handle: data.handle?.startsWith('@') ? data.handle : `@${data.handle || ''}`,
                 email: data.email,
@@ -105,10 +109,15 @@ export default function ProfilePage() {
                 state: data.state,
                 language: data.language,
             })
-            await loadPosts()
+            // Reset both forms to sync new values
+            settingsForm.reset(data)
+            resetEditForm({ username: data.fullName || data.username, bio: data.bio })
+            
             setSettingsOpen(false)
+            setSettingsMode('menu')
         } catch (err) {
-            setProfileSaveError(err?.message || 'Failed to save profile')
+            console.error("[Profile] Settings error:", err);
+            setProfileSaveError(err?.message || 'Failed to save settings')
         } finally {
             setProfileSaving(false)
         }
@@ -361,6 +370,10 @@ export default function ProfilePage() {
                                                 </div>
                                             </div>
                                         </>
+                                    ) : post.media?.type === 'audio' ? (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--color-surface2)] text-[var(--color-primary)]">
+                                            <Music size={32} />
+                                        </div>
                                     ) : (
                                         <img src={post.media?.url || post.thumbnail} alt="post" className="w-full h-full object-cover" loading="lazy" />
                                     )}
@@ -386,11 +399,11 @@ export default function ProfilePage() {
                                 <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No NFTs listed yet.</p>
                             )}
                             {nftListings.map((nft) => (
-                                <div key={nft.id} className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                <div key={nft.id} onClick={() => setActivePostIndex(nftListings.findIndex((item) => String(item.id) === String(nft.id)))} className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
-                                        {nft.mediaType === 'video' && nft.mediaUrl ? (
+                                        {nft.media?.type === 'video' || nft.mediaType === 'video' ? (
                                             <video
-                                                src={nft.thumbnail || (nft.mediaType === 'video' ? nft.mediaUrl : '')}
+                                                src={nft.thumbnail || nft.media?.thumbnail || nft.media?.url || nft.mediaUrl}
                                                 muted
                                                 loop
                                                 playsInline
@@ -398,9 +411,13 @@ export default function ProfilePage() {
                                                 crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />
+                                        ) : nft.media?.type === 'audio' || nft.mediaType === 'audio' ? (
+                                            <div className="w-full h-full flex items-center justify-center text-[var(--color-primary)]">
+                                                <Music size={24} />
+                                            </div>
                                         ) : (
                                             <img
-                                                src={nft.thumbnail || (nft.mediaType === 'image' ? nft.mediaUrl : '')}
+                                                src={nft.thumbnail || nft.media?.thumbnail || nft.media?.url || nft.mediaUrl}
                                                 alt={nft.title}
                                                 className="w-full h-full object-cover"
                                             />
@@ -441,7 +458,7 @@ export default function ProfilePage() {
                 </motion.div>
             </AnimatePresence>
             <PostFeedModal 
-                posts={settingsTab === 'Saved Posts' && settingsOpen ? savedPosts : profilePosts} 
+                posts={settingsTab === 'Saved Posts' && settingsOpen ? savedPosts : activeTab === 'NFTs' ? nftListings : profilePosts} 
                 startIndex={activePostIndex} 
                 onClose={() => setActivePostIndex(null)} 
             />

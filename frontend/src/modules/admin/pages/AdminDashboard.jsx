@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader, AdminStatCard } from '../components/shared';
 import { formatCurrency, getCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
+import Avatar from '../../user/components/shared/Avatar';
 
 const summaryStats = [
     {
@@ -275,13 +276,7 @@ export default function AdminDashboard() {
                         {dashboardStats?.recentUsers?.map((user, i) => (
                             <div key={user._id} className="flex items-center gap-3 p-3 bg-bg border border-surface rounded-lg hover:border-primary/20 transition-all group cursor-pointer">
                                 <div className="w-10 h-10 rounded-full bg-surface2 border border-surface overflow-hidden">
-                                    {user.avatar ? (
-                                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-muted">
-                                            {user.name.charAt(0)}
-                                        </div>
-                                    )}
+                                    <Avatar src={user.avatar} size="w-full h-full" alt={user.name} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-bold text-text truncate group-hover:text-primary transition-colors">{user.name}</p>

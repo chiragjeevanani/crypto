@@ -4,9 +4,10 @@ import { Gavel, CheckCircle, XCircle, Eye, ExternalLink, Clock, X, Play, CreditC
 import { AdminPageHeader, AdminDataTable } from '../components/shared';
 import { auctionService } from '../../auction/services/auctionService';
 import { useFeedStore } from '../../user/store/useFeedStore';
+import Avatar from '../../user/components/shared/Avatar';
 
 const getAssetUrl = (path) => {
-    if (!path) return '/default-avatar.png';
+    if (!path || path === 'null' || path === 'undefined') return '/person.png';
     if (path.startsWith('http') || path.startsWith('data:')) return path;
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     // Only prefix if it's an upload path
@@ -92,7 +93,7 @@ function PreviewModal({ auction, onClose, onApprove, onReject }) {
                                 <section className="space-y-3">
                                     <h1 className="text-2xl font-black text-text leading-tight">{auction.title}</h1>
                                     <div className="flex items-center gap-2">
-                                        <img src={getAssetUrl(auction.creator?.avatar)} className="w-5 h-5 rounded-full" alt="" />
+                                        <Avatar src={auction.creator?.avatar} size="w-5 h-5" />
                                         <span className="text-xs font-bold text-muted">Auction by <span className="text-text">@{auction.creator?.handle || auction.creator?.name}</span></span>
                                     </div>
                                 </section>
@@ -141,7 +142,7 @@ function PreviewModal({ auction, onClose, onApprove, onReject }) {
                                             {auction.bids.map((bid, i) => (
                                                 <div key={i} className="flex items-center justify-between p-3 bg-surface/30 rounded-xl border border-surface/30">
                                                     <div className="flex items-center gap-2">
-                                                        <img src={getAssetUrl(bid.userId?.avatar)} className="w-5 h-5 rounded-full" alt="" />
+                                                        <Avatar src={bid.userId?.avatar} size="w-5 h-5" />
                                                         <div>
                                                             <p className="text-[10px] font-black text-text">@{bid.userId?.handle || bid.userId?.name}</p>
                                                             <p className="text-[8px] text-muted font-black">{new Date(bid.createdAt).toLocaleTimeString()}</p>
@@ -293,7 +294,7 @@ export default function AdminAuctionManagement() {
                             <p className="text-[9px] text-muted uppercase font-bold">{auction.status}</p>
                         </div>,
                         <div className="flex items-center gap-2">
-                            <img src={getAssetUrl(auction.creator?.avatar || '/default-avatar.png')} className="w-6 h-6 rounded-full border border-surface" alt="" />
+                            <Avatar src={auction.creator?.avatar} size="w-6 h-6" className="rounded-full border border-surface" />
                             <span className="text-[10px] font-bold text-text">@{auction.creator?.handle || auction.creator?.name}</span>
                         </div>,
                         <div className="space-y-1">
@@ -303,7 +304,7 @@ export default function AdminAuctionManagement() {
                         <div className="flex items-center gap-2">
                             {auction.winner ? (
                                 <>
-                                    <img src={getAssetUrl(auction.winner?.avatar || '/default-avatar.png')} className="w-5 h-5 rounded-full border border-surface" alt="" />
+                                    <Avatar src={auction.winner?.avatar} size="w-5 h-5" className="rounded-full border border-surface" />
                                     <span className="text-[10px] font-bold text-text">@{auction.winner?.handle || auction.winner?.name}</span>
                                 </>
                             ) : (

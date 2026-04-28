@@ -219,12 +219,21 @@ export default function WalletPage() {
     })
 
     const handleSubmitKYC = async () => {
-        if (!aadharNumber || aadharNumber.length !== 12 || !panNumber || panNumber.length !== 10) {
-            setKycMessage('Please enter a valid 12-digit Aadhar and 10-digit PAN.')
+        setKycMessage('')
+        if (!aadharNumber || aadharNumber.length !== 12) {
+            setKycMessage('Please enter a valid 12-digit Aadhar number.')
             return
         }
-        if (!kycAadharFront || !kycAadharBack || !panCardFile) {
-            setKycMessage('Please upload all required document images.')
+        if (!panNumber || panNumber.length !== 10) {
+            setKycMessage('Please enter a valid 10-digit PAN number.')
+            return
+        }
+        if (!kycAadharFront || !kycAadharBack) {
+            setKycMessage('Please upload both Aadhar front and back images.')
+            return
+        }
+        if (!panCardFile) {
+            setKycMessage('Please upload your PAN card image.')
             return
         }
         try {
@@ -503,12 +512,22 @@ export default function WalletPage() {
                         <ShieldCheck size={20} className={kyc.status === 'verified' ? 'text-success' : 'text-primary'} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted mb-0.5">
-                            Status: <span className={kyc.status === 'verified' ? 'text-success' : 'text-primary'}>{kyc.status.toUpperCase()}</span>
-                        </p>
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted">
+                                Status: <span className={kyc.status === 'verified' ? 'text-success' : kyc.status === 'rejected' ? 'text-red-500' : 'text-primary'}>{kyc.status.toUpperCase()}</span>
+                            </p>
+                            {kyc.status === 'rejected' && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[8px] font-black uppercase">Attention Required</span>
+                            )}
+                        </div>
                         <p className="text-xs font-bold text-text truncate">
-                            Level {kyc.level} · {kyc.payoutsUnlocked ? 'Payouts enabled' : 'KYC required'}
+                            Level {kyc.level} · {kyc.status === 'verified' ? 'Payouts enabled' : kyc.status === 'rejected' ? 'Needs correction' : 'KYC required'}
                         </p>
+                        {kyc.status === 'rejected' && kyc.rejectionReason && (
+                            <p className="text-[10px] font-bold text-red-500 mt-1 opacity-80 uppercase leading-none italic">
+                                Reason: {kyc.rejectionReason}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -622,10 +641,16 @@ export default function WalletPage() {
                                             <div className="p-4 rounded-2xl bg-bg/50 border border-border/50">
                                                 <p className="text-[10px] font-black uppercase text-muted tracking-widest mb-2">KYC Status</p>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <div className={`w-3 h-3 rounded-full ${kyc.status === 'verified' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`} />
-                                                    <span className="text-xs font-black uppercase">{kyc.status}</span>
+                                                    <div className={`w-3 h-3 rounded-full ${kyc.status === 'verified' ? 'bg-emerald-500' : kyc.status === 'rejected' ? 'bg-red-500' : 'bg-orange-500 animate-pulse'}`} />
+                                                    <span className={`text-xs font-black uppercase ${kyc.status === 'rejected' ? 'text-red-500' : ''}`}>{kyc.status}</span>
                                                 </div>
-                                                <p className="text-[9px] font-bold text-muted leading-tight">Admin approval pending</p>
+                                                {kyc.status === 'rejected' && kyc.rejectionReason && (
+                                                    <div className="mt-2 p-2 rounded-xl bg-red-500/10 border border-red-500/20">
+                                                        <p className="text-[10px] font-bold text-red-500 leading-tight uppercase">Reason: {kyc.rejectionReason}</p>
+                                                    </div>
+                                                )}
+                                                {kyc.status === 'pending' && <p className="text-[9px] font-bold text-muted leading-tight">Admin approval pending</p>}
+                                                {kyc.status === 'rejected' && <p className="text-[9px] font-bold text-muted leading-tight">Please re-submit correct details</p>}
                                             </div>
                                         </div>
 
@@ -682,11 +707,9 @@ export default function WalletPage() {
                                                 
                                                 <button
                                                     onClick={handleSubmitKYC}
-                                                    disabled={!canSubmitKYC}
-                                                    className="w-full py-4 rounded-[20px] text-[10px] font-black bg-text text-bg disabled:opacity-20 transition-all shadow-xl uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98]"
-                                                    style={{ background: 'var(--color-text)', color: 'var(--color-bg)' }}
+                                                    className={`w-full py-4 rounded-[20px] text-[10px] font-black transition-all shadow-xl uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98] ${canSubmitKYC ? 'bg-primary text-black' : 'bg-surface2 text-muted'}`}
                                                 >
-                                                    {kycMessage ? 'RE-SUBMIT REQUEST' : 'PROCEED TO VERIFICATION'}
+                                                    {kycMessage === 'Uploading documentation...' || kycMessage.includes('submitted') ? 'PROCESSING...' : 'PROCEED TO VERIFICATION'}
                                                 </button>
                                                 {kycMessage && <p className="text-[10px] text-center font-bold text-orange-500">{kycMessage}</p>}
                                             </div>

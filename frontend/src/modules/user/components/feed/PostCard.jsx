@@ -482,7 +482,19 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary)', color: '#000' }}>
                             <Music size={24} />
                         </div>
-                        <audio src={post.media?.url} controls className="flex-1 min-w-0" />
+                        <audio 
+                            src={post.media?.url} 
+                            controls 
+                            className="flex-1 min-w-0"
+                            onPlay={(e) => {
+                                const mediaElements = document.querySelectorAll('audio, video');
+                                mediaElements.forEach(media => {
+                                    if (media !== e.target) {
+                                        media.pause();
+                                    }
+                                });
+                            }} 
+                        />
                     </div>
                 ) : (
                     <div className="w-full h-full relative" onClick={toggleMute}>
