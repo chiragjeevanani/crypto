@@ -1,14 +1,16 @@
 import { create } from 'zustand'
 import { authService } from '../../auth/services/authService'
+import { DEFAULT_PLATFORM_SETTINGS } from '../../../shared/platformSettings'
 
 export const getKeys = () => {
     const isAdmin = window.location.pathname.startsWith('/admin')
     const prefix = isAdmin ? 'admin_' : ''
-    return {
+    const keys = {
         TOKEN_KEY: `crypto_${prefix}auth_token`,
         REFRESH_TOKEN_KEY: `crypto_${prefix}refresh_token`,
         USER_KEY: `crypto_${prefix}auth_user`
     }
+    return keys;
 }
 
 export const getStoredToken = () => {
@@ -119,7 +121,7 @@ export const useUserStore = create((set, get) => ({
         syncUserId: 'USR-ME',
         referralCode: '',
         referredCount: 0,
-        requiredReferrals: 5,
+        requiredReferrals: DEFAULT_PLATFORM_SETTINGS.minReferralsForWithdrawal || 5,
         aadharFrontName: '',
         aadharBackName: '',
         submittedAt: null,
@@ -138,7 +140,10 @@ export const useUserStore = create((set, get) => ({
             return
         }
 
-        set({ authLoading: true, authError: '' })
+        // Only show loading if we haven't checked yet or if we're not authenticated
+        if (!get().authChecked || !get().isAuthenticated) {
+            set({ authLoading: true, authError: '' })
+        }
         try {
             if (token) {
                 const response = await authService.getMe(token)
@@ -153,20 +158,33 @@ export const useUserStore = create((set, get) => ({
                     authLoading: false,
                     kyc: { 
                         ...state.kyc, 
+                        status: user.kycStatus || 'unverified',
                         referredCount: user.referralCount || 0,
-                        referralCode: user.referralCode || ''
+                        referralCode: user.referralCode || '',
+                        // Preserve local URLs if backend doesn't send them (to avoid base64 bloat)
+                        aadharFrontUrl: user.kyc?.documents?.aadharFrontUrl || state.kyc.aadharFrontUrl || '',
+                        aadharBackUrl: user.kyc?.documents?.aadharBackUrl || state.kyc.aadharBackUrl || '',
+                        panCardUrl: user.kyc?.documents?.panCardUrl || state.kyc.panCardUrl || '',
+                        aadharNumber: user.kyc?.aadharNumber || state.kyc.aadharNumber || '',
+                        panNumber: user.kyc?.panNumber || state.kyc.panNumber || '',
+                        syncUserId: user.id
                     }
                 }))
                 return
             }
         } catch (err) {
-            // If it's a network/server error, DON'T log out. Keep the current state and set authChecked.
+            const status = err?.response?.status
             const msg = err?.message || ""
-            if (msg.includes("Cannot connect") || msg.includes("Network error") || msg.includes("Server unavailable")) {
-               set({ authChecked: true, authLoading: false })
-               return
+            const isAuthError = status === 401 || status === 403 || msg.toLowerCase().includes("unauthorized")
+            
+            // If it's NOT a definitive auth error (e.g. network down, 500, timeout), DON'T log out.
+            // Just mark check as done so UI can continue.
+            if (!isAuthError) {
+                console.warn('[Auth] Transient error during session check:', msg)
+                set({ authChecked: true, authLoading: false })
+                return
             }
-            // token probably invalid, proceed to refresh
+            // Definitive auth error, proceed to refresh or logout
         }
 
         if (refreshToken) {
@@ -179,8 +197,9 @@ export const useUserStore = create((set, get) => ({
                 set({ token: newToken, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
                 return
             } catch (err) {
-                const msg = err?.message || ""
-                if (msg.includes("Cannot connect") || msg.includes("Network error") || msg.includes("Server unavailable")) {
+                const status = err?.response?.status
+                const isAuthError = status === 401 || status === 403
+                if (!isAuthError) {
                     set({ authChecked: true, authLoading: false })
                     return
                 }
@@ -189,6 +208,7 @@ export const useUserStore = create((set, get) => ({
         }
 
         if (get().token || getStoredToken()) {
+            console.log('[Auth] Clearing session due to definitive auth failure.')
             clearAuthStorage()
             set({
                 token: null,
@@ -320,7 +340,7 @@ export const useUserStore = create((set, get) => ({
     incrementReferralOnboarded: () => set((state) => {
         const nextCount = Math.min(100, (state.kyc.referredCount || 0) + 1)
         const hasDocs = Boolean(state.kyc.aadharFrontName) && Boolean(state.kyc.aadharBackName)
-        const canAutoApprove = hasDocs && nextCount >= (state.kyc.requiredReferrals || 5)
+        const canAutoApprove = hasDocs && nextCount >= (state.kyc.requiredReferrals || DEFAULT_PLATFORM_SETTINGS.minReferralsForWithdrawal || 5)
         return {
             kyc: {
                 ...state.kyc,
@@ -334,7 +354,7 @@ export const useUserStore = create((set, get) => ({
 
     setKYCFromSync: (payload) => set((state) => {
         if (!payload) return state
-        const required = payload.requiredReferrals || state.kyc.requiredReferrals || 5
+        const required = payload.requiredReferrals || state.kyc.requiredReferrals || DEFAULT_PLATFORM_SETTINGS.minReferralsForWithdrawal || 5
         const count = payload.referredCount ?? state.kyc.referredCount
         const approved = payload.status === 'approved'
         return {
@@ -400,7 +420,14 @@ export const useUserStore = create((set, get) => ({
 
             // Sync with storage and state
             saveAuthToStorage({ token, user })
-            set({ user, profile: profileFromUser(user) })
+            set((state) => ({ 
+                user, 
+                profile: profileFromUser(user),
+                kyc: {
+                    ...state.kyc,
+                    status: user.kycStatus || 'unverified'
+                }
+            }))
             
             return { success: true, user }
         } catch (err) {

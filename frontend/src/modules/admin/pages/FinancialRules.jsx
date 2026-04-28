@@ -43,8 +43,8 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">App Commission (%)</label>
                             <input
                                 type="number"
-                                value={formData.commission || 15}
-                                onChange={(e) => handleChange('commission', parseInt(e.target.value))}
+                                value={formData.platformFeePct ?? ''}
+                                onChange={(e) => handleChange('platformFeePct', parseInt(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />
                         </div>
@@ -52,7 +52,7 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Min Withdrawal (INR)</label>
                             <input
                                 type="number"
-                                value={formData.minWithdrawalCoins || 50}
+                                value={formData.minWithdrawalCoins ?? ''}
                                 onChange={(e) => handleChange('minWithdrawalCoins', parseInt(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />
@@ -64,7 +64,7 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Min Referrals for Payout</label>
                             <input
                                 type="number"
-                                value={formData.minReferralsForWithdrawal || 5}
+                                value={formData.minReferralsForWithdrawal ?? ''}
                                 onChange={(e) => handleChange('minReferralsForWithdrawal', parseInt(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />
@@ -73,7 +73,7 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Premium Earning Threshold (INR)</label>
                             <input
                                 type="number"
-                                value={formData.premiumThreshold || 100}
+                                value={formData.premiumThreshold ?? ''}
                                 onChange={(e) => handleChange('premiumThreshold', parseInt(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />
@@ -85,7 +85,7 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Coin Rate (Coins per ₹)</label>
                             <input
                                 type="number"
-                                value={formData.coinRate || 10}
+                                value={formData.coinRate ?? ''}
                                 onChange={(e) => handleChange('coinRate', parseInt(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />
@@ -94,7 +94,7 @@ export default function FinancialRules() {
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">GST (%)</label>
                             <input
                                 type="number"
-                                value={formData.gstPct || 18}
+                                value={formData.gstPct ?? ''}
                                 onChange={(e) => handleChange('gstPct', parseFloat(e.target.value))}
                                 className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
                             />

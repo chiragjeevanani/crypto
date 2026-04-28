@@ -8,6 +8,7 @@ const getConfig = async (req, res) => {
       const created = await AdminConfig.create(DEFAULTS);
       config = created;
     }
+    console.log('[ConfigAdmin] Sending config:', JSON.stringify(config, null, 2));
     return res.status(200).json({ success: true, config });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -37,6 +38,7 @@ const updateConfig = async (req, res) => {
       }
     });
 
+    console.log('[ConfigAdmin] Updating with:', JSON.stringify(updates, null, 2));
     let config = await AdminConfig.findOne().exec();
     if (!config) {
       config = await AdminConfig.create({ ...DEFAULTS, ...updates });
@@ -44,6 +46,7 @@ const updateConfig = async (req, res) => {
       Object.assign(config, updates);
       await config.save();
     }
+    console.log('[ConfigAdmin] Updated config:', JSON.stringify(config, null, 2));
     return res.status(200).json({ success: true, config });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

@@ -2,18 +2,33 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 import { getStoredToken } from '../store/useUserStore';
 
-const getToken = () => getStoredToken();
+const getToken = () => {
+    const token = getStoredToken();
+    console.log('[WalletService] Token retrieval:', token ? 'Found' : 'Missing');
+    return token;
+};
 
 const request = async (path, options = {}) => {
     let response;
+    const token = getToken();
+    const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {})
+    };
+    const fullUrl = `${API_BASE}${path}`;
+    console.log(`[WalletService] Request: ${options.method || 'GET'} ${fullUrl}`);
+    console.log(`[WalletService] Auth Token:`, token ? 'Present (Starts with ' + token.substring(0, 5) + '...)' : 'Missing');
+    console.log(`[WalletService] Headers:`, JSON.stringify(headers));
+
     try {
+        const { headers: extraHeaders, ...restOptions } = options;
         response = await fetch(`${API_BASE}${path}`, {
             headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${getToken()}`,
-                ...(options.headers || {})
+                ...headers,
+                ...extraHeaders
             },
-            ...options
+            ...restOptions
         });
     } catch (err) {
         const msg = err?.message || "";
@@ -58,11 +73,11 @@ export const walletService = {
         const query = search.toString();
         return request(`/wallet/transactions${query ? `?${query}` : ""}`, { method: "GET" });
     },
-    requestWithdrawal: (coins, idempotencyKey) =>
+    requestWithdrawal: (data) =>
         request("/wallet/withdraw", {
             method: "POST",
-            headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
-            body: JSON.stringify({ coins })
+            headers: data.idempotencyKey ? { "Idempotency-Key": data.idempotencyKey } : {},
+            body: JSON.stringify(data)
         }),
     initiateRecharge: (amount) =>
         request("/payment/recharge", {

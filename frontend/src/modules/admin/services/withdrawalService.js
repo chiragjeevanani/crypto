@@ -48,14 +48,22 @@ const mapStatus = (status) => {
 
 const mapWithdrawal = (w) => ({
     id: w._id || w.id,
-    user: w.userId ? String(w.userId) : "User",
-    userId: w.userId || "",
+    user: w.userId ? (typeof w.userId === 'object' ? (w.userId.name || w.userId._id) : String(w.userId)) : "User",
+    userId: typeof w.userId === 'object' ? w.userId._id : (w.userId || ""),
     amount: Number(w.finalAmount || w.grossAmount || 0),
+    grossAmount: Number(w.grossAmount || 0),
+    platformFee: Number(w.platformFee || 0),
+    gst: Number(w.gst || 0),
     coins: Number(w.coins || 0),
-    method: "Wallet",
+    method: w.paymentMethod ? (w.paymentMethod.toUpperCase()) : "Wallet",
+    paymentMethod: w.paymentMethod,
+    bankDetails: w.bankDetails,
+    upiId: w.upiId,
+    kycDetails: w.kycDetails,
+    documents: w.documents,
     status: mapStatus(w.status),
     date: w.createdAt || new Date().toISOString(),
-    kycStatus: "Unknown",
+    kycStatus: (w.kycDetails?.aadharNumber && w.documents?.aadharFrontUrl) ? "Verified" : "Pending",
     historyCount: 0
 });
 

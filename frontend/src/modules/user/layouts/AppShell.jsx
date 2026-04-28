@@ -21,6 +21,7 @@ import RoseShower from '../components/shared/RoseShower'
 import { useWalletStore } from '../store/useWalletStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
+import { useShallow } from 'zustand/react/shallow'
 import { formatINR, formatCurrency, formatCount } from '../utils/formatCurrency'
 import { getKYCSubmissionByUser } from '../../../shared/kycSync'
 import { mapCampaignToTask } from '../utils/campaignMapper'
@@ -30,6 +31,7 @@ import { getUserNFTListings } from '../../../shared/nftListings'
 import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
 import { useAuctionStore } from '../../auction/store/useAuctionStore'
+import { usePlatformSettings } from '../hooks/usePlatformSettings'
 
 const SIDEBAR_ITEMS = [
     { label: 'Home', to: '/home', icon: Home, key: 'home' },
@@ -51,9 +53,26 @@ export default function AppShell() {
     const searchParams = new URLSearchParams(location.search)
     const view = searchParams.get('view')
 
-    const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore()
-    const { posts, pushNotification, unreadNotifications: notifTotal, loadNotifications } = useFeedStore()
-    const { kyc, setKYCFromSync, user, profile } = useUserStore()
+    const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore(useShallow(state => ({
+        inrWallet: state.inrWallet,
+        cryptoWallet: state.cryptoWallet,
+        earningsWallet: state.earningsWallet
+    })))
+
+    const platformSettings = usePlatformSettings()
+    const earningsInRs = earningsWallet / platformSettings.coinRate
+    const { posts, pushNotification, notifTotal, loadNotifications } = useFeedStore(useShallow(state => ({
+        posts: state.posts,
+        pushNotification: state.pushNotification,
+        notifTotal: state.unreadNotifications,
+        loadNotifications: state.loadNotifications
+    })))
+    const { kyc, setKYCFromSync, user, profile } = useUserStore(useShallow(state => ({
+        kyc: state.kyc,
+        setKYCFromSync: state.setKYCFromSync,
+        user: state.user,
+        profile: state.profile
+    })))
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
 
     const [activeCampaigns, setActiveCampaigns] = useState([])
@@ -355,7 +374,7 @@ export default function AppShell() {
                                 Wallet Summary
                             </p>
                             <p className="mt-1 text-3xl font-extrabold tracking-tight" style={{ color: 'var(--color-text)' }}>
-                                {formatCurrency(earningsWallet, currencySymbol)}
+                                {formatCurrency(earningsInRs, currencySymbol)}
                             </p>
                             <div className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
                                 style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--color-success)' }}>
@@ -373,7 +392,7 @@ export default function AppShell() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>Earning Balance</span>
-                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(earningsWallet, currencySymbol)}</span>
+                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(earningsInRs, currencySymbol)}</span>
                             </div>
                         </div>
                     </section>

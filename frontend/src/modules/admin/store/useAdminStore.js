@@ -14,6 +14,7 @@ import { authService } from '../../auth/services/authService';
 
 import { patchKYCSubmission } from '../../../shared/kycSync';
 import { syncGiftCatalogFromAdminGifts } from '../../../shared/giftCatalog';
+import { savePlatformSettingsToCookie } from '../../../shared/platformSettings';
 import { getStoredToken } from '../../user/store/useUserStore';
 
 export const useAdminStore = create((set, get) => ({
@@ -38,7 +39,7 @@ export const useAdminStore = create((set, get) => ({
     reports: [],
     countries: [],
     states: [],
-    moderationStats: { ads: 0, nfts: 0, reports: 0, withdrawals: 0 },
+    moderationStats: { ads: 0, nfts: 0, reports: 0, withdrawals: 0, kycs: 0 },
     prdMetrics: null,
     dashboardStats: null,
     giftPolicy: {
@@ -533,11 +534,25 @@ export const useAdminStore = create((set, get) => ({
     loadSettings: () => get().execute(async () => {
         const settings = await settingsService.fetchSettings();
         set({ settings });
+        // Sync to public shared cookie for the user app
+        savePlatformSettingsToCookie({
+            commission: settings.platformFeePct,
+            minWithdrawal: settings.minWithdrawalCoins,
+            minReferralsForWithdrawal: settings.minReferralsForWithdrawal,
+            premiumThreshold: settings.premiumThreshold
+        });
     }),
 
     updatePlatformSettings: (data) => get().execute(async () => {
         const updated = await settingsService.updateSettings(data);
         set({ settings: updated });
+        // Sync to public shared cookie for the user app
+        savePlatformSettingsToCookie({
+            commission: updated.platformFeePct,
+            minWithdrawal: updated.minWithdrawalCoins,
+            minReferralsForWithdrawal: updated.minReferralsForWithdrawal,
+            premiumThreshold: updated.premiumThreshold
+        });
     }, "Kernel parameters updated successfully."),
 
     enforceGiftPolicy: () => get().execute(async () => {

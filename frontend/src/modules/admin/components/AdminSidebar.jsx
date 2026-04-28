@@ -109,6 +109,7 @@ const menuGroups = [
         items: [
             { icon: ShieldAlert, label: 'Reports', path: '/admin/reports', badge: 'New' },
             { icon: Terminal, label: 'Audit Logs', path: '/admin/audit' },
+            { icon: ShieldCheck, label: 'KYC Management', path: '/admin/kyc' },
         ]
     },
 
@@ -155,6 +156,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
                 if (item.label === 'Reports') return { ...item, badge: moderationStats.reports > 0 ? moderationStats.reports : null };
                 if (item.label === 'Withdrawals') return { ...item, badge: moderationStats.withdrawals > 0 ? moderationStats.withdrawals : null };
                 if (item.label === 'Auctions') return { ...item, badge: moderationStats.pendingAuctions > 0 ? moderationStats.pendingAuctions : null };
+                if (item.label === 'KYC Management') return { ...item, badge: moderationStats.kycs > 0 ? moderationStats.kycs : null };
                 return item;
             })
         }));

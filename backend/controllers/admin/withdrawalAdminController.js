@@ -18,7 +18,7 @@ const listWithdrawals = async (req, res) => {
     }
 
     const [withdrawals, total] = await Promise.all([
-      Withdrawal.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
+      Withdrawal.find(query).populate("userId", "name email phone avatar").sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
       Withdrawal.countDocuments(query).exec()
     ]);
 
@@ -43,17 +43,6 @@ const approveWithdrawal = async (req, res) => {
         if (!withdrawal) throw new Error("Withdrawal not found");
         if (withdrawal.status !== "pending") throw new Error("Withdrawal already processed");
 
-        const user = await User.findById(withdrawal.userId).session(session);
-        if (!user) throw new Error("User not found");
-
-        const beforeBalance = Number(user.earningCoins || 0);
-        if (beforeBalance < withdrawal.coins) {
-          throw new Error("Insufficient earning coins");
-        }
-
-        user.earningCoins = beforeBalance - withdrawal.coins;
-        await user.save({ session });
-
         withdrawal.status = "success";
         withdrawal.processedAt = new Date();
         await withdrawal.save({ session });
@@ -63,10 +52,21 @@ const approveWithdrawal = async (req, res) => {
           type: "withdrawal",
           referenceId: withdrawal._id.toString()
         }).session(session);
+        
         if (tx) {
+          const user = await User.findById(withdrawal.userId).session(session);
+          if (!user) throw new Error("User not found");
+          
+          const beforeBalance = Number(user.earningCoins || 0);
+          if (beforeBalance < withdrawal.coins) throw new Error("User no longer has sufficient coins");
+          
+          const afterBalance = beforeBalance - withdrawal.coins;
+          user.earningCoins = afterBalance;
+          await user.save({ session });
+
           tx.status = "success";
           tx.beforeBalance = beforeBalance;
-          tx.afterBalance = beforeBalance - withdrawal.coins;
+          tx.afterBalance = afterBalance;
           await tx.save({ session });
         }
 
@@ -76,7 +76,9 @@ const approveWithdrawal = async (req, res) => {
       session.endSession();
     }
 
-    return res.status(200).json({ success: true, withdrawal: updatedWithdrawal });
+    // Return populated
+    const populated = await Withdrawal.findById(withdrawalId).populate("userId", "name email phone avatar").exec();
+    return res.status(200).json({ success: true, withdrawal: populated });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
   }
@@ -89,29 +91,39 @@ const rejectWithdrawal = async (req, res) => {
       return res.status(400).json({ success: false, message: "withdrawalId is required" });
     }
 
-    const withdrawal = await Withdrawal.findById(withdrawalId);
-    if (!withdrawal) {
-      return res.status(404).json({ success: false, message: "Withdrawal not found" });
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const withdrawal = await Withdrawal.findById(withdrawalId).session(session);
+        if (!withdrawal) throw new Error("Withdrawal not found");
+        if (withdrawal.status !== "pending") throw new Error("Withdrawal already processed");
+
+        const user = await User.findById(withdrawal.userId).session(session);
+        if (!user) throw new Error("User not found");
+
+        withdrawal.status = "rejected";
+        withdrawal.rejectionReason = reason || "Request rejected by administrator";
+        withdrawal.processedAt = new Date();
+        await withdrawal.save({ session });
+
+        const tx = await WalletTransaction.findOne({
+          userId: withdrawal.userId,
+          type: "withdrawal",
+          referenceId: withdrawal._id.toString()
+        }).session(session);
+
+        if (tx) {
+          tx.status = "failed";
+          tx.meta = { ...tx.meta, rejectionReason: withdrawal.rejectionReason };
+          await tx.save({ session });
+        }
+      });
+    } finally {
+      session.endSession();
     }
-    if (withdrawal.status !== "pending") {
-      return res.status(400).json({ success: false, message: "Withdrawal already processed" });
-    }
 
-    withdrawal.status = "rejected";
-    withdrawal.rejectionReason = reason || "";
-    withdrawal.processedAt = new Date();
-    await withdrawal.save();
-
-    await WalletTransaction.updateOne(
-      {
-        userId: withdrawal.userId,
-        type: "withdrawal",
-        referenceId: withdrawal._id.toString()
-      },
-      { $set: { status: "failed" } }
-    );
-
-    return res.status(200).json({ success: true, withdrawal });
+    const populated = await Withdrawal.findById(withdrawalId).populate("userId", "name email phone avatar").exec();
+    return res.status(200).json({ success: true, withdrawal: populated });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

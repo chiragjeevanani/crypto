@@ -45,17 +45,21 @@ app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
 app.get("/", (req, res) => {
-  res.status(200).json({ message: "Backend is live" });
+  res.status(200).json({ message: "Backend is live", version: "1.0.1-debug" });
 });
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.get("/api/test-ping", (req, res) => res.json({ success: true, message: "pong" }));
 app.use("/api/health", healthRoutes);
+app.use("/api/config", require("./routes/publicConfigRoutes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/user/posts", userPostRoutes);
 app.use("/api/user/follow", userFollowRoutes);
 app.use("/api/user/stories", userStoryRoutes);
 app.use("/api/user/campaigns", userCampaignRoutes);
 app.use("/api/user/reels-feed", userReelFeedRoutes);
+app.use("/api/user/kyc", require("./routes/user/kycRoutes"));
+app.use("/api/admin/kyc", require("./routes/admin/kycAdminRoutes"));
 app.use("/api/user/search", userSearchRoutes);
 app.use("/api/user/wallet", userWalletRoutes);
 app.use("/api/wallet", userWalletRoutes);
@@ -83,6 +87,7 @@ app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
 app.use("/api/auctions", auctionRoutes);
 app.use("/api/location", locationRoutes);
+// Route removed from here to be moved higher up
 
 // Background job for auctions
 setInterval(processEndedAuctions, 60 * 1000); // Check every minute
@@ -90,6 +95,7 @@ setInterval(processEndedAuctions, 60 * 1000); // Check every minute
 
 // 404 handler
 app.use((req, res, next) => {
+    console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
     res.status(404).json({
         success: false,
         message: "Route not found",

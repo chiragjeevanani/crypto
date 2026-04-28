@@ -38,6 +38,27 @@ const withdrawalSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    paymentMethod: {
+      type: String,
+      enum: ["bank", "upi"],
+      required: true
+    },
+    bankDetails: {
+      accountNumber: String,
+      ifscCode: String,
+      bankName: String,
+      accountHolderName: String
+    },
+    upiId: String,
+    kycDetails: {
+      aadharNumber: String,
+      panNumber: String
+    },
+    documents: {
+      aadharFrontUrl: String,
+      aadharBackUrl: String,
+      panCardUrl: String
+    },
     status: {
       type: String,
       enum: ["pending", "success", "rejected"],

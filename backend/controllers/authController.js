@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const KycSubmission = require("../models/KycSubmission");
 const path = require("path");
 const fs = require("fs");
 const { getBaseUrl } = require("../utils/postHelpers");
@@ -49,7 +50,7 @@ const signRefreshToken = (user) =>
     { expiresIn: refreshExpiry }
   );
 
-const safeUser = (user) => {
+const safeUser = (user, kyc = null) => {
   const safe = {
     id: user._id,
     name: user.name,
@@ -65,8 +66,18 @@ const safeUser = (user) => {
     isPremium: user.isPremium || false,
     state: user.state || "",
     language: user.language || "English",
+    kycStatus: user.kycStatus || "unsubmitted",
+    isMonetized: user.isMonetized || false,
+    kyc: kyc ? {
+        status: kyc.status,
+        aadharNumber: kyc.aadharNumber,
+        panNumber: kyc.panNumber,
+        // Only send document presence to keep payload light and avoid base64 crashes
+        hasAadharFront: !!kyc.documents?.aadharFrontUrl,
+        hasAadharBack: !!kyc.documents?.aadharBackUrl,
+        hasPanCard: !!kyc.documents?.panCardUrl
+    } : null
   };
-  console.log(`[Backend] SafeUser output:`, safe);
   return safe;
 };
 
@@ -260,7 +271,8 @@ const getMe = async (req, res) => {
       await user.save();
     }
 
-    return res.status(200).json({ success: true, user: safeUser(user) });
+    const kyc = await KycSubmission.findOne({ userId: user._id }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, user: safeUser(user, kyc) });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -270,7 +282,7 @@ const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
     console.log(`[Backend] Updating profile for user: ${userId}`);
-    console.log(`[Backend] Received Body:`, req.body);
+    // Removed req.body logging to prevent crashes from large base64 strings
 
     const baseUrl = getBaseUrl(req);
     const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language"];
@@ -305,7 +317,6 @@ const updateProfile = async (req, res) => {
         }
       }
     }
-    console.log(`[Backend] Final Updates Object:`, updates);
 
     const user = await User.findByIdAndUpdate(
       userId,

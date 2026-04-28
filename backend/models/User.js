@@ -81,6 +81,11 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    kycStatus: {
+      type: String,
+      enum: ["unsubmitted", "pending", "verified", "rejected"],
+      default: "unsubmitted"
+    },
     referralCode: {
       type: String,
       unique: true,

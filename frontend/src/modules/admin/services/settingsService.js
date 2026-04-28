@@ -40,11 +40,12 @@ const request = async (path, options = {}) => {
 };
 
 const mapConfigToSettings = (config) => ({
-    commission: Number(config?.platformFeePct || 0),
-    minWithdrawal: Number(config?.minWithdrawalCoins || 0),
+    platformFeePct: Number(config?.platformFeePct || 0),
+    minWithdrawalCoins: Number(config?.minWithdrawalCoins || 0),
     coinRate: Number(config?.coinRate || 0),
     gstPct: Number(config?.gstPct || 0),
-    referralLimit: Number(config?.referralLimit || 0),
+    minReferralsForWithdrawal: Number(config?.minReferralsForWithdrawal || 0),
+    premiumThreshold: Number(config?.premiumThreshold || 0),
     adminNotificationMobiles: config?.adminNotificationMobiles || ['', '', '', '']
 });
 
@@ -56,11 +57,12 @@ export const settingsService = {
 
     updateSettings: async (newSettings) => {
         const payload = {};
-        if (newSettings.commission !== undefined) payload.platformFeePct = Number(newSettings.commission);
-        if (newSettings.minWithdrawal !== undefined) payload.minWithdrawalCoins = Number(newSettings.minWithdrawal);
+        if (newSettings.platformFeePct !== undefined) payload.platformFeePct = Number(newSettings.platformFeePct);
+        if (newSettings.minWithdrawalCoins !== undefined) payload.minWithdrawalCoins = Number(newSettings.minWithdrawalCoins);
         if (newSettings.coinRate !== undefined) payload.coinRate = Number(newSettings.coinRate);
         if (newSettings.gstPct !== undefined) payload.gstPct = Number(newSettings.gstPct);
-        if (newSettings.referralLimit !== undefined) payload.referralLimit = Number(newSettings.referralLimit);
+        if (newSettings.minReferralsForWithdrawal !== undefined) payload.minReferralsForWithdrawal = Number(newSettings.minReferralsForWithdrawal);
+        if (newSettings.premiumThreshold !== undefined) payload.premiumThreshold = Number(newSettings.premiumThreshold);
         
         if (newSettings.adminNotificationMobiles !== undefined) {
             // Filter out empty strings to keep only valid numbers

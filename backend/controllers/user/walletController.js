@@ -3,6 +3,7 @@ const User = require("../../models/User");
 const Gift = require("../../models/Gift");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Withdrawal = require("../../models/Withdrawal");
+const KycSubmission = require("../../models/KycSubmission");
 const { getAdminConfig } = require("../../utils/adminConfig");
 const { createNotification } = require("./notificationController");
 const { emitToUser, broadcastAll } = require("../../utils/socket");
@@ -349,7 +350,9 @@ const listTransactions = async (req, res) => {
 };
 
 const withdraw = async (req, res) => {
+  console.log(`[Wallet] ENTERING withdraw controller for user: ${req.user?.userId}`);
   const userId = req.user.userId;
+  console.log(`[Wallet] Withdrawal request for user: ${userId}`);
   try {
     const bodyUserId = req.body.userId ? String(req.body.userId) : null;
     if (bodyUserId && bodyUserId !== String(userId)) {
@@ -392,6 +395,47 @@ const withdraw = async (req, res) => {
           throw new Error(`You must refer at least ${requiredReferrals} members before withdrawing. (Your count: ${user.referralCount || 0})`);
         }
 
+        let { 
+          paymentMethod, 
+          bankDetails, 
+          upiId, 
+          kycDetails, 
+          documents 
+        } = req.body;
+
+        if (!paymentMethod) throw new Error("Payment method is required");
+        if (paymentMethod === "bank") {
+          if (!bankDetails?.accountNumber || !bankDetails?.ifscCode || !bankDetails?.accountHolderName) {
+            throw new Error("Complete bank details are required");
+          }
+        } else if (paymentMethod === "upi") {
+          if (!upiId) throw new Error("UPI ID is required");
+        } else {
+          throw new Error("Invalid payment method");
+        }
+
+        // Auto-fetch KYC from verified submission if missing in body
+        if (!kycDetails?.aadharNumber) {
+            console.log(`[Wallet] KYC details missing in body, fetching from verified submission for user: ${userId}`);
+            const verifiedKyc = await KycSubmission.findOne({ userId, status: 'verified' }).session(session);
+            if (verifiedKyc) {
+                kycDetails = {
+                    aadharNumber: verifiedKyc.aadharNumber,
+                    panNumber: verifiedKyc.panNumber
+                };
+                documents = {
+                    aadharFrontUrl: verifiedKyc.documents?.aadharFrontUrl,
+                    aadharBackUrl: verifiedKyc.documents?.aadharBackUrl,
+                    panCardUrl: verifiedKyc.documents?.panCardUrl
+                };
+                console.log(`[Wallet] Found verified KYC for user: ${userId}`);
+            } else {
+                throw new Error("Verified KYC documentation is required to initiate a payout. Please complete your verification first.");
+            }
+        }
+
+        if (!kycDetails?.aadharNumber) throw new Error("Aadhar number is required for withdrawal");
+
         const coinRate = Math.max(0, Number(config.coinRate) || 0);
         if (coinRate <= 0) throw new Error("Invalid coin rate");
         const grossAmount = coins / coinRate;
@@ -409,6 +453,11 @@ const withdraw = async (req, res) => {
               platformFee,
               gst,
               finalAmount,
+              paymentMethod,
+              bankDetails: paymentMethod === "bank" ? bankDetails : undefined,
+              upiId: paymentMethod === "upi" ? upiId : undefined,
+              kycDetails,
+              documents,
               status: "pending",
               idempotencyKey
             }
@@ -417,11 +466,11 @@ const withdraw = async (req, res) => {
         );
 
         const beforeBalance = earningCoins;
-        const afterBalance = earningCoins - coins;
+        // const afterBalance = earningCoins - coins;
         
-        // Deduct from User's earning wallet
-        user.earningCoins = afterBalance;
-        await user.save({ session });
+        // Deduction moved to Admin Approval step per user requirement
+        // user.earningCoins = afterBalance;
+        // await user.save({ session });
 
         await WalletTransaction.create(
           [
@@ -431,7 +480,7 @@ const withdraw = async (req, res) => {
               coins,
               amount: finalAmount,
               beforeBalance,
-              afterBalance,
+              afterBalance: beforeBalance,
               referenceId: createdWithdrawal._id.toString(),
               referenceType: "withdrawal",
               status: "pending",

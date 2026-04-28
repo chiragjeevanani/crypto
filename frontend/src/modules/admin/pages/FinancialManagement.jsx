@@ -21,7 +21,8 @@ import {
     AlertCircle,
     Info,
     X,
-    Filter
+    Filter,
+    ShieldCheck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
@@ -133,167 +134,104 @@ export default function FinancialManagement() {
 
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-                {/* Commission Setting Card */}
-                <div className="bg-surface border border-surface rounded-lg p-6 xl:col-span-1 space-y-8 h-fit">
+            <div className="space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 p-1 bg-surface2 border border-surface rounded-lg">
+                        {['all', 'pending', 'approved', 'rejected'].map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setWithdrawalFilter(f)}
+                                className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${withdrawalFilter === f ? 'bg-primary text-black shadow-sm' : 'text-muted hover:text-text'
+                                    }`}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10 text-primary border border-surface">
-                            <Settings className="w-4 h-4" />
-                        </div>
-                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-text">System Parameters</h3>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div>
-                            <div className="flex justify-between items-center mb-3">
-                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider">Platform Fee (%)</label>
-                                <span className="text-sm font-bold text-primary">{settings.commission}%</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="50"
-                                value={settings.commission}
-                                onChange={(e) => handleSettingChange('commission', parseInt(e.target.value))}
-                                className="w-full accent-primary h-1 bg-surface2 rounded-full appearance-none cursor-pointer"
-                            />
-                            <p className="text-[9px] text-muted font-medium uppercase tracking-wider mt-3 italic opacity-60">Applied to platform payouts and task rewards.</p>
-                        </div>
-
-                        <div className="pt-6 border-t border-surface/50 space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">Min Withdrawal ({import.meta.env.VITE_CURRENCY || '₹'})</label>
-                                <input
-                                    type="number"
-                                    value={settings.minWithdrawal}
-                                    onChange={(e) => handleSettingChange('minWithdrawal', parseInt(e.target.value))}
-                                    className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 font-semibold text-xs text-text outline-none focus:ring-1 focus:ring-primary/20"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">Coin Rate (Coins per ₹)</label>
-                                <input
-                                    type="number"
-                                    value={settings.coinRate || 0}
-                                    onChange={(e) => handleSettingChange('coinRate', parseInt(e.target.value))}
-                                    className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 font-semibold text-xs text-text outline-none focus:ring-1 focus:ring-primary/20"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] text-muted font-bold uppercase tracking-wider ml-0.5">GST (%)</label>
-                                <input
-                                    type="number"
-                                    value={settings.gstPct || 0}
-                                    onChange={(e) => handleSettingChange('gstPct', parseFloat(e.target.value))}
-                                    className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 font-semibold text-xs text-text outline-none focus:ring-1 focus:ring-primary/20"
-                                />
-                            </div>
-                            <button className="w-full py-3 bg-surface2 hover:bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all mt-4">Commit Settings</button>
+                        <div className="px-3 py-1.5 bg-surface border border-surface rounded-lg flex items-center gap-2 text-[10px] font-semibold text-muted">
+                            <Filter className="w-3.5 h-3.5" />
+                            <span className="uppercase tracking-widest">Filters Active</span>
                         </div>
                     </div>
-
                 </div>
 
-                {/* Withdrawal Queue Control Panel */}
-                <div className="xl:col-span-3 space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex items-center gap-2 p-1 bg-surface2 border border-surface rounded-lg">
-                            {['all', 'pending', 'approved', 'rejected'].map((f) => (
+                <AdminDataTable
+                    title="Settlement Queue"
+                    columns={["ID", "Recipient", "Method", "Status", "Amount", "Actions"]}
+                    onRowClick={(row) => handleWithdrawalReview(withdrawals.find(w => w.id === row.id))}
+                    data={withdrawals.map(w => ({
+                        id: w.id,
+                        cells: [
+                            <span className="font-mono text-muted text-[10px]">{w.id}</span>,
+                            <div className="flex items-center gap-3">
+                                <div className="w-7 h-7 rounded-lg bg-surface2 border border-surface flex items-center justify-center text-[9px] font-bold text-text">
+                                    {(w.user || w.userId || 'U')[0]}
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-text">{w.user || w.userId}</p>
+                                    <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{w.date}</p>
+                                </div>
+                            </div>,
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">{w.method}</span>,
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-semibold uppercase tracking-wider border ${w.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                                w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                    'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                }`}>
+                                {w.status}
+                            </span>,
+                            <span className="text-xs font-semibold text-emerald-500">{formatCurrency(w.amount)} · {w.coins} coins</span>,
+                            <div className="flex gap-2">
                                 <button
-                                    key={f}
-                                    onClick={() => setWithdrawalFilter(f)}
-                                    className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${withdrawalFilter === f ? 'bg-primary text-black shadow-sm' : 'text-muted hover:text-text'
-                                        }`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleWithdrawalReview(w);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-surface2 border border-surface hover:bg-surface hover:text-primary transition-all group/edit"
+                                    title="Deep Review"
                                 >
-                                    {f}
+                                    <Eye className="w-3.5 h-3.5 text-muted group-hover/edit:text-primary" />
                                 </button>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="px-3 py-1.5 bg-surface border border-surface rounded-lg flex items-center gap-2 text-[10px] font-semibold text-muted">
-                                <Filter className="w-3.5 h-3.5" />
-                                <span className="uppercase tracking-widest">Filters Active</span>
+                                {w.status === 'pending' && (
+                                    <>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleApprove(w.id); }}
+                                            className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                                        >
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleReject(w.id); }}
+                                            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all border border-rose-500/20 font-bold"
+                                        >
+                                            <XCircle className="w-3.5 h-3.5" />
+                                        </button>
+                                    </>
+                                )}
                             </div>
-                        </div>
-                    </div>
+                        ]
+                    }))}
+                />
 
-                    <AdminDataTable
-                        title="Settlement Queue"
-                        columns={["ID", "Recipient", "Method", "Status", "Amount", "Actions"]}
-                        onRowClick={(row) => handleWithdrawalReview(withdrawals.find(w => w.id === row.id))}
-                        data={withdrawals.map(w => ({
-                            id: w.id,
-                            cells: [
-                                <span className="font-mono text-muted text-[10px]">{w.id}</span>,
-                                <div className="flex items-center gap-3">
-                                    <div className="w-7 h-7 rounded-lg bg-surface2 border border-surface flex items-center justify-center text-[9px] font-bold text-text">
-                                        {(w.user || w.userId || 'U')[0]}
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-semibold text-text">{w.user || w.userId}</p>
-                                        <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{w.date}</p>
-                                    </div>
-                                </div>,
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">{w.method}</span>,
-                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-semibold uppercase tracking-wider border ${w.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                    w.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                        'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                    }`}>
-                                    {w.status}
-                                </span>,
-                                <span className="text-xs font-semibold text-emerald-500">{formatCurrency(w.amount)} · {w.coins} coins</span>,
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleWithdrawalReview(w);
-                                        }}
-                                        className="p-1.5 rounded-lg bg-surface2 border border-surface hover:bg-surface hover:text-primary transition-all group/edit"
-                                        title="Deep Review"
-                                    >
-                                        <Eye className="w-3.5 h-3.5 text-muted group-hover/edit:text-primary" />
-                                    </button>
-                                    {w.status === 'pending' && (
-                                        <>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleApprove(w.id); }}
-                                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
-                                            >
-                                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleReject(w.id); }}
-                                                className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all border border-rose-500/20 font-bold"
-                                            >
-                                                <XCircle className="w-3.5 h-3.5" />
-                                            </button>
-                                        </>
-                                    )}
+                <div className="bg-surface border border-surface rounded-lg p-4">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Settlement Rails</h4>
+                    <div className="space-y-2">
+                        {settlementRails.map((rail) => (
+                            <div key={rail.id} className="flex items-center justify-between p-3 rounded-lg bg-bg border border-surface">
+                                <div>
+                                    <p className="text-xs font-semibold text-text">{rail.name}</p>
+                                    <p className="text-[9px] text-muted uppercase tracking-wider">
+                                        Reconciled: {rail.reconciled} · Pending: {rail.pending} · Last: {rail.lastRun}
+                                    </p>
                                 </div>
-                            ]
-                        }))}
-                    />
-
-                    <div className="bg-surface border border-surface rounded-lg p-4">
-                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-text mb-3">Settlement Rails</h4>
-                        <div className="space-y-2">
-                            {settlementRails.map((rail) => (
-                                <div key={rail.id} className="flex items-center justify-between p-3 rounded-lg bg-bg border border-surface">
-                                    <div>
-                                        <p className="text-xs font-semibold text-text">{rail.name}</p>
-                                        <p className="text-[9px] text-muted uppercase tracking-wider">
-                                            Reconciled: {rail.reconciled} · Pending: {rail.pending} · Last: {rail.lastRun}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => reconcileSettlementRail(rail.id)}
-                                        className="px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20"
-                                    >
-                                        Reconcile
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
+                                <button
+                                    onClick={() => reconcileSettlementRail(rail.id)}
+                                    className="px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20"
+                                >
+                                    Reconcile
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -329,14 +267,24 @@ export default function FinancialManagement() {
 
                             <div className="flex-1 overflow-y-auto p-6 space-y-8">
                                 <div className="p-5 bg-surface rounded-2xl border border-surface text-center">
-                                    <div className="w-20 h-20 rounded-2xl bg-surface2 border border-surface mx-auto mb-4 flex items-center justify-center text-2xl font-bold text-text">
-                                        {(reviewWithdrawal.user || reviewWithdrawal.userId || 'U')[0]}
+                                    <div className="w-20 h-20 rounded-2xl bg-surface2 border border-surface mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                                        {reviewWithdrawal.userId?.avatar ? (
+                                            <img src={reviewWithdrawal.userId.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-2xl font-bold text-text">
+                                                {(reviewWithdrawal.userId?.name || reviewWithdrawal.user || 'U')[0]}
+                                            </span>
+                                        )}
                                     </div>
-                                    <h4 className="text-base font-bold text-text">{reviewWithdrawal.user || reviewWithdrawal.userId}</h4>
-                                    <div className="mt-2 flex items-center justify-center gap-2">
-                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${reviewWithdrawal.kycStatus === 'Verified' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                    <h4 className="text-base font-bold text-text">{reviewWithdrawal.userId?.name || reviewWithdrawal.user}</h4>
+                                    <div className="mt-1 space-y-1">
+                                        <p className="text-[10px] font-semibold text-muted lowercase">{reviewWithdrawal.userId?.email || 'No email'}</p>
+                                        <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{reviewWithdrawal.userId?.phone || 'No phone'}</p>
+                                    </div>
+                                    <div className="mt-4 flex items-center justify-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${reviewWithdrawal.status === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                             }`}>
-                                            Identity: {reviewWithdrawal.kycStatus || 'Unknown'}
+                                            Account Status: {reviewWithdrawal.status || 'Unknown'}
                                         </span>
                                     </div>
                                 </div>
@@ -355,10 +303,91 @@ export default function FinancialManagement() {
                                             <p className="text-sm font-bold text-rose-500">-{formatCurrency(reviewWithdrawal.amount)}</p>
                                         </div>
                                     </div>
+                                    
+                                    <div className="p-4 bg-surface/30 border border-surface rounded-xl space-y-3">
+                                        <div className="flex justify-between items-center text-[10px] font-bold">
+                                            <span className="text-muted uppercase">Gross Amount</span>
+                                            <span className="text-text">{formatCurrency(reviewWithdrawal.grossAmount)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[10px] font-bold">
+                                            <span className="text-muted uppercase">Platform Charges</span>
+                                            <span className="text-rose-400">-{formatCurrency(reviewWithdrawal.platformFee)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[10px] font-bold">
+                                            <span className="text-muted uppercase">GST</span>
+                                            <span className="text-rose-400">-{formatCurrency(reviewWithdrawal.gst)}</span>
+                                        </div>
+                                        <div className="pt-2 border-t border-surface flex justify-between items-center text-[11px] font-bold">
+                                            <span className="text-primary uppercase">Net Transfer</span>
+                                            <span className="text-emerald-500">{formatCurrency(reviewWithdrawal.amount)}</span>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {userSnapshot && (
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
+                                        {/* Payment Details */}
+                                        <div className="space-y-3">
+                                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted flex items-center gap-2">
+                                                <DollarSign className="w-4 h-4 text-primary" /> Payment Destination
+                                            </h5>
+                                            <div className="p-4 bg-surface/30 border border-surface rounded-xl space-y-2">
+                                                <p className="text-[10px] font-bold text-primary uppercase">{reviewWithdrawal.paymentMethod || 'Method Not Specified'}</p>
+                                                {reviewWithdrawal.paymentMethod === 'bank' && reviewWithdrawal.bankDetails ? (
+                                                    <div className="space-y-1">
+                                                        <p className="text-xs font-bold text-text">{reviewWithdrawal.bankDetails.accountHolderName}</p>
+                                                        <p className="text-[11px] font-medium text-muted">{reviewWithdrawal.bankDetails.bankName}</p>
+                                                        <p className="text-[11px] font-mono text-text">A/C: {reviewWithdrawal.bankDetails.accountNumber}</p>
+                                                        <p className="text-[11px] font-mono text-text">IFSC: {reviewWithdrawal.bankDetails.ifscCode}</p>
+                                                    </div>
+                                                ) : reviewWithdrawal.paymentMethod === 'upi' ? (
+                                                    <p className="text-sm font-bold text-text">{reviewWithdrawal.upiId}</p>
+                                                ) : (
+                                                    <p className="text-xs italic text-muted">No details provided</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* KYC Documents */}
+                                        <div className="space-y-3">
+                                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted flex items-center gap-2">
+                                                <ShieldCheck className="w-4 h-4 text-primary" /> Government Proof
+                                            </h5>
+                                            <div className="p-4 bg-surface/30 border border-surface rounded-xl space-y-4">
+                                                <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                                                    <div className="p-2 bg-bg rounded-lg border border-surface">
+                                                        <p className="text-muted uppercase mb-1">Aadhar</p>
+                                                        <p className="text-text">{reviewWithdrawal.kycDetails?.aadharNumber || 'N/A'}</p>
+                                                    </div>
+                                                    <div className="p-2 bg-bg rounded-lg border border-surface">
+                                                        <p className="text-muted uppercase mb-1">PAN</p>
+                                                        <p className="text-text">{reviewWithdrawal.kycDetails?.panNumber || 'N/A'}</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-3">
+                                                    {reviewWithdrawal.documents?.aadharFrontUrl && (
+                                                        <div className="space-y-1">
+                                                            <p className="text-[9px] font-bold text-muted uppercase">Aadhar Front</p>
+                                                            <img src={reviewWithdrawal.documents.aadharFrontUrl} alt="Aadhar Front" className="w-full rounded-lg border border-surface cursor-zoom-in" onClick={() => window.open(reviewWithdrawal.documents.aadharFrontUrl)} />
+                                                        </div>
+                                                    )}
+                                                    {reviewWithdrawal.documents?.aadharBackUrl && (
+                                                        <div className="space-y-1">
+                                                            <p className="text-[9px] font-bold text-muted uppercase">Aadhar Back</p>
+                                                            <img src={reviewWithdrawal.documents.aadharBackUrl} alt="Aadhar Back" className="w-full rounded-lg border border-surface cursor-zoom-in" onClick={() => window.open(reviewWithdrawal.documents.aadharBackUrl)} />
+                                                        </div>
+                                                    )}
+                                                    {reviewWithdrawal.documents?.panCardUrl && (
+                                                        <div className="space-y-1">
+                                                            <p className="text-[9px] font-bold text-muted uppercase">PAN Card</p>
+                                                            <img src={reviewWithdrawal.documents.panCardUrl} alt="PAN Card" className="w-full rounded-lg border border-surface cursor-zoom-in" onClick={() => window.open(reviewWithdrawal.documents.panCardUrl)} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted flex items-center gap-2">
                                             <History className="w-4 h-4 text-primary" /> Integrity Ledger
                                         </h5>

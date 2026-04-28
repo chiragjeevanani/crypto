@@ -13,6 +13,7 @@ import { useUserStore } from './modules/user/store/useUserStore'
 import { useWalletStore } from './modules/user/store/useWalletStore'
 import { useFeedStore } from './modules/user/store/useFeedStore'
 import { useEffect, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import ErrorBoundary from './modules/user/components/shared/ErrorBoundary'
 
 // Admin Modules
@@ -48,6 +49,7 @@ import GiftHistory from './modules/admin/pages/GiftHistory'
 import WalletTransactions from './modules/admin/pages/WalletTransactions'
 import PromotionSettingsPage from './modules/admin/pages/PromotionSettingsPage'
 import ReportsManagement from './modules/admin/pages/ReportsManagement'
+import KycManagement from './modules/admin/pages/KycManagement'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -78,9 +80,17 @@ import AdminAuctionManagement from './modules/admin/pages/AdminAuctionManagement
 import LocationManagement from './modules/admin/pages/LocationManagement'
 
 export default function App() {
-  const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore()
-  const { loadWallet, loadGifts } = useWalletStore()
-  const { fetchSavedPostIds } = useFeedStore()
+  const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore(useShallow(state => ({
+    darkMode: state.darkMode,
+    initializeAuth: state.initializeAuth,
+    isAuthenticated: state.isAuthenticated,
+    authChecked: state.authChecked
+  })))
+  const { loadWallet, loadGifts } = useWalletStore(useShallow(state => ({
+    loadWallet: state.loadWallet,
+    loadGifts: state.loadGifts
+  })))
+  const fetchSavedPostIds = useFeedStore(state => state.fetchSavedPostIds)
   const { pathname } = useLocation()
   const isAdminPath = pathname.startsWith('/admin')
   const pathToken = useMemo(() => isAdminPath ? 'admin' : 'user', [isAdminPath])
@@ -149,6 +159,7 @@ export default function App() {
               <Route path="users/view/:userId" element={<UserDetailPage />} />
               <Route path="users/edit/:userId" element={<EditUser />} />
               <Route path="users/new" element={<UserCreatePage />} />
+              <Route path="kyc" element={<KycManagement />} />
               <Route path="content" element={<ContentControl />} />
               <Route path="content/:postId" element={<ContentDetailPage />} />
               <Route path="moderation" element={<Navigate to="/admin/content" replace />} />

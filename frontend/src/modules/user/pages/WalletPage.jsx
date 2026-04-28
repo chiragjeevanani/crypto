@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2, Zap, Share2 } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 import { useWalletStore } from '../store/useWalletStore'
-import { useUserStore } from '../store/useUserStore'
+import { useUserStore, getStoredToken } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
-import { getKYCSubmissionByUser, patchKYCSubmission, upsertKYCSubmission } from '../../../shared/kycSync'
 import WalletStatCard from '../components/wallet/WalletStatCard'
 import TransactionItem from '../components/wallet/TransactionItem'
 import { weeklyEarnings } from '../data/mockTransactions'
@@ -16,7 +16,6 @@ const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
 export default function WalletPage() {
     const {
-        balance,
         inrWallet,
         cryptoWallet,
         earningsWallet,
@@ -25,30 +24,48 @@ export default function WalletPage() {
         taskEarnings,
         nftEarnings,
         transactions,
-        earningsLedger,
         payoutMethods,
-        addFundsToWallet,
-        transferEarningsToWallet,
-        addPayoutMethod,
-        requestWithdrawal,
         loadWallet,
         loadTransactions,
-        walletLoading,
-        transactionsLoading,
         walletError,
         initiateRecharge,
         verifyPayment,
-    } = useWalletStore()
+        addPayoutMethod,
+        requestWithdrawal,
+    } = useWalletStore(useShallow(state => ({
+        inrWallet: state.inrWallet,
+        cryptoWallet: state.cryptoWallet,
+        earningsWallet: state.earningsWallet,
+        walletRates: state.walletRates,
+        giftEarnings: state.giftEarnings,
+        taskEarnings: state.taskEarnings,
+        nftEarnings: state.nftEarnings,
+        transactions: state.transactions,
+        payoutMethods: state.payoutMethods,
+        loadWallet: state.loadWallet,
+        loadTransactions: state.loadTransactions,
+        walletError: state.walletError,
+        initiateRecharge: state.initiateRecharge,
+        verifyPayment: state.verifyPayment,
+        addPayoutMethod: state.addPayoutMethod,
+        requestWithdrawal: state.requestWithdrawal,
+    })))
     const [searchParams, setSearchParams] = useSearchParams()
     const [isProcessingPayment, setIsProcessingPayment] = useState(false)
-    const { kyc, submitKYC, incrementReferralOnboarded, setKYCFromSync, profile } = useUserStore()
+    const { kyc, submitKYC, incrementReferralOnboarded, profile, initializeAuth } = useUserStore(useShallow(state => ({
+        kyc: state.kyc,
+        submitKYC: state.submitKYC,
+        incrementReferralOnboarded: state.incrementReferralOnboarded,
+        profile: state.profile,
+        initializeAuth: state.initializeAuth,
+    })))
     const currencySymbol = profile?.currencySymbol || '₹'
     const currencyCode = profile?.currencyCode || 'INR'
     const platformSettings = usePlatformSettings()
     const [activeTab, setActiveTab] = useState('Transactions')
     const [withdrawAmount, setWithdrawAmount] = useState('')
     const [withdrawMethod, setWithdrawMethod] = useState('upi')
-    const [withdrawUpiId, setWithdrawUpiId] = useState('9876543210@upi')
+    const [withdrawUpiId, setWithdrawUpiId] = useState('')
     const [withdrawAccountNumber, setWithdrawAccountNumber] = useState('')
     const [withdrawIFSC, setWithdrawIFSC] = useState('')
     const [kycReferralCode, setKycReferralCode] = useState(kyc.referralCode || '')
@@ -67,20 +84,49 @@ export default function WalletPage() {
     const [transferWallet, setTransferWallet] = useState('inr')
     const [walletActionMessage, setWalletActionMessage] = useState('')
     const [kycMessage, setKycMessage] = useState('')
+    const [aadharNumber, setAadharNumber] = useState('')
+    const [panNumber, setPanNumber] = useState('')
+    const [panCardFile, setPanCardFile] = useState(null)
+    const [withdrawBankName, setWithdrawBankName] = useState('')
+    const [withdrawAccountHolder, setWithdrawAccountHolder] = useState('')
 
     const hasAadharFront = Boolean(kycAadharFront) || Boolean(kyc.aadharFrontName)
     const hasAadharBack = Boolean(kycAadharBack) || Boolean(kyc.aadharBackName)
-    const canSubmitKYC = Boolean(kycReferralCode.trim()) && hasAadharFront && hasAadharBack
+    const hasPanCard = Boolean(panCardFile)
+    const canSubmitKYC = Boolean(kycReferralCode.trim()) && hasAadharFront && hasAadharBack && aadharNumber.length === 12 && panNumber.length === 10 && hasPanCard
     const hasWithdrawalAmount = Number(withdrawAmount || 0) >= platformSettings.minWithdrawal
     const hasWithdrawalDestination = withdrawMethod === 'upi'
         ? Boolean(withdrawUpiId.trim())
-        : Boolean(withdrawAccountNumber.trim()) && Boolean(withdrawIFSC.trim())
-    const canWithdraw = (profile.referralCount >= 5) && kyc.payoutsUnlocked && !kyc.riskFlag && hasWithdrawalAmount && hasWithdrawalDestination
+        : Boolean(withdrawAccountNumber.trim()) && Boolean(withdrawIFSC.trim()) && Boolean(withdrawAccountHolder.trim())
+    const canWithdraw = (profile.referralCount >= platformSettings.minReferralsForWithdrawal) && hasWithdrawalAmount && hasWithdrawalDestination && aadharNumber.length >= 12 && panNumber.length >= 10 && hasAadharFront && hasAadharBack && hasPanCard
 
     useEffect(() => {
         loadWallet()
         loadTransactions()
     }, [loadWallet, loadTransactions])
+
+    // Polling for KYC status updates if pending
+    useEffect(() => {
+        if (kyc.status !== 'pending') return;
+        
+        console.log('[Wallet] Starting KYC status poll...');
+        const interval = setInterval(() => {
+            initializeAuth();
+        }, 15000); // Increased to 15 seconds to reduce load
+        
+        return () => {
+            console.log('[Wallet] Cleaning up KYC poll.');
+            clearInterval(interval);
+        }
+    }, [kyc.status, initializeAuth])
+
+    // Auto-populate KYC data if verified
+    useEffect(() => {
+        if (kyc.status === 'verified' && kyc.aadharNumber) {
+            setAadharNumber(kyc.aadharNumber);
+            setPanNumber(kyc.panNumber || '');
+        }
+    }, [kyc.status, kyc.aadharNumber, kyc.panNumber])
 
     useEffect(() => {
         const verify = async () => {
@@ -161,27 +207,6 @@ export default function WalletPage() {
 
     }
 
-    useEffect(() => {
-        const hydrate = () => {
-            const synced = getKYCSubmissionByUser(kyc.syncUserId)
-            if (synced) {
-                setKYCFromSync(synced)
-                setKycReferralCode(synced.referralCode || '')
-            }
-        }
-        hydrate()
-        const onSync = () => hydrate()
-        const onStorage = (event) => {
-            if (event.key === 'K & Q Reels_kyc_sync_v1') hydrate()
-        }
-        window.addEventListener('kyc-sync-updated', onSync)
-        window.addEventListener('storage', onStorage)
-        return () => {
-            window.removeEventListener('kyc-sync-updated', onSync)
-            window.removeEventListener('storage', onStorage)
-        }
-    }, [kyc.syncUserId, setKYCFromSync])
-
     const toDataUrl = (file) => new Promise((resolve) => {
         if (!file) {
             resolve('')
@@ -194,40 +219,57 @@ export default function WalletPage() {
     })
 
     const handleSubmitKYC = async () => {
+        if (!aadharNumber || aadharNumber.length !== 12 || !panNumber || panNumber.length !== 10) {
+            setKycMessage('Please enter a valid 12-digit Aadhar and 10-digit PAN.')
+            return
+        }
+        if (!kycAadharFront || !kycAadharBack || !panCardFile) {
+            setKycMessage('Please upload all required document images.')
+            return
+        }
         try {
-            setKycMessage('')
-            const frontData = await toDataUrl(kycAadharFront)
-            const backData = await toDataUrl(kycAadharBack)
-            const payload = {
-                userId: kyc.syncUserId,
-                user: profile.username || 'User',
-                referralCode: (kycReferralCode || '').trim().toUpperCase(),
-                referredCount: kyc.referredCount || 0,
-                requiredReferrals: kyc.requiredReferrals || 5,
-                status: 'pending',
-                aadharFront: frontData || '',
-                aadharBack: backData || '',
-                aadharFrontName: kycAadharFront?.name || kyc.aadharFrontName || '',
-                aadharBackName: kycAadharBack?.name || kyc.aadharBackName || '',
-                payoutsUnlocked: false,
-            }
-            submitKYC({
-                referralCode: payload.referralCode,
-                aadharFrontName: payload.aadharFrontName,
-                aadharBackName: payload.aadharBackName,
+            setKycMessage('Uploading documentation...')
+            const aadharFront = await toDataUrl(kycAadharFront)
+            const aadharBack = await toDataUrl(kycAadharBack)
+            const panCard = await toDataUrl(panCardFile)
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/user/kyc/submit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getStoredToken()}`
+                },
+                body: JSON.stringify({
+                    aadharNumber: aadharNumber.trim(),
+                    panNumber: panNumber.trim().toUpperCase(),
+                    documents: {
+                        aadharFrontUrl: aadharFront,
+                        aadharBackUrl: aadharBack,
+                        panCardUrl: panCard
+                    }
+                })
             })
-            upsertKYCSubmission(payload)
-            setKycMessage('KYC submitted. Admin review will complete after 5 referral onboardings.')
-        } catch {
-            setKycMessage('KYC submission failed. Please re-upload Aadhaar and try again.')
+
+            const result = await response.json()
+            if (result.success) {
+                setKycMessage(`KYC submitted. Admin review will complete shortly.`)
+                // Sync with local state for immediate feedback
+                submitKYC({
+                    referralCode: kycReferralCode,
+                    aadharFrontName: kycAadharFront?.name,
+                    aadharBackName: kycAadharBack?.name,
+                })
+            } else {
+                setKycMessage(result.message || 'KYC submission failed.')
+            }
+        } catch (error) {
+            console.error('KYC Submit error:', error)
+            setKycMessage('KYC submission failed. Please check your connection.')
         }
     }
 
     const handleReferralIncrement = () => {
         incrementReferralOnboarded()
-        patchKYCSubmission(kyc.syncUserId, {
-            referredCount: Math.min(100, (kyc.referredCount || 0) + 1),
-        })
     }
 
     const handleShareReferral = async () => {
@@ -261,7 +303,7 @@ export default function WalletPage() {
         <div className="px-4 md:px-6 pt-4 md:pt-8 max-w-2xl mx-auto pb-safe">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl md:text-3xl font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Wallet</h1>
+                <h1 className="text-3xl md:text-4xl font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Wallet</h1>
                 <div className="p-2 rounded-2xl bg-surface border border-border/50">
                     <ShieldCheck size={20} className="text-primary" />
                 </div>
@@ -286,8 +328,8 @@ export default function WalletPage() {
                 >
                     <div className="relative z-10 flex items-center justify-between">
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-90 mb-1">{currencyCode} BALANCE</p>
-                            <h2 className="text-2xl font-black flex items-baseline gap-1">
+                            <p className="text-xs font-black uppercase tracking-[0.2em] opacity-90 mb-1">{currencyCode} BALANCE</p>
+                            <h2 className="text-4xl font-black flex items-baseline gap-1">
                                 <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
                                 {Math.round(inrWallet).toLocaleString()}
                             </h2>
@@ -313,9 +355,9 @@ export default function WalletPage() {
                 >
                     <div className="relative z-10 flex items-center justify-between">
                         <div>
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">CRYPTO ASSETS</p>
+                            <p className="text-xs font-black uppercase tracking-[0.2em] opacity-50 mb-1">CRYPTO ASSETS</p>
                             <div className="flex items-baseline gap-2">
-                                <h2 className="text-xl font-black truncate">
+                                <h2 className="text-3xl font-black truncate">
                                     {Number(cryptoWallet || 0).toFixed(3)} <span className="text-xs font-medium opacity-40">ETH</span>
                                 </h2>
                                 <span className="text-[9px] font-bold opacity-40 uppercase tracking-wider">
@@ -345,28 +387,28 @@ export default function WalletPage() {
                     <div className="relative z-10 flex items-center justify-between">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80">EARNING WALLET</p>
+                                <p className="text-xs font-black uppercase tracking-[0.2em] opacity-80">EARNING WALLET</p>
                                 {earningsWallet >= 10 && (
                                     <span className="bg-white/20 backdrop-blur-md text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase">Unlock</span>
                                 )}
                             </div>
-                            <h2 className="text-2xl font-black flex items-baseline gap-1">
+                            <h2 className="text-4xl font-black flex items-baseline gap-1">
                                 <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
-                                {Math.round(earningsWallet).toLocaleString()}
+                                {Math.round(earningsWallet / platformSettings.coinRate).toLocaleString()}
                             </h2>
                         </div>
                         
                         <div className="ml-4">
-                            {earningsWallet < 10 ? (
+                            {earningsWallet < platformSettings.minWithdrawal ? (
                                 <div className="w-24 space-y-1">
                                     <div className="flex justify-between text-[7px] font-black opacity-70 uppercase tracking-widest leading-none">
                                         <span>Payout Goal</span>
-                                        <span>{Math.round((earningsWallet / 10) * 100)}%</span>
+                                        <span>{Math.round((earningsWallet / platformSettings.minWithdrawal) * 100)}%</span>
                                     </div>
                                     <div className="h-1 bg-black/20 rounded-full overflow-hidden">
                                         <div 
                                             className="h-full bg-white transition-all duration-700" 
-                                            style={{ width: `${Math.min(100, (earningsWallet / 10) * 100)}%` }}
+                                            style={{ width: `${Math.min(100, (earningsWallet / platformSettings.minWithdrawal) * 100)}%` }}
                                         />
                                     </div>
                                 </div>
@@ -385,26 +427,32 @@ export default function WalletPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-[24px] p-6 mb-8 bg-surface border border-border/40 shadow-sm relative overflow-hidden group">
+            <div className="rounded-[24px] p-8 mb-8 bg-surface border border-border/40 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-4 flex items-center gap-2">
-                        <Zap size={12} className="text-primary" />
-                        Recharge your wallet
-                    </p>
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {[100, 200, 500].map(amt => (
+                    <div className="mb-6">
+                        <h3 className="text-xl font-black tracking-tight uppercase mb-1">Add to INR Balance</h3>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">Recharge your INR wallet</p>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest flex items-center gap-2">
+                            <Zap size={12} className="text-primary" />
+                            Select or enter amount
+                        </p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2 mb-8">
+                        {[5, 10, 20, 50, 100, 200, 500].map(amt => (
                             <button
                                 key={amt}
                                 disabled={isProcessingPayment}
                                 onClick={() => handleQuickAdd(amt)}
-                                className="px-4 py-2 rounded-xl text-[10px] font-black transition-all border border-border/20 shadow-sm active:scale-95 bg-bg hover:bg-surface2 text-primary uppercase tracking-widest"
+                                className="flex-1 min-w-[70px] sm:flex-none px-4 py-3 rounded-xl text-[10px] font-black transition-all border border-border/20 shadow-sm active:scale-95 bg-bg hover:bg-surface2 text-primary uppercase tracking-widest"
                             >
                                 +{currencySymbol}{amt}
                             </button>
                         ))}
                     </div>
+                    
                     <div className="relative">
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-1 group/input">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-primary transition-colors group-focus-within/input:scale-110 transition-transform">{currencySymbol}</span>
                                 <input
@@ -412,14 +460,14 @@ export default function WalletPage() {
                                     value={addInrAmount}
                                     onChange={(e) => setAddInrAmount(e.target.value)}
                                     placeholder="Enter custom amount"
-                                    className="w-full h-12 pl-10 pr-4 rounded-xl border-2 bg-primary/10 text-sm font-black outline-none border-primary/30 focus:border-primary focus:bg-primary/20 transition-all placeholder:text-primary/60"
+                                    className="w-full h-14 pl-10 pr-4 rounded-xl border-2 bg-primary/10 text-sm font-black outline-none border-primary/30 focus:border-primary focus:bg-primary/20 transition-all placeholder:text-primary/60"
                                     style={{ color: 'var(--color-text)' }}
                                 />
                             </div>
                             <button
                                 disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
                                 onClick={() => handleQuickAdd(addInrAmount)}
-                                className="px-8 h-12 rounded-xl text-white text-[10px] font-black uppercase tracking-widest shadow-lg transition-all disabled:opacity-60 shrink-0 active:scale-95 hover:brightness-110"
+                                className="w-full sm:w-auto px-10 h-14 rounded-xl text-white text-[11px] font-black uppercase tracking-widest shadow-lg transition-all disabled:opacity-60 shrink-0 active:scale-95 hover:brightness-110"
                                 style={{ 
                                     background: 'linear-gradient(135deg, #F39C12 0%, #D35400 100%)',
                                     boxShadow: (isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0) 
@@ -427,7 +475,7 @@ export default function WalletPage() {
                                         : '0 10px 15px -3px rgba(211, 84, 0, 0.4)'
                                 }}
                             >
-                                {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Recharge'}
+                                {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Recharge Now'}
                             </button>
                         </div>
                     </div>
@@ -467,7 +515,7 @@ export default function WalletPage() {
 
             {/* Tabs */}
             <div className="flex border-b border-border/30 mb-8 overflow-x-auto no-scrollbar">
-                {['Transactions', 'Withdraw', 'Linked'].map((tab) => {
+                {TABS.map((tab) => {
                     const active = tab === activeTab
                     return (
                         <button
@@ -534,12 +582,13 @@ export default function WalletPage() {
                                     </button>
                                 </div>
                                 <p className="text-[10px] font-bold text-muted leading-relaxed uppercase tracking-tighter">
-                                    Share this platform with at least 5 friends to unlock your revenue stream.
+                                    Share this platform with at least {platformSettings.minReferralsForWithdrawal} friends to unlock your revenue stream.
                                 </p>
                             </div>
                             {/* KYC Status Banner */}
-                            {(kyc.status !== 'verified' || (profile.referralCount || 0) < 5) && (
+                            {(kyc.status !== 'verified' || (profile.referralCount || 0) < platformSettings.minReferralsForWithdrawal) && (
                                 <motion.div 
+                                    id="kyc-section"
                                     className="rounded-[32px] p-8 border backdrop-blur-md shadow-2xl relative overflow-hidden"
                                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                                 >
@@ -552,7 +601,7 @@ export default function WalletPage() {
                                         <div className="flex-1 space-y-1">
                                             <h3 className="text-lg font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Unlock Withdrawals</h3>
                                             <p className="text-sm font-medium leading-relaxed opacity-60">
-                                                Complete mandatory KYC and refer 5 members to enable earnings withdrawal.
+                                                Complete mandatory KYC and refer {platformSettings.minReferralsForWithdrawal} members to enable earnings withdrawal.
                                             </p>
                                         </div>
                                     </div>
@@ -563,11 +612,11 @@ export default function WalletPage() {
                                             <div className="p-4 rounded-2xl bg-bg/50 border border-border/50">
                                                 <p className="text-[10px] font-black uppercase text-muted tracking-widest mb-2">Referrals</p>
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-xl font-black">{profile.referralCount || 0}<span className="text-sm text-muted">/5</span></span>
-                                                    {profile.referralCount >= 5 && <div className="p-1 rounded-full bg-emerald-500"><ShieldCheck size={10} className="text-white" /></div>}
+                                                    <span className="text-xl font-black">{profile.referralCount || 0}<span className="text-sm text-muted">/{platformSettings.minReferralsForWithdrawal}</span></span>
+                                                    {profile.referralCount >= platformSettings.minReferralsForWithdrawal && <div className="p-1 rounded-full bg-emerald-500"><ShieldCheck size={10} className="text-white" /></div>}
                                                 </div>
                                                 <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                                                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, ((profile.referralCount || 0) / 5) * 100)}%` }} />
+                                                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, ((profile.referralCount || 0) / platformSettings.minReferralsForWithdrawal) * 100)}%` }} />
                                                 </div>
                                             </div>
                                             <div className="p-4 rounded-2xl bg-bg/50 border border-border/50">
@@ -581,21 +630,53 @@ export default function WalletPage() {
                                         </div>
 
                                         {kyc.status !== 'verified' && (
-                                            <div className="space-y-4">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black uppercase text-muted tracking-widest ml-1">Aadhar Number (12 digits)</label>
+                                                        <input 
+                                                            type="text"
+                                                            maxLength={12}
+                                                            value={aadharNumber}
+                                                            onChange={(e) => setAadharNumber(e.target.value.replace(/\D/g, ''))}
+                                                            placeholder="0000 0000 0000"
+                                                            className="w-full px-5 h-14 rounded-2xl border-2 border-border/20 bg-bg text-sm font-black outline-none focus:border-primary/30 transition-all"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black uppercase text-muted tracking-widest ml-1">PAN Card Number</label>
+                                                        <input 
+                                                            type="text"
+                                                            maxLength={10}
+                                                            value={panNumber}
+                                                            onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                                                            placeholder="ABCDE1234F"
+                                                            className="w-full px-5 h-14 rounded-2xl border-2 border-border/20 bg-bg text-sm font-black outline-none focus:border-primary/30 transition-all uppercase"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                     <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group">
                                                         <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-3"><ShieldCheck size={20} /></div>
                                                         <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                            {kycAadharFront?.name || kyc.aadharFrontName?.substring(0,10) || 'FRONT SIDE'}
+                                                            {kycAadharFront?.name || kyc.aadharFrontName?.substring(0,10) || 'AADHAR FRONT'}
                                                         </span>
                                                         <input type="file" accept="image/*,.pdf" onChange={(e) => setKycAadharFront(e.target.files?.[0] || null)} className="hidden" />
                                                     </label>
                                                     <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group">
                                                         <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all -rotate-3"><ShieldCheck size={20} /></div>
                                                         <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                            {kycAadharBack?.name || kyc.aadharBackName?.substring(0,10) || 'BACK SIDE'}
+                                                            {kycAadharBack?.name || kyc.aadharBackName?.substring(0,10) || 'AADHAR BACK'}
                                                         </span>
                                                         <input type="file" accept="image/*,.pdf" onChange={(e) => setKycAadharBack(e.target.files?.[0] || null)} className="hidden" />
+                                                    </label>
+                                                    <label className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group">
+                                                        <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-6"><ShieldCheck size={20} /></div>
+                                                        <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
+                                                            {panCardFile?.name || 'PAN CARD IMAGE'}
+                                                        </span>
+                                                        <input type="file" accept="image/*,.pdf" onChange={(e) => setPanCardFile(e.target.files?.[0] || null)} className="hidden" />
                                                     </label>
                                                 </div>
                                                 
@@ -614,138 +695,212 @@ export default function WalletPage() {
                                 </motion.div>
                             )}
 
-                            {/* Withdrawal Form */}
-                            <div className="rounded-[32px] p-8 border shadow-sm space-y-8" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-                                <div className="space-y-4">
-                                    <div className="flex p-1 bg-surface border border-border/30 rounded-2xl">
-                                        {['upi', 'bank'].map((m) => (
-                                            <button
-                                                key={m}
-                                                onClick={() => setWithdrawMethod(m)}
-                                                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${withdrawMethod === m ? 'bg-primary text-black shadow-lg' : 'text-muted hover:text-text'}`}
-                                            >
-                                                {m}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="space-y-6">
-                                        <div className="relative group">
-                                            <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 mb-3 block">Withdrawal Amount</label>
-                                            <div className="flex items-center px-5 h-14 rounded-2xl border-2 border-border/20 bg-bg transition-all group-within:border-primary/30 group-within:bg-surface">
-                                                <span className="text-xl font-black mr-2 text-muted">{currencySymbol}</span>
-                                                <input
-                                                    type="number"
-                                                    placeholder={`0.00`}
-                                                    value={withdrawAmount}
-                                                    onChange={(e) => {
-                                                        const val = Number(e.target.value);
-                                                        setWithdrawAmount(Math.min(val, earningsWallet));
-                                                    }}
-                                                    className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/20"
-                                                />
-                                                <button 
-                                                    onClick={() => setWithdrawAmount(Math.floor(earningsWallet))}
-                                                    className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-black transition-all"
+                            {/* Withdrawal Form - Only visible when verified and referral count met */}
+                            {kyc.status === 'verified' && (profile.referralCount || 0) >= platformSettings.minReferralsForWithdrawal ? (
+                                <div className="rounded-[32px] p-8 border shadow-sm space-y-8" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                                    <div className="space-y-4">
+                                        <div className="flex p-1 bg-surface border border-border/30 rounded-2xl">
+                                            {['upi', 'bank'].map((m) => (
+                                                <button
+                                                    key={m}
+                                                    onClick={() => setWithdrawMethod(m)}
+                                                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${withdrawMethod === m ? 'bg-primary text-black shadow-lg' : 'text-muted hover:text-text'}`}
                                                 >
-                                                    MAX
+                                                    {m}
                                                 </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <div className="relative group">
+                                                <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em] ml-1 mb-3 block">Withdrawal Amount (INR)</label>
+                                                <div className="flex items-center px-5 h-14 rounded-2xl border-2 border-border/20 bg-bg transition-all group-within:border-primary/30 group-within:bg-surface">
+                                                    <span className="text-xl font-black mr-2 text-muted">{currencySymbol}</span>
+                                                    <input
+                                                        type="number"
+                                                        placeholder={`0.00`}
+                                                        value={withdrawAmount}
+                                                        onChange={(e) => {
+                                                            const valInRs = Number(e.target.value);
+                                                            const maxRs = earningsWallet / platformSettings.coinRate;
+                                                            setWithdrawAmount(Math.min(valInRs, maxRs));
+                                                        }}
+                                                        className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/20"
+                                                    />
+                                                    <button 
+                                                        onClick={() => setWithdrawAmount(Math.floor(earningsWallet / platformSettings.coinRate))}
+                                                        className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-black transition-all"
+                                                    >
+                                                        MAX
+                                                    </button>
+                                                </div>
+                                                <p className="text-[9px] font-bold text-muted mt-2 ml-1 uppercase">
+                                                    Equivalent to {Math.round(withdrawAmount * platformSettings.coinRate)} coins
+                                                </p>
+                                            </div>
+
+                                            {/* Payout Breakdown */}
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: withdrawAmount ? 1 : 0, height: withdrawAmount ? 'auto' : 0 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="p-5 rounded-[22px] bg-bg border border-border/50 space-y-3">
+                                                    <div className="flex justify-between text-xs font-bold text-muted">
+                                                        <span>Requested Amount</span>
+                                                        <span>{currencySymbol}{Number(withdrawAmount || 0).toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] font-bold text-red-500/80">
+                                                        <span>Platform Fee ({platformSettings.commission || 10}%)</span>
+                                                        <span>-{currencySymbol}{((Number(withdrawAmount || 0) * (platformSettings.commission || 10)) / 100).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] font-bold text-red-500/80">
+                                                        <span>GST (18%)</span>
+                                                        <span>-{currencySymbol}{((Number(withdrawAmount || 0) * 18) / 100).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="pt-2 border-t border-border/50 flex justify-between items-center">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">Final Payout</span>
+                                                        <span className="text-lg font-black text-emerald-500">
+                                                            {currencySymbol}{Math.max(0, Number(withdrawAmount || 0) - (Number(withdrawAmount || 0) * (platformSettings.commission || 10) / 100) - (Number(withdrawAmount || 0) * 18 / 100)).toFixed(2)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+
+                                            {withdrawMethod === 'upi' ? (
+                                                <div className="relative group">
+                                                    <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-3 mb-2 block">UPI ID</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="e.g. yourname@bank"
+                                                        value={withdrawUpiId}
+                                                        onChange={(e) => setWithdrawUpiId(e.target.value)}
+                                                        className="w-full px-5 h-16 rounded-[22px] text-sm outline-none border bg-bg/50 focus:ring-4 ring-primary/10 focus:border-primary transition-all font-bold placeholder:text-muted/30"
+                                                        style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Account Holder Name"
+                                                        value={withdrawAccountHolder}
+                                                        onChange={(e) => setWithdrawAccountHolder(e.target.value)}
+                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
+                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Bank Name"
+                                                        value={withdrawBankName}
+                                                        onChange={(e) => setWithdrawBankName(e.target.value)}
+                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
+                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Account Number"
+                                                        value={withdrawAccountNumber}
+                                                        onChange={(e) => setWithdrawAccountNumber(e.target.value)}
+                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
+                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="IFSC Code (e.g. SBIN0001234)"
+                                                        value={withdrawIFSC}
+                                                        onChange={(e) => setWithdrawIFSC(e.target.value.toUpperCase())}
+                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
+                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Government Verification Info */}
+                                            <div className="pt-4 border-t border-border/20 space-y-4">
+                                                <p className="text-[10px] font-black uppercase text-muted tracking-widest ml-3">Identity Verified</p>
+                                                <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                                                    <ShieldCheck className="text-emerald-500" size={20} />
+                                                    <div>
+                                                        <p className="text-xs font-black">KYC DOCUMENTATION APPROVED</p>
+                                                        <p className="text-[9px] font-bold text-muted uppercase">Payouts are authorized for this account</p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Payout Breakdown */}
-                                        <motion.div 
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: withdrawAmount ? 1 : 0, height: withdrawAmount ? 'auto' : 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="p-5 rounded-[22px] bg-bg border border-border/50 space-y-3">
-                                                <div className="flex justify-between text-xs font-bold text-muted">
-                                                    <span>Requested Amount</span>
-                                                    <span>{currencySymbol}{Number(withdrawAmount || 0).toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between text-[11px] font-bold text-red-500/80">
-                                                    <span>Platform Fee ({platformSettings.commission || 10}%)</span>
-                                                    <span>-{currencySymbol}{((Number(withdrawAmount || 0) * (platformSettings.commission || 10)) / 100).toFixed(2)}</span>
-                                                </div>
-                                                <div className="flex justify-between text-[11px] font-bold text-red-500/80">
-                                                    <span>GST (18%)</span>
-                                                    <span>-{currencySymbol}{((Number(withdrawAmount || 0) * 18) / 100).toFixed(2)}</span>
-                                                </div>
-                                                <div className="pt-2 border-t border-border/50 flex justify-between items-center">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Final Payout</span>
-                                                    <span className="text-lg font-black text-emerald-500">
-                                                        {currencySymbol}{Math.max(0, Number(withdrawAmount || 0) - (Number(withdrawAmount || 0) * (platformSettings.commission || 10) / 100) - (Number(withdrawAmount || 0) * 18 / 100)).toFixed(2)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </motion.div>
+                                        <motion.button
+                                            whileHover={{ scale: 1.01 }}
+                                            whileTap={{ scale: 0.98 }}
+                                            onClick={async () => {
+                                                setWalletActionMessage('Processing payout request...')
+                                                 const payoutPayload = {
+                                                    paymentMethod: withdrawMethod,
+                                                    bankDetails: withdrawMethod === 'bank' ? {
+                                                        accountNumber: withdrawAccountNumber.trim(),
+                                                        ifscCode: withdrawIFSC.trim().toUpperCase(),
+                                                        bankName: withdrawBankName.trim(),
+                                                        accountHolderName: withdrawAccountHolder.trim()
+                                                    } : undefined,
+                                                    upiId: withdrawMethod === 'upi' ? withdrawUpiId.trim().toLowerCase() : undefined,
+                                                    kycDetails: {
+                                                        aadharNumber: aadharNumber.trim(),
+                                                        panNumber: panNumber.trim().toUpperCase()
+                                                    },
+                                                    documents: {
+                                                        aadharFrontUrl: kyc.aadharFrontUrl || '',
+                                                        aadharBackUrl: kyc.aadharBackUrl || '',
+                                                        panCardUrl: kyc.panCardUrl || ''
+                                                    }
+                                                }
 
-                                        {withdrawMethod === 'upi' ? (
-                                            <div className="relative group">
-                                                <label className="text-[10px] font-black text-muted uppercase tracking-widest ml-3 mb-2 block">UPI ID</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="e.g. yourname@bank"
-                                                    value={withdrawUpiId}
-                                                    onChange={(e) => setWithdrawUpiId(e.target.value)}
-                                                    className="w-full px-5 h-16 rounded-[22px] text-sm outline-none border bg-bg/50 focus:ring-4 ring-primary/10 focus:border-primary transition-all font-bold placeholder:text-muted/30"
-                                                    style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-1 gap-4">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Account Number"
-                                                    value={withdrawAccountNumber}
-                                                    onChange={(e) => setWithdrawAccountNumber(e.target.value)}
-                                                    className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
-                                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    placeholder="IFSC Code (e.g. SBIN0001234)"
-                                                    value={withdrawIFSC}
-                                                    onChange={(e) => setWithdrawIFSC(e.target.value.toUpperCase())}
-                                                    className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
-                                                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                                />
-                                            </div>
+                                                console.log('[Wallet] Initiating payout with token:', getStoredToken() ? 'Present' : 'Missing');
+
+                                                const coinsToWithdraw = Math.round(withdrawAmount * platformSettings.coinRate);
+                                                const result = await requestWithdrawal(coinsToWithdraw, payoutPayload)
+                                                if (result?.ok) {
+                                                    runWalletAction(result, 'Withdrawal request transmitted to treasury.')
+                                                    setWithdrawAmount('')
+                                                } else {
+                                                    runWalletAction(result)
+                                                }
+                                            }}
+                                            disabled={!withdrawAmount || (withdrawAmount * platformSettings.coinRate) < platformSettings.minWithdrawal || (withdrawAmount * platformSettings.coinRate) > earningsWallet}
+                                            className="w-full py-4 rounded-2xl text-[10px] font-black transition-all shadow-2xl disabled:opacity-20 hover:shadow-primary/30 uppercase tracking-[0.2em] shadow-primary/20"
+                                            style={{
+                                                background: 'var(--color-primary)',
+                                                color: '#000',
+                                            }}
+                                        >
+                                            Execute Payout
+                                        </motion.button>
+                                        
+                                        {earningsWallet < (platformSettings.minWithdrawal || 10) && (
+                                            <p className="text-[10px] text-center font-bold text-muted px-6 uppercase tracking-widest opacity-60">
+                                                Balance must be at least {currencySymbol}{platformSettings.minWithdrawal || 10} to initiate payout
+                                            </p>
                                         )}
                                     </div>
-
-                                    <motion.button
-                                        whileHover={{ scale: 1.01 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={async () => {
-                                            const result = await requestWithdrawal(withdrawAmount, withdrawMethod === 'upi'
-                                                ? { type: 'upi', upiId: withdrawUpiId.trim().toLowerCase() }
-                                                : { type: 'bank', accountNumber: withdrawAccountNumber.trim(), ifscCode: withdrawIFSC.trim().toUpperCase() })
-                                            if (result?.ok) {
-                                                runWalletAction(result, 'Withdrawal request transmitted to treasury.')
-                                                setWithdrawAmount('')
-                                            } else {
-                                                runWalletAction(result)
-                                            }
-                                        }}
-                                        disabled={!canWithdraw}
-                                        className="w-full py-4 rounded-2xl text-[10px] font-black transition-all shadow-2xl disabled:opacity-20 hover:shadow-primary/30 uppercase tracking-[0.2em] shadow-primary/20"
-                                        style={{
-                                            background: 'var(--color-primary)',
-                                            color: '#000',
-                                        }}
-                                    >
-                                        Execute Payout
-                                    </motion.button>
-                                    
-                                    {earningsWallet < (platformSettings.minWithdrawal || 10) && (
-                                        <p className="text-[10px] text-center font-bold text-muted px-6 uppercase tracking-widest opacity-60">
-                                            Balance must be at least {currencySymbol}{platformSettings.minWithdrawal || 10} to initiate payout
-                                        </p>
-                                    )}
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="rounded-[32px] p-12 border border-dashed border-border/50 text-center space-y-4 bg-surface/30">
+                                    <div className="w-20 h-20 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-6">
+                                        <ShieldCheck size={40} className="text-orange-500" />
+                                    </div>
+                                    <h3 className="text-xl font-black tracking-tight uppercase">Verification Required</h3>
+                                    <p className="text-xs font-bold text-muted max-w-xs mx-auto leading-relaxed">
+                                        Identity verification (KYC) and at least {platformSettings.minReferralsForWithdrawal || 5} successful referrals are required to unlock payout features.
+                                    </p>
+                                    <div className="pt-6">
+                                        <button 
+                                            onClick={() => document.getElementById('kyc-section')?.scrollIntoView({ behavior: 'smooth' })}
+                                            className="px-8 py-3 rounded-xl bg-bg border-2 border-primary text-primary text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-black transition-all"
+                                        >
+                                            Complete KYC
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
-import { DEFAULT_PLATFORM_SETTINGS, getPlatformSettingsFromCookie } from '../../../shared/platformSettings';
+import { DEFAULT_PLATFORM_SETTINGS, getPlatformSettingsFromCookie, fetchPlatformSettings } from '../../../shared/platformSettings';
 
 export function usePlatformSettings() {
     const [settings, setSettings] = useState(() => getPlatformSettingsFromCookie());
 
     useEffect(() => {
         const sync = () => setSettings(getPlatformSettingsFromCookie());
-        sync();
+        
+        // Initial fetch
+        fetchPlatformSettings().then(sync);
+
         window.addEventListener('platform-settings-updated', sync);
         window.addEventListener('focus', sync);
         return () => {

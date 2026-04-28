@@ -3,6 +3,8 @@ const COOKIE_KEY = 'platform_settings';
 export const DEFAULT_PLATFORM_SETTINGS = {
     commission: 10,
     minWithdrawal: 10,
+    minReferralsForWithdrawal: 5,
+    coinRate: 1,
     maintenanceMode: false,
     kycMandatory: true,
     maxVotesPerDay: 50,
@@ -44,5 +46,27 @@ export function savePlatformSettingsToCookie(settings) {
     document.cookie = `${COOKIE_KEY}=${encoded}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
     window.dispatchEvent(new CustomEvent('platform-settings-updated', { detail: payload }));
     return payload;
+}
+
+export async function fetchPlatformSettings() {
+    try {
+        const url = `${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/config`;
+        console.log('[PlatformSettings] Fetching from:', url);
+        const res = await fetch(url);
+        const data = await res.json();
+        console.log('[PlatformSettings] Received data:', data);
+        if (data.success && data.config) {
+            return savePlatformSettingsToCookie({
+                commission: data.config.platformFeePct,
+                minWithdrawal: data.config.minWithdrawalCoins,
+                minReferralsForWithdrawal: data.config.minReferralsForWithdrawal,
+                premiumThreshold: data.config.premiumThreshold,
+                coinRate: data.config.coinRate
+            });
+        }
+    } catch (error) {
+        console.error('Failed to fetch platform settings:', error);
+    }
+    return getPlatformSettingsFromCookie();
 }
 

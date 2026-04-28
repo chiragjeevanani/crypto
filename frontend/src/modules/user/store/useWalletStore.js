@@ -89,6 +89,9 @@ export const useWalletStore = create((set, get) => ({
         try {
             const data = await walletService.getTransactions(params || {})
             const list = Array.isArray(data?.transactions) ? data.transactions : []
+            const settings = getPlatformSettingsFromCookie()
+            const coinRate = Number(settings.coinRate || 1)
+            
             const mapped = list.map((tx) => {
                 const coins = Number(tx.coins || 0)
                 const isDebit = tx.type === 'gift_sent' || tx.type === 'withdrawal'
@@ -116,11 +119,16 @@ export const useWalletStore = create((set, get) => ({
                     title = 'Reel Post Reward'
                 }
 
+                // Use backend provided amount (RS) if available, otherwise calculate from coins
+                const rsAmount = tx.amount !== undefined && tx.amount !== null 
+                    ? Number(tx.amount) 
+                    : (coins / coinRate)
+
                 return {
                     id: tx._id || tx.id,
                     type: normalizedType,
                     title,
-                    amount: Math.round(sign * coins),
+                    amount: sign * rsAmount,
                     date: tx.createdAt || new Date().toISOString(),
                     status: tx.status === 'success' ? 'completed' : tx.status,
                 }
@@ -423,21 +431,24 @@ export const useWalletStore = create((set, get) => ({
         }
     }),
 
-    requestWithdrawal: async (amount, payout) => {
-        const parsed = Number(amount || 0)
+    requestWithdrawal: async (coins, payout) => {
+        const parsed = Number(coins || 0)
         const state = get()
         if (!Number.isFinite(parsed) || parsed < 1 || parsed > state.earningsWallet) {
             return { ok: false, message: 'Invalid withdrawal amount.' }
         }
-        if (!payout || !payout.type) return { ok: false, message: 'Select a payout method.' }
-        if (payout.type === 'bank') {
-            if (!payout.accountNumber || !payout.ifscCode) return { ok: false, message: 'Bank details required.' }
-        }
-        if (payout.type === 'upi') {
-            if (!payout.upiId) return { ok: false, message: 'UPI ID required.' }
-        }
+        if (!payout || !payout.paymentMethod) return { ok: false, message: 'Select a payout method.' }
+        
         try {
-            await walletService.requestWithdrawal(parsed, `wd_${Date.now()}`)
+            await walletService.requestWithdrawal({
+                coins: parsed,
+                paymentMethod: payout.paymentMethod,
+                bankDetails: payout.bankDetails,
+                upiId: payout.upiId,
+                kycDetails: payout.kycDetails,
+                documents: payout.documents,
+                idempotencyKey: `wd_${Date.now()}`
+            })
             await get().loadWallet()
             await get().loadTransactions()
             return { ok: true }

@@ -2,6 +2,7 @@ const Post = require("../../models/Post");
 const Report = require("../../models/Report");
 const Withdrawal = require("../../models/Withdrawal");
 const Auction = require("../../models/Auction");
+const KycSubmission = require("../../models/KycSubmission");
 const { getBaseUrl, mediaUrlFromPost, populateCreator } = require("../../utils/postHelpers");
 
 /**
@@ -162,6 +163,7 @@ exports.getModerationStats = async (req, res) => {
     const pendingReports = await Report.countDocuments({ status: "pending" });
     const pendingWithdrawals = await Withdrawal.countDocuments({ status: "pending" });
     const pendingAuctions = await Auction.countDocuments({ status: "pending" });
+    const pendingKYCs = await KycSubmission.countDocuments({ status: "pending" });
 
     res.status(200).json({
       success: true,
@@ -170,7 +172,8 @@ exports.getModerationStats = async (req, res) => {
         nfts: pendingNFTs,
         reports: pendingReports,
         withdrawals: pendingWithdrawals,
-        pendingAuctions
+        pendingAuctions,
+        kycs: pendingKYCs
       }
     });
   } catch (error) {
