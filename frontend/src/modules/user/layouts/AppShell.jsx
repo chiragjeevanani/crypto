@@ -88,27 +88,36 @@ export default function AppShell() {
                 id: `post_${post.id}`,
                 title: post.caption || 'NFT drop',
                 price: post.nftPriceINR || 0,
-                thumbnail: post.media?.type === 'video' 
-                    ? optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 100, crop: 'scale', format: 'jpg' })
-                    : (post.media?.url || ''),
+                thumbnail: post.media?.thumbnail || post.media?.url || '',
                 likes: post.likes || 0,
                 listedAt: post.createdAt || '',
                 source: 'post',
             }))
 
-        const nftListings = userNFTListings.map((listing) => ({
-            id: `listing_${listing.id}`,
-            title: listing.title,
-            price: listing.price,
-            thumbnail: listing.thumbnail || (
-                listing.mediaType === 'video'
-                    ? optimizeCloudinaryUrl(listing.mediaUrl, { isVideo: true, width: 100, crop: 'scale', format: 'jpg' })
-                    : (listing.mediaUrl || '')
-            ),
-            likes: listing.views || 0,
-            listedAt: listing.listedAt,
-            source: 'listing',
-        }))
+        const nftListings = userNFTListings.map((listing) => {
+            let thumb = listing.thumbnail || ''
+            if (!thumb) {
+                if (listing.mediaType === 'video') {
+                    thumb = listing.mediaUrl?.includes('cloudinary') 
+                        ? optimizeCloudinaryUrl(listing.mediaUrl, { isVideo: true, width: 100, crop: 'scale', format: 'jpg' })
+                        : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'%3E%3C/polygon%3E%3C/svg%3E";
+                } else if (listing.mediaType === 'audio') {
+                    thumb = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18V5l12-2v13'%3E%3C/path%3E%3Ccircle cx='6' cy='18' r='3'%3E%3C/circle%3E%3Ccircle cx='18' cy='16' r='3'%3E%3C/circle%3E%3C/svg%3E";
+                } else {
+                    thumb = listing.mediaUrl || ''
+                }
+            }
+            
+            return {
+                id: `listing_${listing.id}`,
+                title: listing.title,
+                price: listing.price,
+                thumbnail: thumb,
+                likes: listing.views || 0,
+                listedAt: listing.listedAt,
+                source: 'listing',
+            }
+        })
 
         return [...nftPosts, ...nftListings]
             .slice()
@@ -467,7 +476,17 @@ export default function AppShell() {
                                     style={{ background: 'var(--color-surface2)' }}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <img src={post.thumbnail} alt={post.title || 'NFT'} className="h-11 w-11 rounded-lg object-cover" />
+                                        <div className="h-11 w-11 rounded-lg overflow-hidden bg-surface flex items-center justify-center border border-surface2">
+                                            <img 
+                                                src={post.thumbnail || '/person.png'} 
+                                                alt="" 
+                                                className="h-full w-full object-cover" 
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = '/person.png';
+                                                }}
+                                            />
+                                        </div>
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
                                                 {post.title || 'NFT drop'}

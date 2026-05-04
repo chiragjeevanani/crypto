@@ -8,6 +8,8 @@ const { getAdminConfig } = require("../../utils/adminConfig");
 const { createNotification } = require("./notificationController");
 const { emitToUser, broadcastAll } = require("../../utils/socket");
 const { notifyAdmins } = require("../../utils/adminNotifier");
+const { getCachedRates } = require("../../utils/exchangeRate");
+const { buildCurrencyMeta } = require("../../utils/currencyConverter");
 
 const getIdempotencyKey = (req) =>
   (req.headers["idempotency-key"] || req.body.idempotencyKey || "").toString().trim() || null;
@@ -156,11 +158,14 @@ const sendGift = async (req, res) => {
           throw new Error("Gift not available");
         }
 
-        coinValue = Number(gift.value || 0);
-        if (coinValue <= 0) throw new Error("Gift value invalid");
-
         sender = await User.findById(senderId).session(session);
         if (!sender) throw new Error("Sender not found");
+
+        // Determine price based on sender's region
+        const isInr = (sender.currencyCode || "INR") === "INR";
+        coinValue = isInr ? Number(gift.priceInr || gift.price || 0) : Number(gift.priceGlobal || 0);
+
+        if (coinValue <= 0) throw new Error("Gift value invalid for your region");
 
         receiver = await User.findById(receiverId).session(session);
         if (!receiver) throw new Error("Receiver not found");
@@ -247,16 +252,78 @@ const sendGift = async (req, res) => {
       session.endSession();
     }
 
+    // --- Fetch live rates & build localized currency metadata ---
+    // Direct formula: gift.price (INR) → sender/receiver's own currency via live API rates
+    let senderCurrencyMeta = null;
+    let receiverCurrencyMeta = null;
+    try {
+      const { rates, source, lastUpdate } = await getCachedRates();
+      // Use the sender's price for calculation
+      const isSenderInr = (sender.currencyCode || "INR") === "INR";
+      const giftPriceBasis = isSenderInr ? Number(gift.priceInr || gift.price || 0) : Number(gift.priceGlobal || 0);
+
+      // Log exactly which source and rates are being used — verifiable in server console
+      console.log(`[Gift][Currency] Rate source: ${source} | Updated: ${lastUpdate}`);
+      console.log(`[Gift][Currency] Gift price basis: ${giftPriceBasis} ${isSenderInr ? 'INR' : 'Global'}`);
+      console.log(`[Gift][Currency] API rates used — INR: ${rates['INR']} | Sender(${sender.currencyCode}): ${rates[sender.currencyCode] ?? 'N/A'} | Receiver(${receiver.currencyCode}): ${rates[receiver.currencyCode] ?? 'N/A'}`);
+
+      // Sender sees how much they spent in their own currency
+      senderCurrencyMeta = buildCurrencyMeta(
+        giftPriceBasis,
+        sender.currencyCode || 'INR',
+        sender.currencySymbol || '₹',
+        rates
+      );
+
+      // Receiver sees how much they received in their own currency
+      receiverCurrencyMeta = buildCurrencyMeta(
+        giftPriceBasis,
+        receiver.currencyCode || 'INR',
+        receiver.currencySymbol || '₹',
+        rates
+      );
+
+      console.log(`[Gift][Currency] Result — Sender: ${senderCurrencyMeta.formatted} | Receiver: ${receiverCurrencyMeta.formatted}`);
+
+      // Patch localized meta onto both transaction records (best-effort)
+      await WalletTransaction.findByIdAndUpdate(debitTx._id, {
+        $set: { 
+          'meta.localAmount': senderCurrencyMeta.localAmount,
+          'meta.localCurrency': senderCurrencyMeta.localCurrency,
+          'meta.localSymbol': senderCurrencyMeta.localSymbol,
+          'meta.inrAmount': senderCurrencyMeta.inrAmount,
+          'meta.rateSource': source
+        }
+      });
+      await WalletTransaction.findByIdAndUpdate(creditTx._id, {
+        $set: { 
+          'meta.localAmount': receiverCurrencyMeta.localAmount,
+          'meta.localCurrency': receiverCurrencyMeta.localCurrency,
+          'meta.localSymbol': receiverCurrencyMeta.localSymbol,
+          'meta.inrAmount': receiverCurrencyMeta.inrAmount,
+          'meta.rateSource': source
+        }
+      });
+    } catch (e) {
+      console.error('[Gift] Currency conversion failed (non-critical):', e.message);
+    }
+
+
     // --- Persist notification for receiver & emit live event ---
     const senderHandle = sender.handle ? `@${sender.handle}` : sender.name;
     const receiverHandle = receiver.handle ? `@${receiver.handle}` : receiver.name;
     const giftEmoji = gift.icon || "🎁";
     const notifType = gift.name?.toLowerCase().includes("heart") ? "follower_broadcast" : "gift";
     const notifTitle = `${senderHandle} sent a ${giftEmoji} ${gift.name} to ${receiverHandle}`;
+
+    // Build subtitle with localized amount for receiver
+    const receiverAmountDisplay = receiverCurrencyMeta?.formatted
+      ? ` (${receiverCurrencyMeta.formatted})`
+      : '';
     const notifSubtitle =
       notifType === "follower_broadcast"
         ? "Broadcast sent to 100 followers to boost engagement."
-        : `${receiverHandle} just received a premium gift!`;
+        : `You received a premium ${gift.name}!${receiverAmountDisplay}`;
 
     const savedNotif = await createNotification({
       recipientId: receiverId,
@@ -264,7 +331,16 @@ const sendGift = async (req, res) => {
       type: notifType,
       title: notifTitle,
       subtitle: notifSubtitle,
-      meta: { postId, reelId, giftName: gift.name, giftIcon: giftEmoji, coins: coinValue }
+      meta: { 
+        postId, reelId, 
+        giftName: gift.name, giftIcon: giftEmoji, 
+        coins: coinValue,
+        // Receiver's localized amount
+        localAmount: receiverCurrencyMeta?.localAmount,
+        localCurrency: receiverCurrencyMeta?.localCurrency,
+        localSymbol: receiverCurrencyMeta?.localSymbol,
+        formatted: receiverCurrencyMeta?.formatted
+      }
     });
 
     // Push real-time private notification to receiver
@@ -531,6 +607,8 @@ const listActiveGifts = async (req, res) => {
         name: g.name,
         icon: g.icon || "🎁",
         price: g.price,
+        priceInr: g.priceInr || g.price,
+        priceGlobal: g.priceGlobal || 0,
         value: g.value,
         usage: g.usage || 0,
         soundUrl: g.soundUrl

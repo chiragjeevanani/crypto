@@ -9,7 +9,7 @@ export default function GiftListPage() {
     const navigate = useNavigate()
     const { gifts, loadGifts, updateGift, removeGift, toggleGiftStatus, isLoading, giftPolicy } = useAdminStore()
     const [editingGift, setEditingGift] = useState(null)
-    const [formData, setFormData] = useState({ name: '', price: 2, icon: '🎁', status: 'Active', soundUrl: '', soundFile: null })
+    const [formData, setFormData] = useState({ name: '', priceInr: 0, priceGlobal: 0, icon: '🎁', status: 'Active', soundUrl: '', soundFile: null })
 
     useEffect(() => {
         loadGifts()
@@ -19,7 +19,8 @@ export default function GiftListPage() {
         setEditingGift(gift)
         setFormData({
             name: gift.name,
-            price: Number(gift.price || 2),
+            priceInr: Number(gift.priceInr || gift.price || 0),
+            priceGlobal: Number(gift.priceGlobal || 0),
             icon: gift.icon || '🎁',
             status: gift.status || 'Active',
             soundUrl: gift.soundUrl || '',
@@ -29,12 +30,11 @@ export default function GiftListPage() {
     const saveEdit = async (event) => {
         event.preventDefault()
         if (!editingGift) return
-        const safePrice = Math.max(2, Math.min(10, Math.round(Number(formData.price || 2))))
         
         const submissionData = new FormData();
         submissionData.append('name', formData.name);
-        submissionData.append('price', safePrice);
-        submissionData.append('value', safePrice);
+        submissionData.append('priceInr', formData.priceInr);
+        submissionData.append('priceGlobal', formData.priceGlobal);
         submissionData.append('icon', formData.icon);
         submissionData.append('status', formData.status);
         if (formData.soundUrl) submissionData.append('soundUrl', formData.soundUrl);
@@ -48,7 +48,7 @@ export default function GiftListPage() {
         <div className="space-y-8 pb-20">
             <AdminPageHeader
                 title="Gift List"
-                subtitle="Manage gift prices. Allowed range is ₹2 to ₹10."
+                subtitle="Manage regional and global gift pricing and asset distribution."
                 actions={
                     <button
                         onClick={() => navigate('/admin/gifts/create')}
@@ -74,7 +74,10 @@ export default function GiftListPage() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-semibold text-text">{gift.name}</p>
-                                        <p className="text-xs text-muted">Price: ₹{gift.price}</p>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-muted font-bold">INR: ₹{gift.priceInr || gift.price}</span>
+                                            <span className="text-[10px] text-indigo-500 font-bold">Global: {gift.priceGlobal || 0}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <button
@@ -136,15 +139,28 @@ export default function GiftListPage() {
                                     className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
                                     placeholder="Gift name"
                                 />
-                                <input
-                                    type="number"
-                                    min={2}
-                                    max={10}
-                                    value={formData.price}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, price: Number(e.target.value || 2) }))}
-                                    className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
-                                    placeholder="Price in ₹ (1 to 10)"
-                                />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest ml-1">Price (INR ₹)</p>
+                                        <input
+                                            type="number"
+                                            value={formData.priceInr}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, priceInr: Number(e.target.value || 0) }))}
+                                            className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
+                                            placeholder="INR Price"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest ml-1">Price (Global)</p>
+                                        <input
+                                            type="number"
+                                            value={formData.priceGlobal}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, priceGlobal: Number(e.target.value || 0) }))}
+                                            className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
+                                            placeholder="Global Price"
+                                        />
+                                    </div>
+                                </div>
                                 <input
                                     type="text"
                                     value={formData.icon}

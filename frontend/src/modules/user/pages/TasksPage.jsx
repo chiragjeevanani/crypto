@@ -305,24 +305,34 @@ export default function TasksPage() {
                                         if (idx >= 0) setActiveNftPostIndex(idx)
                                     }}
                                 >
-                                    {nft.mediaType === 'video' && nft.mediaUrl ? (
-                                        <video
-                                            src={nft.mediaUrl}
-                                            className="w-full aspect-square object-cover"
-                                            muted
-                                            playsInline
-                                            loop
-                                            preload="none"
-                                            poster={nft.thumbnail}
-                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
-                                            onMouseLeave={(e) => {
-                                                e.target.pause();
-                                                e.target.currentTime = 0;
-                                            }}
-                                        />
-                                    ) : (
-                                        <img src={nft.thumbnail} alt={nft.title} className="w-full aspect-square object-cover" />
-                                    )}
+                                    <div className="w-full aspect-square bg-surface2 flex items-center justify-center overflow-hidden">
+                                        {nft.mediaType === 'video' && nft.mediaUrl ? (
+                                            <video
+                                                src={nft.mediaUrl}
+                                                className="w-full h-full object-cover"
+                                                muted
+                                                playsInline
+                                                loop
+                                                preload="none"
+                                                poster={nft.thumbnail}
+                                                onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                onMouseLeave={(e) => {
+                                                    e.target.pause();
+                                                    e.target.currentTime = 0;
+                                                }}
+                                            />
+                                        ) : (
+                                            <img 
+                                                src={nft.thumbnail || '/person.png'} 
+                                                alt={nft.title} 
+                                                className="w-full h-full object-cover" 
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = '/person.png';
+                                                }}
+                                            />
+                                        )}
+                                    </div>
                                     <div className="p-3">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
                                         <div className="mt-1 flex items-center justify-between">

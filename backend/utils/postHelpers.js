@@ -16,8 +16,16 @@ const mediaUrlFromPost = (post, baseUrl) => resolveUrl(post.media?.url, baseUrl)
 
 const thumbnailUrlFromPost = (post, baseUrl) => {
   const url = mediaUrlFromPost(post, baseUrl);
-  if (post.media?.type === "video" && url?.includes('cloudinary')) {
-    return url.replace(/\.[^/.]+$/, ".jpg");
+  if (post.media?.type === "video") {
+    if (url?.includes('cloudinary')) {
+      return url.replace(/\.[^/.]+$/, ".jpg");
+    }
+    // Return a video placeholder for local videos
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'%3E%3C/polygon%3E%3C/svg%3E";
+  }
+  if (post.media?.type === "audio") {
+    // Return an audio placeholder
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18V5l12-2v13'%3E%3C/path%3E%3Ccircle cx='6' cy='18' r='3'%3E%3C/circle%3E%3Ccircle cx='18' cy='16' r='3'%3E%3C/circle%3E%3C/svg%3E";
   }
   return url;
 };

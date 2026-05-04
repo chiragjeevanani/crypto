@@ -5,11 +5,59 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { authService } from '../../auth/services/authService';
 
-const COUNTRY_MOBILE_DIGITS = {
-    IN: 10, US: 10, GB: 10, EU: 10, AE: 9,
-    OM: 8, JO: 9, CH: 9, CA: 10, AU: 9,
-    SG: 8, RU: 10, FR: 9
+// Correct mobile number digit counts per country (excluding dial code prefix)
+const PHONE_DIGITS = {
+    IN: 10, US: 10, GB: 10, CA: 10, AU: 9,
+    AE: 9,  SA: 9,  SG: 8,  MY: 9,  PH: 10,
+    ID: 9,  PK: 10, BD: 10, NP: 10, LK: 9,
+    DE: 10, FR: 9,  IT: 10, ES: 9,  NL: 9,
+    RU: 10, CN: 11, JP: 10, KR: 10, HK: 8,
+    TW: 9,  TH: 9,  VN: 9,  MM: 9,  KH: 9,
+    NG: 10, ZA: 9,  KE: 9,  GH: 9,  ET: 9,
+    EG: 10, MA: 9,  TZ: 9,  UG: 9,  ZM: 9,
+    BR: 11, MX: 10, AR: 10, CO: 10, CL: 9,
+    PE: 9,  VE: 10, EC: 9,  BO: 8,  PY: 9,
+    NZ: 9,  FJ: 7,  PG: 8,  IR: 10, IQ: 10,
+    TR: 10, IL: 9,  JO: 9,  LB: 8,  QA: 8,
+    KW: 8,  BH: 8,  OM: 8,  YE: 9,  SY: 9,
+    PL: 9,  UA: 9,  RO: 9,  CZ: 9,  HU: 9,
+    PT: 9,  GR: 10, SE: 9,  NO: 8,  FI: 10,
+    DK: 8,  CH: 9,  AT: 10, BE: 9,  IE: 9,
 };
+
+/**
+ * Returns how many digits the phone number for a given country should have.
+ * Priority: 1) PHONE_DIGITS static map  2) Backend API country data  3) Default 10
+ */
+const getPhoneLength = (countryCode, countries) => {
+    if (PHONE_DIGITS[countryCode]) return PHONE_DIGITS[countryCode];
+    const country = countries?.find(c => c.code === countryCode);
+    return country?.mobileDigits || country?.phoneDigits || 10;
+};
+
+
+// Comprehensive ISO-3166 country code to dial code map
+const DIAL_CODES = {
+    IN: '+91',  US: '+1',   GB: '+44',  AU: '+61',  CA: '+1',
+    AE: '+971', SA: '+966', SG: '+65',  MY: '+60',  PH: '+63',
+    ID: '+62',  PK: '+92',  BD: '+880', NP: '+977', LK: '+94',
+    DE: '+49',  FR: '+33',  IT: '+39',  ES: '+34',  NL: '+31',
+    RU: '+7',   CN: '+86',  JP: '+81',  KR: '+82',  HK: '+852',
+    TW: '+886', TH: '+66',  VN: '+84',  MM: '+95',  KH: '+855',
+    NG: '+234', ZA: '+27',  KE: '+254', GH: '+233', ET: '+251',
+    EG: '+20',  MA: '+212', TZ: '+255', UG: '+256', ZM: '+260',
+    BR: '+55',  MX: '+52',  AR: '+54',  CO: '+57',  CL: '+56',
+    PE: '+51',  VE: '+58',  EC: '+593', BO: '+591', PY: '+595',
+    NZ: '+64',  FJ: '+679', PG: '+675', IR: '+98',  IQ: '+964',
+    TR: '+90',  IL: '+972', JO: '+962', LB: '+961', QA: '+974',
+    KW: '+965', BH: '+973', OM: '+968', YE: '+967', SY: '+963',
+    PL: '+48',  UA: '+380', RO: '+40',  CZ: '+420', HU: '+36',
+    PT: '+351', GR: '+30',  SE: '+46',  NO: '+47',  FI: '+358',
+    DK: '+45',  CH: '+41',  AT: '+43',  BE: '+32',  IE: '+353',
+};
+
+const getDialCode = (countryCode) => DIAL_CODES[countryCode] || '';
+
 
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
 const validateEmail = (v) => {
@@ -24,11 +72,10 @@ const validatePassword = (v) => {
     if (!/[a-zA-Z]/.test(v)) return 'Password must contain at least one letter';
     return '';
 };
-const validatePhone = (v, countryCode = 'IN') => {
+const validatePhone = (v, requiredLength = 10) => {
     const digits = (v || '').replace(/\D/g, '');
-    const required = COUNTRY_MOBILE_DIGITS[countryCode] || 10;
     if (digits.length === 0) return 'Phone number is required';
-    if (digits.length !== required) return `Phone number must be exactly ${required} digits for this country`;
+    if (digits.length !== requiredLength) return `Phone number must be exactly ${requiredLength} digits for this country`;
     return '';
 };
 
@@ -58,6 +105,11 @@ export default function SignUpPage() {
     const [countrySearch, setCountrySearch] = useState('');
     const countryDropdownRef = useRef(null);
 
+    // Phone dial code prefix picker
+    const [isPhoneDialOpen, setIsPhoneDialOpen] = useState(false);
+    const [phoneDialSearch, setPhoneDialSearch] = useState('');
+    const phoneDialRef = useRef(null);
+
     // Handle click outside to close dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -67,20 +119,39 @@ export default function SignUpPage() {
             if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
                 setIsCountryOpen(false);
             }
+            if (phoneDialRef.current && !phoneDialRef.current.contains(event.target)) {
+                setIsPhoneDialOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const FORM_STORAGE_KEY = 'signup_form_draft_v1';
+
+    // Load persisted draft from sessionStorage (tab-scoped — not shared between users/tabs)
+    const loadDraft = () => {
+        try {
+            const raw = sessionStorage.getItem(FORM_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const draft = loadDraft();
+    const refCode = searchParams.get('ref')?.toUpperCase() || '';
+
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        phone: '',
-        countryCode: 'IN',
-        state: '',
-        language: 'English',
-        referralCode: searchParams.get('ref')?.toUpperCase() || '',
+        name: draft?.name || '',
+        email: draft?.email || '',
+        password: '',              // never persist password
+        phone: draft?.phone || '',
+        countryCode: draft?.countryCode || 'IN',
+        state: draft?.state || '',
+        language: draft?.language || 'English',
+        // URL referral code takes priority over draft
+        referralCode: refCode || draft?.referralCode || '',
     });
 
     const [fieldErrors, setFieldErrors] = useState({
@@ -146,12 +217,34 @@ export default function SignUpPage() {
     const handleChange = (field, value) => {
         let finalValue = value;
         if (field === 'countryCode') {
-            const requiredDigs = COUNTRY_MOBILE_DIGITS[value] || 10;
-            if (formData.phone.length > requiredDigs) {
-                setFormData(prev => ({ ...prev, phone: prev.phone.slice(0, requiredDigs) }));
+            // Trim phone if it's longer than the new country's allowed digits
+            const requiredDigs = getPhoneLength(value, countries);
+            const currentDigits = formData.phone.replace(/\D/g, '');
+            if (currentDigits.length > requiredDigs) {
+                finalValue = value; // keep the new countryCode as finalValue
+                // Trim phone inside the setFormData below atomically
+                setFormData(prev => {
+                    const trimmed = currentDigits.slice(0, requiredDigs);
+                    const next = { ...prev, countryCode: value, phone: trimmed };
+                    try {
+                        const { password: _pw, ...safeDraft } = next;
+                        sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(safeDraft));
+                    } catch { /* ignore */ }
+                    return next;
+                });
+                setAuthError('');
+                return; // early return — state already updated above
             }
         }
-        setFormData(prev => ({ ...prev, [field]: finalValue }));
+        setFormData(prev => {
+            const next = { ...prev, [field]: finalValue };
+            // Persist draft to sessionStorage on every change (except password)
+            try {
+                const { password: _pw, ...safeDraft } = next;
+                sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(safeDraft));
+            } catch { /* ignore storage errors */ }
+            return next;
+        });
         setAuthError('');
         // clear field error when user types
         if (fieldErrors[field]) {
@@ -165,7 +258,7 @@ export default function SignUpPage() {
         const nameErr = validateName(formData.name);
         const emailErr = validateEmail(formData.email);
         const passwordErr = validatePassword(formData.password);
-        const phoneErr = validatePhone(formData.phone, formData.countryCode);
+        const phoneErr = validatePhone(formData.phone, getPhoneLength(formData.countryCode, countries));
         const countryErr = formData.countryCode ? '' : 'Country is required';
         
         // Only require state if there are states available for this country
@@ -194,11 +287,16 @@ export default function SignUpPage() {
                 language: formData.language,
                 referralCode: formData.referralCode.trim().toUpperCase(),
             });
+            // Clear draft on successful registration so next user starts fresh
+            sessionStorage.removeItem(FORM_STORAGE_KEY);
             navigate('/signin');
         } catch (err) {
             const msg = err?.message || '';
             if (msg.toLowerCase().includes('email already registered')) {
                 setFieldErrors(prev => ({ ...prev, email: 'Email already registered' }));
+            } else if (msg.toLowerCase().includes('phone') || msg.toLowerCase().includes('digit')) {
+                // Route any phone-related backend error to the phone field (shows under input, not after button)
+                setFieldErrors(prev => ({ ...prev, phone: msg }));
             }
         }
     };
@@ -271,23 +369,121 @@ export default function SignUpPage() {
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.password}</p>
                             )}
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Phone ({COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10} digits)</label>
-                            <div className="relative group">
-                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                        {/* ── Phone with Dial Code Prefix ── */}
+                        <div className="space-y-2 relative" ref={phoneDialRef}>
+                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
+                                Phone Number ({getPhoneLength(formData.countryCode, countries)} digits)
+                            </label>
+                            <div className={`flex items-stretch bg-bg border rounded-xl overflow-visible transition-all ${fieldErrors.phone ? 'border-red-500' : 'border-surface'}`}>
+                                {/* Dial code prefix button */}
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsPhoneDialOpen(v => !v); setPhoneDialSearch(''); }}
+                                    className="flex items-center gap-1.5 pl-3 pr-2 py-3.5 border-r text-sm font-semibold shrink-0 transition-colors hover:bg-primary/10 rounded-l-xl cursor-pointer"
+                                    style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                                >
+                                    <span className="text-base leading-none">
+                                        {countries.find(c => c.code === formData.countryCode)?.flag || '🌍'}
+                                    </span>
+                                    <span className="text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
+                                        {getDialCode(formData.countryCode) || '+?'}
+                                    </span>
+                                    <ChevronDown size={12} className={`transition-transform ${isPhoneDialOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--color-muted)' }} />
+                                </button>
+
+                                {/* Actual phone number input */}
                                 <input
                                     type="tel"
                                     inputMode="numeric"
-                                    maxLength={COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10}
                                     value={formData.phone}
                                     onChange={(e) => {
-                                        const required = COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10;
-                                        handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, required));
+                                        const required = getPhoneLength(formData.countryCode, countries);
+                                        const digits = e.target.value.replace(/\D/g, '').slice(0, required);
+                                        handleChange('phone', digits);
                                     }}
-                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.phone ? 'border-red-500' : 'border-surface'}`}
-                                    placeholder={`e.g. ${'1234567890'.slice(0, COUNTRY_MOBILE_DIGITS[formData.countryCode] || 10)}`}
+                                    className="flex-1 bg-transparent px-3 py-3.5 text-sm font-medium outline-none text-text min-w-0"
+                                    placeholder={`e.g. ${'9876543210'.slice(0, getPhoneLength(formData.countryCode, countries))}`}
                                 />
                             </div>
+
+                            {/* Dial code searchable dropdown */}
+                            <AnimatePresence>
+                                {isPhoneDialOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute z-[70] left-0 right-0 mt-1 rounded-xl shadow-2xl overflow-hidden"
+                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    >
+                                        {/* Search */}
+                                        <div className="p-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--color-muted)' }} />
+                                                <input
+                                                    autoFocus
+                                                    type="text"
+                                                    placeholder="Search country or dial code..."
+                                                    value={phoneDialSearch}
+                                                    onChange={(e) => setPhoneDialSearch(e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full rounded-lg py-2 pl-9 pr-4 text-xs outline-none"
+                                                    style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                                />
+                                            </div>
+                                        </div>
+                                        {/* Country list */}
+                                        <div className="max-h-52 overflow-y-auto">
+                                            {countries
+                                                .filter(c => {
+                                                    const q = phoneDialSearch.toLowerCase();
+                                                    const dial = getDialCode(c.code);
+                                                    return !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || dial.includes(q);
+                                                })
+                                                .map(c => {
+                                                    const dial = getDialCode(c.code);
+                                                    const isSelected = formData.countryCode === c.code;
+                                                    return (
+                                                        <div
+                                                            key={c.code}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleChange('countryCode', c.code);
+                                                                setIsPhoneDialOpen(false);
+                                                                setPhoneDialSearch('');
+                                                            }}
+                                                            className="flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors"
+                                                            style={{
+                                                                background: isSelected ? 'var(--color-primary)10' : 'transparent',
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb, 245,158,11), 0.08)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = isSelected ? 'rgba(var(--color-primary-rgb, 245,158,11), 0.08)' : 'transparent'}
+                                                        >
+                                                            <span className="flex items-center gap-2.5 text-sm" style={{ color: isSelected ? 'var(--color-primary)' : 'var(--color-text)' }}>
+                                                                <span className="text-lg leading-none">{c.flag}</span>
+                                                                <span className={isSelected ? 'font-bold' : 'font-medium'}>{c.name}</span>
+                                                            </span>
+                                                            <span className="text-xs font-bold tabular-nums ml-2 shrink-0" style={{ color: dial ? 'var(--color-primary)' : 'var(--color-muted)' }}>
+                                                                {dial || '—'}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })
+                                            }
+                                            {countries.filter(c => {
+                                                const q = phoneDialSearch.toLowerCase();
+                                                return !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || getDialCode(c.code).includes(q);
+                                            }).length === 0 && (
+                                                <div className="px-4 py-6 text-center text-xs italic" style={{ color: 'var(--color-muted)' }}>
+                                                    No countries matching "{phoneDialSearch}"
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
                             {fieldErrors.phone && (
                                 <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.phone}</p>
                             )}

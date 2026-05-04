@@ -1,9 +1,10 @@
 import { Star, Check, Share2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { formatCount, formatINR } from '../../utils/formatCurrency'
+import { formatCount, useUserCurrency } from '../../utils/formatCurrency'
 import Avatar from '../shared/Avatar'
 
 export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpenFollowing }) {
+    const { format: formatLocal } = useUserCurrency()
     return (
         <div className="px-4 pt-5 pb-4">
             {/* Avatar + stats */}
@@ -92,7 +93,7 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                 >
                     <span className="text-[10px] font-bold uppercase tracking-tight text-muted">Earned</span>
                     <span className="text-sm font-extrabold text-primary">
-                        {formatINR(profile.totalEarnings)}
+                        {formatLocal(profile.totalEarnings)}
                     </span>
                 </div>
                 {profile.referralCode && (

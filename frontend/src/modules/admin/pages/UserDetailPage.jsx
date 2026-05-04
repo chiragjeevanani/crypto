@@ -178,11 +178,21 @@ export default function UserDetailPage() {
                             <p className="text-[10px] font-bold text-muted uppercase tracking-wider flex items-center gap-1 mt-1">
                                 <Mail className="w-3 h-3" /> {u.email || '—'}
                             </p>
+                            {u.phone && (
+                                <p className="text-[10px] font-bold text-muted uppercase tracking-wider flex items-center gap-1 mt-1">
+                                    <span className="w-3 h-3 flex items-center justify-center">📞</span> {u.phone}
+                                </p>
+                            )}
                             <p className="text-[9px] text-muted mt-1">{u.id}</p>
                             {u.joined && (
                                 <p className="text-[9px] text-muted flex items-center gap-1 mt-1">
                                     <Calendar className="w-3 h-3" /> Joined {u.joined}
                                 </p>
+                            )}
+                            {u.bio && (
+                                <div className="mt-3 px-4 py-2 bg-bg/50 border border-surface rounded-xl max-w-xs">
+                                    <p className="text-[10px] text-text italic">"{u.bio}"</p>
+                                </div>
                             )}
                             <div className="flex items-center gap-2 mt-3">
                                 <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold border ${u.kycVerified ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
@@ -204,11 +214,33 @@ export default function UserDetailPage() {
                         <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-surface">
                             <div className="p-3 bg-bg/50 border border-surface rounded-xl text-center">
                                 <p className="text-[9px] font-bold text-muted uppercase">Wallet</p>
-                                <p className="text-sm font-bold text-text">{formatCurrency(u.walletBalance ?? 0)}</p>
+                                <p className="text-sm font-bold text-text">{formatCurrency(u.walletBalance ?? 0, u.currencySymbol)}</p>
                             </div>
                             <div className="p-3 bg-bg/50 border border-surface rounded-xl text-center">
                                 <p className="text-[9px] font-bold text-muted uppercase">Earnings</p>
-                                <p className="text-sm font-bold text-primary">{formatCurrency(u.totalEarnings ?? 0)}</p>
+                                <p className="text-sm font-bold text-primary">{formatCurrency(u.totalEarnings ?? 0, u.currencySymbol)}</p>
+                            </div>
+                        </div>
+
+                        {/* Location & Currency Section */}
+                        <div className="mt-6 pt-6 border-t border-surface grid grid-cols-1 gap-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Country</span>
+                                <span className="text-[10px] font-bold text-text uppercase tracking-wider">{u.countryName || u.countryCode || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">State</span>
+                                <span className="text-[10px] font-bold text-text uppercase tracking-wider">{u.state || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Currency</span>
+                                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                                    {u.currencyCode} ({u.currencySymbol})
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Language</span>
+                                <span className="text-[10px] font-bold text-text uppercase tracking-wider">{u.language || 'English'}</span>
                             </div>
                         </div>
                     </div>

@@ -2,7 +2,7 @@ import { Gift, CheckSquare, Gem, ArrowDownLeft, ArrowUpRight } from 'lucide-reac
 import { timeAgo } from '../../utils/formatCurrency'
 
 const TYPE_META = {
-    gift: { icon: Gift, color: 'var(--color-danger)', label: 'Gift' },
+    gift: { icon: Gift, color: 'var(--color-danger)', label: 'Gift Received' },
     gift_sent: { icon: ArrowUpRight, color: 'var(--color-primary)', label: 'Gift Sent' },
     task: { icon: CheckSquare, color: 'var(--color-primary)', label: 'Task' },
     nft: { icon: Gem, color: 'var(--color-purple)', label: 'NFT' },
@@ -16,6 +16,18 @@ export default function TransactionItem({ tx, currencySymbol = '₹' }) {
     const meta = TYPE_META[tx.type] || TYPE_META.gift
     const Icon = meta.icon
     const isCredit = tx.amount > 0
+
+    // Use localized amount from backend if available, otherwise use INR coins amount
+    const hasLocalAmount = tx.localAmount !== null && tx.localAmount !== undefined && tx.localSymbol
+    const displaySymbol = hasLocalAmount ? tx.localSymbol : currencySymbol
+    const displayAmount = hasLocalAmount ? tx.localAmount : tx.amount
+
+    // Format: large amounts show 2 decimals, small amounts show 4
+    const formattedAmount = hasLocalAmount
+        ? Math.abs(displayAmount) >= 1
+            ? Math.abs(displayAmount).toFixed(2)
+            : Math.abs(displayAmount).toFixed(4)
+        : Math.abs(displayAmount).toLocaleString()
 
     return (
         <div className="flex items-center gap-4 py-4 group" style={{ borderBottom: '1px solid var(--color-border)' }}>
@@ -38,8 +50,14 @@ export default function TransactionItem({ tx, currencySymbol = '₹' }) {
                     className="text-sm font-black"
                     style={{ color: isCredit ? 'var(--color-success)' : 'var(--color-danger)' }}
                 >
-                    {isCredit ? '+' : ''}{currencySymbol}{Math.abs(tx.amount).toLocaleString()}
+                    {isCredit ? '+' : '-'}{displaySymbol}{formattedAmount}
                 </span>
+                {/* Show currency code badge for non-INR transactions */}
+                {hasLocalAmount && tx.localCurrency && tx.localCurrency !== 'INR' && (
+                    <span className="text-[7px] font-black uppercase tracking-widest opacity-50 px-1.5 py-0.5 rounded-full border" style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}>
+                        {tx.localCurrency}
+                    </span>
+                )}
                 <span className="text-[8px] font-black uppercase tracking-tighter opacity-40">
                     {tx.status}
                 </span>

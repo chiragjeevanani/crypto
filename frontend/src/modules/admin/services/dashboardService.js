@@ -35,6 +35,17 @@ export const dashboardService = {
         const data = await response.json();
         if (!data.success) throw new Error(data.message);
         return data.data;
+    },
+
+    fetchExchangeRates: async (base = 'USD') => {
+        const response = await fetch(`${API_URL}/admin/dashboard/exchange-rates?base=${base}`, {
+            headers: {
+                'Authorization': `Bearer ${getStoredToken()}`
+            }
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message);
+        return data.data;
     }
 };
 

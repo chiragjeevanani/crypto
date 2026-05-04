@@ -42,6 +42,7 @@ export const useAdminStore = create((set, get) => ({
     moderationStats: { ads: 0, nfts: 0, reports: 0, withdrawals: 0, kycs: 0 },
     prdMetrics: null,
     dashboardStats: null,
+    exchangeRates: null,
     giftPolicy: {
 
         allowedINR: [2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -728,7 +729,12 @@ export const useAdminStore = create((set, get) => ({
 
     loadDashboardStats: () => get().execute(async () => {
         const stats = await dashboardService.fetchStats();
-        set({ dashboardStats: stats });
+        set({ dashboardStats: stats, exchangeRates: stats.rates });
+    }),
+
+    loadExchangeRates: (base) => get().execute(async () => {
+        const data = await dashboardService.fetchExchangeRates(base);
+        set({ exchangeRates: data.rates });
     }),
 
     computePRDMetrics: () => get().execute(async () => {

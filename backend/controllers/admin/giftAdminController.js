@@ -5,6 +5,8 @@ const toAdminGift = (gift) => ({
   name: gift.name,
   icon: gift.icon || "🎁",
   price: gift.price,
+  priceInr: gift.priceInr || 0,
+  priceGlobal: gift.priceGlobal || 0,
   value: gift.value,
   status: gift.status,
   usage: gift.usage || 0,
@@ -42,10 +44,12 @@ exports.listTrashGifts = async (req, res) => {
 
 exports.createGift = async (req, res) => {
   try {
-    const { name, price, icon, status, soundUrl } = req.body || {};
-    const numericPrice = Math.max(0, Number(price || 0));
-    if (!name || !Number.isFinite(numericPrice)) {
-      return res.status(400).json({ success: false, message: "Name and price are required" });
+    const { name, priceInr, priceGlobal, icon, status, soundUrl } = req.body || {};
+    const numericPriceInr = Math.max(0, Number(priceInr || 0));
+    const numericPriceGlobal = Math.max(0, Number(priceGlobal || 0));
+
+    if (!name) {
+      return res.status(400).json({ success: false, message: "Name is required" });
     }
 
     let finalSoundUrl = soundUrl || null;
@@ -56,8 +60,10 @@ exports.createGift = async (req, res) => {
     const gift = await Gift.create({
       name: String(name).trim(),
       icon: icon || "🎁",
-      price: numericPrice,
-      value: numericPrice,
+      price: numericPriceInr, // Fallback for old code
+      priceInr: numericPriceInr,
+      priceGlobal: numericPriceGlobal,
+      value: numericPriceInr,
       status: status || "Active",
       soundUrl: finalSoundUrl
     });
@@ -71,15 +77,19 @@ exports.createGift = async (req, res) => {
 exports.updateGift = async (req, res) => {
   try {
     const id = req.params.id;
-    const { name, price, icon, status, soundUrl } = req.body || {};
+    const { name, priceInr, priceGlobal, icon, status, soundUrl } = req.body || {};
 
     const update = {};
     if (name !== undefined) update.name = String(name).trim();
     if (icon !== undefined) update.icon = icon || "🎁";
-    if (price !== undefined) {
-      const numericPrice = Math.max(0, Number(price || 0));
-      update.price = numericPrice;
-      update.value = numericPrice;
+    if (priceInr !== undefined) {
+      const numericPriceInr = Math.max(0, Number(priceInr || 0));
+      update.priceInr = numericPriceInr;
+      update.price = numericPriceInr; // Sync old price
+      update.value = numericPriceInr;
+    }
+    if (priceGlobal !== undefined) {
+      update.priceGlobal = Math.max(0, Number(priceGlobal || 0));
     }
     if (status !== undefined) update.status = status;
     

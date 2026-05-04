@@ -5,6 +5,7 @@ const dashboardController = require("../../controllers/admin/dashboardController
 router.get("/stats", dashboardController.getDashboardStats);
 router.get("/financials", dashboardController.getFinancialStats);
 router.get("/transactions", dashboardController.getTransactions);
+router.get("/exchange-rates", dashboardController.getAdminExchangeRates);
 
 
 module.exports = router;

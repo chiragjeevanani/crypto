@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { useWalletStore } from '../store/useWalletStore'
-import { formatCount, formatINR } from '../utils/formatCurrency'
+import { formatCount } from '../utils/formatCurrency'
 import ProfileHeader from '../components/profile/ProfileHeader'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
@@ -649,14 +649,35 @@ export default function ProfilePage() {
                                         <input {...settingsForm.register('handle')} placeholder="@handle" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('email')} placeholder="Email" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <input {...settingsForm.register('phone')} placeholder="Phone Number" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <select {...settingsForm.register('state')} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>
-                                            <option value="">Select State</option>
-                                            {[
-                                                "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
-                                            ].map(s => (
-                                                <option key={s} value={s}>{s}</option>
-                                            ))}
-                                        </select>
+
+                                        {/* Read-only Country & Currency — set during registration, cannot be changed */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="relative">
+                                                <div className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2 select-none cursor-not-allowed" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)', opacity: 0.65 }}>
+                                                    <span className="text-base">{profile.flag || '🌍'}</span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Country</p>
+                                                        <p className="font-semibold truncate">
+                                                            {profile.countryName || profile.country || profile.countryCode || 'Unknown'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="relative">
+                                                <div className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2 select-none cursor-not-allowed" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)', opacity: 0.65 }}>
+                                                    <span className="text-base font-black" style={{ color: 'var(--color-primary)' }}>{profile.currencySymbol || '$'}</span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Currency</p>
+                                                        <p className="font-semibold truncate">{profile.currencyCode || profile.countryCode || '—'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] font-medium -mt-1 ml-1" style={{ color: 'var(--color-muted)' }}>
+                                            🔒 Country &amp; currency are set at registration and cannot be changed.
+                                        </p>
+
+                                        <input {...settingsForm.register('state')} placeholder="State / Province" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <select {...settingsForm.register('language')} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>
                                             {["English", "Hindi", "Gujarati", "Marathi", "Bengali", "Telugu", "Tamil", "Kannada", "Malayalam"].map(l => (
                                                 <option key={l} value={l}>{l}</option>

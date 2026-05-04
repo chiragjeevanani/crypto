@@ -12,7 +12,8 @@ import {
     ArrowUpRight,
     ChevronRight,
     AlertCircle,
-    Cpu
+    Cpu,
+    Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader, AdminStatCard } from '../components/shared';
@@ -100,12 +101,16 @@ export default function AdminDashboard() {
     const {
         loadDashboardStats,
         dashboardStats,
+        exchangeRates,
+        countries,
+        loadCountries,
         isLoading
     } = useAdminStore();
 
     useEffect(() => {
         loadDashboardStats();
-    }, [loadDashboardStats]);
+        loadCountries();
+    }, [loadDashboardStats, loadCountries]);
 
     const stats = [
         {
@@ -332,6 +337,49 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Country Protocol & Market Intelligence */}
+            {exchangeRates && countries.length > 0 && (
+                <div className="bg-surface border border-surface rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-[10px] font-bold text-text flex items-center gap-2 uppercase tracking-widest">
+                                <Globe className="w-4 h-4 text-primary" />
+                                Active Country Protocol
+                            </h3>
+                            <p className="text-[9px] text-muted font-medium uppercase tracking-wider mt-1 opacity-60">Real-time valuation across registered nodes</p>
+                        </div>
+                        <span className="text-[8px] font-bold text-muted uppercase tracking-wider bg-surface2 px-3 py-1 rounded-full border border-surface">
+                            Pulse: {exchangeRates.lastUpdate || 'Live'}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {countries.map((country) => {
+                            const rate = (exchangeRates.INR / exchangeRates[country.currencyCode])?.toFixed(4);
+                            return (
+                                <div key={country.code} className="p-4 bg-bg border border-surface rounded-lg flex items-center gap-4 group hover:border-primary/30 transition-all cursor-default">
+                                    <div className="w-10 h-10 rounded-lg bg-surface2 flex items-center justify-center text-xl border border-surface">
+                                        {country.flag}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[9px] font-bold text-muted uppercase tracking-widest truncate">{country.name}</p>
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                                                <span className="text-[7px] font-black text-emerald-500 uppercase">Live</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm font-black text-text mt-0.5">
+                                            {rate ? `₹${rate}` : '---'}
+                                            <span className="text-[8px] text-muted ml-1.5 font-bold">/ {country.currencyCode}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

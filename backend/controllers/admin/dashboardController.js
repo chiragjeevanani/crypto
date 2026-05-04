@@ -1,6 +1,7 @@
 const User = require("../../models/User");
 const WalletTransaction = require("../../models/WalletTransaction");
 const Post = require("../../models/Post");
+const { getExchangeRates } = require("../../utils/exchangeRate");
 
 exports.getDashboardStats = async (req, res) => {
     try {
@@ -56,6 +57,18 @@ exports.getDashboardStats = async (req, res) => {
             .limit(5);
 
 
+        // 5. Exchange Rates (All pairs)
+        let rates = null;
+        try {
+            const rateData = await getExchangeRates('USD');
+            rates = {
+                ...rateData.rates,
+                lastUpdate: rateData.lastUpdate
+            };
+        } catch (e) {
+            console.error("Dashboard Rates Error:", e.message);
+        }
+
         res.status(200).json({
             success: true,
             data: {
@@ -64,7 +77,8 @@ exports.getDashboardStats = async (req, res) => {
                 totalRevenue,
                 revenueByMonth,
                 recentUsers,
-                recentTransactions
+                recentTransactions,
+                rates
             }
         });
     } catch (error) {
@@ -169,6 +183,16 @@ exports.getTransactions = async (req, res) => {
                 totalPages: Math.ceil(total / limit)
             }
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.getAdminExchangeRates = async (req, res) => {
+    try {
+        const { base = 'USD' } = req.query;
+        const data = await getExchangeRates(base);
+        res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

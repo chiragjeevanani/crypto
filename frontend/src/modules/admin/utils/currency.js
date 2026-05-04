@@ -1,8 +1,8 @@
 const CURRENCY = import.meta.env.VITE_CURRENCY || '₹';
 
-export const formatCurrency = (value) => {
+export const formatCurrency = (value, symbol = CURRENCY) => {
     if (typeof value === 'string' && value.startsWith('$')) {
-        return value.replace('$', CURRENCY);
+        return value.replace('$', symbol);
     }
 
     const numberValue = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]+/g, "")) : value;
@@ -10,9 +10,9 @@ export const formatCurrency = (value) => {
     if (isNaN(numberValue)) return value;
 
     // Use Indian locale for ₹ to get proper lakhs/crores formatting
-    const locale = CURRENCY === '₹' ? 'en-IN' : undefined;
+    const locale = symbol === '₹' ? 'en-IN' : undefined;
 
-    return `${CURRENCY}${numberValue.toLocaleString(locale, {
+    return `${symbol}${numberValue.toLocaleString(locale, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     })}`;

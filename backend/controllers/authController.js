@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Country = require("../models/Country");
 const KycSubmission = require("../models/KycSubmission");
 const path = require("path");
 const fs = require("fs");
@@ -12,22 +13,68 @@ const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
 const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "7d";
 const refreshExpiry = process.env.JWT_REFRESH_EXPIRES_IN || "60d";
 
-const resolveLocaleFromCountry = (countryInput) => {
+/**
+ * Resolve country locale from DB (Country collection).
+ * Falls back to a hardcoded table for safety, then defaults to India.
+ */
+const resolveLocaleFromCountry = async (countryInput) => {
   const code = String(countryInput || "").trim().toUpperCase();
-  // Minimal mapping; extend as needed
-  const table = {
-    IN: { countryCode: "IN", countryName: "India", currencyCode: "INR", currencySymbol: "₹" },
-    US: { countryCode: "US", countryName: "United States", currencyCode: "USD", currencySymbol: "$" },
-    GB: { countryCode: "GB", countryName: "United Kingdom", currencyCode: "GBP", currencySymbol: "£" },
-    UK: { countryCode: "GB", countryName: "United Kingdom", currencyCode: "GBP", currencySymbol: "£" },
-    AE: { countryCode: "AE", countryName: "United Arab Emirates", currencyCode: "AED", currencySymbol: "AED" },
-    EU: { countryCode: "EU", countryName: "Eurozone", currencyCode: "EUR", currencySymbol: "€" }
+  if (!code) return { countryCode: "IN", countryName: "India", currencyCode: "INR", currencySymbol: "₹" };
+
+  // 1. Try DB lookup first (covers all admin-managed countries)
+  try {
+    const dbCountry = await Country.findOne({ code }).lean();
+    if (dbCountry) {
+      return {
+        countryCode: dbCountry.code,
+        countryName: dbCountry.name,
+        currencyCode: dbCountry.currencyCode,
+        currencySymbol: dbCountry.currencySymbol,
+      };
+    }
+  } catch (e) {
+    console.warn("[Auth] Country DB lookup failed, using fallback:", e.message);
+  }
+
+  // 2. Hardcoded fallback table for critical countries (safety net)
+  const fallback = {
+    IN:  { countryCode: "IN",  countryName: "India",                currencyCode: "INR", currencySymbol: "₹"   },
+    US:  { countryCode: "US",  countryName: "United States",        currencyCode: "USD", currencySymbol: "$"   },
+    AU:  { countryCode: "AU",  countryName: "Australia",            currencyCode: "AUD", currencySymbol: "A$"  },
+    GB:  { countryCode: "GB",  countryName: "United Kingdom",       currencyCode: "GBP", currencySymbol: "£"   },
+    CA:  { countryCode: "CA",  countryName: "Canada",               currencyCode: "CAD", currencySymbol: "CA$" },
+    AE:  { countryCode: "AE",  countryName: "United Arab Emirates", currencyCode: "AED", currencySymbol: "AED" },
+    SG:  { countryCode: "SG",  countryName: "Singapore",            currencyCode: "SGD", currencySymbol: "S$"  },
+    EU:  { countryCode: "EU",  countryName: "Eurozone",             currencyCode: "EUR", currencySymbol: "€"   },
+    DE:  { countryCode: "DE",  countryName: "Germany",              currencyCode: "EUR", currencySymbol: "€"   },
+    FR:  { countryCode: "FR",  countryName: "France",               currencyCode: "EUR", currencySymbol: "€"   },
+    JP:  { countryCode: "JP",  countryName: "Japan",                currencyCode: "JPY", currencySymbol: "¥"   },
+    CN:  { countryCode: "CN",  countryName: "China",                currencyCode: "CNY", currencySymbol: "¥"   },
+    SA:  { countryCode: "SA",  countryName: "Saudi Arabia",         currencyCode: "SAR", currencySymbol: "﷼"   },
+    NZ:  { countryCode: "NZ",  countryName: "New Zealand",          currencyCode: "NZD", currencySymbol: "NZ$" },
+    ZA:  { countryCode: "ZA",  countryName: "South Africa",         currencyCode: "ZAR", currencySymbol: "R"   },
+    NG:  { countryCode: "NG",  countryName: "Nigeria",              currencyCode: "NGN", currencySymbol: "₦"   },
+    BR:  { countryCode: "BR",  countryName: "Brazil",               currencyCode: "BRL", currencySymbol: "R$"  },
+    MX:  { countryCode: "MX",  countryName: "Mexico",               currencyCode: "MXN", currencySymbol: "MX$" },
+    PK:  { countryCode: "PK",  countryName: "Pakistan",             currencyCode: "PKR", currencySymbol: "₨"   },
+    BD:  { countryCode: "BD",  countryName: "Bangladesh",           currencyCode: "BDT", currencySymbol: "৳"   },
+    MY:  { countryCode: "MY",  countryName: "Malaysia",             currencyCode: "MYR", currencySymbol: "RM"  },
+    ID:  { countryCode: "ID",  countryName: "Indonesia",            currencyCode: "IDR", currencySymbol: "Rp"  },
+    PH:  { countryCode: "PH",  countryName: "Philippines",          currencyCode: "PHP", currencySymbol: "₱"   },
+    TH:  { countryCode: "TH",  countryName: "Thailand",             currencyCode: "THB", currencySymbol: "฿"   },
+    VN:  { countryCode: "VN",  countryName: "Vietnam",              currencyCode: "VND", currencySymbol: "₫"   },
+    KR:  { countryCode: "KR",  countryName: "South Korea",          currencyCode: "KRW", currencySymbol: "₩"   },
+    RU:  { countryCode: "RU",  countryName: "Russia",               currencyCode: "RUB", currencySymbol: "₽"   },
+    TR:  { countryCode: "TR",  countryName: "Turkey",               currencyCode: "TRY", currencySymbol: "₺"   },
+    EG:  { countryCode: "EG",  countryName: "Egypt",                currencyCode: "EGP", currencySymbol: "E£"  },
+    UK:  { countryCode: "GB",  countryName: "United Kingdom",       currencyCode: "GBP", currencySymbol: "£"   },
   };
 
-  if (code && table[code]) return table[code];
+  if (fallback[code]) return fallback[code];
 
-  // Fallback default to India / INR
-  return { countryCode: "IN", countryName: "India", currencyCode: "INR", currencySymbol: "₹" };
+  // 3. Last resort — store the code as-is with unknown currency
+  console.warn(`[Auth] Unknown country code '${code}', storing as-is.`);
+  return { countryCode: code, countryName: code, currencyCode: "USD", currencySymbol: "$" };
 };
 
 const generateReferralCode = (name) => {
@@ -61,6 +108,9 @@ const safeUser = (user, kyc = null) => {
     bio: user.bio || "",
     handle: user.handle || "",
     countryCode: user.countryCode || "",
+    countryName: user.countryName || "",
+    currencyCode: user.currencyCode || "",
+    currencySymbol: user.currencySymbol || "",
     referralCount: user.referralCount || 0,
     referralCode: user.referralCode || "",
     isPremium: user.isPremium || false,
@@ -73,7 +123,6 @@ const safeUser = (user, kyc = null) => {
         aadharNumber: kyc.aadharNumber,
         panNumber: kyc.panNumber,
         rejectionReason: kyc.rejectionReason || "",
-        // Only send document presence to keep payload light and avoid base64 crashes
         hasAadharFront: !!kyc.documents?.aadharFrontUrl,
         hasAadharBack: !!kyc.documents?.aadharBackUrl,
         hasPanCard: !!kyc.documents?.panCardUrl
@@ -93,10 +142,10 @@ const registerUser = async (req, res) => {
     }
 
     const phoneStr = typeof phone === "string" ? phone.replace(/\D/g, "") : "";
-    if (phoneStr && phoneStr.length !== 10) {
+    if (phoneStr && (phoneStr.length < 6 || phoneStr.length > 15)) {
       return res
         .status(400)
-        .json({ success: false, message: "Phone number must be 10 digits" });
+        .json({ success: false, message: "Invalid phone number length" });
     }
 
     const existing = await User.findOne({ email: email.toLowerCase() });
@@ -105,7 +154,7 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const locale = resolveLocaleFromCountry(countryCode);
+    const locale = await resolveLocaleFromCountry(countryCode);
     
     // Check for referrer
     let referrerId = null;
@@ -294,14 +343,14 @@ const updateProfile = async (req, res) => {
         console.log(`[Backend] Field '${key}' update detected:`, req.body[key]);
         if (key === "phone" && req.body[key]) {
           const digits = String(req.body[key]).replace(/\D/g, "");
-          if (digits.length !== 10) {
-            return res.status(400).json({ success: false, message: "Phone must be 10 digits" });
+          if (digits.length < 6 || digits.length > 15) {
+            return res.status(400).json({ success: false, message: "Invalid phone number" });
           }
           updates.phone = digits;
         } else if (key === "email") {
           updates.email = typeof req.body[key] === "string" ? req.body[key].trim().toLowerCase() : req.body[key];
         } else if (key === "countryCode") {
-          const locale = resolveLocaleFromCountry(req.body[key]);
+          const locale = await resolveLocaleFromCountry(req.body[key]);
           updates.countryCode = locale.countryCode;
           updates.countryName = locale.countryName;
           updates.currencyCode = locale.currencyCode;

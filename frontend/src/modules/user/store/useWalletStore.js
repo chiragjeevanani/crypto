@@ -62,6 +62,13 @@ export const useWalletStore = create((set, get) => ({
         try {
             const data = await walletService.getGifts()
             const list = Array.isArray(data?.gifts) ? data.gifts : []
+            
+            // Get user's currency preference for price mapping
+            const { useUserStore } = await import('./useUserStore')
+            const profile = useUserStore.getState().profile
+            const currencyCode = profile?.currencyCode || 'INR'
+            const isInr = currencyCode === 'INR'
+
             // Preserve unique IDs while identifying animation types
             const mapped = list.map(g => {
                 const emoji = g.icon || '🎁'
@@ -71,11 +78,17 @@ export const useWalletStore = create((set, get) => ({
                 else if (emoji === '🍅') animationId = 'tomato'
                 else if (emoji === '💛' || emoji === '❤️' || emoji === '💖') animationId = 'heart'
                 
+                // Determine display price based on user region
+                const displayPrice = isInr 
+                    ? Number(g.priceInr || g.price || 0) 
+                    : Number(g.priceGlobal || 0)
+
                 return { 
                     ...g, 
                     id: String(g.id || g._id),
                     animationType: animationId,
-                    emoji 
+                    emoji,
+                    price: displayPrice // Dynamically set based on country/currency
                 }
             })
             set({ gifts: mapped, giftsLoading: false })
@@ -119,7 +132,13 @@ export const useWalletStore = create((set, get) => ({
                     title = 'Reel Post Reward'
                 }
 
-                // Use backend provided amount (RS) if available, otherwise calculate from coins
+                // Use backend-provided local currency amount if available, else fall back to coinRate
+                // localAmount and localSymbol come from walletController.sendGift() currency conversion
+                const localAmount = tx.meta?.localAmount ?? null;
+                const localSymbol = tx.meta?.localSymbol ?? null;
+                const localCurrency = tx.meta?.localCurrency ?? null;
+
+                // INR amount: from tx.amount (deposit/withdrawal) or coins/coinRate (gift)
                 const rsAmount = tx.amount !== undefined && tx.amount !== null 
                     ? Number(tx.amount) 
                     : (coins / coinRate)
@@ -129,6 +148,10 @@ export const useWalletStore = create((set, get) => ({
                     type: normalizedType,
                     title,
                     amount: sign * rsAmount,
+                    // Localized display values
+                    localAmount: localAmount !== null ? sign * Math.abs(localAmount) : null,
+                    localSymbol,
+                    localCurrency,
                     date: tx.createdAt || new Date().toISOString(),
                     status: tx.status === 'success' ? 'completed' : tx.status,
                 }

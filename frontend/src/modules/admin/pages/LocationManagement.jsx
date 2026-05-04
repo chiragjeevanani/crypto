@@ -41,9 +41,14 @@ const CountryCard = ({
     onDelete, 
     states, 
     onAddState, 
-    onDeleteState 
+    onDeleteState,
+    exchangeRates
 }) => {
     const [newStateName, setNewStateName] = useState('');
+
+    const realTimeRate = exchangeRates && exchangeRates.INR && exchangeRates[country.currencyCode]
+        ? (exchangeRates.INR / exchangeRates[country.currencyCode]).toFixed(4)
+        : null;
 
     return (
         <div className="space-y-2">
@@ -60,13 +65,16 @@ const CountryCard = ({
                             </span>
                         </div>
                         <div className="flex items-center gap-4 mt-1">
-                            <div className="flex items-center gap-1.5 text-muted">
-                                <Coins className="h-3 w-3" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{country.currencyCode} ({country.currencySymbol})</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-emerald-500 bg-emerald-500/5 px-2 py-0.5 rounded-md border border-emerald-500/10">
-                                <span className="text-[10px] font-black uppercase tracking-tighter">1 {country.currencyCode} = ₹{country.inrValue}</span>
-                            </div>
+                                {realTimeRate ? (
+                                    <div className="flex items-center gap-1.5 text-primary bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">
+                                        <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                                        <span className="text-[10px] font-black uppercase tracking-tighter">Live Market: 1 {country.currencyCode} = ₹{realTimeRate}</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 text-muted bg-surface2 px-2 py-0.5 rounded-md border border-surface">
+                                        <span className="text-[10px] font-black uppercase tracking-tighter">Rate Offline: ₹{country.inrValue}</span>
+                                    </div>
+                                )}
                         </div>
                     </div>
                     <div className="flex items-center gap-2 mr-4">
@@ -186,6 +194,8 @@ export default function LocationManagement() {
         deleteCountry, 
         addState: createNewState, 
         deleteState,
+        loadExchangeRates,
+        exchangeRates,
         isLoading
     } = useAdminStore();
 
@@ -205,7 +215,10 @@ export default function LocationManagement() {
 
     useEffect(() => {
         loadCountries();
-    }, [loadCountries]);
+        if (!exchangeRates) {
+            loadExchangeRates('USD');
+        }
+    }, [loadCountries, loadExchangeRates, exchangeRates]);
 
     useEffect(() => {
         if (expandedCode) {
@@ -216,7 +229,13 @@ export default function LocationManagement() {
     const handleSaveCountry = async (e) => {
         e.preventDefault();
         try {
-            await saveCountry(form);
+            // Automatically set inrValue based on live rates before saving
+            const finalForm = { ...form };
+            if (exchangeRates && exchangeRates.INR && exchangeRates[form.currencyCode]) {
+                finalForm.inrValue = parseFloat((exchangeRates.INR / exchangeRates[form.currencyCode]).toFixed(4));
+            }
+            
+            await saveCountry(finalForm);
             setIsAddingCountry(false);
             setEditingCountry(null);
             setForm({ name: '', code: '', currencyCode: '', currencySymbol: '', flag: '', inrValue: 1 });
@@ -340,16 +359,14 @@ export default function LocationManagement() {
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted ml-1">INR Value (1 Unit)</label>
-                                            <input 
-                                                type="number"
-                                                step="0.01"
-                                                required
-                                                value={form.inrValue}
-                                                onChange={e => setForm({...form, inrValue: parseFloat(e.target.value)})}
-                                                className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm text-emerald-500 outline-none focus:border-emerald-500/50 transition-all font-black"
-                                                placeholder="1.0"
-                                            />
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted ml-1">Market Valuation</label>
+                                            <div className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm text-emerald-500 font-black flex justify-between items-center h-[52px]">
+                                                <span className="truncate">1 {form.currencyCode || '---'} = ₹{(exchangeRates && exchangeRates.INR && exchangeRates[form.currencyCode]) ? (exchangeRates.INR / exchangeRates[form.currencyCode]).toFixed(4) : '---'}</span>
+                                                <div className="flex items-center gap-1.5 text-[8px] uppercase tracking-[0.2em] whitespace-nowrap">
+                                                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                                                    Live
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -359,7 +376,7 @@ export default function LocationManagement() {
                                         className="w-full bg-primary text-black font-black uppercase tracking-[0.2em] py-4 rounded-2xl shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 mt-4 disabled:opacity-50"
                                     >
                                         <Save className="w-4 h-4" />
-                                        {editingCountry ? 'Commit Changes' : 'Initialize Node'}
+                                        {editingCountry ? 'Update Protocol' : 'Initialize Node'}
                                     </button>
                                 </form>
                             </div>
@@ -405,6 +422,7 @@ export default function LocationManagement() {
                                         states={states}
                                         onAddState={(code, name) => createNewState({ countryCode: code, name })}
                                         onDeleteState={deleteState}
+                                        exchangeRates={exchangeRates}
                                     />
                                 ))
                             ) : (

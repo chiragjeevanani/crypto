@@ -18,13 +18,15 @@ function toAdminUserSummary(user, extra = {}) {
     name: user.name || "User",
     email: user.email || "",
     role: user.role === "User" ? "Standard" : user.role || "Standard",
+    phone: user.phone || "",
+    bio: user.bio || "",
     status: "Pending",
     kycStatus: "pending",
     kycVerified: false,
     riskScore: "Low",
     joined,
-    walletBalance: 0,
-    totalEarnings: 0,
+    walletBalance: user.rechargeCoins || 0,
+    totalEarnings: user.earningCoins || 0,
     campaigns: 0,
     isBanned: user.isBanned || false,
     isSuspicious: user.isSuspicious || false,
@@ -35,6 +37,12 @@ function toAdminUserSummary(user, extra = {}) {
     aadharFront: "",
     aadharBack: "",
     avatar: user.avatar || "",
+    countryCode: user.countryCode || "",
+    countryName: user.countryName || "",
+    currencyCode: user.currencyCode || "INR",
+    currencySymbol: user.currencySymbol || "₹",
+    state: user.state || "",
+    language: user.language || "English",
     postsCount: extra.postsCount ?? 0,
     followersCount,
     followingCount: Array.isArray(user.following) ? user.following.length : (extra.followingCount ?? 0)
@@ -58,7 +66,7 @@ exports.listUsers = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious")
+      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious countryName state currencyCode currencySymbol phone bio")
       .populate("referredBy", "name")
       .lean()
       .exec();
