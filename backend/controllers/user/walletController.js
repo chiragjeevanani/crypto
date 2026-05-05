@@ -9,7 +9,7 @@ const { createNotification } = require("./notificationController");
 const { emitToUser, broadcastAll } = require("../../utils/socket");
 const { notifyAdmins } = require("../../utils/adminNotifier");
 const { getCachedRates } = require("../../utils/exchangeRate");
-const { buildCurrencyMeta } = require("../../utils/currencyConverter");
+const { buildCurrencyMeta, convertFromINR } = require("../../utils/currencyConverter");
 
 const getIdempotencyKey = (req) =>
   (req.headers["idempotency-key"] || req.body.idempotencyKey || "").toString().trim() || null;
@@ -161,11 +161,11 @@ const sendGift = async (req, res) => {
         sender = await User.findById(senderId).session(session);
         if (!sender) throw new Error("Sender not found");
 
-        // Determine price based on sender's region
-        const isInr = (sender.currencyCode || "INR") === "INR";
-        coinValue = isInr ? Number(gift.priceInr || gift.price || 0) : Number(gift.priceGlobal || 0);
+        // coinValue is ALWAYS based on INR price because 1 coin = 1 INR
+        // This ensures receiver gets full value regardless of sender's location
+        coinValue = Number(gift.priceInr || gift.price || 0);
 
-        if (coinValue <= 0) throw new Error("Gift value invalid for your region");
+        if (coinValue <= 0) throw new Error("Gift value invalid or free");
 
         receiver = await User.findById(receiverId).session(session);
         if (!receiver) throw new Error("Receiver not found");
@@ -258,9 +258,9 @@ const sendGift = async (req, res) => {
     let receiverCurrencyMeta = null;
     try {
       const { rates, source, lastUpdate } = await getCachedRates();
-      // Use the sender's price for calculation
-      const isSenderInr = (sender.currencyCode || "INR") === "INR";
-      const giftPriceBasis = isSenderInr ? Number(gift.priceInr || gift.price || 0) : Number(gift.priceGlobal || 0);
+      // Ground truth: every gift has an INR price. 
+      // We convert this INR price to the user's local currency using live rates.
+      const giftPriceBasis = Number(gift.priceInr || gift.price || 0);
 
       // Log exactly which source and rates are being used — verifiable in server console
       console.log(`[Gift][Currency] Rate source: ${source} | Updated: ${lastUpdate}`);
@@ -597,22 +597,43 @@ const withdraw = async (req, res) => {
 
 const listActiveGifts = async (req, res) => {
   try {
+    const user = await User.findById(req.user.userId).select("currencyCode currencySymbol");
+    const { rates } = await getCachedRates();
+    const currencyCode = user?.currencyCode || "INR";
+    const currencySymbol = user?.currencySymbol || "₹";
+
     const gifts = await Gift.find({ status: "Active" })
-      .sort({ price: 1 })
+      .sort({ priceInr: 1 })
       .exec();
-    return res.status(200).json({
-      success: true,
-      gifts: gifts.map(g => ({
+
+    const mappedGifts = gifts.map(g => {
+      const priceInr = g.priceInr || g.price || 0;
+      // Convert INR price to user's local currency for display with precision fix
+      let localPrice = convertFromINR(priceInr, currencyCode, rates);
+      if (localPrice !== null) {
+        const decimals = Math.abs(localPrice) >= 1 ? 2 : 4;
+        localPrice = parseFloat(localPrice.toFixed(decimals));
+      }
+      
+      return {
         id: g._id.toString(),
         name: g.name,
         icon: g.icon || "🎁",
-        price: g.price,
-        priceInr: g.priceInr || g.price,
+        price: priceInr, // The number of coins required (1 coin = 1 INR)
+        priceInr: priceInr,
         priceGlobal: g.priceGlobal || 0,
+        priceLocal: localPrice,
+        currencySymbol: currencySymbol,
+        currencyCode: currencyCode,
         value: g.value,
         usage: g.usage || 0,
         soundUrl: g.soundUrl
-      }))
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      gifts: mappedGifts
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

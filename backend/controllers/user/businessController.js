@@ -1,6 +1,10 @@
 const Post = require("../../models/Post");
 const PromotionSettings = require("../../models/PromotionSettings");
 const { getAdminConfig } = require("../../utils/adminConfig");
+const User = require("../../models/User");
+const Stripe = require("stripe");
+const WalletTransaction = require("../../models/WalletTransaction");
+const crypto = require("crypto");
 
 /**
  * Initiate payment for a business post.
@@ -30,50 +34,110 @@ exports.initiatePayment = async (req, res) => {
       });
     }
 
+    const user = await User.findById(post.creator);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const currencyCode = (user.currencyCode || "INR").toUpperCase();
+    const isINR = currencyCode === "INR";
+
     const config = await getAdminConfig();
-    let amount = config.businessPostPriceINR || 499;
+    let amount = isINR ? (config.businessPostPriceINR || 499) : 10; // Fallback defaults
 
     // If the post has promotion budget set, use that
     if (post.promotion?.isEnabled && post.promotion?.totalBudget > 0) {
       amount = post.promotion.totalBudget;
     }
 
-    const Razorpay = require("razorpay");
-    let orderId = `sim_${Date.now()}_${post._id}`;
+    if (isINR) {
+      // ── Razorpay flow ──────────────────────────────────────────
+      const Razorpay = require("razorpay");
+      let orderId = `sim_${Date.now()}_${post._id}`;
 
-    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-      try {
-        const rzp = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET
-        });
-        const order = await rzp.orders.create({
-          amount: amount * 100, // amount in smallest currency unit (paise)
+      if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+        try {
+          const rzp = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET
+          });
+          const order = await rzp.orders.create({
+            amount: Math.round(amount * 100), // paise
+            currency: "INR",
+            receipt: post._id.toString(),
+            notes: {
+              postId: post._id.toString(),
+              type: "promotion"
+            }
+          });
+          orderId = order.id;
+        } catch (rzpErr) {
+          console.error("Razorpay Order Creation Failed:", rzpErr);
+        }
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          gateway: "razorpay",
+          postId: post._id,
+          amount,
           currency: "INR",
-          receipt: post._id.toString(),
-          notes: {
+          orderId,
+          keyId: process.env.RAZORPAY_KEY_ID,
+          message: "Payment initiated via Razorpay"
+        }
+      });
+    } else {
+      // ── Stripe Checkout flow ────────────────────────────────────
+      const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5174";
+
+      const stripeAmount = Math.round(amount * 100); // cents
+
+      try {
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ["card"],
+          mode: "payment",
+          line_items: [
+            {
+              price_data: {
+                currency: currencyCode.toLowerCase(),
+                unit_amount: stripeAmount,
+                product_data: {
+                  name: "SocialEarn Promotion",
+                  description: `Promotion for Reel #${post._id.toString().slice(-6)}`,
+                },
+              },
+              quantity: 1,
+            },
+          ],
+          customer_email: user.email,
+          metadata: {
             postId: post._id.toString(),
-            type: "promotion"
+            type: "promotion",
+          },
+          success_url: `${frontendUrl}/create?status=success&postId=${post._id}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${frontendUrl}/create?status=cancelled&postId=${post._id}`,
+        });
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            gateway: "stripe",
+            postId: post._id,
+            amount,
+            currency: currencyCode,
+            sessionId: session.id,
+            sessionUrl: session.url,
+            message: "Stripe checkout session created"
           }
         });
-        orderId = order.id;
-      } catch (rzpErr) {
-        console.error("Razorpay Order Creation Failed:", rzpErr);
-        // Fallback or handle error
+      } catch (stripeError) {
+        console.error("Stripe Session Error (Promotion):", stripeError);
+        return res.status(500).json({ success: false, message: "Stripe initialization failed" });
       }
     }
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        postId: post._id,
-        amount,
-        currency: "INR",
-        orderId,
-        keyId: process.env.RAZORPAY_KEY_ID,
-        message: "Payment initiated"
-      }
-    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -85,21 +149,10 @@ exports.initiatePayment = async (req, res) => {
  */
 exports.verifyPayment = async (req, res) => {
   try {
-    const { postId, paymentId, orderId, signature } = req.body;
-    const crypto = require("crypto");
+    const { postId, paymentId, orderId, signature, sessionId } = req.body;
     
-    if (!postId || !paymentId) {
-      return res.status(400).json({ success: false, message: "Missing required verification data" });
-    }
-
-    // Real Signature Verification
-    if (process.env.RAZORPAY_KEY_SECRET && signature && !orderId.startsWith("sim_")) {
-      const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-      hmac.update(orderId + "|" + paymentId);
-      const generatedSignature = hmac.digest("hex");
-      if (generatedSignature !== signature) {
-        return res.status(400).json({ success: false, message: "Invalid payment signature. Potential fraud." });
-      }
+    if (!postId) {
+      return res.status(400).json({ success: false, message: "Post ID is required" });
     }
 
     const post = await Post.findById(postId);
@@ -109,6 +162,32 @@ exports.verifyPayment = async (req, res) => {
 
     if (post.paymentStatus === "paid") {
       return res.status(200).json({ success: true, message: "Post already paid", post });
+    }
+
+    // Stripe verification
+    if (sessionId) {
+      const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+      try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== "paid") {
+          return res.status(400).json({ success: false, message: "Stripe payment not completed" });
+        }
+      } catch (err) {
+        return res.status(400).json({ success: false, message: "Could not verify Stripe session" });
+      }
+    } 
+    // Razorpay verification
+    else if (paymentId) {
+      if (process.env.RAZORPAY_KEY_SECRET && signature && orderId && !orderId.startsWith("sim_")) {
+        const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+        hmac.update(orderId + "|" + paymentId);
+        const generatedSignature = hmac.digest("hex");
+        if (generatedSignature !== signature) {
+          return res.status(400).json({ success: false, message: "Invalid payment signature" });
+        }
+      }
+    } else {
+      return res.status(400).json({ success: false, message: "Missing payment verification data" });
     }
 
     // Mark as paid but keep pending for admin review

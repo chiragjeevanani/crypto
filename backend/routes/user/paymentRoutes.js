@@ -1,16 +1,24 @@
 const express = require("express");
 const { protect } = require("../../middleware/authMiddleware");
-const { initiateRecharge, verifyPayment, handleCallback } = require("../../controllers/user/paymentController");
+const { initiateRecharge, verifyPayment, stripeWebhook, handleCallback } = require("../../controllers/user/paymentController");
 
 const router = express.Router();
 
-// Recharge / Deposit initiation
+// ── Stripe Webhook (MUST come before express.json() middleware)
+// Uses raw body so Stripe can verify the signature
+router.post(
+    "/webhook/stripe",
+    express.raw({ type: "application/json" }),
+    stripeWebhook
+);
+
+// ── Recharge / Deposit initiation (auto-routes to Razorpay or Stripe)
 router.post("/recharge", protect, initiateRecharge);
 
-// Verification endpoint (called by frontend after redirect)
+// ── Verification endpoint (called by frontend after redirect / modal close)
 router.post("/verify", protect, verifyPayment);
 
-// Callback endpoint (receives PhonePe's POST redirect and sends user back to frontend via GET)
+// ── Legacy callback
 router.all("/callback", handleCallback);
 
 module.exports = router;

@@ -3,7 +3,9 @@ const mongoose = require("mongoose");
 const promotionSettingsSchema = new mongoose.Schema(
   {
     minDailyBudget: { type: Number, default: 99 },
+    minDailyBudgetGlobal: { type: Number, default: 5 },
     maxDailyBudget: { type: Number, default: 100000 },
+    maxDailyBudgetGlobal: { type: Number, default: 5000 },
     minDuration: { type: Number, default: 1 },
     maxDuration: { type: Number, default: 30 },
     // Estimated impressions per ₹1 daily budget

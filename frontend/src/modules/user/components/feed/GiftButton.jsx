@@ -53,7 +53,9 @@ export default function GiftButton({ gift, onGift, disabled, count = 0, showCoun
             >
                 <span className="text-base leading-none transition-transform group-hover:scale-110">{gift.emoji}</span>
                 <span className="text-[11px] font-bold" style={{ color: 'var(--color-primary)' }}>
-                    {currencySymbol}{gift.price}
+                    {currencySymbol}{Number(gift.price || 0) >= 1 
+                        ? Number(gift.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                        : Number(gift.price || 0).toFixed(4)}
                 </span>
             </motion.button>
             

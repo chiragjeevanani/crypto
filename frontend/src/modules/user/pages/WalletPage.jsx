@@ -133,13 +133,28 @@ export default function WalletPage() {
             const gateway = searchParams.get('gateway')
             const trx = searchParams.get('trx')
             const status = searchParams.get('status') || 'success'
+            const sessionId = searchParams.get('session_id') // Stripe returns this
+            const cancelled = searchParams.get('cancelled')
+
+            if (cancelled) {
+                setWalletActionMessage('Payment was cancelled.')
+                setTimeout(() => setWalletActionMessage(''), 4000)
+                setSearchParams({}, { replace: true })
+                return
+            }
             
             if (gateway && trx) {
                 setWalletActionMessage('Verifying payment...')
-                const res = await verifyPayment(trx, status)
+                // Pass session_id for Stripe, existing razorpay fields for Razorpay
+                const verifyPayload = gateway === 'stripe'
+                    ? { session_id: sessionId }
+                    : status  // Razorpay uses the status string
+                const res = await verifyPayment(trx, verifyPayload)
                 if (res.ok) {
-                    setWalletActionMessage('Payment Successful!')
+                    setWalletActionMessage('✅ Payment Successful! Wallet updated.')
                     setTimeout(() => setWalletActionMessage(''), 5000)
+                    loadWallet()
+                    loadTransactions()
                 } else {
                     setWalletActionMessage(res.message || 'Payment Verification Failed.')
                 }
@@ -147,7 +162,7 @@ export default function WalletPage() {
             }
         }
         verify()
-    }, [searchParams, verifyPayment, setSearchParams])
+    }, [searchParams, verifyPayment, setSearchParams, loadWallet, loadTransactions])
 
     const handleQuickAdd = async (amount) => {
         const parsed = Number(amount)
@@ -155,56 +170,74 @@ export default function WalletPage() {
         setIsProcessingPayment(true)
         setWalletActionMessage('Connecting to Secure Gateway...')
         const result = await initiateRecharge(parsed)
-                if (result?.ok && result.orderId && result.keyId) {
+
+        if (!result?.ok) {
+            setWalletActionMessage(result?.message || 'Gateway error. Please try again.')
+            setIsProcessingPayment(false)
+            return
+        }
+
+        // ── Stripe (international users) ─────────────────────────────────
+        if (result.gateway === 'stripe') {
+            if (result.sessionUrl) {
+                setWalletActionMessage('Redirecting to Stripe secure checkout...')
+                // Small delay so user sees the message before redirect
+                setTimeout(() => {
+                    window.location.href = result.sessionUrl
+                }, 600)
+            } else {
+                setWalletActionMessage('Stripe session creation failed. Please try again.')
+                setIsProcessingPayment(false)
+            }
+            return
+        }
+
+        // ── Razorpay (INR users — unchanged) ─────────────────────────────
+        if (result.gateway === 'razorpay' && result.orderId && result.keyId) {
             const options = {
                 key: result.keyId,
                 amount: result.amount,
                 currency: result.currency,
-                name: "K & Q Reels",
-                description: "Wallet Recharge",
+                name: 'K & Q Reels',
+                description: 'Wallet Recharge',
                 order_id: result.orderId,
                 handler: async function (response) {
-                    setWalletActionMessage('Verifying payment...');
+                    setWalletActionMessage('Verifying payment...')
                     const verification = await verifyPayment(result.transactionId, {
                         razorpay_payment_id: response.razorpay_payment_id,
                         razorpay_order_id: response.razorpay_order_id,
-                        razorpay_signature: response.razorpay_signature
-                    });
-
+                        razorpay_signature: response.razorpay_signature,
+                    })
                     if (verification.ok) {
-                        setWalletActionMessage('Payment Successful!');
-                        setTimeout(() => setWalletActionMessage(''), 5000);
-                        // Refresh wallet balance
-                        loadWallet();
-                        loadTransactions();
+                        setWalletActionMessage('✅ Payment Successful!')
+                        setTimeout(() => setWalletActionMessage(''), 5000)
+                        loadWallet()
+                        loadTransactions()
                     } else {
-                        setWalletActionMessage(verification.message || 'Verification Failed');
+                        setWalletActionMessage(verification.message || 'Verification Failed')
                     }
-                    setIsProcessingPayment(false);
+                    setIsProcessingPayment(false)
                 },
                 modal: {
-                    ondismiss: function() {
-                        setIsProcessingPayment(false);
-                        setWalletActionMessage('Payment cancelled.');
-                    }
+                    ondismiss: function () {
+                        setIsProcessingPayment(false)
+                        setWalletActionMessage('Payment cancelled.')
+                    },
                 },
                 prefill: {
                     name: profile.fullName || profile.username,
                     email: profile.email || '',
-                    contact: profile.phone || ''
+                    contact: profile.phone || '',
                 },
-                theme: {
-                    color: "#f59e0b"
-                }
-            };
-            const rzp = new window.Razorpay(options);
-            rzp.open();
+                theme: { color: '#f59e0b' },
+            }
+            const rzp = new window.Razorpay(options)
+            rzp.open()
         } else {
-            console.error("Razorpay Config Error:", result);
-            setWalletActionMessage(result?.message || 'Gateway config incomplete (Missing Key ID).');
-            setIsProcessingPayment(false);
+            console.error('Gateway config error:', result)
+            setWalletActionMessage(result?.message || 'Gateway config incomplete.')
+            setIsProcessingPayment(false)
         }
-
     }
 
     const toDataUrl = (file) => new Promise((resolve) => {

@@ -78,17 +78,18 @@ export const useWalletStore = create((set, get) => ({
                 else if (emoji === '🍅') animationId = 'tomato'
                 else if (emoji === '💛' || emoji === '❤️' || emoji === '💖') animationId = 'heart'
                 
-                // Determine display price based on user region
-                const displayPrice = isInr 
-                    ? Number(g.priceInr || g.price || 0) 
-                    : Number(g.priceGlobal || 0)
+                // Determine display price based on user region (prefer backend-provided priceLocal)
+                const displayPrice = g.priceLocal !== undefined && g.priceLocal !== null
+                    ? Number(g.priceLocal)
+                    : Number(g.priceInr || g.price || 0)
 
                 return { 
                     ...g, 
                     id: String(g.id || g._id),
                     animationType: animationId,
                     emoji,
-                    price: displayPrice // Dynamically set based on country/currency
+                    price: displayPrice, // Localized currency amount (e.g. $0.18)
+                    coins: Number(g.priceInr || g.price || 0) // Actual coins to deduct (e.g. 10)
                 }
             })
             set({ gifts: mapped, giftsLoading: false })
@@ -203,13 +204,19 @@ export const useWalletStore = create((set, get) => ({
         try {
             const data = await walletService.initiateRecharge(parsed)
             if (data?.success) {
-                return { 
-                    ok: true, 
-                    orderId: data.orderId, 
-                    amount: data.amount, 
-                    currency: data.currency, 
+                return {
+                    ok: true,
+                    gateway: data.gateway,           // 'razorpay' or 'stripe'
+                    // Razorpay fields
+                    orderId: data.orderId,
+                    amount: data.amount,
+                    currency: data.currency,
                     keyId: data.keyId,
-                    transactionId: data.transactionId 
+                    // Stripe fields
+                    sessionId: data.sessionId,
+                    sessionUrl: data.sessionUrl,
+                    // Common
+                    transactionId: data.transactionId,
                 }
             }
             return { ok: false, message: data?.message || 'Could not get payment link.' }
@@ -277,17 +284,17 @@ export const useWalletStore = create((set, get) => ({
 
     performGift: async ({ gift, receiverId, postId, reelId }) => {
         const state = get()
-        const amount = Number(gift.price || 0)
+        const coinsNeeded = Number(gift.coins || gift.price || 0)
         const giftIdForBackend = gift.id
 
-        if (state.inrWallet < amount) {
+        if (state.inrWallet < coinsNeeded) {
             return { ok: false, message: 'Not enough INR balance.', error: 'insufficient_balance' }
         }
 
         // Optimistic update
         set((prev) => ({
-            inrWallet: round2(prev.inrWallet - amount),
-            balance: round2(prev.balance - amount)
+            inrWallet: round2(prev.inrWallet - coinsNeeded),
+            balance: round2(prev.balance - coinsNeeded)
         }))
 
         try {

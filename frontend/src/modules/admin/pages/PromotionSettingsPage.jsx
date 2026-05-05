@@ -9,7 +9,9 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 export default function PromotionSettingsPage() {
     const [settings, setSettings] = useState({
         minDailyBudget: 99,
+        minDailyBudgetGlobal: 5,
         maxDailyBudget: 100000,
+        maxDailyBudgetGlobal: 5000,
         minDuration: 1,
         maxDuration: 30,
         minImpressionFactor: 14,
@@ -108,23 +110,45 @@ export default function PromotionSettingsPage() {
                     </h2>
                     
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Minimum Daily Budget (₹)</label>
-                            <input
-                                type="number"
-                                value={settings.minDailyBudget}
-                                onChange={(e) => setSettings({ ...settings, minDailyBudget: Number(e.target.value) })}
-                                className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none transition-all"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Min. Daily (₹)</label>
+                                <input
+                                    type="number"
+                                    value={settings.minDailyBudget}
+                                    onChange={(e) => setSettings({ ...settings, minDailyBudget: Number(e.target.value) })}
+                                    className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Min. Daily ($)</label>
+                                <input
+                                    type="number"
+                                    value={settings.minDailyBudgetGlobal}
+                                    onChange={(e) => setSettings({ ...settings, minDailyBudgetGlobal: Number(e.target.value) })}
+                                    className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none transition-all"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Maximum Daily Budget (₹)</label>
-                            <input
-                                type="number"
-                                value={settings.maxDailyBudget}
-                                onChange={(e) => setSettings({ ...settings, maxDailyBudget: Number(e.target.value) })}
-                                className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none transition-all"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Max. Daily (₹)</label>
+                                <input
+                                    type="number"
+                                    value={settings.maxDailyBudget}
+                                    onChange={(e) => setSettings({ ...settings, maxDailyBudget: Number(e.target.value) })}
+                                    className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Max. Daily ($)</label>
+                                <input
+                                    type="number"
+                                    value={settings.maxDailyBudgetGlobal}
+                                    onChange={(e) => setSettings({ ...settings, maxDailyBudgetGlobal: Number(e.target.value) })}
+                                    className="w-full bg-bg border border-surface rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none transition-all"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -165,11 +189,14 @@ export default function PromotionSettingsPage() {
                     
                     <div className="bg-primary/5 rounded-xl p-4 flex gap-4 items-start border border-primary/10">
                         <Info className="text-primary shrink-0" size={20} />
-                        <p className="text-[11px] leading-relaxed font-bold uppercase tracking-wide opacity-80">
-                            These factors determine the estimated impressions shown to users. 
-                            Impressions range = Budget × Factor. 
-                            Example: ₹99 × 14 = 1.4K min reach.
-                        </p>
+                        <div className="space-y-1">
+                            <p className="text-[11px] leading-relaxed font-bold uppercase tracking-wide opacity-80">
+                                Reach Simulation Factors: Impressions = Budget × Factor.
+                            </p>
+                            <p className="text-[10px] leading-relaxed font-bold uppercase tracking-wide opacity-60">
+                                For INR (₹): factor is used as is. For Global ($), it's automatically adjusted to ~83x for estimation parity.
+                            </p>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -197,14 +224,22 @@ export default function PromotionSettingsPage() {
 
                     <div className="pt-4 border-t border-surface/50">
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted mb-3 opacity-60">Reach Simulation (Preview)</p>
-                        <div className="flex gap-8">
-                            <div className="bg-bg p-3 rounded-lg border border-surface">
+                        <div className="flex flex-wrap gap-4">
+                            <div className="bg-bg p-3 rounded-lg border border-surface flex-1 min-w-[120px]">
                                 <p className="text-[9px] font-bold text-muted uppercase">₹99 Daily</p>
                                 <p className="text-sm font-black text-primary">{(99 * settings.minImpressionFactor / 1000).toFixed(1)}K - {(99 * settings.maxImpressionFactor / 1000).toFixed(1)}K</p>
                             </div>
-                            <div className="bg-bg p-3 rounded-lg border border-surface">
+                            <div className="bg-bg p-3 rounded-lg border border-surface flex-1 min-w-[120px]">
                                 <p className="text-[9px] font-bold text-muted uppercase">₹1,000 Daily</p>
                                 <p className="text-sm font-black text-primary">{(1000 * settings.minImpressionFactor / 1000).toFixed(0)}K - {(1000 * settings.maxImpressionFactor / 1000).toFixed(0)}K</p>
+                            </div>
+                            <div className="bg-bg p-3 rounded-lg border border-surface flex-1 min-w-[120px]">
+                                <p className="text-[9px] font-bold text-muted uppercase">$5 Daily</p>
+                                <p className="text-sm font-black text-primary">{(5 * 83 * settings.minImpressionFactor / 1000).toFixed(1)}K - {(5 * 83 * settings.maxImpressionFactor / 1000).toFixed(1)}K</p>
+                            </div>
+                            <div className="bg-bg p-3 rounded-lg border border-surface flex-1 min-w-[120px]">
+                                <p className="text-[9px] font-bold text-muted uppercase">$100 Daily</p>
+                                <p className="text-sm font-black text-primary">{(100 * 83 * settings.minImpressionFactor / 1000).toFixed(1)}K - {(100 * 83 * settings.maxImpressionFactor / 1000).toFixed(1)}K</p>
                             </div>
                         </div>
                     </div>

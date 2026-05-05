@@ -138,7 +138,11 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                                 </div>
                                 <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--color-text)' }}>Send Gift</h3>
                                 <p className="text-xs mb-6 opacity-80" style={{ color: 'var(--color-text)' }}>
-                                    Do you want to send <span className="font-bold text-orange-500">{currencySymbol}{confirmingGift.price}</span> worth gift to this post?
+                                    Do you want to send <span className="font-bold text-orange-500">
+                                        {currencySymbol}{Number(confirmingGift.price || 0) >= 1 
+                                            ? Number(confirmingGift.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                                            : Number(confirmingGift.price || 0).toFixed(4)}
+                                    </span> worth gift to this post?
                                 </p>
                                 <div className="flex gap-2">
                                     <button 

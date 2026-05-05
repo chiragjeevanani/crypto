@@ -87,18 +87,36 @@ export default function CreatePage() {
     const [durationDays, setDurationDays] = useState(10)
 
     useEffect(() => {
-        businessService.getSettings().then(setPromoSettings).catch(console.error)
+        businessService.getSettings().then(res => {
+            if (res.settings) setPromoSettings(res.settings);
+        }).catch(console.error)
         
-        // Pre-load Razorpay script to save time during checkout
         loadRazorpayScript().then(success => {
             if (!success) console.warn('Failed to pre-load Razorpay script')
         })
     }, [])
 
+    const isINR = (profile?.currencyCode || 'INR').toUpperCase() === 'INR';
+    const currencySymbol = profile?.currencySymbol || '₹';
+    
+    // Choose correct limits based on currency
+    const minBudget = isINR ? promoSettings.minDailyBudget : (promoSettings.minDailyBudgetGlobal || 5);
+    const maxBudget = isINR ? promoSettings.maxDailyBudget : (promoSettings.maxDailyBudgetGlobal || 5000);
+
     const totalBudget = durationSelection === 'set' ? dailyBudget * durationDays : dailyBudget;
-    const estimatedMin = Math.round(dailyBudget * promoSettings.minImpressionFactor);
-    const estimatedMax = Math.round(dailyBudget * promoSettings.maxImpressionFactor);
+    
+    // Adjust reach factor: admin factors are based on ₹
+    // If user is USD, we multiply by ~83 to get ₹ equivalent for estimation
+    const reachMultiplier = isINR ? 1 : 83;
+    const estimatedMin = Math.round(dailyBudget * reachMultiplier * promoSettings.minImpressionFactor);
+    const estimatedMax = Math.round(dailyBudget * reachMultiplier * promoSettings.maxImpressionFactor);
     const estimatedLabel = `${(estimatedMin / 1000).toFixed(1)}K - ${(estimatedMax / 1000).toFixed(1)}K`;
+
+    // Sync dailyBudget if it falls out of bounds when settings or currency change
+    useEffect(() => {
+        if (dailyBudget < minBudget) setDailyBudget(minBudget);
+        if (dailyBudget > maxBudget && maxBudget > 0) setDailyBudget(maxBudget);
+    }, [minBudget, maxBudget, dailyBudget]);
 
     const STEPS = [
         { id: 1, label: 'Upload Media', icon: Image },
@@ -109,6 +127,34 @@ export default function CreatePage() {
         { id: 6, label: 'Category', icon: Eye },
         { id: 7, label: 'Preview', icon: Eye },
     ]
+
+    useEffect(() => {
+        // Handle return from Stripe
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('status');
+        const postId = params.get('postId');
+        const sessionId = params.get('session_id');
+
+        if (status === 'success' && sessionId && postId) {
+            setPublishing('Verifying Payment...');
+            businessService.verifyPayment({ postId, sessionId })
+                .then(res => {
+                    if (res.success) {
+                        setPublished(true);
+                    } else {
+                        setPublishError('Stripe verification failed. Please check your wallet.');
+                    }
+                })
+                .catch(err => {
+                    setPublishError('Error verifying Stripe payment.');
+                })
+                .finally(() => {
+                    setPublishing(false);
+                });
+        } else if (status === 'cancelled') {
+            setPublishError('Payment was cancelled.');
+        }
+    }, []);
 
     const { register, watch, handleSubmit } = useForm({ defaultValues: { caption: '', price: '' } })
     const addPost = useFeedStore((s) => s.addPost)
@@ -280,10 +326,16 @@ export default function CreatePage() {
             if (isBusiness && newPost?.id) {
                 try {
                     const initRes = await businessService.initiatePayment(newPost.id)
-                    const { amount, orderId, currency, keyId } = initRes.data || {}
+                    const { gateway, amount, orderId, currency, keyId, sessionUrl } = initRes.data || {}
+
+                    if (gateway === 'stripe' && sessionUrl) {
+                        setPublishing('Redirecting to Stripe...');
+                        window.location.href = sessionUrl;
+                        return;
+                    }
 
                     const isLoaded = await loadRazorpayScript();
-                    if (orderId && isLoaded && typeof window.Razorpay !== 'undefined') {
+                    if (gateway === 'razorpay' && orderId && isLoaded && typeof window.Razorpay !== 'undefined') {
                         const options = {
                             key: keyId, 
                             amount: amount * 100,
@@ -331,7 +383,7 @@ export default function CreatePage() {
                             throw new Error('Razorpay config incomplete. Check keyId or orderId.');
                         }
                     } else {
-                        throw new Error('Razorpay initiation failed or script not loaded.')
+                        throw new Error('Payment initiation failed or script not loaded.')
                     }
                 } catch (payErr) {
                     console.error("Payment failed:", payErr);
@@ -825,21 +877,21 @@ export default function CreatePage() {
                                                 </div>
                                                 <div className="flex flex-col items-center">
                                                     <div className="flex items-center gap-2 mb-4">
-                                                        <span className="text-4xl font-extrabold" style={{ color: 'var(--color-text)' }}>₹{dailyBudget}</span>
+                                                        <span className="text-4xl font-extrabold" style={{ color: 'var(--color-text)' }}>{currencySymbol}{dailyBudget}</span>
                                                         <FileText size={20} style={{ color: 'var(--color-muted)' }} className="opacity-50" />
                                                     </div>
                                                     <div className="w-full flex items-center gap-4">
-                                                        <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>₹{promoSettings.minDailyBudget}</span>
+                                                        <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>{currencySymbol}{minBudget}</span>
                                                         <input 
                                                             type="range"
-                                                            min={promoSettings.minDailyBudget}
-                                                            max={10000} // Capping for slider UX, but can be higher
+                                                            min={minBudget}
+                                                            max={isINR ? 10000 : 500} 
                                                             value={dailyBudget}
                                                             onChange={(e) => setDailyBudget(Number(e.target.value))}
                                                             className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
                                                             style={{ background: 'var(--color-surface2)' }}
                                                         />
-                                                        <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>₹10,000+</span>
+                                                        <span className="text-xs font-bold" style={{ color: 'var(--color-muted)' }}>{currencySymbol}{isINR ? '10,000+' : '500+'}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -886,7 +938,7 @@ export default function CreatePage() {
                                             <div className="bg-surface2 rounded-2xl p-4 space-y-3">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>Total budget</span>
-                                                    <span className="text-base font-bold" style={{ color: 'var(--color-text)' }}>₹{totalBudget}</span>
+                                                    <span className="text-base font-bold" style={{ color: 'var(--color-text)' }}>{currencySymbol}{totalBudget}</span>
                                                 </div>
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-1.5">
@@ -990,7 +1042,7 @@ export default function CreatePage() {
                                             exit={{ opacity: 0, height: 0 }}
                                         >
                                             <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>
-                                                Set Price (₹) · Policy: $1–$20
+                                                Set Price ({currencySymbol}) · Policy: $1–$20
                                             </label>
                                             <input
                                                 type="number"
@@ -1106,7 +1158,7 @@ export default function CreatePage() {
                                             {isBusiness && (
                                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                                                     style={{ background: 'rgba(59,130,246,0.12)', color: 'var(--color-blue)' }}>
-                                                    Business Post (₹{totalBudget})
+                                                    Business Post ({currencySymbol}{totalBudget})
                                                 </span>
                                             )}
                                             {isBusiness && ctaType !== 'none' && (
@@ -1178,7 +1230,7 @@ export default function CreatePage() {
                                         className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full"
                                     />
                                 )}
-                                {typeof publishing === 'string' ? publishing : (publishing ? (isBusiness ? 'Processing...' : 'Publishing...') : (isBusiness ? `Commit & Pay ₹${totalBudget}` : '🚀 Launch Post'))}
+                                {typeof publishing === 'string' ? publishing : (publishing ? (isBusiness ? 'Processing...' : 'Publishing...') : (isBusiness ? `Commit & Pay ${currencySymbol}${totalBudget}` : '🚀 Launch Post'))}
                             </div>
                         </motion.button>
                     )}
