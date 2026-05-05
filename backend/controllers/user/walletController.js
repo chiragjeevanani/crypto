@@ -9,7 +9,7 @@ const { createNotification } = require("./notificationController");
 const { emitToUser, broadcastAll } = require("../../utils/socket");
 const { notifyAdmins } = require("../../utils/adminNotifier");
 const { getCachedRates } = require("../../utils/exchangeRate");
-const { buildCurrencyMeta, convertFromINR } = require("../../utils/currencyConverter");
+const { buildCurrencyMeta, convertFromUSD } = require("../../utils/currencyConverter");
 
 const getIdempotencyKey = (req) =>
   (req.headers["idempotency-key"] || req.body.idempotencyKey || "").toString().trim() || null;
@@ -147,9 +147,8 @@ const sendGift = async (req, res) => {
     }
 
     const session = await mongoose.startSession();
-    let debitTx;
-    let creditTx;
-    let sender, receiver, gift, coinValue;
+    let sender, receiver, gift, deductAmount, creditAmount, debitTx, creditTx;
+    const { rates, source, lastUpdate } = await getCachedRates();
 
     try {
       await session.withTransaction(async () => {
@@ -161,46 +160,62 @@ const sendGift = async (req, res) => {
         sender = await User.findById(senderId).session(session);
         if (!sender) throw new Error("Sender not found");
 
-        // coinValue is ALWAYS based on INR price because 1 coin = 1 INR
-        // This ensures receiver gets full value regardless of sender's location
-        coinValue = Number(gift.priceInr || gift.price || 0);
-
-        if (coinValue <= 0) throw new Error("Gift value invalid or free");
-
         receiver = await User.findById(receiverId).session(session);
         if (!receiver) throw new Error("Receiver not found");
 
+        const senderCurrency = sender.currencyCode || "INR";
+        const receiverCurrency = receiver.currencyCode || "INR";
+
+        // 1. Calculate how much the sender pays (Static price from Admin)
+        if (senderCurrency === "INR") {
+            deductAmount = gift.priceInr || 1;
+        } else {
+            // Everyone else pays the Global price
+            deductAmount = gift.priceGlobal || gift.priceUsd || 1;
+        }
+        deductAmount = parseFloat(deductAmount.toFixed(2));
+
+        // 2. Calculate the ground-truth USD value of this specific transaction
+        // If they paid in INR, we convert it to USD base to find the conversion pivot
+        const baseUsdOfTx = (senderCurrency === "INR") ? (deductAmount / 80) : deductAmount;
+
+        // 3. Calculate how much the receiver gets (Converted value)
+        if (receiverCurrency === senderCurrency) {
+            creditAmount = deductAmount;
+        } else {
+            // Convert the sender's payment value into the receiver's currency
+            const converted = convertFromUSD(baseUsdOfTx, receiverCurrency, rates);
+            creditAmount = parseFloat((converted || 0).toFixed(2));
+        }
+
+        if (creditAmount <= 0) throw new Error("Conversion error for receiver");
+
         const senderBefore = Number(sender.rechargeCoins || 0);
-        if (senderBefore < coinValue) {
-          throw new Error("Insufficient recharge coins");
+        if (senderBefore < deductAmount) {
+          throw new Error(`Insufficient balance. You need ${sender.currencySymbol}${deductAmount} but have ${sender.currencySymbol}${senderBefore}`);
         }
         const receiverBefore = Number(receiver.earningCoins || 0);
 
         const senderUpdate = await User.updateOne(
-          { _id: senderId, rechargeCoins: { $gte: coinValue } },
-          { $inc: { rechargeCoins: -coinValue } },
+          { _id: senderId, rechargeCoins: { $gte: deductAmount } },
+          { $inc: { rechargeCoins: -deductAmount } },
           { session }
         );
-        if (!senderUpdate.modifiedCount) throw new Error("Insufficient recharge coins");
+        if (!senderUpdate.modifiedCount) throw new Error("Insufficient balance");
 
-        const receiverAfter = receiverBefore + coinValue;
+        const receiverAfter = receiverBefore + creditAmount;
         const config = await getAdminConfig(session);
         const threshold = Number(config.premiumThreshold || 100);
 
-        const updateData = { $inc: { earningCoins: coinValue } };
+        const updateData = { $inc: { earningCoins: creditAmount } };
         if (!receiver.isPremium && receiverAfter >= threshold) {
           updateData.$set = { isPremium: true };
         }
 
-        await User.updateOne(
-          { _id: receiverId },
-          updateData,
-          { session }
-        );
-
+        await User.updateOne({ _id: receiverId }, updateData, { session });
         await Gift.updateOne({ _id: giftId }, { $inc: { usage: 1 } }, { session });
 
-        const senderAfter = senderBefore - coinValue;
+        const senderAfter = senderBefore - deductAmount;
         const referenceId = String(giftId);
 
         const [sentTx, receivedTx] = await WalletTransaction.create(
@@ -208,8 +223,8 @@ const sendGift = async (req, res) => {
             {
               userId: senderId,
               type: "gift_sent",
-              coins: coinValue,
-              amount: null,
+              coins: deductAmount,
+              amount: deductAmount,
               beforeBalance: senderBefore,
               afterBalance: senderAfter,
               referenceId,
@@ -221,14 +236,20 @@ const sendGift = async (req, res) => {
                 receiverName: receiver.name || receiver.username,
                 receiverHandle: receiver.handle,
                 postId, 
-                reelId 
+                reelId,
+                basePriceUsd: baseUsdOfTx,
+                localCurrency: sender.currencyCode,
+                localSymbol: sender.currencySymbol,
+                exchangeRate: rates[sender.currencyCode],
+                rateSource: source,
+                rateDate: lastUpdate
               }
             },
             {
               userId: receiverId,
               type: "gift_received",
-              coins: coinValue,
-              amount: null,
+              coins: creditAmount,
+              amount: creditAmount,
               beforeBalance: receiverBefore,
               afterBalance: receiverAfter,
               referenceId,
@@ -239,7 +260,13 @@ const sendGift = async (req, res) => {
                 senderName: sender.name || sender.username,
                 senderHandle: sender.handle,
                 postId, 
-                reelId 
+                reelId,
+                basePriceUsd: baseUsdOfTx,
+                localCurrency: receiver.currencyCode,
+                localSymbol: receiver.currencySymbol,
+                exchangeRate: rates[receiver.currencyCode],
+                rateSource: source,
+                rateDate: lastUpdate
               }
             }
           ],
@@ -252,137 +279,77 @@ const sendGift = async (req, res) => {
       session.endSession();
     }
 
-    // --- Fetch live rates & build localized currency metadata ---
-    // Direct formula: gift.price (INR) → sender/receiver's own currency via live API rates
-    let senderCurrencyMeta = null;
-    let receiverCurrencyMeta = null;
     try {
-      const { rates, source, lastUpdate } = await getCachedRates();
-      // Ground truth: every gift has an INR price. 
-      // We convert this INR price to the user's local currency using live rates.
-      const giftPriceBasis = Number(gift.priceInr || gift.price || 0);
+      const senderHandle = sender.handle ? `@${sender.handle}` : sender.name;
+      const receiverHandle = receiver.handle ? `@${receiver.handle}` : receiver.name;
+      const giftEmoji = gift.icon || "🎁";
+      const notifType = gift.name?.toLowerCase().includes("heart") ? "follower_broadcast" : "gift";
+      const notifTitle = `${senderHandle} sent a ${giftEmoji} ${gift.name} to ${receiverHandle}`;
+      
+      const receiverAmountFormatted = `${receiver.currencySymbol}${creditAmount.toFixed(2)}`;
+      const notifSubtitle = notifType === "follower_broadcast"
+          ? "Broadcast sent to 100 followers to boost engagement."
+          : `You received a premium ${gift.name}! (${receiverAmountFormatted})`;
 
-      // Log exactly which source and rates are being used — verifiable in server console
-      console.log(`[Gift][Currency] Rate source: ${source} | Updated: ${lastUpdate}`);
-      console.log(`[Gift][Currency] Gift price basis: ${giftPriceBasis} ${isSenderInr ? 'INR' : 'Global'}`);
-      console.log(`[Gift][Currency] API rates used — INR: ${rates['INR']} | Sender(${sender.currencyCode}): ${rates[sender.currencyCode] ?? 'N/A'} | Receiver(${receiver.currencyCode}): ${rates[receiver.currencyCode] ?? 'N/A'}`);
-
-      // Sender sees how much they spent in their own currency
-      senderCurrencyMeta = buildCurrencyMeta(
-        giftPriceBasis,
-        sender.currencyCode || 'INR',
-        sender.currencySymbol || '₹',
-        rates
-      );
-
-      // Receiver sees how much they received in their own currency
-      receiverCurrencyMeta = buildCurrencyMeta(
-        giftPriceBasis,
-        receiver.currencyCode || 'INR',
-        receiver.currencySymbol || '₹',
-        rates
-      );
-
-      console.log(`[Gift][Currency] Result — Sender: ${senderCurrencyMeta.formatted} | Receiver: ${receiverCurrencyMeta.formatted}`);
-
-      // Patch localized meta onto both transaction records (best-effort)
-      await WalletTransaction.findByIdAndUpdate(debitTx._id, {
-        $set: { 
-          'meta.localAmount': senderCurrencyMeta.localAmount,
-          'meta.localCurrency': senderCurrencyMeta.localCurrency,
-          'meta.localSymbol': senderCurrencyMeta.localSymbol,
-          'meta.inrAmount': senderCurrencyMeta.inrAmount,
-          'meta.rateSource': source
-        }
-      });
-      await WalletTransaction.findByIdAndUpdate(creditTx._id, {
-        $set: { 
-          'meta.localAmount': receiverCurrencyMeta.localAmount,
-          'meta.localCurrency': receiverCurrencyMeta.localCurrency,
-          'meta.localSymbol': receiverCurrencyMeta.localSymbol,
-          'meta.inrAmount': receiverCurrencyMeta.inrAmount,
-          'meta.rateSource': source
-        }
-      });
-    } catch (e) {
-      console.error('[Gift] Currency conversion failed (non-critical):', e.message);
-    }
-
-
-    // --- Persist notification for receiver & emit live event ---
-    const senderHandle = sender.handle ? `@${sender.handle}` : sender.name;
-    const receiverHandle = receiver.handle ? `@${receiver.handle}` : receiver.name;
-    const giftEmoji = gift.icon || "🎁";
-    const notifType = gift.name?.toLowerCase().includes("heart") ? "follower_broadcast" : "gift";
-    const notifTitle = `${senderHandle} sent a ${giftEmoji} ${gift.name} to ${receiverHandle}`;
-
-    // Build subtitle with localized amount for receiver
-    const receiverAmountDisplay = receiverCurrencyMeta?.formatted
-      ? ` (${receiverCurrencyMeta.formatted})`
-      : '';
-    const notifSubtitle =
-      notifType === "follower_broadcast"
-        ? "Broadcast sent to 100 followers to boost engagement."
-        : `You received a premium ${gift.name}!${receiverAmountDisplay}`;
-
-    const savedNotif = await createNotification({
-      recipientId: receiverId,
-      senderId: senderId,
-      type: notifType,
-      title: notifTitle,
-      subtitle: notifSubtitle,
-      meta: { 
-        postId, reelId, 
-        giftName: gift.name, giftIcon: giftEmoji, 
-        coins: coinValue,
-        // Receiver's localized amount
-        localAmount: receiverCurrencyMeta?.localAmount,
-        localCurrency: receiverCurrencyMeta?.localCurrency,
-        localSymbol: receiverCurrencyMeta?.localSymbol,
-        formatted: receiverCurrencyMeta?.formatted
-      }
-    });
-
-    // Push real-time private notification to receiver
-    if (savedNotif) {
-      emitToUser(String(receiverId), "notification", {
-        id: savedNotif._id.toString(),
+      const savedNotif = await createNotification({
+        recipientId: receiverId,
+        senderId: senderId,
         type: notifType,
         title: notifTitle,
         subtitle: notifSubtitle,
-        createdAt: savedNotif.createdAt,
-        isRead: false,
-        meta: savedNotif.meta
-      });
-    }
-
-    // Global broadcast — if gift price >= 5, announce to ALL online users (and save in history)
-    if (gift.price >= 5) {
-      const broadcastTitle = `${receiverHandle} received a ${giftEmoji} ${gift.name} from ${senderHandle}!`;
-      const broadcastSubtitle = `Join the post to show your support.`;
-      
-      const globalNotif = await createNotification({
-        type: "follower_broadcast",
-        title: broadcastTitle,
-        subtitle: broadcastSubtitle,
-        meta: { postId, giftName: gift.name, giftIcon: giftEmoji, price: gift.price },
-        isGlobal: true
+        meta: { 
+          postId, reelId, 
+          giftName: gift.name, giftIcon: giftEmoji, 
+          amount: creditAmount,
+          currency: receiver.currencyCode,
+          formatted: receiverAmountFormatted
+        }
       });
 
-      broadcastAll("notification_broadcast", {
-        id: globalNotif?._id.toString() || `broadcast_${Date.now()}`,
-        type: "follower_broadcast",
-        title: broadcastTitle,
-        subtitle: broadcastSubtitle,
-        createdAt: globalNotif?.createdAt || new Date().toISOString(),
-        isRead: false,
-        meta: { postId, giftName: gift.name, giftIcon: giftEmoji, price: gift.price }
-      });
+      if (savedNotif) {
+        emitToUser(String(receiverId), "notification", {
+          id: savedNotif._id.toString(),
+          type: notifType,
+          title: notifTitle,
+          subtitle: notifSubtitle,
+          createdAt: savedNotif.createdAt,
+          isRead: false,
+          meta: savedNotif.meta
+        });
+      }
+
+      if (baseUsdOfTx >= 5) {
+        const broadcastTitle = `${receiverHandle} received a ${giftEmoji} ${gift.name} from ${senderHandle}!`;
+        const broadcastSubtitle = `Join the post to show your support.`;
+        
+        const globalNotif = await createNotification({
+          type: "follower_broadcast",
+          title: broadcastTitle,
+          subtitle: broadcastSubtitle,
+          meta: { postId, giftName: gift.name, giftIcon: giftEmoji, priceUsd: baseUsdOfTx },
+          isGlobal: true
+        });
+
+        broadcastAll("notification_broadcast", {
+          id: globalNotif?._id.toString() || `broadcast_${Date.now()}`,
+          type: "follower_broadcast",
+          title: broadcastTitle,
+          subtitle: broadcastSubtitle,
+          createdAt: globalNotif?.createdAt || new Date().toISOString(),
+          isRead: false,
+          meta: { postId, giftName: gift.name, giftIcon: giftEmoji, priceUsd: baseUsdOfTx }
+        });
+      }
+    } catch (err) {
+      console.error("[Gift] Notification/Broadcast error:", err.message);
     }
 
     return res.status(200).json({
       success: true,
       message: "Gift sent successfully",
+      deductAmount,
+      creditAmount,
+      currency: sender.currencyCode,
       debitTransaction: debitTx,
       creditTransaction: creditTx
     });
@@ -607,25 +574,30 @@ const listActiveGifts = async (req, res) => {
       .exec();
 
     const mappedGifts = gifts.map(g => {
-      const priceInr = g.priceInr || g.price || 0;
-      // Convert INR price to user's local currency for display with precision fix
-      let localPrice = convertFromINR(priceInr, currencyCode, rates);
-      if (localPrice !== null) {
-        const decimals = Math.abs(localPrice) >= 1 ? 2 : 4;
-        localPrice = parseFloat(localPrice.toFixed(decimals));
+      // 1. Determine the ground-truth USD price
+      const baseUsd = g.priceGlobal || g.priceUsd || (g.priceInr ? g.priceInr / 80 : 0) || 1;
+      
+      // 2. Determine the local display price - STRICTLY follow admin definitions
+      let localPrice;
+      
+      if (currencyCode === "INR") {
+        // Use exact INR price defined by admin (fallback to 1 if not set)
+        localPrice = g.priceInr || 1;
+      } else {
+        // For all other regions (Global), use the exact Global price defined by admin
+        // This ensures a gift set to "Global: 10" shows as "10" everywhere outside India
+        localPrice = g.priceGlobal || baseUsd;
       }
       
       return {
         id: g._id.toString(),
         name: g.name,
         icon: g.icon || "🎁",
-        price: priceInr, // The number of coins required (1 coin = 1 INR)
-        priceInr: priceInr,
-        priceGlobal: g.priceGlobal || 0,
+        priceUsd: baseUsd,
         priceLocal: localPrice,
         currencySymbol: currencySymbol,
         currencyCode: currencyCode,
-        value: g.value,
+        value: g.value || g.priceInr || 0,
         usage: g.usage || 0,
         soundUrl: g.soundUrl
       };

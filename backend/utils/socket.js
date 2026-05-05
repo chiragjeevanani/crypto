@@ -83,10 +83,13 @@ const initSocket = (server) => {
             // Update all messages in this room received by currentUserId to 'seen'
             await Message.updateMany(
                 { roomId, receiver: currentUserId, status: { $ne: "seen" } },
-                { $set: { status: "seen" } }
+                { $set: { status: "seen", seenAt: new Date() } }
             );
             // Notify the other user (if online)
             socket.to(roomId).emit("messages_seen_update", { roomId, userId: currentUserId });
+            
+            // Notify the current user's other sessions/tabs to reset unread count for this room
+            socket.emit("unread_count_reset", { roomId });
         } catch (error) {
             console.error("[Socket] mark_seen error:", error);
         }

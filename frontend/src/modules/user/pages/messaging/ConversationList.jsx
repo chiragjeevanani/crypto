@@ -87,12 +87,30 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
             ))
         }
 
+        const handleChatDeleted = () => {
+            fetchConversations()
+        }
+
+        const handleUnreadReset = (data) => {
+            setConversations(prev => prev.map(conv => 
+                conv.roomId === data.roomId ? { ...conv, unreadCount: 0 } : conv
+            ))
+        }
+
+        const handleMessageUpdate = () => {
+            fetchConversations()
+        }
+
         socket.on('receive_message', handleNewMessage)
         socket.on('new_message_alert', (data) => handleNewMessage(data.message))
         socket.on('own_message_sent', (msg) => handleNewMessage({ ...msg, isOwn: true }))
         socket.on('user_status_changed', handleStatusChanged)
         socket.on('user_typing', handleTyping)
         socket.on('user_stop_typing', handleStopTyping)
+        socket.on('chat_deleted', handleChatDeleted)
+        socket.on('unread_count_reset', handleUnreadReset)
+        socket.on('message_deleted', handleMessageUpdate)
+        socket.on('message_edited', handleMessageUpdate)
 
         return () => {
             socket.off('receive_message', handleNewMessage)
@@ -101,6 +119,10 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
             socket.off('user_status_changed', handleStatusChanged)
             socket.off('user_typing', handleTyping)
             socket.off('user_stop_typing', handleStopTyping)
+            socket.off('chat_deleted', handleChatDeleted)
+            socket.off('unread_count_reset', handleUnreadReset)
+            socket.off('message_deleted', handleMessageUpdate)
+            socket.off('message_edited', handleMessageUpdate)
         }
     }, [fetchConversations, selectedChatId])
 

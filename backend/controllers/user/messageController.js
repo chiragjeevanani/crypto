@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Message = require("../../models/Message");
 const User = require("../../models/User");
+const { broadcastToRoom, emitToUser } = require("../../utils/socket");
 
 exports.getMessages = async (req, res) => {
   try {
@@ -24,6 +25,7 @@ exports.getMessages = async (req, res) => {
       type: m.type,
       payload: m.payload,
       status: m.status,
+      seenAt: m.seenAt,
       timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     }));
 
@@ -170,4 +172,119 @@ exports.getUnreadTotal = async (req, res) => {
         console.error("[Message] getUnreadTotal error:", error);
         res.status(500).json({ success: false, message: "Failed to fetch unread total" });
     }
+};
+
+exports.deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const currentUserId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+        return res.status(400).json({ success: false, message: "Invalid message ID" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    // Only sender can delete their message (or you might allow receiver to delete for themselves, but usually it's sender)
+    // For now, let's allow either party to delete for themselves? No, let's do "Delete for everyone" if sender deletes.
+    if (message.sender.toString() !== currentUserId.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to delete this message" });
+    }
+
+    await Message.findByIdAndDelete(messageId);
+
+    // Notify via socket
+    const userIds = message.roomId.split("-");
+    userIds.forEach(id => emitToUser(id, "message_deleted", { messageId, roomId: message.roomId }));
+
+    res.json({ success: true, message: "Message deleted" });
+  } catch (error) {
+    console.error("[Message] deleteMessage error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete message" });
+  }
+};
+
+exports.editMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { text } = req.body;
+    const currentUserId = req.user.userId;
+
+    // Validate ObjectId to avoid 500 CastError
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+        return res.status(400).json({ success: false, message: "Invalid message ID" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    if (message.sender.toString() !== currentUserId.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to edit this message" });
+    }
+
+    if (message.type !== "text") {
+      return res.status(400).json({ success: false, message: "Only text messages can be edited" });
+    }
+
+    // New Rule: If seen, can only edit within 3 seconds
+    if (message.status === "seen" && message.seenAt) {
+      const seenTime = new Date(message.seenAt).getTime();
+      const currentTime = Date.now();
+      const diffSeconds = (currentTime - seenTime) / 1000;
+
+      if (diffSeconds > 6) {
+        return res.status(403).json({ success: false, message: "Edit window expired (6s after view)" });
+      }
+    }
+
+    message.text = text;
+    // Optional: mark as edited
+    message.payload = { ...message.payload, isEdited: true };
+    await message.save();
+
+    // Notify via socket
+    const userIds = message.roomId.split("-");
+    const editData = { 
+        messageId, 
+        roomId: message.roomId, 
+        text,
+        isEdited: true 
+    };
+    userIds.forEach(id => emitToUser(id, "message_edited", editData));
+
+    res.json({ success: true, message: "Message updated" });
+  } catch (error) {
+    console.error("[Message] editMessage error:", error);
+    res.status(500).json({ success: false, message: "Failed to edit message" });
+  }
+};
+
+exports.deleteChat = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const currentUserId = req.user.userId;
+
+    // Verify user is part of this chat room
+    // RoomId is usually "userId1-userId2" or similar
+    if (!roomId.includes(currentUserId)) {
+        return res.status(403).json({ success: false, message: "Unauthorized to delete this chat" });
+    }
+
+    // Delete all messages in the room
+    await Message.deleteMany({ roomId });
+
+    // Notify both users via socket
+    const userIds = roomId.split("-");
+    userIds.forEach(id => emitToUser(id, "chat_deleted", { roomId }));
+
+    res.json({ success: true, message: "Chat history deleted" });
+  } catch (error) {
+    console.error("[Message] deleteChat error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete chat" });
+  }
 };

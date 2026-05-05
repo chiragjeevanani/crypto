@@ -78,18 +78,18 @@ export const useWalletStore = create((set, get) => ({
                 else if (emoji === '🍅') animationId = 'tomato'
                 else if (emoji === '💛' || emoji === '❤️' || emoji === '💖') animationId = 'heart'
                 
-                // Determine display price based on user region (prefer backend-provided priceLocal)
-                const displayPrice = g.priceLocal !== undefined && g.priceLocal !== null
-                    ? Number(g.priceLocal)
-                    : Number(g.priceInr || g.price || 0)
+                // Backend now provides localized price converted from USD
+                const displayPrice = Number(g.priceLocal || g.priceUsd || g.priceGlobal || g.price || 0)
 
                 return { 
                     ...g, 
                     id: String(g.id || g._id),
                     animationType: animationId,
                     emoji,
-                    price: displayPrice, // Localized currency amount (e.g. $0.18)
-                    coins: Number(g.priceInr || g.price || 0) // Actual coins to deduct (e.g. 10)
+                    price: displayPrice, // This is what shows on the button
+                    priceUsd: Number(g.priceUsd || 10),
+                    currencySymbol: g.currencySymbol || '$',
+                    currencyCode: g.currencyCode || 'USD'
                 }
             })
             set({ gifts: mapped, giftsLoading: false })

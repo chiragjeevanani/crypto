@@ -63,6 +63,7 @@ exports.createGift = async (req, res) => {
       price: numericPriceInr, // Fallback for old code
       priceInr: numericPriceInr,
       priceGlobal: numericPriceGlobal,
+      priceUsd: numericPriceGlobal || 10, // Use global as USD base, default 10
       value: numericPriceInr,
       status: status || "Active",
       soundUrl: finalSoundUrl
@@ -89,7 +90,9 @@ exports.updateGift = async (req, res) => {
       update.value = numericPriceInr;
     }
     if (priceGlobal !== undefined) {
-      update.priceGlobal = Math.max(0, Number(priceGlobal || 0));
+      const numericPriceGlobal = Math.max(0, Number(priceGlobal || 0));
+      update.priceGlobal = numericPriceGlobal;
+      update.priceUsd = numericPriceGlobal; // Keep USD in sync
     }
     if (status !== undefined) update.status = status;
     

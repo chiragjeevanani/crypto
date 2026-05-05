@@ -18,15 +18,21 @@ const giftSchema = new mongoose.Schema(
       min: 0,
       default: 0
     },
-    priceInr: {
+    priceUsd: {
       type: Number,
       required: true,
+      min: 0,
+      default: 1
+    },
+    priceInr: {
+      type: Number,
+      required: false,
       min: 0,
       default: 0
     },
     priceGlobal: {
       type: Number,
-      required: true,
+      required: false,
       min: 0,
       default: 0
     },

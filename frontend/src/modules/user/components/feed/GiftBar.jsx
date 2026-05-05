@@ -14,7 +14,7 @@ const EMPTY_COUNTS = {}
 
 export default function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
     const { maxGiftsPerMinute } = usePlatformSettings()
-    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts } = useWalletStore()
+    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts, giftsLoading } = useWalletStore()
     const { profile } = useUserStore()
     const giftCountsRaw = useFeedStore((s) => s.giftCountsByPostId?.[postId])
     const giftCounts = giftCountsRaw || EMPTY_COUNTS
@@ -29,6 +29,13 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
     const [confirmingGift, setConfirmingGift] = useState(null)
     const [activeSound, setActiveSound] = useState(null)
     const sentAtRef = useRef([])
+    const loadGifts = useWalletStore((s) => s.loadGifts)
+
+    useEffect(() => {
+        if (giftTypes.length === 0) {
+            loadGifts()
+        }
+    }, [giftTypes.length, loadGifts])
 
 
     const handleGift = (gift) => {
@@ -80,7 +87,7 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                                 color: giftSpendWallet === 'inr' ? 'var(--color-primary)' : 'var(--color-muted)',
                             }}
                         >
-                            {currencyCode} {currencySymbol}{Math.round(inrWallet)}
+                            {Math.round(inrWallet)} Coins
                         </button>
                         <button
                             type="button"
@@ -97,15 +104,27 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                 </div>
             )}
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-10 -my-10">
-                {giftTypes.map((gift) => (
-                    <GiftButton
-                        key={gift.id}
-                        gift={gift}
-                        onGift={handleGift}
-                        count={giftCounts[gift.id] || 0}
-                        showCount={showCounts}
-                    />
-                ))}
+                {giftsLoading ? (
+                    <div className="flex gap-2 animate-pulse">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="w-16 h-8 rounded-full bg-surface2" />
+                        ))}
+                    </div>
+                ) : giftTypes.length > 0 ? (
+                    giftTypes.map((gift) => (
+                        <GiftButton
+                            key={gift.id}
+                            gift={gift}
+                            onGift={handleGift}
+                            count={giftCounts[gift.id] || 0}
+                            showCount={showCounts}
+                        />
+                    ))
+                ) : (
+                    <div className="text-[10px] text-muted font-medium py-2">
+                        No gifts available. Please contact support.
+                    </div>
+                )}
             </div>
             
             <HeartRainAnimation 
@@ -139,10 +158,8 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                                 <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--color-text)' }}>Send Gift</h3>
                                 <p className="text-xs mb-6 opacity-80" style={{ color: 'var(--color-text)' }}>
                                     Do you want to send <span className="font-bold text-orange-500">
-                                        {currencySymbol}{Number(confirmingGift.price || 0) >= 1 
-                                            ? Number(confirmingGift.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-                                            : Number(confirmingGift.price || 0).toFixed(4)}
-                                    </span> worth gift to this post?
+                                        {confirmingGift.currencySymbol || currencySymbol}{confirmingGift.price}
+                                    </span> to this post?
                                 </p>
                                 <div className="flex gap-2">
                                     <button 

@@ -1,67 +1,72 @@
 /**
  * Currency Converter Utility
  *
- * Platform base currency: INR (all gift prices are stored in INR via gift.price).
- * Exchange rates are USD-based (e.g., rates.INR = 83.5, rates.USD = 1, rates.AUD = 1.52).
- *
- * Direct conversion formula (no coins involved):
- *   amountINR / rates.INR * rates[targetCurrency] = targetAmount
- *
- * Example: ₹2 INR → USD
- *   2 / 83.5 * 1 = $0.024
+ * Platform base currency: USD (all gift prices are anchored to USD via gift.priceUsd).
+ * All conversions: USD -> Target Currency.
  */
 
 /**
- * Converts an INR amount directly to the target currency.
- * @param {number} amountINR - The gift price in INR (gift.price from Gift model)
- * @param {string} targetCurrencyCode - Receiver's currency e.g. 'USD', 'AUD', 'GBP'
+ * Converts a USD amount to a target currency.
+ * @param {number} amountUsd - The gift price in USD (gift.priceUsd)
+ * @param {string} targetCurrencyCode - The currency to convert to e.g. 'INR', 'AUD'
  * @param {Object} rates - USD-base rate map from getCachedRates()
- * @returns {number|null} Converted amount in target currency, or null if unavailable
+ * @returns {number|null}
  */
-const convertFromINR = (amountINR, targetCurrencyCode, rates) => {
-    if (!rates || !targetCurrencyCode || !amountINR) return null;
-
-    const inrRate = rates['INR'];
+const convertFromUSD = (amountUsd, targetCurrencyCode, rates) => {
+    if (!rates || !targetCurrencyCode || amountUsd === undefined) return null;
+    
     const targetRate = rates[targetCurrencyCode.toUpperCase()];
+    if (!targetRate) return null;
 
-    if (!inrRate || !targetRate || inrRate === 0) return null;
-
-    // Direct: INR → USD base → target currency
-    return (amountINR / inrRate) * targetRate;
+    // Formula: USD Amount * (Target Currency / 1 USD)
+    return Number(amountUsd) * targetRate;
 };
 
 /**
- * Formats a local amount for display with smart decimal precision.
+ * Converts a local currency amount back to USD.
+ * @param {number} amountLocal 
+ * @param {string} sourceCurrencyCode 
+ * @param {Object} rates 
+ * @returns {number|null}
+ */
+const convertToUSD = (amountLocal, sourceCurrencyCode, rates) => {
+    if (!rates || !sourceCurrencyCode || amountLocal === undefined) return null;
+
+    const sourceRate = rates[sourceCurrencyCode.toUpperCase()];
+    if (!sourceRate || sourceRate === 0) return null;
+
+    // Formula: Local Amount / (Source Currency / 1 USD)
+    return Number(amountLocal) / sourceRate;
+};
+
+/**
+ * Formats a local amount for display with standard 2 decimal places.
  * @param {number} amount
  * @param {string} symbol - e.g. '$', '€', '₹'
- * @returns {string|null} e.g. "$0.0241" or "€1.25"
  */
 const formatLocalAmount = (amount, symbol = '') => {
     if (amount === null || amount === undefined || isNaN(amount)) return null;
-    const decimals = Math.abs(amount) >= 1 ? 2 : 4;
-    return `${symbol}${amount.toFixed(decimals)}`;
+    return `${symbol}${Number(amount).toFixed(2)}`;
 };
 
 /**
- * Builds the localized currency meta object for a gift transaction.
- * Uses gift.price (INR) directly — no coins or coinRate in the formula.
- *
- * @param {number} giftPriceINR - The gift's price in INR (gift.price)
- * @param {string} currencyCode - Recipient's registered currency code
- * @param {string} currencySymbol - Recipient's registered currency symbol
- * @param {Object} rates - USD-based rate map from getCachedRates()
- * @returns {{ inrAmount, localAmount, localCurrency, localSymbol, formatted }}
+ * Builds localized currency metadata for a transaction snapshot.
+ * 
+ * @param {number} priceUsd - Ground truth USD price
+ * @param {string} currencyCode - User's local currency code
+ * @param {string} currencySymbol - User's local currency symbol
+ * @param {Object} rates - Live USD rates
  */
-const buildCurrencyMeta = (giftPriceINR, currencyCode, currencySymbol, rates) => {
-    const localAmount = convertFromINR(giftPriceINR, currencyCode, rates);
+const buildCurrencyMeta = (priceUsd, currencyCode, currencySymbol, rates) => {
+    const localAmount = convertFromUSD(priceUsd, currencyCode, rates);
 
     return {
-        inrAmount: parseFloat(Number(giftPriceINR).toFixed(4)),
-        localAmount: localAmount !== null ? parseFloat(localAmount.toFixed(6)) : null,
-        localCurrency: currencyCode || 'INR',
-        localSymbol: currencySymbol || '₹',
+        priceUsd: Number(priceUsd),
+        localAmount: localAmount !== null ? parseFloat(localAmount.toFixed(2)) : null,
+        localCurrency: currencyCode || 'USD',
+        localSymbol: currencySymbol || '$',
         formatted: formatLocalAmount(localAmount, currencySymbol)
     };
 };
 
-module.exports = { convertFromINR, formatLocalAmount, buildCurrencyMeta };
+module.exports = { convertFromUSD, convertToUSD, formatLocalAmount, buildCurrencyMeta };

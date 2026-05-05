@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Info, Phone, Video, Send, Image as ImageIcon, Smile, Paperclip, PlayCircle, MoreHorizontal, X } from 'lucide-react'
+import { ChevronLeft, Info, Phone, Video, Send, Image as ImageIcon, Smile, Paperclip, PlayCircle, MoreHorizontal, X, Trash2, Edit2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore } from '../../store/useUserStore'
 import { getSocket } from '../../../../socket'
@@ -20,6 +20,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const fileInputRef = useRef(null)
     const [isUploading, setIsUploading] = useState(false)
     const [selectedImage, setSelectedImage] = useState(null)
+    const [activeMessageOptions, setActiveMessageOptions] = useState(null)
+    const [editingMessage, setEditingMessage] = useState(null)
+    const [editInputValue, setEditInputValue] = useState('')
+    const [showChatOptions, setShowChatOptions] = useState(false)
+    const [tick, setTick] = useState(0)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -80,7 +85,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
 
         const handleMessagesSeenUpdate = (data) => {
             if (data.roomId === roomId) {
-                setMessages(prev => prev.map(m => m.sender === 'me' ? { ...m, status: 'seen' } : m))
+                const now = new Date().toISOString();
+                setMessages(prev => prev.map(m => m.sender === 'me' ? { ...m, status: 'seen', seenAt: now } : m))
             }
         }
 
@@ -94,20 +100,80 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             }
         }
 
+        const handleOwnMessageSent = (data) => {
+            // Find the optimistic message (starts with 'me-') and update its ID
+            setMessages(prev => {
+                // Find the index of the most recent message with 'me-' ID
+                // We search from the end of the array (reverse) as it's the most likely candidate
+                let index = -1;
+                for (let i = prev.length - 1; i >= 0; i--) {
+                    if (prev[i].id.toString().startsWith('me-') && 
+                        (prev[i].text?.trim() === data.text?.trim() || prev[i].type !== 'text')) {
+                        index = i;
+                        break;
+                    }
+                }
+
+                if (index !== -1) {
+                    const updated = [...prev];
+                    updated[index] = { ...updated[index], id: data.id, status: data.status };
+                    return updated;
+                }
+                return prev;
+            });
+        }
+
+        const handleMessageDeleted = (data) => {
+            if (data.roomId === roomId) {
+                setMessages(prev => prev.filter(m => m.id !== data.messageId))
+            }
+        }
+
+        const handleMessageEdited = (data) => {
+            if (data.roomId === roomId) {
+                setMessages(prev => prev.map(m => 
+                    m.id === data.messageId 
+                    ? { ...m, text: data.text, payload: { ...m.payload, isEdited: data.isEdited } } 
+                    : m
+                ))
+            }
+        }
+
+        const handleChatDeleted = (data) => {
+            if (data.roomId === roomId) {
+                setMessages([])
+                if (onBack) onBack() // Optionally redirect back if chat is deleted
+            }
+        }
+
         socket.on('receive_message', handleReceiveMessage)
         socket.on('user_typing', handleUserTyping)
         socket.on('user_stop_typing', handleUserStopTyping)
         socket.on('messages_seen_update', handleMessagesSeenUpdate)
         socket.on('message_status_sent', handleStatusSent)
+        socket.on('own_message_sent', handleOwnMessageSent)
         socket.on('user_status_changed', handleStatusChanged)
+        socket.on('message_deleted', handleMessageDeleted)
+        socket.on('message_edited', handleMessageEdited)
+        socket.on('chat_deleted', handleChatDeleted)
+        
+        // Force refresh of Edit timer every second
+        const timer = setInterval(() => {
+            setTick(prev => prev + 1)
+        }, 1000)
 
         return () => {
+            clearInterval(timer)
             socket.off('receive_message', handleReceiveMessage)
             socket.off('user_typing', handleUserTyping)
             socket.off('user_stop_typing', handleUserStopTyping)
             socket.off('messages_seen_update', handleMessagesSeenUpdate)
             socket.off('message_status_sent', handleStatusSent)
+            socket.off('own_message_sent', handleOwnMessageSent)
             socket.off('user_status_changed', handleStatusChanged)
+            socket.off('message_deleted', handleMessageDeleted)
+            socket.off('message_edited', handleMessageEdited)
+            socket.off('chat_deleted', handleChatDeleted)
         }
     }, [roomId, profile.id, chat.user.id])
 
@@ -241,25 +307,83 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         }
     }
 
+    const handleDeleteMessage = async (messageId) => {
+        try {
+            const res = await messageService.deleteMessage(messageId)
+            if (res.success) {
+                setMessages(prev => prev.filter(m => m.id !== messageId))
+                setActiveMessageOptions(null)
+            }
+        } catch (err) {
+            console.error('Delete message error:', err)
+        }
+    }
+
+    const handleStartEdit = (msg) => {
+        setEditingMessage(msg)
+        setEditInputValue(msg.text)
+        setActiveMessageOptions(null)
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editingMessage || !editInputValue.trim()) return
+        try {
+            const res = await messageService.editMessage(editingMessage.id, editInputValue)
+            if (res.success) {
+                setMessages(prev => prev.map(m => 
+                    m.id === editingMessage.id 
+                    ? { ...m, text: editInputValue, payload: { ...m.payload, isEdited: true } } 
+                    : m
+                ))
+                setEditingMessage(null)
+            }
+        } catch (err) {
+            console.error('Edit message error:', err)
+        }
+    }
+
+    const handleDeleteChat = async () => {
+        if (!window.confirm('Are you sure you want to delete this entire chat history? This cannot be undone.')) return
+        try {
+            const res = await messageService.deleteChat(roomId)
+            if (res.success) {
+                setMessages([])
+                setShowChatOptions(false)
+                if (onBack) onBack()
+            }
+        } catch (err) {
+            console.error('Delete chat error:', err)
+        }
+    }
+
     const renderMessageContent = (msg) => {
         if (msg.type === 'text') {
+            const isMe = msg.sender === 'me'
             return (
                 <div 
-                    className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${msg.sender === 'me' ? 'text-white self-end rounded-br-none' : 'bg-[var(--color-surface2)] text-[var(--color-text)] self-start rounded-bl-none'}`}
-                    style={msg.sender === 'me' ? { background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))' } : {}}
+                    className={`max-w-[80%] min-w-[70px] px-4 py-3 rounded-2xl text-[14px] leading-relaxed shadow-sm relative transition-all ${isMe ? 'text-white self-end rounded-br-none' : 'bg-[var(--color-surface2)] text-[var(--color-text)] self-start rounded-bl-none'}`}
+                    style={isMe ? { 
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    } : {
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
+                    }}
                 >
-                    {msg.text}
-                    {msg.sender === 'me' && (
-                        <div className="flex justify-end mt-0.5">
-                            {msg.status === 'seen' ? (
-                                <div className="text-[10px] text-blue-400 font-bold leading-none">✓✓</div>
-                            ) : msg.status === 'delivered' ? (
-                                <div className="text-[10px] text-white/70 leading-none">✓✓</div>
-                            ) : (
-                                <div className="text-[10px] text-white/50 leading-none">✓</div>
-                            )}
-                        </div>
-                    )}
+                    <div className="mb-1 break-words">{msg.text}</div>
+                    <div className="flex items-center justify-end gap-1.5 opacity-70">
+                        <span className="text-[9px] font-medium">{msg.timestamp}</span>
+                        {isMe && (
+                            <div className="flex items-center">
+                                {msg.status === 'seen' ? (
+                                    <div className="text-[10px] text-blue-300 font-bold leading-none">✓✓</div>
+                                ) : msg.status === 'delivered' ? (
+                                    <div className="text-[10px] text-white/90 leading-none">✓✓</div>
+                                ) : (
+                                    <div className="text-[10px] text-white/70 leading-none">✓</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )
         }
@@ -435,8 +559,47 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{isOnline ? 'Active now' : 'Offline'}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <Info size={20} style={{ color: 'var(--color-text)' }} className="cursor-pointer" />
+                <div className="flex items-center gap-4 relative">
+                    <button 
+                        onClick={() => setShowChatOptions(!showChatOptions)}
+                        className="p-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                    >
+                        <MoreHorizontal size={20} style={{ color: 'var(--color-text)' }} />
+                    </button>
+
+                    <AnimatePresence>
+                        {showChatOptions && (
+                            <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowChatOptions(false)} />
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                    className="absolute right-0 top-full mt-2 w-48 rounded-xl shadow-xl border overflow-hidden z-40"
+                                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                >
+                                    <button 
+                                        onClick={handleDeleteChat}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                        Delete Chat
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setShowChatOptions(false)
+                                            // Add block user or other options here if needed
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-[var(--color-surface2)] transition-colors"
+                                        style={{ color: 'var(--color-text)' }}
+                                    >
+                                        <Info size={16} />
+                                        Chat Details
+                                    </button>
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -460,8 +623,111 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 <div className="text-center text-[11px] py-4" style={{ color: 'var(--color-muted)' }}>CHAT HISTORY</div>
 
                 {messages.map((msg) => (
-                    <div key={msg.id} className={`flex flex-col w-full ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}>
-                        {renderMessageContent(msg)}
+                    <div 
+                        key={msg.id} 
+                        className={`group flex flex-col w-full relative ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
+                    >
+                        {editingMessage?.id === msg.id ? (
+                            <div className="w-full max-w-[70%] flex flex-col gap-2">
+                                <textarea
+                                    value={editInputValue}
+                                    onChange={(e) => setEditInputValue(e.target.value)}
+                                    className="w-full px-4 py-2.5 rounded-2xl text-sm bg-[var(--color-surface2)] text-[var(--color-text)] outline-none border border-[var(--color-primary)] resize-none"
+                                    rows={2}
+                                    autoFocus
+                                />
+                                <div className="flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => setEditingMessage(null)}
+                                        className="text-[10px] font-bold px-3 py-1 rounded-lg bg-[var(--color-surface2)]"
+                                        style={{ color: 'var(--color-text)' }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        onClick={handleSaveEdit}
+                                        className="text-[10px] font-bold px-3 py-1 rounded-lg bg-[var(--color-primary)] text-white"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className={`relative flex items-center gap-2 group max-w-[90%] ${msg.sender === 'me' ? 'flex-row' : 'flex-row-reverse'}`}>
+                                {/* Message Options Trigger - Always visible but subtle */}
+                                {msg.sender === 'me' && (
+                                    <button 
+                                        onClick={() => setActiveMessageOptions(activeMessageOptions === msg.id ? null : msg.id)}
+                                        className={`p-1.5 rounded-full hover:bg-[var(--color-surface2)] transition-all ${activeMessageOptions === msg.id ? 'bg-[var(--color-surface2)] opacity-100' : 'opacity-30 group-hover:opacity-100 hover:opacity-100'}`}
+                                        title="Message options"
+                                    >
+                                        <MoreHorizontal size={16} style={{ color: 'var(--color-muted)' }} />
+                                    </button>
+                                )}
+
+                                {/* Message Content */}
+                                <div className="flex-1 flex flex-col items-end">
+                                    {renderMessageContent(msg)}
+                                    {msg.payload?.isEdited && (
+                                        <span className="text-[9px] mt-0.5 opacity-50 italic" style={{ color: msg.sender === 'me' ? '#fff' : 'var(--color-muted)' }}>
+                                            edited
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Options Menu */}
+                                <AnimatePresence>
+                                    {activeMessageOptions === msg.id && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setActiveMessageOptions(null)} />
+                                            <motion.div 
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.8 }}
+                                                className="absolute bottom-full mb-1 z-50 rounded-xl shadow-xl border overflow-hidden min-w-[120px]"
+                                                style={{ 
+                                                    background: 'var(--color-surface)', 
+                                                    borderColor: 'var(--color-border)',
+                                                    right: msg.sender === 'me' ? '0' : 'auto',
+                                                    left: msg.sender === 'me' ? 'auto' : '0'
+                                                }}
+                                            >
+                                                {msg.sender === 'me' && (msg.type === 'text' || !msg.type) && (() => {
+                                                    // Rule: Only edit if synced (has real ID from server)
+                                                    const isSynced = !msg.id.toString().startsWith('me-');
+                                                    if (!isSynced) return null;
+
+                                                    // Rule: Can edit if unseen, or within 6 seconds of being seen
+                                                    const isSeen = msg.status === 'seen';
+                                                    const seenTooLong = isSeen && msg.seenAt && (Date.now() - new Date(msg.seenAt).getTime()) > 6000;
+                                                    
+                                                    if (seenTooLong) return null;
+
+                                                    return (
+                                                        <button 
+                                                            onClick={() => handleStartEdit(msg)}
+                                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-[var(--color-surface2)] transition-colors"
+                                                            style={{ color: 'var(--color-text)' }}
+                                                        >
+                                                            <Edit2 size={16} />
+                                                            Edit
+                                                        </button>
+                                                    );
+                                                })()}
+                                                <button 
+                                                    onClick={() => !msg.id.toString().startsWith('me-') && handleDeleteMessage(msg.id)}
+                                                    disabled={msg.id.toString().startsWith('me-')}
+                                                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors ${msg.id.toString().startsWith('me-') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                >
+                                                    <Trash2 size={16} />
+                                                    Delete
+                                                </button>
+                                            </motion.div>
+                                        </>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
                     </div>
                 ))}
 

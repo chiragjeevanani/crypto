@@ -33,5 +33,17 @@ export const messageService = {
     getUnreadTotal: async () => {
         const response = await axios.get(`${API_URL}/user/messages/unread-total`, getAuthHeader());
         return response.data.total;
+    },
+    deleteMessage: async (messageId) => {
+        const response = await axios.delete(`${API_URL}/user/messages/messages/${messageId}`, getAuthHeader());
+        return response.data;
+    },
+    editMessage: async (messageId, text) => {
+        const response = await axios.put(`${API_URL}/user/messages/messages/${messageId}`, { text }, getAuthHeader());
+        return response.data;
+    },
+    deleteChat: async (roomId) => {
+        const response = await axios.delete(`${API_URL}/user/messages/conversations/${roomId}`, getAuthHeader());
+        return response.data;
     }
 };
