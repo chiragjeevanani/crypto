@@ -15,6 +15,7 @@ import PostSplat from './PostSplat'
 import { formatCurrency, formatCount, timeAgo } from '../../utils/formatCurrency'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import Avatar from '../shared/Avatar'
+import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
@@ -107,6 +108,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
     const [isReporting, setIsReporting] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
     const handleReport = async () => {
         if (!reportReason || !post) return
@@ -125,12 +127,11 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
     }
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this reel?')) return
         try {
             await deletePost(post.id)
             if (onClose) onClose() // Close modal after delete
         } catch (error) {
-            alert('Failed to delete reel')
+            // Error handled by store
         }
     }
 
@@ -403,7 +404,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
                                             onClick={(e) => {
                                                 e.stopPropagation()
                                                 setIsReportMenuOpen(false)
-                                                handleDelete()
+                                                setIsDeleteModalOpen(true)
                                             }}
                                             className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                                         >
@@ -681,6 +682,16 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
                     />
                 )}
             </div>
+            <ActionConfirmationModal 
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDelete}
+                title="Delete Reel?"
+                message="Are you sure you want to delete this reel? This action cannot be undone."
+                confirmText="Yes, Delete Reel"
+                variant="danger"
+                Icon={Trash2}
+            />
         </div>
     )
 }

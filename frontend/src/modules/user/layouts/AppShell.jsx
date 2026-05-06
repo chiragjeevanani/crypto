@@ -18,6 +18,7 @@ import {
 import BottomNavbar from '../components/shared/BottomNavbar'
 import CoinRain from '../components/shared/CoinRain'
 import RoseShower from '../components/shared/RoseShower'
+import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
 import { useWalletStore } from '../store/useWalletStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
@@ -52,6 +53,8 @@ export default function AppShell() {
     const location = useLocation()
     const searchParams = new URLSearchParams(location.search)
     const view = searchParams.get('view')
+
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
     const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore(useShallow(state => ({
         inrWallet: state.inrWallet,
@@ -303,6 +306,25 @@ export default function AppShell() {
                     {SIDEBAR_ITEMS.map((item) => {
                         const Icon = item.icon
                         const active = isItemActive(item)
+                        
+                        if (item.key === 'logout') {
+                            return (
+                                <button
+                                    key={item.label}
+                                    onClick={() => setIsLogoutModalOpen(true)}
+                                    title={item.label}
+                                    className="desktop-menu-item flex items-center justify-center lg:justify-start gap-3 px-2.5 py-2.5 rounded-xl transition-all duration-200 ease-out cursor-pointer w-full text-left"
+                                    style={{
+                                        color: 'var(--color-danger)',
+                                        background: 'transparent',
+                                    }}
+                                >
+                                    <Icon size={19} />
+                                    <span className="hidden lg:inline text-sm">{item.label}</span>
+                                </button>
+                            )
+                        }
+
                         return (
                             <Link
                                 key={item.label}
@@ -543,6 +565,15 @@ export default function AppShell() {
 
             <CoinRain />
             <RoseShower />
+            <LogoutConfirmationModal 
+                isOpen={isLogoutModalOpen} 
+                onClose={() => setIsLogoutModalOpen(false)} 
+                onConfirm={() => {
+                    setIsLogoutModalOpen(false)
+                    useUserStore.getState().logout()
+                    window.location.href = '/signin'
+                }}
+            />
         </div>
     )
 }

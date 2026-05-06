@@ -15,6 +15,7 @@ import { playGiftSound } from '../../utils/giftSounds'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import { postService } from '../../services/postService'
 import Avatar from '../shared/Avatar'
+import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
@@ -50,6 +51,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
     const [isReporting, setIsReporting] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
     const handleReport = async () => {
         if (!reportReason || !post) return;
@@ -68,12 +70,11 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this post?')) return
         try {
             await deletePost(post.id)
             if (onDeleteSuccess) onDeleteSuccess()
         } catch (error) {
-            alert('Failed to delete post')
+            // Error handled by store
         }
     }
     const videoRef = useRef(null)
@@ -398,7 +399,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             setIsReportMenuOpen(false)
-                                            handleDelete()
+                                            setIsDeleteModalOpen(true)
                                         }}
                                         className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                                     >
@@ -980,6 +981,16 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                 </>,
                 document.body
             )}
+            <ActionConfirmationModal 
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDelete}
+                title="Delete Post?"
+                message="Are you sure you want to delete this post? This action cannot be undone."
+                confirmText="Yes, Delete Post"
+                variant="danger"
+                Icon={Trash2}
+            />
         </article>
     )
 }

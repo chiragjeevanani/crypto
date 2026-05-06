@@ -17,6 +17,7 @@ import { useUserStore } from '../../user/store/useUserStore';
 import { useAdminStore } from '../store/useAdminStore';
 import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
 import Avatar from '../../user/components/shared/Avatar';
+import LogoutConfirmationModal from '../../user/components/shared/LogoutConfirmationModal';
 
 export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMenuOpen }) {
     const { darkMode, toggleDarkMode, logout, user, profile } = useUserStore();
@@ -28,6 +29,7 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
     } = useAdminStore();
     const location = useLocation();
     const navigate = useNavigate();
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = React.useState(false);
 
     useEffect(() => {
         loadAdminNotifications();
@@ -209,10 +211,7 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                             </button>
                             <div className="h-px bg-surface my-2"></div>
                             <button
-                                onClick={() => {
-                                    logout();
-                                    navigate('/admin/login');
-                                }}
+                                onClick={() => setIsLogoutModalOpen(true)}
                                 className="w-full flex items-center gap-3 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors"
                             >
                                 <LogOut className="w-3.5 h-3.5" /> Logout
@@ -221,6 +220,15 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                     </div>
                 </div>
             </div>
+            <LogoutConfirmationModal 
+                isOpen={isLogoutModalOpen} 
+                onClose={() => setIsLogoutModalOpen(false)} 
+                onConfirm={() => {
+                    setIsLogoutModalOpen(false)
+                    logout()
+                    navigate('/admin/login')
+                }}
+            />
         </div>
     );
 }

@@ -21,6 +21,7 @@ import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 
 import { savedPostService } from '../services/savedPostService'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
+import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
 const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
@@ -53,6 +54,7 @@ export default function ProfilePage() {
     const nftListings = useMemo(() => profilePosts.filter(p => p.isNFT || p.postType === 'nft'), [profilePosts])
     const [savedPosts, setSavedPosts] = useState([])
     const [savedLoading, setSavedLoading] = useState(false)
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
     const { register, handleSubmit, reset: resetEditForm } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
     const settingsForm = useForm({
@@ -721,7 +723,7 @@ export default function ProfilePage() {
                                     </div>
                                 )}
                                 <div className="pt-5 mt-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                                    <button onClick={() => { useUserStore.getState().logout(); window.location.href = '/signin' }} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
+                                    <button onClick={() => setIsLogoutModalOpen(true)} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
                                         Logout
                                     </button>
                                 </div>
@@ -730,6 +732,16 @@ export default function ProfilePage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <LogoutConfirmationModal 
+                isOpen={isLogoutModalOpen} 
+                onClose={() => setIsLogoutModalOpen(false)} 
+                onConfirm={() => {
+                    setIsLogoutModalOpen(false)
+                    useUserStore.getState().logout()
+                    window.location.href = '/signin'
+                }}
+            />
         </div>
     )
 }

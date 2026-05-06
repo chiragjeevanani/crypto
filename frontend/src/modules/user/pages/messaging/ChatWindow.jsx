@@ -6,6 +6,8 @@ import { useUserStore } from '../../store/useUserStore'
 import { getSocket } from '../../../../socket'
 import { messageService } from '../../../../services/messageService'
 import Avatar from '../../components/shared/Avatar'
+import ActionConfirmationModal from '../../components/shared/ActionConfirmationModal'
+import { Trash2 as TrashIcon } from 'lucide-react'
 
 export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost }) {
     const navigate = useNavigate()
@@ -24,6 +26,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const [editingMessage, setEditingMessage] = useState(null)
     const [editInputValue, setEditInputValue] = useState('')
     const [showChatOptions, setShowChatOptions] = useState(false)
+    const [isDeleteChatModalOpen, setIsDeleteChatModalOpen] = useState(false)
     const [tick, setTick] = useState(0)
 
     const scrollToBottom = () => {
@@ -343,7 +346,6 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     }
 
     const handleDeleteChat = async () => {
-        if (!window.confirm('Are you sure you want to delete this entire chat history? This cannot be undone.')) return
         try {
             const res = await messageService.deleteChat(roomId)
             if (res.success) {
@@ -579,7 +581,10 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                                 >
                                     <button 
-                                        onClick={handleDeleteChat}
+                                        onClick={() => {
+                                            setShowChatOptions(false)
+                                            setIsDeleteChatModalOpen(true)
+                                        }}
                                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
                                     >
                                         <Trash2 size={16} />
@@ -868,6 +873,17 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <ActionConfirmationModal 
+                isOpen={isDeleteChatModalOpen}
+                onClose={() => setIsDeleteChatModalOpen(false)}
+                onConfirm={handleDeleteChat}
+                title="Delete Chat History?"
+                message="Are you sure you want to delete this entire chat history? This cannot be undone."
+                confirmText="Yes, Delete All"
+                variant="danger"
+                Icon={TrashIcon}
+            />
         </div>
     )
 }

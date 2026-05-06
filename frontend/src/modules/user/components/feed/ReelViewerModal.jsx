@@ -7,6 +7,7 @@ import { useUserStore, getStoredToken } from '../../store/useUserStore'
 import { formatCount } from '../../utils/formatCurrency'
 import { postService } from '../../services/postService'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
+import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 
 export default function ReelViewerModal({ posts = [], startIndex = null, onClose }) {
     const navigate = useNavigate()
@@ -19,6 +20,7 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
     const [isReporting, setIsReporting] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
     const handleReport = async () => {
         if (!reportReason || !post) return
@@ -37,13 +39,12 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
     }
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this reel?')) return
         try {
             await deletePost(post.id)
             if (posts.length <= 1) onClose()
             else setIndex(prev => Math.min(posts.length - 2, prev)) // Move to prev or stay at last
         } catch (error) {
-            alert('Failed to delete reel')
+            // Error handled by store
         }
     }
 
@@ -168,7 +169,7 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                                                     onClick={(e) => {
                                                         e.stopPropagation()
                                                         setIsReportMenuOpen(false)
-                                                        handleDelete()
+                                                        setIsDeleteModalOpen(true)
                                                     }}
                                                     className="w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
                                                 >
@@ -318,6 +319,17 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                <ActionConfirmationModal 
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    onConfirm={handleDelete}
+                    title="Delete Reel?"
+                    message="Are you sure you want to delete this reel? This action cannot be undone."
+                    confirmText="Yes, Delete Reel"
+                    variant="danger"
+                    Icon={Trash2}
+                />
             </motion.div>
         </AnimatePresence>
     )
