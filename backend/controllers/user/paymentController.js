@@ -132,7 +132,7 @@ const initiateRecharge = async (req, res) => {
                                 currency: currencyCode.toLowerCase(),
                                 unit_amount: stripeAmount,
                                 product_data: {
-                                    name: "K & Q Reels — Wallet Recharge",
+                                    name: "KnQ Reels — Wallet Recharge",
                                     description: `Add ${coins} coins to your wallet`,
                                 },
                             },

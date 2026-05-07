@@ -4,7 +4,7 @@ import { Heart } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { useUserStore } from '../../store/useUserStore'
 
-export default function GiftButton({ gift, onGift, disabled, count = 0, showCount = true }) {
+export default function GiftButton({ gift, onGift, disabled, count = 0, showCount = true, index = 0 }) {
     const { profile } = useUserStore()
     const currencySymbol = profile?.currencySymbol || '₹'
     const [popping, setPopping] = useState(false)
@@ -44,11 +44,13 @@ export default function GiftButton({ gift, onGift, disabled, count = 0, showCoun
                 whileTap={{ scale: 0.85 }}
                 className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer select-none relative',
-                    'transition-all duration-200 shadow-sm hover:shadow-md'
+                    'transition-all duration-200 shadow-sm hover:shadow-md',
+                    !popping && 'animate-gift-attract'
                 )}
                 style={{
                     background: 'var(--color-surface2)',
                     border: '1px solid var(--color-border)',
+                    animationDelay: `${index * 0.15}s`
                 }}
             >
                 <span className="text-base leading-none transition-transform group-hover:scale-110">{gift.emoji}</span>

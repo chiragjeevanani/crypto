@@ -1,6 +1,6 @@
 const PHRASE_REPLACEMENTS = [
     [/Strategic Control Center/gi, 'Control Center'],
-    [/High-fidelity telemetry for the K & Q Reels reward ecosystem\./gi, 'Live platform stats for the K & Q Reels rewards app.'],
+    [/High-fidelity telemetry for the KnQ Reels reward ecosystem\./gi, 'Live platform stats for the KnQ Reels rewards app.'],
     [/Security Intelligence/gi, 'Security Monitor'],
     [/Anomaly Detection Stream/gi, 'Risk Alerts'],
     [/Asset Moderation Protocol/gi, 'NFT Review'],

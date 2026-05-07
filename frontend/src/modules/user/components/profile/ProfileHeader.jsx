@@ -107,9 +107,9 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                         </div>
                         <button
                             onClick={() => {
-                                const text = `Join me on K & Q Reels! Use my referral code: ${profile.referralCode} and start earning. Download now!`;
+                                const text = `Join me on KnQ Reels! Use my referral code: ${profile.referralCode} and start earning. Download now!`;
                                 if (navigator.share) {
-                                    navigator.share({ title: 'K & Q Reels Referral', text, url: window.location.origin });
+                                    navigator.share({ title: 'KnQ Reels Referral', text, url: window.location.origin });
                                 } else {
                                     navigator.clipboard.writeText(text);
                                     alert('Referral link copied to clipboard!');

@@ -50,7 +50,7 @@ export default function CreateAuctionPage() {
                 key: initRes.keyId,
                 amount: initRes.amount,
                 currency: initRes.currency,
-                name: 'K & Q Reels',
+                name: 'KnQ Reels',
                 description: 'Auction Listing Fee',
                 order_id: initRes.orderId,
                 handler: async (response) => {

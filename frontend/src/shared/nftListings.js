@@ -1,4 +1,4 @@
-const NFT_LISTINGS_KEY = 'K & Q Reels_user_nft_listings_v1'
+const NFT_LISTINGS_KEY = 'KnQ Reels_user_nft_listings_v1'
 
 function normalizeListing(item, idx = 0) {
     const mediaType = String(item?.mediaType || item?.media?.type || item?.type || '')

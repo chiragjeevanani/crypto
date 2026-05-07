@@ -615,7 +615,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         <img src={chat.user.avatar || '/person.png'} alt={chat.user.username} className={`w-full h-full object-cover ${!chat.user.avatar ? 'opacity-60' : ''}`} />
                     </div>
                     <h5 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{chat.user.username}</h5>
-                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; K & Q Reels</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; KnQ Reels</p>
                     <button 
                         onClick={() => navigate(`/user/${chat.user.id}`)}
                         className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
@@ -783,7 +783,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     className="px-4 py-2 rounded-lg text-xs font-bold"
                                     style={{ background: 'var(--color-primary)', color: '#fff' }}
                                 >
-                                    K & Q Reels
+                                    KnQ Reels
                                 </button>
                             </div>
                         </motion.div>

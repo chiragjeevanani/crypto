@@ -111,13 +111,14 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
                         ))}
                     </div>
                 ) : giftTypes.length > 0 ? (
-                    giftTypes.map((gift) => (
+                    giftTypes.map((gift, idx) => (
                         <GiftButton
                             key={gift.id}
                             gift={gift}
                             onGift={handleGift}
                             count={giftCounts[gift.id] || 0}
                             showCount={showCounts}
+                            index={idx}
                         />
                     ))
                 ) : (

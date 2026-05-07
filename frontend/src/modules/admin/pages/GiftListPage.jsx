@@ -161,15 +161,33 @@ export default function GiftListPage() {
                                         />
                                     </div>
                                 </div>
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        value={formData.icon}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, icon: e.target.value }))}
+                                        className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none text-center text-xl"
+                                        placeholder="Emoji"
+                                    />
+                                    <div className="flex flex-wrap gap-1.5 justify-center">
+                                        {['❤️', '💎', '🌹', '🔥', '⭐', '🎁', '🍫', '🍬', '🍭', '🍦', '🍩', '🍰', '🥨', '🥂', '👑', '🦄'].map((emoji) => (
+                                            <button
+                                                key={emoji}
+                                                type="button"
+                                                onClick={() => setFormData((prev) => ({ ...prev, icon: emoji }))}
+                                                className={`w-8 h-8 rounded flex items-center justify-center text-lg border transition-all ${
+                                                    formData.icon === emoji
+                                                        ? 'bg-primary/20 border-primary'
+                                                        : 'bg-bg border-surface hover:border-primary/40'
+                                                }`}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <input
                                     type="text"
-                                    value={formData.icon}
-                                    onChange={(e) => setFormData((prev) => ({ ...prev, icon: e.target.value }))}
-                                    className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"
-                                    placeholder="Emoji"
-                                />
-                                <input
-                                    type="url"
                                     value={formData.soundUrl}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, soundUrl: e.target.value }))}
                                     className="w-full rounded-lg border border-surface bg-bg px-3 py-2 text-sm text-text outline-none"

@@ -1,4 +1,4 @@
-const GIFT_CATALOG_KEY = 'K & Q Reels_gift_catalog_v1'
+const GIFT_CATALOG_KEY = 'KnQ Reels_gift_catalog_v1'
 
 const DEFAULT_GIFTS = [
     { id: 'rose', emoji: '🌹', name: 'Rose', price: 2, status: 'Active' },

@@ -5,7 +5,8 @@ const defaultGifts = [
   { name: "Egg", icon: "🥚", price: 2, priceInr: 2, priceUsd: 1, priceGlobal: 1, value: 2, status: "Active" },
   { name: "Tomato", icon: "🍅", price: 2, priceInr: 2, priceUsd: 1, priceGlobal: 1, value: 2, status: "Active" },
   { name: "Golden Heart", icon: "💛", price: 5, priceInr: 5, priceUsd: 5, priceGlobal: 5, value: 5, status: "Active" },
-  { name: "Premium Heart", icon: "💎", price: 10, priceInr: 10, priceUsd: 10, priceGlobal: 10, value: 10, status: "Active" }
+  { name: "Premium Heart", icon: "💎", price: 10, priceInr: 10, priceUsd: 10, priceGlobal: 10, value: 10, status: "Active" },
+  { name: "Chocolate", icon: "🍫", price: 3, priceInr: 3, priceUsd: 2, priceGlobal: 2, value: 3, status: "Active" }
 ];
 
 const seedGifts = async () => {

@@ -261,7 +261,7 @@ export default function ProfilePage() {
     }, [location.pathname, location.state, navigate])
 
     useEffect(() => {
-        const key = 'K & Q Reels_screen_time_start_v1'
+        const key = 'KnQ Reels_screen_time_start_v1'
         const todayKey = new Date().toISOString().slice(0, 10)
         const startValue = window.localStorage.getItem(key)
         const parsed = startValue ? JSON.parse(startValue) : null
@@ -718,7 +718,7 @@ export default function ProfilePage() {
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Contacts' && (
                                     <div className="space-y-2">
-                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Support</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>support@K & Q Reels.app</p></div></div>
+                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Support</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>support@KnQReels.app</p></div></div>
                                         <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Business Contact</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>+91 90000 12345</p></div></div>
                                     </div>
                                 )}

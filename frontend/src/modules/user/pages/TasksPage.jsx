@@ -45,7 +45,7 @@ export default function TasksPage() {
         hydrate()
         const onUpdate = () => hydrate()
         const onStorage = (event) => {
-            if (event.key === 'K & Q Reels_user_nft_listings_v1') hydrate()
+            if (event.key === 'KnQ Reels_user_nft_listings_v1') hydrate()
         }
         window.addEventListener('nft-listings-updated', onUpdate)
         window.addEventListener('storage', onStorage)

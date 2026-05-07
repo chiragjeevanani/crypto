@@ -212,7 +212,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     const handleShare = async (channel) => {
         sharePost(post.id, channel)
         const shareLink = `${window.location.origin}/home?post=${post.id}`
-        const shareText = `${post.creator?.username || 'User'}'s post on K & Q Reels`
+        const shareText = `${post.creator?.username || 'User'}'s post on KnQ Reels`
 
         if (channel === 'copy_link' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
             try {
@@ -232,7 +232,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
         if (channel === 'instagram_story' || channel === 'instagram_dm') {
             if (typeof navigator !== 'undefined' && navigator.share) {
                 try {
-                    await navigator.share({ title: 'K & Q Reels', text: shareText, url: shareLink })
+                    await navigator.share({ title: 'KnQ Reels', text: shareText, url: shareLink })
                 } catch {
                     // ignore cancellation
                 }
@@ -246,7 +246,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
         }
         if (channel === 'more' && typeof navigator !== 'undefined' && navigator.share) {
             try {
-                await navigator.share({ title: 'K & Q Reels', text: shareText, url: shareLink })
+                await navigator.share({ title: 'KnQ Reels', text: shareText, url: shareLink })
             } catch {
                 // ignore cancellation
             }
@@ -738,7 +738,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                 {post.allowGifts !== false && !isSelfPost ? (
                     <>
                         <div className="flex items-center gap-2 mb-3">
-                            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
+                            <span className="text-[10px] font-bold uppercase tracking-wider animate-pulse" style={{ color: 'var(--color-primary)' }}>
                                 Gift the creator
                             </span>
                         </div>

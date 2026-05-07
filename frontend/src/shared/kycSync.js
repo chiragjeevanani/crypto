@@ -1,4 +1,4 @@
-const KYC_SYNC_KEY = 'K & Q Reels_kyc_sync_v1'
+const KYC_SYNC_KEY = 'KnQ Reels_kyc_sync_v1'
 
 function readStore() {
     if (typeof window === 'undefined') return []

@@ -212,7 +212,7 @@ export default function HomePage() {
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
                     <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
-                        K & Q Reels
+                        KnQ Reels
                     </span>
                     <div className="relative flex items-center gap-2">
                         <button

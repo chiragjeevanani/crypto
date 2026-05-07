@@ -198,7 +198,7 @@ export default function WalletPage() {
                 key: result.keyId,
                 amount: result.amount,
                 currency: result.currency,
-                name: 'K & Q Reels',
+                name: 'KnQ Reels',
                 description: 'Wallet Recharge',
                 order_id: result.orderId,
                 handler: async function (response) {
@@ -316,8 +316,8 @@ export default function WalletPage() {
 
     const handleShareReferral = async () => {
         const shareData = {
-            title: 'K & Q Reels',
-            text: `Join K & Q Reels and start earning! Use my referral code: ${profile.referralCode}`,
+            title: 'KnQ Reels',
+            text: `Join KnQ Reels and start earning! Use my referral code: ${profile.referralCode}`,
             url: window.location.origin + '/signup?ref=' + (profile.referralCode || '')
         }
         try {

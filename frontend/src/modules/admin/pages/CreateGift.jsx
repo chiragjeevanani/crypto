@@ -99,7 +99,7 @@ export default function CreateGift() {
                                             className="w-full bg-bg border border-surface rounded-xl p-4 text-center text-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                         />
                                         <div className="flex flex-wrap gap-2">
-                                            {['❤️', '💛', '💎', '🌹', '💜', '🔥', '⭐', '🎁'].map((emoji) => (
+                                            {['❤️', '💎', '🌹', '🔥', '⭐', '🎁', '🍫', '🍬', '🍭', '🍦', '🍩', '🍰', '🥨', '🥂', '👑', '🦄'].map((emoji) => (
                                                 <button
                                                     key={emoji}
                                                     type="button"
@@ -150,7 +150,7 @@ export default function CreateGift() {
                                 <div className="space-y-2.5">
                                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted ml-1">Sound URL</label>
                                     <input
-                                        type="url"
+                                        type="text"
                                         placeholder="https://example.com/sound.mp3"
                                         value={formData.soundUrl}
                                         onChange={(e) => setFormData({ ...formData, soundUrl: e.target.value })}

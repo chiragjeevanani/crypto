@@ -24,10 +24,10 @@ export default function TermsConditionsPage() {
                     <FileText size={16} style={{ color: 'var(--color-primary)' }} />
                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Platform Terms</p>
                 </div>
-                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>By using K & Q Reels, you agree to follow platform rules, content standards, and payment terms.</p>
+                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>By using KnQ Reels, you agree to follow platform rules, content standards, and payment terms.</p>
                 <p className="text-sm" style={{ color: 'var(--color-sub)' }}>Users must provide correct identity details for KYC and payouts. Fraud, abuse, spam, or misleading promotions can result in account restrictions.</p>
                 <p className="text-sm" style={{ color: 'var(--color-sub)' }}>Gift earnings, campaign rewards, and withdrawals are processed according to active platform rules and verification status.</p>
-                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>K & Q Reels may update these terms for legal, safety, or product changes. Continued usage means acceptance of updated terms.</p>
+                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>KnQ Reels may update these terms for legal, safety, or product changes. Continued usage means acceptance of updated terms.</p>
             </div>
         </div>
     )
