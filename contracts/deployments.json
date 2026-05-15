@@ -1,0 +1,16 @@
+{
+  "network": "amoy",
+  "chainId": "80002",
+  "deployedAt": "2026-05-14T06:29:40.419Z",
+  "contracts": {
+    "KnQNFT": {
+      "address": "0xef0C28f95026D5d7c98B0F3fCB93Dae37eA2eb9b",
+      "minter": "0x91899933b02844510b55ac272f3e75a08778f658"
+    },
+    "KnQAuctionVault": {
+      "address": "0x5ced8f4CB393A07dfCf5E859852EDf6F704Df2E9",
+      "treasury": "0x91899933b02844510b55ac272f3e75a08778f658",
+      "commissionBps": 1000
+    }
+  }
+}

@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuctionStore } from '../store/useAuctionStore';
-import { Clock, Gavel, Trophy, ArrowLeft, History, Info, Send, CreditCard } from 'lucide-react';
+import { Clock, Gavel, Trophy, ArrowLeft, History, Info, Send, CreditCard, RefreshCw, Globe } from 'lucide-react';
 import { formatCurrency } from '../../user/utils/formatCurrency';
 import { useUserStore } from '../../user/store/useUserStore';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import Avatar from '../../user/components/shared/Avatar';
+import { WEB3_ENABLED, ipfsToHttp } from '../../../web3config';
+import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import axios from 'axios';
 
 const getAssetUrl = (path) => {
     if (!path) return '/default-avatar.png';
@@ -273,6 +277,48 @@ export default function AuctionDetailPage() {
                         <h3 className="text-lg font-black tracking-tight">AUCTION CLOSED</h3>
                         <p className="text-sm font-bold text-muted">Winner: <span className="text-primary">@{currentAuction.winner?.handle || currentAuction.winner?.name || 'None'}</span></p>
                     </div>
+
+                    {/* Web3 Claim Section */}
+                    {isWinner && WEB3_ENABLED && currentAuction.nftStatus !== 'minted' && (
+                        <div className="mt-4 p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-center">
+                            <h4 className="font-black text-yellow-500 text-sm mb-2">YOU WON! CLAIM YOUR NFT</h4>
+                            <p className="text-xs text-muted mb-4">Connect your wallet to receive your unique digital collectible on Polygon.</p>
+                            
+                            <div className="flex justify-center mb-4">
+                                <ConnectButton />
+                            </div>
+
+                            {currentAuction.nftStatus === 'ipfs_ready' ? (
+                                <button 
+                                    onClick={() => navigate(`/nfts/claim/${currentAuction._id}`)}
+                                    className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl shadow-lg shadow-yellow-500/20"
+                                >
+                                    Proceed to Claim NFT
+                                </button>
+                            ) : (
+                                <div className="p-3 bg-surface2 rounded-xl flex items-center gap-3 text-left">
+                                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                                        <RefreshCw size={14} className="animate-spin text-yellow-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-yellow-500">PREPARING ASSETS...</p>
+                                        <p className="text-[9px] text-muted">We are currently pinning your media to IPFS.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {currentAuction.nftStatus === 'minted' && (
+                        <div className="mt-4">
+                            <Link 
+                                to={`/nfts/${currentAuction.tokenId}`}
+                                className="inline-flex items-center gap-2 px-6 py-2 bg-zinc-900 border border-zinc-800 text-yellow-500 rounded-full text-xs font-black"
+                            >
+                                <Globe size={14} /> VIEW MINTED NFT
+                            </Link>
+                        </div>
+                    )}
                 </div>
             ) : null}
         </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Info, CheckCircle, CreditCard } from 'lucide-react';
 import { auctionService } from '../services/auctionService';
+import axios from 'axios';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import { useUserStore } from '../../user/store/useUserStore';
 
@@ -14,13 +15,53 @@ export default function CreateAuctionPage() {
     const [step, setStep] = useState(1); // 1: Details, 2: Payment
     const [media, setMedia] = useState(null);
     const [preview, setPreview] = useState(null);
+    const [config, setConfig] = useState({ listingFee: 500, commission: 10 });
     const [formData, setFormData] = useState({
         title: '',
         description: '',
         basePrice: '',
         startDate: '',
-        endDate: ''
+        endDate: '',
+        royaltyPct: 10
     });
+
+    // Initial load from localStorage
+    React.useEffect(() => {
+        const userId = profile?.id || 'guest';
+        const saved = localStorage.getItem(`create_auction_form_${userId}`);
+        if (saved) {
+            try {
+                setFormData(JSON.parse(saved));
+            } catch (err) {
+                console.error("Failed to parse saved form data", err);
+            }
+        }
+    }, [profile?.id]);
+
+    // Persist form data
+    React.useEffect(() => {
+        const userId = profile?.id || 'guest';
+        localStorage.setItem(`create_auction_form_${userId}`, JSON.stringify(formData));
+    }, [formData, profile?.id]);
+
+
+    React.useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/config`);
+                if (res.data.success) {
+                    setConfig({
+                        listingFee: res.data.config.auctionListingFeeINR !== undefined ? res.data.config.auctionListingFeeINR : 500,
+                        commission: res.data.config.auctionCommissionPct !== undefined ? res.data.config.auctionCommissionPct : 10
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch config", err);
+            }
+        };
+        fetchConfig();
+    }, []);
+
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -46,6 +87,39 @@ export default function CreateAuctionPage() {
             const initRes = await auctionService.initiateListingFee();
             if (!initRes.success) throw new Error(initRes.message);
 
+            const submitAuction = async (paymentData = {}) => {
+                const finalData = new FormData();
+                finalData.append('media', media);
+                finalData.append('title', formData.title);
+                finalData.append('description', formData.description);
+                finalData.append('basePrice', formData.basePrice);
+                finalData.append('startDate', formData.startDate);
+                finalData.append('endDate', formData.endDate);
+                finalData.append('royaltyPct', formData.royaltyPct);
+                
+                if (paymentData.razorpay_payment_id) {
+                    finalData.append('razorpay_payment_id', paymentData.razorpay_payment_id);
+                    finalData.append('razorpay_order_id', paymentData.razorpay_order_id);
+                    finalData.append('razorpay_signature', paymentData.razorpay_signature);
+                } else if (initRes.isFree) {
+                    finalData.append('razorpay_order_id', initRes.orderId);
+                }
+
+                const createRes = await auctionService.createAuction(finalData);
+                if (createRes.success) {
+                    pushNotification({ type: 'success', title: 'Submitted', subtitle: 'Auction sent to admin for approval.' });
+                    localStorage.removeItem(`create_auction_form_${profile?.id || 'guest'}`);
+                    navigate('/auctions');
+                } else {
+                    throw new Error(createRes.message);
+                }
+            };
+
+            if (initRes.isFree) {
+                await submitAuction();
+                return;
+            }
+
             const options = {
                 key: initRes.keyId,
                 amount: initRes.amount,
@@ -55,25 +129,7 @@ export default function CreateAuctionPage() {
                 order_id: initRes.orderId,
                 handler: async (response) => {
                     try {
-                        // 2. Create Auction with Payment Verification
-                        const finalData = new FormData();
-                        finalData.append('media', media);
-                        finalData.append('title', formData.title);
-                        finalData.append('description', formData.description);
-                        finalData.append('basePrice', formData.basePrice);
-                        finalData.append('startDate', formData.startDate);
-                        finalData.append('endDate', formData.endDate);
-                        finalData.append('razorpay_payment_id', response.razorpay_payment_id);
-                        finalData.append('razorpay_order_id', response.razorpay_order_id);
-                        finalData.append('razorpay_signature', response.razorpay_signature);
-
-                        const createRes = await auctionService.createAuction(finalData);
-                        if (createRes.success) {
-                            pushNotification({ type: 'success', title: 'Submitted', subtitle: 'Auction sent to admin for approval.' });
-                            navigate('/auctions');
-                        } else {
-                            throw new Error(createRes.message);
-                        }
+                        await submitAuction(response);
                     } catch (err) {
                         pushNotification({ type: 'error', title: 'Submission Failed', subtitle: err.message });
                     } finally {
@@ -199,6 +255,27 @@ export default function CreateAuctionPage() {
                                     />
                                 </div>
                             </div>
+
+                            {/* Royalty Percentage (Web3) */}
+                            <div className="p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/20 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs font-black text-yellow-600 uppercase tracking-widest">Creator Royalty (%)</label>
+                                    <span className="bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded-lg font-black">{formData.royaltyPct}%</span>
+                                </div>
+                                <input 
+                                    type="range"
+                                    min="0"
+                                    max="30"
+                                    step="1"
+                                    value={formData.royaltyPct}
+                                    onChange={(e) => setFormData({...formData, royaltyPct: parseInt(e.target.value)})}
+                                    className="w-full accent-yellow-500 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                                />
+                                <div className="flex items-center gap-2 text-[9px] text-muted font-medium">
+                                    <Info size={10} />
+                                    <span>You earn this % on every secondary market sale (OpenSea, etc.)</span>
+                                </div>
+                            </div>
                         </div>
 
                         <button 
@@ -221,16 +298,16 @@ export default function CreateAuctionPage() {
                         <div className="bg-surface2 rounded-2xl p-5 space-y-4 border border-border">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted font-medium">Platform Listing Fee</span>
-                                <span className="font-bold">₹500.00</span>
+                                <span className="font-bold">₹{config.listingFee.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted font-medium">Platform Commission</span>
-                                <span className="font-bold text-primary">10% on sale</span>
+                                <span className="font-bold text-primary">{config.commission}% on sale</span>
                             </div>
                             <div className="h-px bg-border pt-2" />
                             <div className="flex justify-between items-center text-lg">
                                 <span className="font-bold">Total Payable</span>
-                                <span className="font-black text-primary">₹500.00</span>
+                                <span className="font-black text-primary">₹{config.listingFee.toFixed(2)}</span>
                             </div>
                         </div>
 

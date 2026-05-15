@@ -46,6 +46,8 @@ const mapConfigToSettings = (config) => ({
     gstPct: Number(config?.gstPct || 0),
     minReferralsForWithdrawal: Number(config?.minReferralsForWithdrawal || 0),
     premiumThreshold: Number(config?.premiumThreshold || 0),
+    auctionListingFeeINR: Number(config?.auctionListingFeeINR || 0),
+    auctionCommissionPct: Number(config?.auctionCommissionPct || 0),
     adminNotificationMobiles: config?.adminNotificationMobiles || ['', '', '', '']
 });
 
@@ -63,6 +65,8 @@ export const settingsService = {
         if (newSettings.gstPct !== undefined) payload.gstPct = Number(newSettings.gstPct);
         if (newSettings.minReferralsForWithdrawal !== undefined) payload.minReferralsForWithdrawal = Number(newSettings.minReferralsForWithdrawal);
         if (newSettings.premiumThreshold !== undefined) payload.premiumThreshold = Number(newSettings.premiumThreshold);
+        if (newSettings.auctionListingFeeINR !== undefined) payload.auctionListingFeeINR = Number(newSettings.auctionListingFeeINR);
+        if (newSettings.auctionCommissionPct !== undefined) payload.auctionCommissionPct = Number(newSettings.auctionCommissionPct);
         
         if (newSettings.adminNotificationMobiles !== undefined) {
             // Filter out empty strings to keep only valid numbers

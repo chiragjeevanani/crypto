@@ -114,6 +114,17 @@ const userSchema = new mongoose.Schema(
     isPremium: {
       type: Boolean,
       default: false
+    },
+    // ─── Web3 Wallet (additive — safe defaults) ────────────────────────────
+    walletAddress: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true       // indexed for NFT ownership lookups
+    },
+    walletVerifiedAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

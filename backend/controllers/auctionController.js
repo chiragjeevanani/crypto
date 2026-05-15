@@ -29,6 +29,17 @@ const initiateListingFee = async (req, res) => {
         const config = await getAdminConfig();
         const amount = config.auctionListingFeeINR;
 
+        if (amount === 0) {
+            return res.status(200).json({
+                success: true,
+                orderId: "free_auction_" + Date.now(),
+                amount: 0,
+                currency: "INR",
+                keyId: process.env.RAZORPAY_KEY_ID,
+                isFree: true
+            });
+        }
+
         const instance = new Razorpay({
             key_id: process.env.RAZORPAY_KEY_ID,
             key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -47,11 +58,17 @@ const initiateListingFee = async (req, res) => {
             orderId: order.id,
             amount: order.amount,
             currency: order.currency,
-            keyId: process.env.RAZORPAY_KEY_ID
+            keyId: process.env.RAZORPAY_KEY_ID,
+            isFree: false
         });
     } catch (error) {
         console.error("Initiate Listing Fee Error:", error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ 
+            success: false, 
+            message: error.message,
+            error: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+            stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+        });
     }
 };
 
@@ -66,10 +83,17 @@ const createAuction = async (req, res) => {
         basePrice, 
         startDate, 
         endDate,
+        royaltyPct,
         razorpay_payment_id,
         razorpay_order_id,
         razorpay_signature 
     } = req.body;
+
+    console.log("[CreateAuction] Incoming request:", { 
+        userId, title, basePrice, startDate, endDate, royaltyPct,
+        hasFile: !!req.file,
+        razorpay_order_id 
+    });
 
     try {
         const file = req.file;
@@ -77,6 +101,7 @@ const createAuction = async (req, res) => {
         let mediaType = "image";
 
         if (file) {
+            console.log("[CreateAuction] Processing file:", file.originalname, file.mimetype);
             const localPath = path.join(UPLOAD_DIR, file.filename);
             const useCloudinary = Boolean(
                 cloudinary &&
@@ -86,18 +111,29 @@ const createAuction = async (req, res) => {
             );
 
             if (useCloudinary) {
-                const uploadResult = await cloudinary.uploader.upload(localPath, {
-                    resource_type: "auto",
-                    folder: "crypto-app/auctions"
-                });
-                mediaUrl = uploadResult.secure_url;
-                if (file.mimetype.startsWith("video/")) mediaType = "video";
-                else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-                fs.unlink(localPath, () => {});
+                try {
+                    console.log("[CreateAuction] Uploading to Cloudinary...");
+                    const uploadResult = await cloudinary.uploader.upload(localPath, {
+                        resource_type: "auto",
+                        folder: "crypto-app/auctions"
+                    });
+                    mediaUrl = uploadResult.secure_url;
+                    if (file.mimetype.startsWith("video/")) mediaType = "video";
+                    else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+                    fs.unlink(localPath, () => {});
+                    console.log("[CreateAuction] Cloudinary upload success:", mediaUrl);
+                } catch (cloudinaryErr) {
+                    console.error("[CreateAuction] Cloudinary upload failed:", cloudinaryErr);
+                    // Fallback to local if Cloudinary fails but we have the file
+                    mediaUrl = `/uploads/${file.filename}`;
+                    if (file.mimetype.startsWith("video/")) mediaType = "video";
+                    else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+                }
             } else {
                 mediaUrl = `/uploads/${file.filename}`;
                 if (file.mimetype.startsWith("video/")) mediaType = "video";
                 else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+                console.log("[CreateAuction] Using local storage:", mediaUrl);
             }
         }
 
@@ -105,24 +141,36 @@ const createAuction = async (req, res) => {
             return res.status(400).json({ success: false, message: "Media file is required." });
         }
 
-        // Verify Payment Signature
-        const generatedSignature = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-            .update(razorpay_order_id + "|" + razorpay_payment_id)
-            .digest("hex");
+        // Verify Payment Signature (Skip if free auction)
+        const isFree = razorpay_order_id && razorpay_order_id.startsWith("free_auction_");
+        
+        if (!isFree) {
+            console.log("[CreateAuction] Verifying payment signature...");
+            const generatedSignature = crypto
+                .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+                .update(razorpay_order_id + "|" + razorpay_payment_id)
+                .digest("hex");
 
-        if (generatedSignature !== razorpay_signature) {
-            return res.status(400).json({ success: false, message: "Payment verification failed." });
+            if (generatedSignature !== razorpay_signature) {
+                console.warn("[CreateAuction] Signature mismatch!");
+                return res.status(400).json({ success: false, message: "Payment verification failed." });
+            }
         }
 
         const config = await getAdminConfig();
+        const parsedBasePrice = Number(basePrice);
 
+        if (isNaN(parsedBasePrice)) {
+            return res.status(400).json({ success: false, message: "Invalid base price." });
+        }
+
+        console.log("[CreateAuction] Saving to database...");
         const auction = await Auction.create({
             title,
             description,
             mediaUrl,
             mediaType,
-            basePrice: Number(basePrice),
+            basePrice: parsedBasePrice,
             startDate,
             endDate,
             creator: userId,
@@ -130,16 +178,19 @@ const createAuction = async (req, res) => {
             paymentOrderId: razorpay_order_id,
             commissionPct: config.auctionCommissionPct,
             gstPct: config.gstPct,
+            royaltyPct: Number(royaltyPct) || 10,
             status: "pending"
         });
 
+        console.log("[CreateAuction] Success! Auction ID:", auction._id);
         res.status(201).json({ success: true, auction, message: "Auction submitted for approval." });
     } catch (error) {
         console.error("Create Auction Error:", error);
         res.status(500).json({ 
             success: false, 
-            message: error.message,
-            stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+            message: error.message || "An error occurred while creating the auction.",
+            error: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+            stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
         });
     }
 };

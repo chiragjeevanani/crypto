@@ -2,10 +2,14 @@ const GIFT_CATALOG_KEY = 'KnQ Reels_gift_catalog_v1'
 
 const DEFAULT_GIFTS = [
     { id: 'rose', emoji: '🌹', name: 'Rose', price: 2, status: 'Active' },
-    { id: 'egg', emoji: '🥚', name: 'Egg', price: 2, status: 'Active' },
-    { id: 'tomato', emoji: '🍅', name: 'Tomato', price: 3, status: 'Active' },
     { id: 'heart', emoji: '💛', name: 'Golden Heart', price: 5, status: 'Active' },
-    { id: 'premium-heart', emoji: '💎', name: 'Premium Heart', price: 10, status: 'Active' },
+    { id: 'fire', emoji: '🔥', name: 'Hot Fire', price: 5, status: 'Active' },
+    { id: 'mind_blown', emoji: '🤯', name: 'Mind Blown', price: 8, status: 'Active' },
+    { id: 'crown', emoji: '👑', name: 'King Crown', price: 10, status: 'Active' },
+    { id: 'clap', emoji: '👏', name: 'Claps', price: 3, status: 'Active' },
+    { id: 'love', emoji: '🥰', name: 'Love', price: 5, status: 'Active' },
+    { id: 'monkey', emoji: '🙈', name: 'Monkey', price: 4, status: 'Active' },
+    { id: 'heart_fire', emoji: '❤️‍🔥', name: 'Heart Fire', price: 7, status: 'Active' },
 ]
 
 function normalizeGift(gift, idx = 0) {
@@ -15,9 +19,14 @@ function normalizeGift(gift, idx = 0) {
     
     // Map emojis to animation types if not already specified
     if (emoji === '🌹') animationType = 'rose'
-    else if (emoji === '🥚') animationType = 'egg'
-    else if (emoji === '🍅') animationType = 'tomato'
     else if (emoji === '💛' || emoji === '❤️' || emoji === '💖') animationType = 'heart'
+    else if (emoji === '🔥') animationType = 'fire'
+    else if (emoji === '🤯') animationType = 'mind_blown'
+    else if (emoji === '🙈') animationType = 'monkey'
+    else if (emoji === '👑') animationType = 'crown'
+    else if (emoji === '👏') animationType = 'clap'
+    else if (emoji === '🥰') animationType = 'love'
+    else if (emoji === '❤️‍🔥' || emoji === '❤️🔥') animationType = 'heart_fire'
 
     return {
         id: String(gift?._id || gift?.id || `gift_${idx}_${Date.now()}`),

@@ -79,6 +79,12 @@ import CreateAuctionPage from './modules/auction/pages/CreateAuctionPage'
 import AdminAuctionManagement from './modules/admin/pages/AdminAuctionManagement'
 import LocationManagement from './modules/admin/pages/LocationManagement'
 
+// Web3 NFT Pages
+import NFTMarketplacePage from './modules/nft/pages/NFTMarketplacePage'
+import NFTDetailPage from './modules/nft/pages/NFTDetailPage'
+import MyNFTsPage from './modules/nft/pages/MyNFTsPage'
+import ClaimNFTPage from './modules/nft/pages/ClaimNFTPage'
+
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore(useShallow(state => ({
     darkMode: state.darkMode,
@@ -148,6 +154,12 @@ export default function App() {
               <Route path="auctions" element={<AuctionListingPage />} />
               <Route path="auctions/:id" element={<AuctionDetailPage />} />
               <Route path="auctions/create" element={<CreateAuctionPage />} />
+              
+              {/* Web3 NFT Routes */}
+              <Route path="nfts" element={<NFTMarketplacePage />} />
+              <Route path="nfts/:tokenId" element={<NFTDetailPage />} />
+              <Route path="nfts/claim/:auctionId" element={<ClaimNFTPage />} />
+              <Route path="my-collection" element={<MyNFTsPage />} />
             </Route>
           </Route>
 

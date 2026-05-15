@@ -103,6 +103,27 @@ export default function FinancialRules() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Auction Listing Fee (INR)</label>
+                            <input
+                                type="number"
+                                value={formData.auctionListingFeeINR ?? ''}
+                                onChange={(e) => handleChange('auctionListingFeeINR', parseInt(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Auction Commission (%)</label>
+                            <input
+                                type="number"
+                                value={formData.auctionCommissionPct ?? ''}
+                                onChange={(e) => handleChange('auctionCommissionPct', parseInt(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Max Votes / User / Day</label>
                             <input
                                 type="number"

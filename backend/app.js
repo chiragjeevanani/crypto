@@ -33,6 +33,7 @@ const adminNotificationRoutes = require("./routes/admin/notificationRoutes");
 const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
 const auctionRoutes = require("./routes/auctionRoutes");
 const locationRoutes = require("./routes/locationRoutes");
+const nftRoutes = require("./routes/nftRoutes"); // Web3 NFT routes
 const { processEndedAuctions } = require("./controllers/auctionController");
 
 
@@ -87,10 +88,13 @@ app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
 app.use("/api/auctions", auctionRoutes);
 app.use("/api/location", locationRoutes);
+app.use("/api/nft", nftRoutes); // Web3 NFT endpoints
 // Route removed from here to be moved higher up
 
 // Background job for auctions
-setInterval(processEndedAuctions, 60 * 1000); // Check every minute
+const { processVaultSettlements } = require("./controllers/nftController");
+setInterval(processEndedAuctions, 60 * 1000); // Check for ended auctions
+setInterval(processVaultSettlements, 65 * 1000); // Check for vault settlements (offset slightly)
 
 
 // 404 handler
@@ -109,8 +113,8 @@ app.use((err, req, res, next) => {
     console.error("[Global Error Handled]", err);
     res.status(500).json({ 
         success: false, 
-        message: "Internal Server Error", 
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+        message: err.message || "Internal Server Error", 
+        error: process.env.NODE_ENV !== 'production' ? err.message : undefined 
     });
 });
 

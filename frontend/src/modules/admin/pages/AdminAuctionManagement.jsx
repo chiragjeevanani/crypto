@@ -5,6 +5,8 @@ import { AdminPageHeader, AdminDataTable } from '../components/shared';
 import { auctionService } from '../../auction/services/auctionService';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import Avatar from '../../user/components/shared/Avatar';
+import axios from 'axios';
+import { Globe, ShieldCheck, RefreshCw, Layers } from 'lucide-react';
 
 const getAssetUrl = (path) => {
     if (!path || path === 'null' || path === 'undefined') return '/person.png';
@@ -166,16 +168,79 @@ function PreviewModal({ auction, onClose, onApprove, onReject }) {
                     </div>
 
                     {!confirmAction && (
-                        <div className="shrink-0 p-6 bg-surface border-t border-surface flex gap-3">
+                        <div className="shrink-0 p-6 bg-surface border-t border-surface flex flex-col gap-3">
                             {auction.status === 'pending' ? (
-                                <>
+                                <div className="flex gap-3">
                                     <button onClick={() => setConfirmAction('approve')} className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 text-xs uppercase">
                                         <CheckCircle size={16} /> Approve
                                     </button>
                                     <button onClick={() => setConfirmAction('reject')} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-rose-500/20 text-xs uppercase">
                                         <XCircle size={16} /> Reject
                                     </button>
-                                </>
+                                </div>
+                            ) : auction.status === 'ended' && auction.winner ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between px-2">
+                                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Web3 NFT Status</span>
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase ${
+                                            auction.nftStatus === 'settled' ? 'bg-emerald-500 text-black' :
+                                            auction.nftStatus === 'deposit_received' ? 'bg-amber-500/10 text-amber-500' :
+                                            auction.nftStatus === 'minted' ? 'bg-emerald-500/10 text-emerald-500' : 
+                                            auction.nftStatus === 'ipfs_ready' ? 'bg-blue-500/10 text-blue-500' : 'bg-surface2 text-muted'
+                                        }`}>
+                                            {auction.nftStatus?.replace('_', ' ') || 'Idle'}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="flex gap-3">
+                                        {(!auction.nftStatus || auction.nftStatus === 'none' || auction.nftStatus === 'failed') && (
+                                            <button 
+                                                onClick={() => window.handlePrepareIPFS(auction._id)} 
+                                                className="flex-1 py-3 bg-zinc-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase border border-surface hover:bg-zinc-700 transition-all"
+                                            >
+                                                <Layers size={14} /> Prepare IPFS
+                                            </button>
+                                        )}
+                                        
+                                        {auction.nftStatus === 'ipfs_ready' && (
+                                            <button 
+                                                onClick={() => window.handleMintNFT(auction._id)} 
+                                                className="flex-1 py-3 bg-yellow-500 text-black rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-yellow-500/20 text-[10px] uppercase hover:scale-[1.02] active:scale-95 transition-all"
+                                            >
+                                                <ShieldCheck size={14} /> Step 1: Mint NFT to Vault
+                                            </button>
+                                        )}
+
+                                        {auction.nftStatus === 'minted' && (
+                                            <div className="w-full p-3 bg-zinc-900 border border-surface rounded-xl text-center">
+                                                <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest mb-1">Waiting for Winner</p>
+                                                <p className="text-[9px] text-muted font-medium">Winner must deposit MATIC on the Claim Page.</p>
+                                            </div>
+                                        )}
+
+                                        {auction.nftStatus === 'deposit_received' && (
+                                            <button 
+                                                onClick={() => window.handleSettleVault(auction._id)} 
+                                                className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-black flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 text-[10px] uppercase hover:scale-[1.02] transition-all"
+                                            >
+                                                <ShieldCheck size={14} /> Step 2: Settle Vault & Swap
+                                            </button>
+                                        )}
+                                        
+                                        {auction.nftStatus === 'settled' && (
+                                            <div className="w-full space-y-2">
+                                                <a 
+                                                    href={`/nfts/${auction.tokenId}`} 
+                                                    target="_blank" 
+                                                    className="w-full py-3 bg-zinc-900 border border-surface text-yellow-500 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase"
+                                                >
+                                                    <Globe size={14} /> View NFT Details
+                                                </a>
+                                                <p className="text-[9px] text-center text-emerald-500 font-bold uppercase tracking-widest">Asset Successfully Swapped ✓</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             ) : (
                                 <button onClick={onClose} className="w-full py-3 bg-surface2 text-text rounded-xl font-bold text-xs uppercase border border-surface">
                                     Close Preview
@@ -208,6 +273,51 @@ export default function AdminAuctionManagement() {
             setLoading(false);
         }
     };
+
+    const handlePrepareIPFS = async (id) => {
+        try {
+            pushNotification({ type: 'info', title: 'IPFS Pinning', subtitle: 'Uploading media and metadata to IPFS...' });
+            const res = await axios.post(`/api/nft/admin/prepare/${id}`);
+            if (res.data.success) {
+                pushNotification({ type: 'success', title: 'IPFS Ready', subtitle: 'Media pinned successfully.' });
+                loadAuctions();
+            }
+        } catch (err) {
+            pushNotification({ type: 'error', title: 'IPFS Failed', subtitle: err.response?.data?.message || 'Error pinning to IPFS' });
+        }
+    };
+
+    const handleMintNFT = async (id) => {
+        try {
+            pushNotification({ type: 'info', title: 'Minting', subtitle: 'Initiating on-chain mint transaction...' });
+            const res = await axios.post(`/api/nft/admin/mint/${id}`);
+            if (res.data.success) {
+                pushNotification({ type: 'success', title: 'Minted!', subtitle: `NFT #${res.data.tokenId} minted to vault.` });
+                loadAuctions();
+            }
+        } catch (err) {
+            pushNotification({ type: 'error', title: 'Minting Failed', subtitle: err.response?.data?.message || 'Error minting NFT' });
+        }
+    };
+
+    const handleSettleVault = async (id) => {
+        try {
+            pushNotification({ type: 'info', title: 'Settlement', subtitle: 'Triggering atomic swap on the vault contract...' });
+            const res = await axios.post(`/api/nft/admin/settle/${id}`);
+            if (res.data.success) {
+                pushNotification({ type: 'success', title: 'Settled!', subtitle: 'NFT transferred to winner and MATIC to creator.' });
+                loadAuctions();
+                setSelectedAuction(null);
+            }
+        } catch (err) {
+            pushNotification({ type: 'error', title: 'Settlement Failed', subtitle: err.response?.data?.message || 'Error settling auction' });
+        }
+    };
+
+    // Expose to window for the PreviewModal to access
+    window.handlePrepareIPFS = handlePrepareIPFS;
+    window.handleMintNFT = handleMintNFT;
+    window.handleSettleVault = handleSettleVault;ntNFT;
 
     useEffect(() => {
         loadAuctions();

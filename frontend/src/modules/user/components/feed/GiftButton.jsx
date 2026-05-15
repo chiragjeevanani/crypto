@@ -45,7 +45,7 @@ export default function GiftButton({ gift, onGift, disabled, count = 0, showCoun
                 className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer select-none relative',
                     'transition-all duration-200 shadow-sm hover:shadow-md',
-                    !popping && 'animate-gift-attract'
+                    (!popping && gift.animationType === 'gift') && 'animate-gift-attract'
                 )}
                 style={{
                     background: 'var(--color-surface2)',
@@ -53,7 +53,20 @@ export default function GiftButton({ gift, onGift, disabled, count = 0, showCoun
                     animationDelay: `${index * 0.15}s`
                 }}
             >
-                <span className="text-base leading-none transition-transform group-hover:scale-110">{gift.emoji}</span>
+                <span className={cn(
+                    "text-base leading-none transition-transform group-hover:scale-110 inline-block",
+                    gift.animationType === 'heart' && 'animate-heart-beat',
+                    (gift.animationType === 'fire' || gift.emoji === '🔥') && 'animate-fire-flicker',
+                    gift.animationType === 'mind_blown' && 'animate-mind-blown',
+                    gift.animationType === 'monkey' && 'animate-monkey-peek',
+                    gift.animationType === 'crown' && 'animate-crown-float',
+                    gift.animationType === 'clap' && 'animate-clap-bounce',
+                    gift.animationType === 'love' && 'animate-love-pulse',
+                    gift.animationType === 'heart_fire' && 'animate-heart-fire',
+                    (!['heart', 'fire', 'mind_blown', 'monkey', 'crown', 'clap', 'love', 'heart_fire'].includes(gift.animationType)) && 'animate-gift-float'
+                )}>
+                    {gift.emoji}
+                </span>
                 <span className="text-[11px] font-bold" style={{ color: 'var(--color-primary)' }}>
                     {gift.currencySymbol || currencySymbol}{gift.price || 0}
                 </span>

@@ -26,6 +26,8 @@ const updateConfig = async (req, res) => {
       "minWithdrawalCoins",
       "premiumThreshold",
       "businessPostPriceINR",
+      "auctionListingFeeINR",
+      "auctionCommissionPct",
       "adminNotificationMobiles"
     ];
     fields.forEach((field) => {

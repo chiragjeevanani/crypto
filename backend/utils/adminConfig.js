@@ -24,15 +24,15 @@ const getAdminConfig = async (session = null) => {
   const obj = config.toObject();
   return {
     ...obj,
-    coinRate: Number(obj.coinRate) || DEFAULTS.coinRate,
-    platformFeePct: Number(obj.platformFeePct) || DEFAULTS.platformFeePct,
-    gstPct: Number(obj.gstPct) || DEFAULTS.gstPct,
-    minReferralsForWithdrawal: Number(obj.minReferralsForWithdrawal) || DEFAULTS.minReferralsForWithdrawal,
-    minWithdrawalCoins: Number(obj.minWithdrawalCoins) || DEFAULTS.minWithdrawalCoins,
-    premiumThreshold: Number(obj.premiumThreshold) || DEFAULTS.premiumThreshold,
-    businessPostPriceINR: Number(obj.businessPostPriceINR) || DEFAULTS.businessPostPriceINR,
-    auctionListingFeeINR: Number(obj.auctionListingFeeINR) || DEFAULTS.auctionListingFeeINR,
-    auctionCommissionPct: Number(obj.auctionCommissionPct) || DEFAULTS.auctionCommissionPct,
+    coinRate: obj.coinRate !== undefined ? Number(obj.coinRate) : DEFAULTS.coinRate,
+    platformFeePct: obj.platformFeePct !== undefined ? Number(obj.platformFeePct) : DEFAULTS.platformFeePct,
+    gstPct: obj.gstPct !== undefined ? Number(obj.gstPct) : DEFAULTS.gstPct,
+    minReferralsForWithdrawal: obj.minReferralsForWithdrawal !== undefined ? Number(obj.minReferralsForWithdrawal) : DEFAULTS.minReferralsForWithdrawal,
+    minWithdrawalCoins: obj.minWithdrawalCoins !== undefined ? Number(obj.minWithdrawalCoins) : DEFAULTS.minWithdrawalCoins,
+    premiumThreshold: obj.premiumThreshold !== undefined ? Number(obj.premiumThreshold) : DEFAULTS.premiumThreshold,
+    businessPostPriceINR: obj.businessPostPriceINR !== undefined ? Number(obj.businessPostPriceINR) : DEFAULTS.businessPostPriceINR,
+    auctionListingFeeINR: obj.auctionListingFeeINR !== undefined ? Number(obj.auctionListingFeeINR) : DEFAULTS.auctionListingFeeINR,
+    auctionCommissionPct: obj.auctionCommissionPct !== undefined ? Number(obj.auctionCommissionPct) : DEFAULTS.auctionCommissionPct,
     id: obj._id
   };
 };
