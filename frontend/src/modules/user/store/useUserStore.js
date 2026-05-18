@@ -209,7 +209,6 @@ export const useUserStore = create((set, get) => ({
         }
 
         if (get().token || getStoredToken()) {
-            console.log('[Auth] Clearing session due to definitive auth failure.')
             clearAuthStorage()
             set({
                 token: null,
@@ -405,7 +404,6 @@ export const useUserStore = create((set, get) => ({
             // Ensure bio is passed if it exists in the data object
             if (data.bio !== undefined) {
                 payload.bio = data.bio
-                console.log("[Store] Bio update detected:", data.bio);
             }
 
             if (data.avatar !== undefined) payload.avatar = data.avatar
@@ -418,15 +416,12 @@ export const useUserStore = create((set, get) => ({
             if (data.state !== undefined) payload.state = data.state
             if (data.language !== undefined) payload.language = data.language
 
-            console.log("[Store] Final Update Payload sent to backend:", payload);
 
             let user = mergedUser
             if (Object.keys(payload).length > 0) {
                 const response = await authService.updateProfile(token, payload)
-                if (response?._v) console.log("[Store] Backend API Version:", response._v);
                 
                 if (response?.user) {
-                    console.log("[Store] Profile updated successfully. New Name:", response.user.name, "New Bio:", response.user.bio);
                     user = { ...user, ...response.user }
                 } else {
                     console.warn("[Store] Backend did not return user object, falling back to local merge");

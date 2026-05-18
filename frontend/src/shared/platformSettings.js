@@ -51,10 +51,8 @@ export function savePlatformSettingsToCookie(settings) {
 export async function fetchPlatformSettings() {
     try {
         const url = `${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/config`;
-        console.log('[PlatformSettings] Fetching from:', url);
         const res = await fetch(url);
         const data = await res.json();
-        console.log('[PlatformSettings] Received data:', data);
         if (data.success && data.config) {
             return savePlatformSettingsToCookie({
                 commission: data.config.platformFeePct,

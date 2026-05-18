@@ -77,7 +77,6 @@ export default function ProfilePage() {
         setProfileSaveError('')
         setProfileSaving(true)
         try {
-            console.log("[Profile] Attempting Edit Update with:", data);
             await updateProfile({
                 name: data.username, // From the modal 'Display Name' input
                 bio: data.bio,
@@ -100,7 +99,6 @@ export default function ProfilePage() {
         setProfileSaveError('')
         setProfileSaving(true)
         try {
-            console.log("[Profile] Attempting Settings Update with:", data);
             await updateProfile({
                 name: data.fullName, // Priority name in Settings
                 username: data.username,

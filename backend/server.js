@@ -44,6 +44,7 @@ const startServer = async () => {
     await connectDB();
     await seedAdmin();
     await seedGifts();
+    app.startBackgroundJobs();
     const { server, port } = await listenWithFallback(BASE_PORT, MAX_PORT_RETRIES);
     initSocket(server);
     console.log(`Server running on port ${port}`);

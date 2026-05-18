@@ -89,11 +89,6 @@ const createAuction = async (req, res) => {
         razorpay_signature 
     } = req.body;
 
-    console.log("[CreateAuction] Incoming request:", { 
-        userId, title, basePrice, startDate, endDate, royaltyPct,
-        hasFile: !!req.file,
-        razorpay_order_id 
-    });
 
     try {
         const file = req.file;
@@ -101,7 +96,6 @@ const createAuction = async (req, res) => {
         let mediaType = "image";
 
         if (file) {
-            console.log("[CreateAuction] Processing file:", file.originalname, file.mimetype);
             const localPath = path.join(UPLOAD_DIR, file.filename);
             const useCloudinary = Boolean(
                 cloudinary &&
@@ -112,7 +106,6 @@ const createAuction = async (req, res) => {
 
             if (useCloudinary) {
                 try {
-                    console.log("[CreateAuction] Uploading to Cloudinary...");
                     const uploadResult = await cloudinary.uploader.upload(localPath, {
                         resource_type: "auto",
                         folder: "crypto-app/auctions"
@@ -121,7 +114,6 @@ const createAuction = async (req, res) => {
                     if (file.mimetype.startsWith("video/")) mediaType = "video";
                     else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
                     fs.unlink(localPath, () => {});
-                    console.log("[CreateAuction] Cloudinary upload success:", mediaUrl);
                 } catch (cloudinaryErr) {
                     console.error("[CreateAuction] Cloudinary upload failed:", cloudinaryErr);
                     // Fallback to local if Cloudinary fails but we have the file
@@ -133,7 +125,6 @@ const createAuction = async (req, res) => {
                 mediaUrl = `/uploads/${file.filename}`;
                 if (file.mimetype.startsWith("video/")) mediaType = "video";
                 else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-                console.log("[CreateAuction] Using local storage:", mediaUrl);
             }
         }
 
@@ -145,7 +136,6 @@ const createAuction = async (req, res) => {
         const isFree = razorpay_order_id && razorpay_order_id.startsWith("free_auction_");
         
         if (!isFree) {
-            console.log("[CreateAuction] Verifying payment signature...");
             const generatedSignature = crypto
                 .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
                 .update(razorpay_order_id + "|" + razorpay_payment_id)
@@ -164,7 +154,6 @@ const createAuction = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid base price." });
         }
 
-        console.log("[CreateAuction] Saving to database...");
         const auction = await Auction.create({
             title,
             description,
@@ -182,7 +171,6 @@ const createAuction = async (req, res) => {
             status: "pending"
         });
 
-        console.log("[CreateAuction] Success! Auction ID:", auction._id);
         res.status(201).json({ success: true, auction, message: "Auction submitted for approval." });
     } catch (error) {
         console.error("Create Auction Error:", error);
@@ -213,7 +201,6 @@ const getAuctions = async (req, res) => {
             .populate("winner", "name handle avatar")
             .sort({ createdAt: -1 });
 
-        console.log(`[Auctions] Fetched ${auctions.length} auctions for status: ${status || 'all'}`);
 
         res.status(200).json({ success: true, auctions });
     } catch (error) {
@@ -404,7 +391,6 @@ const processEndedAuctions = async () => {
                                 status: "success"
                             }], { session });
 
-                            console.log(`Auction ${auction._id} processed successfully.`);
                         } else {
                             // Not enough balance, maybe keep status as 'pending_payment'
                             auction.status = "live"; // Keep it live or move to 'payment_failed'

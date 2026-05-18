@@ -331,16 +331,13 @@ const getMe = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
-    console.log(`[Backend] Updating profile for user: ${userId}`);
     // Removed req.body logging to prevent crashes from large base64 strings
 
     const baseUrl = getBaseUrl(req);
     const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language"];
     const updates = {};
-    console.log("[Backend] Incoming update data:", req.body);
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
-        console.log(`[Backend] Field '${key}' update detected:`, req.body[key]);
         if (key === "phone" && req.body[key]) {
           const digits = String(req.body[key]).replace(/\D/g, "");
           if (digits.length < 6 || digits.length > 15) {

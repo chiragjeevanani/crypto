@@ -90,7 +90,6 @@ const initiateRecharge = async (req, res) => {
             const inrRate = rates['INR'];
             if (targetRate && inrRate) {
                 coins = Math.round((amount / targetRate) * inrRate);
-                console.log(`[Recharge] Converting ${amount} ${currencyCode} to ${coins} INR-based coins (Rate: ${targetRate}, INR: ${inrRate})`);
             }
             
             const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";

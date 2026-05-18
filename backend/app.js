@@ -35,6 +35,7 @@ const auctionRoutes = require("./routes/auctionRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const nftRoutes = require("./routes/nftRoutes"); // Web3 NFT routes
 const { processEndedAuctions } = require("./controllers/auctionController");
+const { processVaultSettlements } = require("./controllers/nftController");
 
 
 const app = express();
@@ -91,10 +92,14 @@ app.use("/api/location", locationRoutes);
 app.use("/api/nft", nftRoutes); // Web3 NFT endpoints
 // Route removed from here to be moved higher up
 
-// Background job for auctions
-const { processVaultSettlements } = require("./controllers/nftController");
-setInterval(processEndedAuctions, 60 * 1000); // Check for ended auctions
-setInterval(processVaultSettlements, 65 * 1000); // Check for vault settlements (offset slightly)
+// Background jobs function - called after DB is connected
+const startBackgroundJobs = () => {
+    console.log('[Jobs] Starting background workers...');
+    setInterval(processEndedAuctions, 60 * 1000); 
+    setInterval(processVaultSettlements, 65 * 1000); 
+};
+
+app.startBackgroundJobs = startBackgroundJobs;
 
 
 // 404 handler

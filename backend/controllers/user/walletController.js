@@ -393,9 +393,7 @@ const listTransactions = async (req, res) => {
 };
 
 const withdraw = async (req, res) => {
-  console.log(`[Wallet] ENTERING withdraw controller for user: ${req.user?.userId}`);
   const userId = req.user.userId;
-  console.log(`[Wallet] Withdrawal request for user: ${userId}`);
   try {
     const bodyUserId = req.body.userId ? String(req.body.userId) : null;
     if (bodyUserId && bodyUserId !== String(userId)) {

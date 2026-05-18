@@ -11,7 +11,6 @@ exports.toggleFollowUser = async (req, res) => {
   try {
     const currentUserId = req.user?.userId;
     const targetUserId = req.params.id;
-    console.log(`[Follow] User ${currentUserId} toggling follow on ${targetUserId}`);
 
     if (!currentUserId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -60,7 +59,6 @@ exports.toggleFollowUser = async (req, res) => {
 
     const followerCount = targetUser.followers.length;
     const followingCount = currentUser.following.length;
-    console.log(`[Follow] Success. ${isAlreadyFollower ? 'Unfollowed' : 'Followed'}. Counts: followers=${followerCount}, following=${followingCount}`);
 
     // Notify target user when someone new follows them
     if (!isAlreadyFollower) {
@@ -75,7 +73,6 @@ exports.toggleFollowUser = async (req, res) => {
         ? "You're both following each other now!"
         : "Follow them back to stay connected.";
 
-      console.log(`[Follow] Creating notification for ${tgtStr}. Title: ${title}`);
 
       const notif = await createNotification({
         recipientId: targetUserId,
@@ -87,7 +84,6 @@ exports.toggleFollowUser = async (req, res) => {
       });
 
       if (notif) {
-        console.log(`[Follow] Notification saved. ID: ${notif._id}. Emitting to socket...`);
         emitToUser(String(targetUserId), "notification", {
           id: notif._id.toString(),
           type: "follow",

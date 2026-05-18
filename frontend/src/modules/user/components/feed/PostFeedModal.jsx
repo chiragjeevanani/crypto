@@ -60,7 +60,6 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
     const handleLike = async (e) => {
         if (e) e.stopPropagation()
         const id = post.id || post._id
-        console.log('[Reel] handleLike clicked for ID:', id)
         if (!id) return
 
         try {

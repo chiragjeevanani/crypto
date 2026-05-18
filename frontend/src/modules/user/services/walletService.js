@@ -4,7 +4,6 @@ import { getStoredToken } from '../store/useUserStore';
 
 const getToken = () => {
     const token = getStoredToken();
-    console.log('[WalletService] Token retrieval:', token ? 'Found' : 'Missing');
     return token;
 };
 
@@ -17,9 +16,6 @@ const request = async (path, options = {}) => {
         ...(options.headers || {})
     };
     const fullUrl = `${API_BASE}${path}`;
-    console.log(`[WalletService] Request: ${options.method || 'GET'} ${fullUrl}`);
-    console.log(`[WalletService] Auth Token:`, token ? 'Present (Starts with ' + token.substring(0, 5) + '...)' : 'Missing');
-    console.log(`[WalletService] Headers:`, JSON.stringify(headers));
 
     try {
         const { headers: extraHeaders, ...restOptions } = options;

@@ -150,7 +150,6 @@ const CountryCard = ({
                                 <button 
                                     onClick={() => {
                                         if (newStateName.trim()) {
-                                            console.log("Adding state:", { countryCode: country.code, name: newStateName.trim() });
                                             onAddState(country.code, newStateName.trim());
                                             setNewStateName('');
                                         }

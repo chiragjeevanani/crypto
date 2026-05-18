@@ -109,13 +109,11 @@ export default function WalletPage() {
     useEffect(() => {
         if (kyc.status !== 'pending') return;
         
-        console.log('[Wallet] Starting KYC status poll...');
         const interval = setInterval(() => {
             initializeAuth();
         }, 15000); // Increased to 15 seconds to reduce load
         
         return () => {
-            console.log('[Wallet] Cleaning up KYC poll.');
             clearInterval(interval);
         }
     }, [kyc.status, initializeAuth])
@@ -910,7 +908,6 @@ export default function WalletPage() {
                                                     }
                                                 }
 
-                                                console.log('[Wallet] Initiating payout with token:', getStoredToken() ? 'Present' : 'Missing');
 
                                                 const coinsToWithdraw = Math.round(withdrawAmount * platformSettings.coinRate);
                                                 const result = await requestWithdrawal(coinsToWithdraw, payoutPayload)

@@ -100,10 +100,6 @@ const deleteCountry = async (req, res) => {
  */
 const addState = async (req, res) => {
   try {
-    console.log("[Admin] Add State Request:", {
-      headers: req.headers,
-      body: req.body
-    });
     const { name, countryCode } = req.body;
     
     if (!name || !countryCode) {
