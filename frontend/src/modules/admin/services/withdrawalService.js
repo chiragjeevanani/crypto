@@ -76,7 +76,7 @@ export const withdrawalService = {
     },
 
     approveWithdrawal: async (id) => {
-        const data = await request("/admin/withdraw/approve", {
+        const data = await request("/admin/withdrawals/approve", {
             method: "POST",
             body: JSON.stringify({ withdrawalId: id })
         });
@@ -85,7 +85,7 @@ export const withdrawalService = {
 
     rejectWithdrawal: async (id, reason) => {
         if (!reason) throw new Error("Rejection reason is mandatory.");
-        const data = await request("/admin/withdraw/reject", {
+        const data = await request("/admin/withdrawals/reject", {
             method: "POST",
             body: JSON.stringify({ withdrawalId: id, reason })
         });

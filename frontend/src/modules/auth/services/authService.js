@@ -42,7 +42,10 @@ const request = async (path, options = {}) => {
   }
 
   if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+    const error = new Error(data?.message || "Request failed");
+    error.status = response.status;
+    error.response = { status: response.status, data };
+    throw error;
   }
   return data;
 };

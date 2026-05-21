@@ -174,9 +174,12 @@ export const useUserStore = create((set, get) => ({
                 return
             }
         } catch (err) {
-            const status = err?.response?.status
+            const status = err?.response?.status || err?.status
             const msg = err?.message || ""
-            const isAuthError = status === 401 || status === 403 || msg.toLowerCase().includes("unauthorized")
+            const isAuthError = status === 401 || status === 403 || 
+                                msg.toLowerCase().includes("unauthorized") || 
+                                msg.toLowerCase().includes("expired") || 
+                                msg.toLowerCase().includes("invalid token")
             
             // If it's NOT a definitive auth error (e.g. network down, 500, timeout), DON'T log out.
             // Just mark check as done so UI can continue.
@@ -198,8 +201,11 @@ export const useUserStore = create((set, get) => ({
                 set({ token: newToken, user, profile: profileFromUser(user), isAuthenticated: true, authChecked: true, authLoading: false })
                 return
             } catch (err) {
-                const status = err?.response?.status
-                const isAuthError = status === 401 || status === 403
+                const status = err?.response?.status || err?.status
+                const msg = err?.message || ""
+                const isAuthError = status === 401 || status === 403 || 
+                                    msg.toLowerCase().includes("expired") || 
+                                    msg.toLowerCase().includes("invalid token")
                 if (!isAuthError) {
                     set({ authChecked: true, authLoading: false })
                     return

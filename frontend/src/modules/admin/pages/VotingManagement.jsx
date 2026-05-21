@@ -120,7 +120,7 @@ export default function VotingManagement() {
                                         Current Leaderboard
                                     </p>
                                     {vote.participants.slice(0, 2).map((p, i) => (
-                                        <div key={p.id} className="flex items-center justify-between">
+                                        <div key={p.id || p._id || p.userId || p.username || i} className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-5 h-5 rounded-full bg-primary/20 text-[8px] flex items-center justify-center font-bold text-primary">#{i+1}</div>
                                                 <div>

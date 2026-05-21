@@ -382,8 +382,8 @@ export default function AppShell() {
                 </div>
             </aside>
 
-            <main className="app-shell-main flex-1 overflow-y-auto hide-scrollbar pb-safe md:pb-6 md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]">
-                <div className="mx-auto w-full md:max-w-[620px] lg:max-w-[680px] min-h-full flex flex-col">
+            <main className="app-shell-main flex flex-col flex-1 overflow-y-auto hide-scrollbar pb-safe md:pb-6 md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]">
+                <div className="mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col">
                     <Outlet />
                 </div>
             </main>

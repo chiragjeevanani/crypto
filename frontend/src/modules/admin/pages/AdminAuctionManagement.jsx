@@ -317,7 +317,7 @@ export default function AdminAuctionManagement() {
     // Expose to window for the PreviewModal to access
     window.handlePrepareIPFS = handlePrepareIPFS;
     window.handleMintNFT = handleMintNFT;
-    window.handleSettleVault = handleSettleVault;ntNFT;
+    window.handleSettleVault = handleSettleVault;
 
     useEffect(() => {
         loadAuctions();

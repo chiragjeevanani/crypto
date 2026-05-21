@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
+import { ThemeProvider } from './context/ThemeContext'
 
 // Web3 Imports
 import '@rainbow-me/rainbowkit/styles.css'
@@ -23,7 +24,9 @@ createRoot(document.getElementById('root')).render(
           borderRadius: 'large',
         })}>
           <BrowserRouter>
-            <App />
+            <ThemeProvider>
+              <App />
+            </ThemeProvider>
           </BrowserRouter>
         </RainbowKitProvider>
       </QueryClientProvider>
