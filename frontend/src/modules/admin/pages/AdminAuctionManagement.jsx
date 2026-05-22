@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gavel, CheckCircle, XCircle, Eye, ExternalLink, Clock, X, Play, CreditCard, History } from 'lucide-react';
-import { AdminPageHeader, AdminDataTable } from '../components/shared';
+import { AdminPageHeader, AdminDataTable, ConfirmModal } from '../components/shared';
 import { auctionService } from '../../auction/services/auctionService';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import Avatar from '../../user/components/shared/Avatar';
@@ -261,6 +261,7 @@ export default function AdminAuctionManagement() {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('pending');
     const [selectedAuction, setSelectedAuction] = useState(null);
+    const [confirmState, setConfirmState] = useState({ open: false, id: null, action: null });
 
     const loadAuctions = async () => {
         setLoading(true);
@@ -333,8 +334,10 @@ export default function AdminAuctionManagement() {
     };
 
     const handleStatusUpdate = async (id, status) => {
-        if (!window.confirm(`Are you sure you want to ${status} this auction?`)) return;
-        
+        setConfirmState({ open: true, id, action: status })
+    };
+
+    const executeStatusUpdate = async (id, status) => {
         try {
             const res = await auctionService.updateStatus(id, status === 'approve' ? 'approved' : 'rejected');
             if (res.success) {
@@ -473,6 +476,22 @@ export default function AdminAuctionManagement() {
                 onClose={() => setSelectedAuction(null)}
                 onApprove={(id) => handleStatusUpdate(id, 'approve')}
                 onReject={(id) => handleStatusUpdate(id, 'reject')}
+            />
+
+            <ConfirmModal
+                isOpen={confirmState.open}
+                title={confirmState.action === 'approve' ? 'Approve Auction' : 'Reject Auction'}
+                message={confirmState.action === 'approve'
+                    ? 'This will make the auction live and visible to all users.'
+                    : 'This will reject the auction and notify the creator.'}
+                variant={confirmState.action === 'approve' ? 'success' : 'danger'}
+                confirmText={confirmState.action === 'approve' ? 'Approve' : 'Reject'}
+                onCancel={() => setConfirmState({ open: false, id: null, action: null })}
+                onConfirm={() => {
+                    const { id, action } = confirmState
+                    setConfirmState({ open: false, id: null, action: null })
+                    executeStatusUpdate(id, action)
+                }}
             />
         </div>
     );

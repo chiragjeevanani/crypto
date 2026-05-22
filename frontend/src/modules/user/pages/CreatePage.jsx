@@ -1685,6 +1685,23 @@ const CreatePage = () => {
   };
 
   const handleStartOrStopRecording = (autoConfirm = false) => {
+    if (captureMode === 'photo') {
+      if (canvasRef.current) {
+        canvasRef.current.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            setVideoFile(file);
+            setPreviewUrl(url);
+            setVideoDuration(15);
+            setRecordStatus('recorded');
+            pushStage('preview');
+          }
+        }, 'image/jpeg', 0.95);
+      }
+      return;
+    }
+
     if (recordStatus === 'recording') {
       // Stop recording
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -2102,7 +2119,7 @@ const CreatePage = () => {
   };
 
   const handlePublishUi = async () => {
-    if (uploading) return;
+    if (isUploading) return;
     
     const fileToUpload = mergedVideoBlob || videoFile;
     if (!fileToUpload) {
@@ -2677,7 +2694,7 @@ const CreatePage = () => {
       )}
 
       <div className={themedDurationRowClass}>
-        {DURATION_OPTIONS.map((durationOption) => (
+        {captureMode === 'camera' && DURATION_OPTIONS.map((durationOption) => (
           <button
             key={durationOption}
             type="button"
@@ -2795,7 +2812,7 @@ const CreatePage = () => {
 
       {recordStatus !== 'recorded' && (
         <div className={themedModeTabsClass}>
-          {['camera'].map((mode) => (
+          {['photo', 'camera'].map((mode) => (
             <button
               key={mode}
               type="button"
@@ -4167,10 +4184,10 @@ const CreatePage = () => {
           <button
             type="button"
             onClick={handlePublishUi}
-            disabled={uploading}
-            className={`rounded-[10px] bg-[#fe2c55] py-3 text-[15px] font-semibold text-white active:opacity-80 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isUploading}
+            className={`rounded-[10px] bg-[#fe2c55] py-3 text-[15px] font-semibold text-white active:opacity-80 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {uploading ? 'Posting...' : 'Post'}
+            {isUploading ? 'Posting...' : 'Post'}
           </button>
         </div>
       </div>

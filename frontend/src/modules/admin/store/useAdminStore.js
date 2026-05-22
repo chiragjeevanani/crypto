@@ -607,33 +607,8 @@ export const useAdminStore = create((set, get) => ({
         }));
     }, "KYC queue updated."),
 
-    incrementReferralOnboarding: (userId) => get().execute(async () => {
-        const updated = await userService.incrementReferral(userId);
-        if (!updated) return;
-        const nextCount = updated.referredCount || 0;
-        set((state) => ({
-            users: state.users.map((u) => (u.id === userId ? updated : u)),
-            usersData: {
-                ...state.usersData,
-                users: state.usersData.users.map((u) => (u.id === userId ? updated : u)),
-            },
-            userDetail: state.userDetail?.id === userId
-                ? { ...state.userDetail, referredCount: nextCount, referralCode: updated.referralCode }
-                : state.userDetail,
-            kycQueue: state.kycQueue.map((entry) =>
-                entry.userId === userId
-                    ? {
-                        ...entry,
-                        referredCount: nextCount,
-                        eligibleByReferral: nextCount >= (entry.requiredReferrals || 5),
-                        status: nextCount >= (entry.requiredReferrals || 5) && entry.status !== 'approved'
-                            ? 'pending'
-                            : entry.status,
-                    }
-                    : entry,
-            ),
-        }));
-    }, "Referral onboarding count updated."),
+    // incrementReferralOnboarding is deprecated – referral counts come from the database.
+    // The KYC eligibility is now derived server-side via the users API (flagged filter).
 
     loadFraudSignals: () => get().execute(async () => {
         set({ fraudSignals: [...get().fraudSignals] });

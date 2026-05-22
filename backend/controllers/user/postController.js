@@ -218,9 +218,13 @@ exports.getPosts = async (req, res) => {
     const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
+    const query = { status: "approved", isPublished: true };
+    if (req.query.isNFT === "true") query.isNFT = true;
+    if (req.query.creator) query.creator = req.query.creator;
+
     const config = await getAdminConfig();
     const posts = await populateCreator(
-      Post.find({ status: "approved", isPublished: true }).sort({ createdAt: -1 }).limit(200)
+      Post.find(query).sort({ createdAt: -1 }).limit(200)
     ).exec();
     const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
 

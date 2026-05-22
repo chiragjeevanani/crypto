@@ -4,7 +4,11 @@ const {
   listUsers,
   getUserDetail,
   getUserFollowers,
-  getUserFollowing
+  getUserFollowing,
+  toggleBan,
+  toggleSuspicious,
+  updateUser,
+  deleteUser
 } = require("../../controllers/admin/userAdminController");
 
 const router = express.Router();
@@ -12,6 +16,11 @@ const adminAuth = [protect, authorize("SuperNode", "Admin", "super_admin", "Deve
 
 // Only admin roles can see/manage users
 router.get("/", ...adminAuth, listUsers);
+
+router.patch("/:id/ban", ...adminAuth, toggleBan);
+router.patch("/:id/suspicious", ...adminAuth, toggleSuspicious);
+router.patch("/:id", ...adminAuth, updateUser);
+router.delete("/:id", ...adminAuth, deleteUser);
 
 router.get("/:id/followers", ...adminAuth, getUserFollowers);
 router.get("/:id/following", ...adminAuth, getUserFollowing);

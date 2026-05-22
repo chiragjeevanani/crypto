@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play, Eye } from 'lucide-react'
 import { formatCount } from '../utils/formatCurrency'
-import { mockNFTs } from '../data/mockNFTs'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
 import NFTBadge from '../components/shared/NFTBadge'
@@ -35,6 +34,7 @@ export default function UserProfilePage() {
     const [following, setFollowing] = useState([])
     const [profileUser, setProfileUser] = useState(null)
     const [profileLoading, setProfileLoading] = useState(true)
+    const [nfts, setNfts] = useState([])
 
     useEffect(() => { loadPosts() }, [loadPosts])
 
@@ -46,10 +46,13 @@ export default function UserProfilePage() {
         const load = async () => {
             setProfileLoading(true)
             try {
-                const [fRes, gRes, uRes] = await Promise.all([
+                const [fRes, gRes, uRes, nRes] = await Promise.all([
                     followService.getFollowers(id),
                     followService.getFollowing(id),
                     searchService.getUserById(id),
+                    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/user/posts?creator=${id}&isNFT=true`, { 
+                        headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` } 
+                    }).then(r => r.json().catch(() => ({})))
                 ])
                 if (cancelled) return
                 setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
@@ -57,6 +60,7 @@ export default function UserProfilePage() {
                 if (uRes.success) {
                     setProfileUser(uRes.user)
                 }
+                setNfts(nRes.posts || [])
                 setProfileLoading(false)
             } catch (err) {
                 console.error("Failed to load user profile:", err)
@@ -329,25 +333,28 @@ export default function UserProfilePage() {
                     )}
                     {activeTab === 'NFTs' && (
                         <div className="px-4 py-4 flex flex-col gap-3">
-                            {mockNFTs.slice(0, 2).map((nft) => (
+                            {nfts.map((nft) => (
                                 <div
                                     key={nft.id}
                                     className="flex items-center gap-3 p-3 rounded-2xl"
                                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                                 >
                                     <img
-                                        src={nft.thumbnail}
-                                        alt={nft.title}
+                                        src={nft.media?.url || nft.thumbnail}
+                                        alt={nft.caption || 'NFT'}
                                         className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                                     />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {nft.title}
+                                            {nft.caption || 'Untitled NFT'}
                                         </p>
-                                        <NFTBadge status={nft.status} price={nft.price} className="mt-1" />
+                                        <NFTBadge status={nft.status === 'approved' ? 'listed' : 'sold'} price={nft.nftPriceINR || 0} className="mt-1" />
                                     </div>
                                 </div>
                             ))}
+                            {nfts.length === 0 && (
+                                <p className="text-sm text-center py-6" style={{ color: 'var(--color-muted)' }}>No NFTs found for this user.</p>
+                            )}
                         </div>
                     )}
                 </div>

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminStore } from '../store/useAdminStore';
-import { AdminPageHeader } from '../components/shared';
+import { AdminPageHeader, ConfirmModal } from '../components/shared';
 
 const StateItem = ({ state, onDelete }) => (
     <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-surface bg-bg group/state hover:border-primary/20 transition-all">
@@ -202,6 +202,7 @@ export default function LocationManagement() {
     const [editingCountry, setEditingCountry] = useState(null);
     const [expandedCode, setExpandedCode] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [confirmState, setConfirmState] = useState({ open: false, code: null });
 
     const [form, setForm] = useState({
         name: '',
@@ -250,10 +251,8 @@ export default function LocationManagement() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleDeleteCountry = async (code) => {
-        if (window.confirm(`Are you sure? This will delete ${code} and all its states.`)) {
-            await deleteCountry(code);
-        }
+    const handleDeleteCountry = (code) => {
+        setConfirmState({ open: true, code })
     };
 
     const filteredCountries = countries.filter(c => 
@@ -434,6 +433,19 @@ export default function LocationManagement() {
                     </div>
                 </div>
             </div>
+        <ConfirmModal
+            isOpen={confirmState.open}
+            title={`Delete ${confirmState.code}`}
+            message={`This will permanently delete ${confirmState.code} and all of its associated states. This cannot be undone.`}
+            variant="danger"
+            confirmText="Delete"
+            onCancel={() => setConfirmState({ open: false, code: null })}
+            onConfirm={async () => {
+                const { code } = confirmState
+                setConfirmState({ open: false, code: null })
+                await deleteCountry(code)
+            }}
+        />
         </div>
     );
 }

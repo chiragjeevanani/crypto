@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ConfirmModal } from '../components/shared';
 import { getStoredToken } from '../../user/store/useUserStore';
 import { 
     Music, 
@@ -29,6 +30,7 @@ export default function MusicManagement() {
     const [playingId, setPlayingId] = useState(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
 
     const [newTrack, setNewTrack] = useState({
         title: '',
@@ -125,8 +127,11 @@ const fetchMusic = async () => {
         }
     };
 
-    const deleteTrack = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this track?')) return;
+    const deleteTrack = (id) => {
+        setDeleteConfirm({ open: true, id })
+    };
+
+    const executeDelete = async (id) => {
         try {
             const token = getStoredToken();
             const res = await fetch(`${API_BASE}/admin/music/${id}`, {
@@ -411,6 +416,20 @@ const fetchMusic = async () => {
             </AnimatePresence>
 
             <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
+
+            <ConfirmModal
+                isOpen={deleteConfirm.open}
+                title="Delete Track"
+                message="This will permanently remove this track from the music library. Creators using it will lose access."
+                variant="danger"
+                confirmText="Delete"
+                onCancel={() => setDeleteConfirm({ open: false, id: null })}
+                onConfirm={() => {
+                    const { id } = deleteConfirm
+                    setDeleteConfirm({ open: false, id: null })
+                    executeDelete(id)
+                }}
+            />
         </div>
     );
 }

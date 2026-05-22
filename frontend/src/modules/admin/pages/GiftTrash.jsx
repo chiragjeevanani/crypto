@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Trash2,
@@ -12,27 +12,34 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStore } from '../store/useAdminStore';
-import { AdminPageHeader, AdminDataTable } from '../components/shared';
+import { AdminPageHeader, AdminDataTable, ConfirmModal } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 
 export default function GiftTrash() {
     const { trashGifts, loadTrashGifts, restoreGift, permanentlyDeleteGift, isLoading } = useAdminStore();
     const navigate = useNavigate();
+    const [confirmState, setConfirmState] = useState({ open: false, action: null, id: null, title: '', message: '', variant: 'danger', confirmText: 'Confirm' });
 
     useEffect(() => {
         loadTrashGifts();
     }, [loadTrashGifts]);
 
-    const handleRestore = async (id) => {
-        if (confirm('Restore this gift to active registry?')) {
-            await restoreGift(id);
-        }
+    const handleRestore = (id) => {
+        setConfirmState({
+            open: true, action: 'restore', id,
+            title: 'Restore Gift',
+            message: 'This will restore this gift to the active registry and make it available for users.',
+            variant: 'success', confirmText: 'Restore'
+        })
     };
 
-    const handlePermanentDelete = async (id) => {
-        if (confirm('PERMANENT ERASURE: This action cannot be undone and will remove the gift from the node network. Continue?')) {
-            await permanentlyDeleteGift(id);
-        }
+    const handlePermanentDelete = (id) => {
+        setConfirmState({
+            open: true, action: 'erase', id,
+            title: 'Permanent Erasure',
+            message: 'This action cannot be undone and will remove this gift from the node network permanently.',
+            variant: 'danger', confirmText: 'Erase'
+        })
     };
 
     return (
@@ -103,6 +110,20 @@ export default function GiftTrash() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Archive is empty</p>
                 </div>
             )}
+        <ConfirmModal
+            isOpen={confirmState.open}
+            title={confirmState.title}
+            message={confirmState.message}
+            variant={confirmState.variant}
+            confirmText={confirmState.confirmText}
+            onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+            onConfirm={async () => {
+                const { action, id } = confirmState
+                setConfirmState(s => ({ ...s, open: false }))
+                if (action === 'restore') await restoreGift(id)
+                if (action === 'erase') await permanentlyDeleteGift(id)
+            }}
+        />
         </div>
     );
 }

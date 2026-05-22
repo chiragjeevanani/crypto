@@ -15,7 +15,7 @@ import {
     X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
+import { AdminPageHeader, AdminStatCard, AdminDataTable, ConfirmModal } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
 import { formatCount } from '../../user/utils/formatCurrency';
@@ -41,6 +41,7 @@ export default function CampaignManagement() {
     const [topSubmissions, setTopSubmissions] = useState([]);
     const [loadingSubmissions, setLoadingSubmissions] = useState(false);
     const navigate = useNavigate();
+    const [confirmState, setConfirmState] = useState({ open: false, action: null, payload: null, title: '', message: '', variant: 'danger', confirmText: 'Confirm' });
 
     useEffect(() => {
         loadCampaigns();
@@ -67,9 +68,12 @@ export default function CampaignManagement() {
 
 
     const handleSuspend = (id) => {
-        if (window.confirm('Broadcast suspension to all nodes? This will halt participant engagement.')) {
-            setCampaignStatus(id, 'Paused');
-        }
+        setConfirmState({
+            open: true, action: 'suspend', payload: id,
+            title: 'Pause Campaign',
+            message: 'This will broadcast suspension to all nodes and halt participant engagement.',
+            variant: 'warning', confirmText: 'Pause'
+        })
     };
 
     const handleResume = (id) => {
@@ -160,9 +164,12 @@ export default function CampaignManagement() {
                                         className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (window.confirm('Delete this campaign?')) {
-                                                deleteCampaign(camp._id || camp.id);
-                                            }
+                                            setConfirmState({
+                                                open: true, action: 'delete', payload: camp._id || camp.id,
+                                                title: 'Delete Campaign',
+                                                message: `Are you sure you want to permanently delete "${camp.title}"? This cannot be undone.`,
+                                                variant: 'danger', confirmText: 'Delete'
+                                            })
                                         }}
                                     >
                                         <X className="w-3 h-3 text-muted group-hover:text-rose-500" />
@@ -394,6 +401,20 @@ export default function CampaignManagement() {
                     ))}
                 </div>
             </div>
+        <ConfirmModal
+            isOpen={confirmState.open}
+            title={confirmState.title}
+            message={confirmState.message}
+            variant={confirmState.variant}
+            confirmText={confirmState.confirmText}
+            onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+            onConfirm={() => {
+                const { action, payload } = confirmState
+                setConfirmState(s => ({ ...s, open: false }))
+                if (action === 'suspend') setCampaignStatus(payload, 'Paused')
+                if (action === 'delete') deleteCampaign(payload)
+            }}
+        />
         </div>
     );
 }

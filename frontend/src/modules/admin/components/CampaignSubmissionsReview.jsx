@@ -15,11 +15,13 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../store/useAdminStore';
 import { formatCount } from '../../user/utils/formatCurrency';
+import { ConfirmModal } from './shared';
 
 export default function CampaignSubmissionsReview({ campaign, onClose }) {
     const { loadCampaignSubmissions, declareCampaignWinners, verifyCampaignSubmission } = useAdminStore();
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [declareConfirm, setDeclareConfirm] = useState(false);
 
     useEffect(() => {
         if (campaign) {
@@ -64,12 +66,7 @@ export default function CampaignSubmissionsReview({ campaign, onClose }) {
                 <div className="flex items-center gap-3">
                     {campaign.status !== 'Completed' && submissions.length > 0 && (
                         <button 
-                            onClick={async () => {
-                                if (window.confirm('Declare winners based on current vote leaderboard?')) {
-                                    await declareCampaignWinners(campaign._id || campaign.id);
-                                    onClose();
-                                }
-                            }}
+                            onClick={() => setDeclareConfirm(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-black rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
                         >
                             <Trophy size={14} />
@@ -210,6 +207,20 @@ export default function CampaignSubmissionsReview({ campaign, onClose }) {
                     ))}
                 </div>
             )}
+
+        <ConfirmModal
+            isOpen={declareConfirm}
+            title="Declare Winners"
+            message="This will finalize winners based on the current vote leaderboard. This action is permanent."
+            variant="success"
+            confirmText="Declare"
+            onCancel={() => setDeclareConfirm(false)}
+            onConfirm={async () => {
+                setDeclareConfirm(false)
+                await declareCampaignWinners(campaign._id || campaign.id)
+                onClose()
+            }}
+        />
         </div>
     );
 }

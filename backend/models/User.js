@@ -101,6 +101,14 @@ const userSchema = new mongoose.Schema(
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     dismissedSuggestions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    isBanned: {
+      type: Boolean,
+      default: false
+    },
+    isSuspicious: {
+      type: Boolean,
+      default: false
+    },
     state: {
       type: String,
       trim: true,
@@ -125,7 +133,18 @@ const userSchema = new mongoose.Schema(
     walletVerifiedAt: {
       type: Date,
       default: null
-    }
+    },
+    // ─── Payout Methods ───────────────────────────────────────────────────
+    payoutMethods: [{
+      type: { type: String, enum: ['bank', 'upi'] },
+      upiId: String,
+      holderName: String,
+      accountNumber: String,
+      ifscCode: String,
+      bankName: String,
+      primary: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
+    }]
   },
   { timestamps: true }
 );

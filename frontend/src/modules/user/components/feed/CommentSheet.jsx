@@ -1,37 +1,78 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Heart, Smile } from 'lucide-react'
-import { mockComments } from '../../data/mockComments'
 import { timeAgo } from '../../utils/formatCurrency'
 import BottomModal from '../shared/BottomModal'
+import { getStoredToken } from '../../store/useUserStore'
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 export default function CommentSheet({ postId, onClose }) {
     const [newComment, setNewComment] = useState('')
     const inputRef = useRef(null)
-    const [comments, setComments] = useState(
-        mockComments.filter(c => c.postId === postId).map(c => ({ ...c, isLiked: false }))
-    )
+    const [comments, setComments] = useState([])
+    const [loading, setLoading] = useState(true)
 
-    const handleSubmit = (e) => {
+    useEffect(() => {
+        if (!postId) return
+        let mounted = true
+        setLoading(true)
+        fetch(`${API_BASE}/user/posts/${postId}/comments`, {
+            headers: { Authorization: `Bearer ${getStoredToken()}` }
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (mounted && data.comments) {
+                    setComments(data.comments.map(c => ({
+                        id: c.id,
+                        postId: c.postId,
+                        user: {
+                            id: c.author?.id || '',
+                            username: c.author?.name || c.author?.username || 'User',
+                            handle: c.author?.handle || '@user'
+                        },
+                        text: c.text,
+                        createdAt: c.createdAt,
+                        likes: 0,
+                        isLiked: false
+                    })))
+                }
+            })
+            .catch(() => {})
+            .finally(() => { if (mounted) setLoading(false) })
+        return () => { mounted = false }
+    }, [postId])
+
+    const handleSubmit = async (e) => {
         e.preventDefault()
         if (!newComment.trim()) return
 
-        const comment = {
-            id: Date.now().toString(),
-            postId,
-            user: {
-                id: 'me',
-                username: 'You',
-                handle: '@me'
-            },
-            text: newComment,
-            createdAt: new Date().toISOString(),
-            likes: 0,
-            isLiked: false
-        }
-
-        setComments([comment, ...comments])
+        const text = newComment.trim()
         setNewComment('')
+
+        try {
+            const res = await fetch(`${API_BASE}/user/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${getStoredToken()}`
+                },
+                body: JSON.stringify({ text })
+            })
+            const data = await res.json()
+            if (data.comment) {
+                const c = data.comment
+                setComments(prev => [{
+                    id: c.id,
+                    postId: c.postId,
+                    user: { id: c.author?.id || '', username: c.author?.name || 'You', handle: c.author?.handle || '@me' },
+                    text: c.text,
+                    createdAt: c.createdAt,
+                    likes: 0,
+                    isLiked: false
+                }, ...prev])
+            }
+        } catch {}
     }
 
     const toggleLike = (id) => {
@@ -61,6 +102,11 @@ export default function CommentSheet({ postId, onClose }) {
         >
             {/* Comments List */}
             <div className="flex-1 overflow-y-auto px-5 py-1 space-y-4 hide-scrollbar">
+                {loading ? (
+                    <div className="flex justify-center py-8 opacity-50">
+                        <div className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin" style={{ color: 'var(--color-muted)' }} />
+                    </div>
+                ) : (
                 <AnimatePresence initial={false}>
                     {comments.length > 0 ? (
                         comments.map((comment) => (
@@ -115,6 +161,7 @@ export default function CommentSheet({ postId, onClose }) {
                         </div>
                     )}
                 </AnimatePresence>
+                )}
             </div>
 
             {/* Input Area */}

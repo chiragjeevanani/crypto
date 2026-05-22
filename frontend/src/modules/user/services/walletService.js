@@ -75,6 +75,10 @@ export const walletService = {
             headers: data.idempotencyKey ? { "Idempotency-Key": data.idempotencyKey } : {},
             body: JSON.stringify(data)
         }),
+    getPayoutMethods: () => request("/wallet/payout-methods", { method: "GET" }),
+    addPayoutMethod: (payload) => request("/wallet/payout-methods", { method: "POST", body: JSON.stringify(payload) }),
+    removePayoutMethod: (id) => request(`/wallet/payout-methods/${id}`, { method: "DELETE" }),
+    setPrimaryPayoutMethod: (id) => request(`/wallet/payout-methods/${id}/primary`, { method: "PATCH" }),
     initiateRecharge: (amount) =>
         request("/payment/recharge", {
             method: "POST",

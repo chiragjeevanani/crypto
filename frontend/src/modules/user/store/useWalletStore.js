@@ -31,10 +31,8 @@ export const useWalletStore = create((set, get) => ({
         { id: 'led_2', source: 'task', amount: 500, status: 'reconciled', createdAt: '2026-02-25T18:00:00Z' },
         { id: 'led_3', source: 'nft', amount: 180, status: 'pending', createdAt: '2026-02-24T12:00:00Z' },
     ],
-    payoutMethods: [
-        { id: 'pm_upi_1', type: 'upi', upiId: '9876543210@upi', holderName: 'Chirag J', primary: true },
-        { id: 'pm_bank_1', type: 'bank', accountHolder: 'Chirag J', accountNumber: 'XXXXXX1234', ifscCode: 'SBIN0001234', bankName: 'SBI', primary: false },
-    ],
+    payoutMethods: [],
+    payoutMethodsLoading: false,
 
     setActiveTab: (tab) => set({ activeTab: tab }),
 
@@ -52,8 +50,25 @@ export const useWalletStore = create((set, get) => ({
             })
             // ensure gifts are also in sync
             get().loadGifts()
+            // ensure payout methods are loaded
+            get().loadPayoutMethods()
         } catch (error) {
             set({ walletLoading: false, walletError: error.message })
+        }
+    },
+
+    loadPayoutMethods: async () => {
+        set({ payoutMethodsLoading: true })
+        try {
+            const data = await walletService.getPayoutMethods()
+            const list = Array.isArray(data?.payoutMethods) ? data.payoutMethods.map(pm => ({
+                id: pm._id,
+                ...pm,
+                accountHolder: pm.holderName // map backend field to frontend
+            })) : []
+            set({ payoutMethods: list, payoutMethodsLoading: false })
+        } catch {
+            set({ payoutMethodsLoading: false })
         }
     },
 
@@ -427,39 +442,55 @@ export const useWalletStore = create((set, get) => ({
         ],
     })),
 
-    addPayoutMethod: (payload) => set((state) => {
+    addPayoutMethod: async (payload) => {
         const type = payload?.type === 'bank' ? 'bank' : 'upi'
+        let backendPayload = { type, primary: false }
         if (type === 'bank') {
-            if (!payload.accountHolder || !payload.accountNumber || !payload.ifscCode) return state
-            return {
-                payoutMethods: [
-                    {
-                        id: `pm_${Date.now()}`,
-                        type: 'bank',
-                        accountHolder: payload.accountHolder.trim(),
-                        accountNumber: payload.accountNumber.trim(),
-                        ifscCode: payload.ifscCode.trim().toUpperCase(),
-                        bankName: payload.bankName?.trim() || 'Bank',
-                        primary: state.payoutMethods.length === 0,
-                    },
-                    ...state.payoutMethods,
-                ],
+            if (!payload.accountHolder || !payload.accountNumber || !payload.ifscCode) return { ok: false }
+            backendPayload = {
+                ...backendPayload,
+                holderName: payload.accountHolder.trim(),
+                accountNumber: payload.accountNumber.trim(),
+                ifscCode: payload.ifscCode.trim().toUpperCase(),
+                bankName: payload.bankName?.trim() || 'Bank',
+            }
+        } else {
+            if (!payload.upiId || !payload.holderName) return { ok: false }
+            backendPayload = {
+                ...backendPayload,
+                upiId: payload.upiId.trim().toLowerCase(),
+                holderName: payload.holderName.trim(),
             }
         }
-        if (!payload.upiId || !payload.holderName) return state
-        return {
-            payoutMethods: [
-                {
-                    id: `pm_${Date.now()}`,
-                    type: 'upi',
-                    upiId: payload.upiId.trim().toLowerCase(),
-                    holderName: payload.holderName.trim(),
-                    primary: state.payoutMethods.length === 0,
-                },
-                ...state.payoutMethods,
-            ],
+
+        try {
+            await walletService.addPayoutMethod(backendPayload)
+            await get().loadPayoutMethods()
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
         }
-    }),
+    },
+    
+    removePayoutMethod: async (id) => {
+        try {
+            await walletService.removePayoutMethod(id)
+            await get().loadPayoutMethods()
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
+        }
+    },
+
+    setPrimaryPayoutMethod: async (id) => {
+        try {
+            await walletService.setPrimaryPayoutMethod(id)
+            await get().loadPayoutMethods()
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
+        }
+    },
 
     requestWithdrawal: async (coins, payout) => {
         const parsed = Number(coins || 0)

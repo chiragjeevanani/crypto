@@ -8,10 +8,8 @@ import { useUserStore, getStoredToken } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
 import WalletStatCard from '../components/wallet/WalletStatCard'
 import TransactionItem from '../components/wallet/TransactionItem'
-import { weeklyEarnings } from '../data/mockTransactions'
 
 const TABS = ['Transactions', 'Withdraw', 'Linked']
-const MAX_WEEKLY = Math.max(...weeklyEarnings.map((d) => d.amount))
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
 export default function WalletPage() {

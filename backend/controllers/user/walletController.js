@@ -610,11 +610,105 @@ const listActiveGifts = async (req, res) => {
   }
 };
 
+const getPayoutMethods = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select("payoutMethods");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, payoutMethods: user.payoutMethods || [] });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const addPayoutMethod = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    
+    const { type, upiId, holderName, accountNumber, ifscCode, bankName, primary } = req.body;
+    
+    if (type === 'upi' && !upiId) return res.status(400).json({ success: false, message: "UPI ID is required" });
+    if (type === 'bank' && (!accountNumber || !ifscCode || !holderName)) return res.status(400).json({ success: false, message: "Complete bank details are required" });
+
+    // If making this primary, unset others
+    if (primary) {
+      user.payoutMethods.forEach(pm => pm.primary = false);
+    }
+    
+    // If it's the only method, make it primary automatically
+    const isFirst = !user.payoutMethods || user.payoutMethods.length === 0;
+
+    user.payoutMethods.push({
+      type,
+      upiId,
+      holderName,
+      accountNumber,
+      ifscCode,
+      bankName,
+      primary: primary || isFirst
+    });
+
+    await user.save();
+    return res.status(201).json({ success: true, payoutMethods: user.payoutMethods });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const removePayoutMethod = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    
+    const methodId = req.params.id;
+    user.payoutMethods = user.payoutMethods.filter(pm => pm._id.toString() !== methodId);
+    
+    // If we removed the primary one, make the first remaining one primary
+    if (user.payoutMethods.length > 0 && !user.payoutMethods.some(pm => pm.primary)) {
+      user.payoutMethods[0].primary = true;
+    }
+
+    await user.save();
+    return res.status(200).json({ success: true, payoutMethods: user.payoutMethods });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const setPrimaryPayoutMethod = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    
+    const methodId = req.params.id;
+    let found = false;
+    user.payoutMethods.forEach(pm => {
+      if (pm._id.toString() === methodId) {
+        pm.primary = true;
+        found = true;
+      } else {
+        pm.primary = false;
+      }
+    });
+
+    if (!found) return res.status(404).json({ success: false, message: "Payout method not found" });
+
+    await user.save();
+    return res.status(200).json({ success: true, payoutMethods: user.payoutMethods });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getBalance,
   deposit,
   sendGift,
   listActiveGifts,
   listTransactions,
-  withdraw
+  withdraw,
+  getPayoutMethods,
+  addPayoutMethod,
+  removePayoutMethod,
+  setPrimaryPayoutMethod
 };

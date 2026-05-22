@@ -19,7 +19,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useAdminStore } from '../store/useAdminStore';
-import { AdminPageHeader, AdminDataTable } from '../components/shared';
+import { AdminPageHeader, AdminDataTable, ConfirmModal } from '../components/shared';
 import Avatar from '../../user/components/shared/Avatar';
 import { formatCurrency } from '../utils/currency';
 
@@ -31,7 +31,6 @@ export default function UserManagement() {
         loadUsers,
         loadKYCQueue,
         reviewKYC,
-        incrementReferralOnboarding,
         userDetail,
         loadUserDetail,
         toggleUserBan,
@@ -52,6 +51,7 @@ export default function UserManagement() {
 
     const [selectedId, setSelectedId] = useState(null);
     const [detailTab, setDetailTab] = useState('Overview');
+    const [confirmState, setConfirmState] = useState({ open: false, action: null, id: null, title: '', message: '', variant: 'danger', confirmText: 'Confirm' });
 
     useEffect(() => {
         loadUsers(params);
@@ -81,16 +81,20 @@ export default function UserManagement() {
         setParams(prev => ({ ...prev, [key]: value, page: key === 'page' ? value : 1 }));
     };
 
-    const handleAction = async (action, id) => {
-        if (confirm(`Authorize mission command: ${action}?`)) {
-            if (action === 'Ban') await toggleUserBan(id);
-            if (action === 'Delete') await deleteUser(id);
-            if (action === 'Suspicious') await markUserSuspicious(id);
-            if (action === 'Verify') await verifyUserKYC(id);
-            // Refresh detail if current user
-            if (selectedId === id) loadUserDetail(id);
-        }
-    };
+    const askConfirm = (action, id, title, message, variant = 'danger', confirmText = 'Confirm') => {
+        setConfirmState({ open: true, action, id, title, message, variant, confirmText })
+    }
+
+    const handleConfirmed = async () => {
+        const { action, id } = confirmState
+        setConfirmState(s => ({ ...s, open: false }))
+        if (action === 'Ban') await toggleUserBan(id)
+        if (action === 'Delete') await deleteUser(id)
+        if (action === 'Suspicious') await markUserSuspicious(id)
+        if (action === 'Verify') await verifyUserKYC(id)
+        if (selectedId === id) loadUserDetail(id)
+    }
+
 
     return (
         <div className="space-y-10 pb-20">
@@ -195,7 +199,15 @@ export default function UserManagement() {
                                         <UserPlus className="w-3.5 h-3.5 text-muted group-hover:text-primary" />
                                     </button>
                                     <button
-                                        onClick={() => handleAction('Ban', user.id)}
+                                        onClick={() => askConfirm(
+                                            'Ban', user.id,
+                                            user.isBanned ? 'Unblock User' : 'Block User',
+                                            user.isBanned
+                                                ? 'This will restore access for this user.'
+                                                : 'This will restrict the user from accessing the platform.',
+                                            user.isBanned ? 'warning' : 'danger',
+                                            user.isBanned ? 'Unblock' : 'Block'
+                                        )}
                                         className={`p-1.5 rounded-md border transition-all ${user.isBanned
                                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
                                             : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
@@ -205,7 +217,12 @@ export default function UserManagement() {
                                         <Ban className="w-3.5 h-3.5" />
                                     </button>
                                     <button
-                                        onClick={() => handleAction('Delete', user.id)}
+                                        onClick={() => askConfirm(
+                                            'Delete', user.id,
+                                            'Delete User',
+                                            'This will permanently remove this user and all their data from the platform. This action cannot be undone.',
+                                            'danger', 'Delete'
+                                        )}
                                         className="p-1.5 rounded-md border transition-all bg-rose-500/10 border-rose-500/20 text-rose-500"
                                         title="Delete User"
                                     >
@@ -287,12 +304,7 @@ export default function UserManagement() {
                                         >
                                             Reject
                                         </button>
-                                        <button
-                                            onClick={() => incrementReferralOnboarding(entry.userId)}
-                                            className="px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30"
-                                        >
-                                            +1 Referred
-                                        </button>
+
                                     </div>
                                 </div>
                             ))}
@@ -443,21 +455,39 @@ export default function UserManagement() {
                                 <div className="pt-4 border-t border-surface space-y-2">
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
-                                            onClick={() => handleAction('Verify', userDetail.id)}
+                                            onClick={() => askConfirm(
+                                                'Verify', userDetail.id,
+                                                'Force Verify KYC',
+                                                'This will mark this user as KYC verified and unlock payout features.',
+                                                'success', 'Verify'
+                                            )}
                                             disabled={userDetail.kycVerified}
                                             className="px-4 py-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[9px] font-bold uppercase hover:bg-emerald-500/20 transition-all disabled:opacity-20"
                                         >
                                             Force Verify
                                         </button>
                                         <button
-                                            onClick={() => handleAction('Suspicious', userDetail.id)}
+                                            onClick={() => askConfirm(
+                                                'Suspicious', userDetail.id,
+                                                'Flag as Fraudulent',
+                                                'This will flag this identity for forensic monitoring and trigger an audit alert.',
+                                                'warning', 'Flag'
+                                            )}
                                             className="px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-[9px] font-bold uppercase hover:bg-amber-500/20 transition-all"
                                         >
                                             Flag Fraud
                                         </button>
                                     </div>
                                     <button
-                                        onClick={() => handleAction('Ban', userDetail.id)}
+                                        onClick={() => askConfirm(
+                                            'Ban', userDetail.id,
+                                            userDetail.isBanned ? 'Restore Access' : 'Restrict User',
+                                            userDetail.isBanned
+                                                ? 'This will restore full platform access for this user.'
+                                                : 'This will immediately revoke platform access for this user.',
+                                            userDetail.isBanned ? 'warning' : 'danger',
+                                            userDetail.isBanned ? 'Restore' : 'Restrict'
+                                        )}
                                         className={`w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all border ${userDetail.isBanned
                                                 ? 'bg-emerald-500 text-black border-emerald-500 shadow-lg shadow-emerald-500/20'
                                                 : 'bg-rose-500 text-black border-rose-500 shadow-lg shadow-rose-500/20'
@@ -477,6 +507,15 @@ export default function UserManagement() {
                     </AnimatePresence>
                 </div>
             </div>
+        <ConfirmModal
+            isOpen={confirmState.open}
+            title={confirmState.title}
+            message={confirmState.message}
+            variant={confirmState.variant}
+            confirmText={confirmState.confirmText}
+            onConfirm={handleConfirmed}
+            onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+        />
         </div>
     );
 }

@@ -12,12 +12,13 @@ import {
     Ban,
     ArrowRight
 } from 'lucide-react';
-import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
+import { AdminPageHeader, AdminStatCard, AdminDataTable, ConfirmModal } from '../components/shared';
 
 export default function FraudMonitoring() {
     const navigate = useNavigate();
     const { suspiciousUsers, fraudSignals, loadSuspiciousUsers, loadFraudSignals, resolveFraudSignal, toggleUserBan, notify } = useAdminStore();
     const [recalibrating, setRecalibrating] = useState(false);
+    const [confirmState, setConfirmState] = useState({ open: false, userId: null });
 
     useEffect(() => {
         loadSuspiciousUsers();
@@ -33,9 +34,7 @@ export default function FraudMonitoring() {
     };
 
     const handleBan = (id) => {
-        if (window.confirm('Broadcast permanent lockout to node network? This action is recorded in the immutable audit trail.')) {
-            toggleUserBan(id);
-        }
+        setConfirmState({ open: true, userId: id })
     };
 
     const openForensics = (user) => {
@@ -167,6 +166,18 @@ export default function FraudMonitoring() {
                     View Forensic Analysis Report <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </button>
             </div>
+        <ConfirmModal
+            isOpen={confirmState.open}
+            title="Broadcast Permanent Lockout"
+            message="This action will immediately revoke platform access and is recorded in the immutable audit trail."
+            variant="danger"
+            confirmText="Ban User"
+            onCancel={() => setConfirmState({ open: false, userId: null })}
+            onConfirm={() => {
+                toggleUserBan(confirmState.userId)
+                setConfirmState({ open: false, userId: null })
+            }}
+        />
         </div>
     );
 }

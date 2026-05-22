@@ -56,9 +56,19 @@ exports.listUsers = async (req, res) => {
     const search = (req.query.search || "").trim();
 
     const filter = {};
+    const conditions = [];
+
     if (search) {
-      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      filter.$or = [{ name: regex }, { email: regex }];
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"), "i");
+      conditions.push({ $or: [{ name: regex }, { email: regex }] });
+    }
+
+    if (req.query.flagged === "true") {
+      conditions.push({ $or: [{ isBanned: true }, { isSuspicious: true }] });
+    }
+
+    if (conditions.length > 0) {
+      filter.$and = conditions;
     }
 
     const total = await User.countDocuments(filter);
@@ -220,6 +230,55 @@ exports.getUserFollowing = async (req, res) => {
       avatar: f.avatar || ""
     }));
     return res.status(200).json({ success: true, count: following.length, following });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+exports.toggleBan = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    user.isBanned = !user.isBanned;
+    await user.save();
+    return res.status(200).json({ success: true, user: toAdminUserSummary(user) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.toggleSuspicious = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    user.isSuspicious = !user.isSuspicious;
+    await user.save();
+    return res.status(200).json({ success: true, user: toAdminUserSummary(user) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const updates = req.body || {};
+    const allowedFields = ["name", "email", "phone", "bio", "role", "countryName", "state", "avatar"];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (updates[key] !== undefined) updateData[key] = updates[key];
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, { $set: updateData }, { new: true });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, user: toAdminUserSummary(user) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, user: toAdminUserSummary(user) });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
