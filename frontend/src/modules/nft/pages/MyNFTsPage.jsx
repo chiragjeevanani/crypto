@@ -3,13 +3,12 @@ import { useUserStore } from '../../user/store/useUserStore';
 import { ipfsToHttp, getOpenSeaUrl } from '../../../web3config';
 import axios from 'axios';
 import { 
-  Wallet, Grid, List, Plus, ShieldCheck, 
+  Wallet, Grid, List, Plus, ShieldCheck, Award,
   ChevronRight, ExternalLink, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useAccount, useConnect, useDisconnect, useSignMessage } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useLogin, usePrivy } from '@privy-io/react-auth';
 
 const MyNFTsPage = () => {
   const [nfts, setNfts] = useState([]);
@@ -17,8 +16,23 @@ const MyNFTsPage = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [isLinking, setIsLinking] = useState(false);
   
-  const { user, darkMode, updateProfile } = useUserStore();
-  const { address, isConnected } = useAccount();
+  const { user, token, darkMode } = useUserStore();
+  const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
+  const { getAccessToken } = usePrivy();
+
+  const { login: linkPrivyWallet } = useLogin({
+    onComplete: async (privyUser, isNewUser, wasAlreadyAuthenticated) => {
+      setIsLinking(true);
+      try {
+        const privyToken = await getAccessToken();
+        await loginOrLinkWithPrivy(privyToken);
+      } catch (err) {
+        console.error("Privy linking failed:", err);
+      } finally {
+        setIsLinking(false);
+      }
+    }
+  });
 
   useEffect(() => {
     if (user?.walletAddress) {
@@ -31,7 +45,9 @@ const MyNFTsPage = () => {
   const fetchMyCollection = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/nft/my/collection');
+      const res = await axios.get('/api/nft/my/collection', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setNfts(res.data.nfts);
       }
@@ -39,23 +55,6 @@ const MyNFTsPage = () => {
       console.error("Failed to fetch collection", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLinkWallet = async () => {
-    if (!isConnected || !address) return;
-    
-    try {
-      setIsLinking(true);
-      const res = await axios.post('/api/nft/wallet/link', { walletAddress: address });
-      if (res.data.success) {
-        // Update local user store
-        updateProfile({ walletAddress: address.toLowerCase() });
-      }
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to link wallet");
-    } finally {
-      setIsLinking(false);
     }
   };
 
@@ -81,16 +80,15 @@ const MyNFTsPage = () => {
           </div>
 
           <div className="flex flex-col items-center md:items-end gap-3 w-full md:w-auto">
-            <ConnectButton />
-            {isConnected && !user?.walletAddress && (
+            {!user?.walletAddress && (
               <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                onClick={handleLinkWallet}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={linkPrivyWallet}
                 disabled={isLinking}
-                className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-yellow-400 to-amber-600 text-black font-black rounded-2xl shadow-xl hover:shadow-yellow-500/20 transition-all disabled:opacity-50"
+                className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-yellow-400 to-amber-600 text-black font-black rounded-2xl shadow-xl hover:shadow-yellow-500/20 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {isLinking ? 'Linking...' : 'Link This Wallet to My Account'}
+                {isLinking ? 'Activating...' : 'Enable Digital Wallet'}
               </motion.button>
             )}
             {user?.walletAddress && (
@@ -156,18 +154,15 @@ const MyNFTsPage = () => {
         ) : !user?.walletAddress ? (
           <div className={`p-12 rounded-3xl text-center border-2 border-dashed ${darkMode ? 'bg-zinc-900/30 border-zinc-800' : 'bg-white border-gray-200 shadow-sm'}`}>
             <Wallet className="w-16 h-16 text-gray-600 mx-auto mb-4 opacity-20" />
-            <h3 className="text-2xl font-black mb-2">Wallet Not Linked</h3>
-            <p className="text-gray-500 max-w-sm mx-auto mb-8">Link your Polygon-supported wallet (like MetaMask) to view and manage your digital collectibles.</p>
-            <ConnectButton.Custom>
-              {({ openConnectModal }) => (
-                <button 
-                  onClick={openConnectModal}
-                  className="px-10 py-4 bg-yellow-500 text-black font-black rounded-2xl shadow-xl shadow-yellow-500/10 hover:-translate-y-0.5 transition-all"
-                >
-                  Connect Wallet to Start
-                </button>
-              )}
-            </ConnectButton.Custom>
+            <h3 className="text-2xl font-black mb-2">Wallet Not Enabled</h3>
+            <p className="text-gray-500 max-w-sm mx-auto mb-8">Enable your secure digital wallet to view, claim, and trade your verified creator collectibles.</p>
+            <button 
+              onClick={linkPrivyWallet}
+              disabled={isLinking}
+              className="px-10 py-4 bg-yellow-500 text-black font-black rounded-2xl shadow-xl shadow-yellow-500/10 hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isLinking ? 'Activating...' : 'Enable Digital Wallet'}
+            </button>
           </div>
         ) : nfts.length > 0 ? (
           <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "space-y-4"}>
@@ -240,11 +235,11 @@ const MyNFTsPage = () => {
           </div>
           <div className="flex-1 text-center md:text-left">
             <h4 className="font-black text-lg mb-1">Secure Blockchain Ownership</h4>
-            <p className="text-gray-500 text-sm">Your NFTs are stored on the Polygon blockchain. KnQ Reels never has access to your private keys. Your assets are 100% owned by your wallet.</p>
+            <p className="text-gray-500 text-sm">Your NFTs are stored safely on the Polygon blockchain, custodied under your managed Privy wallet. Platform-sponsored structures keep trades fast and gas-free.</p>
           </div>
           <div className="flex gap-4">
             <a href="https://polygon.technology" target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-400 hover:text-yellow-500">Learn about Polygon</a>
-            <a href="https://metamask.io" target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-400 hover:text-yellow-500">About MetaMask</a>
+            <a href="https://privy.io" target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-400 hover:text-yellow-500">About Privy Wallets</a>
           </div>
         </div>
       </div>
