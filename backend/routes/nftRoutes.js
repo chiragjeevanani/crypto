@@ -11,7 +11,8 @@ const {
   mintAuctionNFT,
   recordDeposit,
   settleAuction,
-  syncOwnershipWebhook
+  syncOwnershipWebhook,
+  claimNFTBySponsor
 } = require("../controllers/nftController");
 
 // ─── Public Routes ─────────────────────────────────────────────────────────
@@ -34,6 +35,9 @@ router.post("/wallet/link", linkWallet);
 
 // Get logged-in user's NFT collection
 router.get("/my/collection", getMyCollection);
+
+// Settle NFT with sponsored gas/transaction
+router.post("/claim/:auctionId", claimNFTBySponsor);
 
 // Record on-chain vault deposit (winner only)
 router.post("/deposit/record/:auctionId", recordDeposit);

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check, Globe } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { authService } from '../../auth/services/authService';
+import { useLogin, usePrivy } from '@privy-io/react-auth';
 
 // Correct mobile number digit counts per country (excluding dial code prefix)
 const PHONE_DIGITS = {
@@ -89,10 +90,35 @@ const validateName = (v) => {
 export default function SignUpPage() {
     const navigate = useNavigate();
     const registerUser = useUserStore(state => state.registerUser);
+    const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
     const authLoading = useUserStore(state => state.authLoading);
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
     const [searchParams] = useSearchParams();
+
+    const { getAccessToken } = usePrivy();
+    const [privyLoading, setPrivyLoading] = useState(false);
+
+    const { login } = useLogin({
+        onComplete: async (user, isNewUser, wasAlreadyAuthenticated) => {
+            setPrivyLoading(true);
+            setAuthError('');
+            try {
+                const token = await getAccessToken();
+                await loginOrLinkWithPrivy(token);
+                navigate('/home');
+            } catch (err) {
+                console.error("Privy registration verification error:", err);
+                setAuthError(err.message || "Failed to complete account creation with Privy");
+            } finally {
+                setPrivyLoading(false);
+            }
+        },
+        onError: (err) => {
+            console.error("Privy sign up failed:", err);
+            setAuthError("Account creation with Privy was cancelled or failed");
+        }
+    });
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
     const [loadingLocations, setLoadingLocations] = useState(false);
@@ -316,6 +342,29 @@ export default function SignUpPage() {
                         </div>
                         <h1 className="text-2xl font-bold tracking-tight text-text">Create Account</h1>
                     </div>
+
+                    {/* Privy Social Auth */}
+                    <button
+                        type="button"
+                        onClick={login}
+                        disabled={privyLoading || authLoading}
+                        className="w-full bg-primary text-black font-bold uppercase tracking-widest text-[11px] py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 mb-6"
+                    >
+                        {privyLoading ? (
+                            <Zap className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <>
+                                <Globe className="w-4 h-4" /> Continue with Google / OTP
+                            </>
+                        )}
+                    </button>
+
+                    <div className="relative flex py-2 items-center mb-6">
+                        <div className="flex-grow border-t" style={{ borderColor: 'var(--color-border)' }}></div>
+                        <span className="flex-shrink mx-4 text-[10px] text-muted font-bold uppercase tracking-wider">or sign up manually</span>
+                        <div className="flex-grow border-t" style={{ borderColor: 'var(--color-border)' }}></div>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Full Name</label>

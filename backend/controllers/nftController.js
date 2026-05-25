@@ -1,8 +1,9 @@
 const Auction = require("../models/Auction");
 const User = require("../models/User");
+const axios = require("axios");
 const NFTOwnership = require("../models/NFTOwnership");
 const { prepareAuctionForIPFS, ipfsToGatewayUrl } = require("../services/ipfsService");
-const { mintNFT, settleAuctionOnChain, getTokenOwner, verifyTransaction, getTxExplorerUrl, getOpenSeaUrl } = require("../services/web3Service");
+const { mintNFT, settleAuctionOnChain, getTokenOwner, verifyTransaction, getTxExplorerUrl, getOpenSeaUrl, sponsorDepositBid } = require("../services/web3Service");
 const KycSubmission = require("../models/KycSubmission");
 
 // ─── Link Wallet ──────────────────────────────────────────────────────────────
@@ -540,6 +541,58 @@ const processVaultSettlements = async () => {
   }
 };
 
+const claimNFTBySponsor = async (req, res) => {
+  const { auctionId } = req.params;
+  const userId = req.user.userId;
+
+  try {
+    const auction = await Auction.findById(auctionId).populate("winner");
+    if (!auction) {
+      return res.status(404).json({ success: false, message: "Auction not found." });
+    }
+
+    if (auction.winner?._id.toString() !== userId && auction.winner?.id !== userId) {
+      return res.status(403).json({ success: false, message: "Only the auction winner can claim the NFT." });
+    }
+
+    if (auction.nftStatus === "deposit_received" || auction.nftStatus === "settled") {
+      return res.status(400).json({ success: false, message: "NFT is already claimed or settled." });
+    }
+
+    // Default matic price (₹7) or read from environment / config
+    let maticPrice = 7;
+    try {
+      // Try to import or fetch the configured MATIC price if endpoint is available
+      const priceRes = await axios.get(`${req.protocol}://${req.get('host')}/api/config/matic-price`);
+      if (priceRes?.data?.success) {
+        maticPrice = priceRes.data.price;
+      }
+    } catch (_) {}
+
+    const maticAmount = (auction.highestBid / maticPrice).toFixed(6);
+
+    console.log(`[Claim] Sponsoring NFT claim for Auction ${auctionId}. MATIC to transfer: ${maticAmount}`);
+
+    // Call the sponsored web3 transaction
+    const { txHash } = await sponsorDepositBid(auctionId, maticAmount);
+
+    auction.vaultDepositTxHash = txHash;
+    auction.nftStatus = "deposit_received";
+    await auction.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "NFT deposit transaction successfully sponsored.",
+      txHash,
+      nftStatus: auction.nftStatus
+    });
+
+  } catch (err) {
+    console.error("[Claim] claimNFTBySponsor error:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   linkWallet,
   getMyCollection,
@@ -550,6 +603,7 @@ module.exports = {
   recordDeposit,
   settleAuction,
   syncOwnershipWebhook,
-  processVaultSettlements
+  processVaultSettlements,
+  claimNFTBySponsor
 };
 
