@@ -252,6 +252,28 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
+    loginOrLinkWithPrivy: async (privyToken) => {
+        set({ authLoading: true, authError: '' })
+        try {
+            const response = await authService.loginOrLinkPrivy(privyToken)
+            const { token, refreshToken, user } = response
+            saveAuthToStorage({ token, refreshToken, user })
+            set({
+                token,
+                user,
+                profile: profileFromUser(user),
+                isAuthenticated: true,
+                authChecked: true,
+                authLoading: false,
+                authError: ''
+            })
+            return { user }
+        } catch (error) {
+            set({ authLoading: false, authError: error.message })
+            throw error
+        }
+    },
+
     loginAdmin: async ({ email, password }) => {
         set({ authLoading: true, authError: '' })
         try {
