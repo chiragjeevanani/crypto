@@ -7,8 +7,7 @@ import { useUserStore } from '../../user/store/useUserStore';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import Avatar from '../../user/components/shared/Avatar';
 import { WEB3_ENABLED, ipfsToHttp } from '../../../web3config';
-import { useAccount } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useLogin, usePrivy } from '@privy-io/react-auth';
 import axios from 'axios';
 
 const getAssetUrl = (path) => {
@@ -26,13 +25,30 @@ export default function AuctionDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { currentAuction, bids, fetchAuctionDetail, leaveAuctionRoom, placeBid, loading } = useAuctionStore();
-    const { user } = useUserStore();
+    const { user, token } = useUserStore();
     const { pushNotification } = useFeedStore();
+    const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
+    const { getAccessToken } = usePrivy();
     
     const [bidAmount, setBidAmount] = useState('');
     const [timeLeft, setTimeLeft] = useState('');
     const [placingBid, setPlacingBid] = useState(false);
     const [activeTab, setActiveTab] = useState('bids'); // 'bids' or 'details'
+    const [isLinking, setIsLinking] = useState(false);
+
+    const { login: linkPrivyWallet } = useLogin({
+        onComplete: async (privyUser, isNewUser, wasAlreadyAuthenticated) => {
+            setIsLinking(true);
+            try {
+                const privyToken = await getAccessToken();
+                await loginOrLinkWithPrivy(privyToken);
+            } catch (err) {
+                console.error("Privy linking failed:", err);
+            } finally {
+                setIsLinking(false);
+            }
+        }
+    });
 
     useEffect(() => {
         fetchAuctionDetail(id);
@@ -282,16 +298,22 @@ export default function AuctionDetailPage() {
                     {isWinner && WEB3_ENABLED && currentAuction.nftStatus !== 'minted' && (
                         <div className="mt-4 p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-center">
                             <h4 className="font-black text-yellow-500 text-sm mb-2">YOU WON! CLAIM YOUR NFT</h4>
-                            <p className="text-xs text-muted mb-4">Connect your wallet to receive your unique digital collectible on Polygon.</p>
                             
-                            <div className="flex justify-center mb-4">
-                                <ConnectButton />
-                            </div>
-
-                            {currentAuction.nftStatus === 'ipfs_ready' ? (
+                            {!user?.walletAddress ? (
+                                <>
+                                    <p className="text-xs text-muted mb-4 font-bold">Enable your secure digital wallet to receive your unique digital collectible on Polygon.</p>
+                                    <button 
+                                        onClick={linkPrivyWallet}
+                                        disabled={isLinking}
+                                        className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl shadow-lg shadow-yellow-500/20 cursor-pointer disabled:opacity-50"
+                                    >
+                                        {isLinking ? 'Activating...' : 'Enable Digital Wallet'}
+                                    </button>
+                                </>
+                            ) : currentAuction.nftStatus === 'ipfs_ready' ? (
                                 <button 
                                     onClick={() => navigate(`/nfts/claim/${currentAuction._id}`)}
-                                    className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl shadow-lg shadow-yellow-500/20"
+                                    className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl shadow-lg shadow-yellow-500/20 cursor-pointer"
                                 >
                                     Proceed to Claim NFT
                                 </button>

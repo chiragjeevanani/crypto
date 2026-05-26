@@ -72,6 +72,12 @@ export const authService = {
       body: JSON.stringify({ email, password })
     }),
 
+  loginOrLinkPrivy: (token) =>
+    request("/auth/privy", {
+      method: "POST",
+      body: JSON.stringify({ token })
+    }),
+
   loginAdmin: ({ email, password }) =>
     request("/auth/admin/login", {
       method: "POST",

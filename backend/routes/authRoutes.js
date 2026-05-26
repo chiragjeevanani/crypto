@@ -6,7 +6,8 @@ const {
   refreshTokens,
   getMe,
   updateProfile,
-  updateAvatar
+  updateAvatar,
+  loginOrRegisterWithPrivy
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const { upload } = require("../utils/upload");
@@ -17,6 +18,7 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/admin/login", loginAdmin);
 router.post("/refresh", refreshTokens);
+router.post("/privy", loginOrRegisterWithPrivy);
 router.get("/me", protect, getMe);
 router.patch("/profile", protect, updateProfile);
 router.patch("/profile/avatar", protect, upload.single("avatar"), updateAvatar);

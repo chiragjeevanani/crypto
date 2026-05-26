@@ -2,55 +2,56 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useUserStore } from '../../user/store/useUserStore';
 import { useFeedStore } from '../../user/store/useFeedStore';
-import { ipfsToHttp, VAULT_CONTRACT_ADDRESS, getTxUrl } from '../../../web3config';
+import { ipfsToHttp, getTxUrl } from '../../../web3config';
 import axios from 'axios';
 import { 
   ChevronLeft, Wallet, ShieldCheck, ArrowRight, 
   RefreshCw, CheckCircle2, AlertTriangle, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther } from 'viem';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-
-// Minimal ABI for the Vault contract deposit function
-const VAULT_ABI = [
-  {
-    "inputs": [{ "internalType": "string", "name": "_auctionId", "type": "string" }],
-    "name": "depositBid",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  }
-];
+import { useLogin, usePrivy } from '@privy-io/react-auth';
 
 const ClaimNFTPage = () => {
   const { auctionId } = useParams();
   const navigate = useNavigate();
   const { pushNotification } = useFeedStore();
-  const { user, darkMode, updateProfile } = useUserStore();
-  const { address, isConnected } = useAccount();
+  const { user, token, darkMode } = useUserStore();
+  const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
 
   const [auction, setAuction] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimHash, setClaimHash] = useState('');
+  const [claimError, setClaimError] = useState('');
   const [maticPrice, setMaticPrice] = useState(0); // INR per MATIC
 
-  // Wagmi Hooks for Contract Interaction
-  const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+  const { getAccessToken } = usePrivy();
+
+  const { login: linkPrivyWallet } = useLogin({
+    onComplete: async (privyUser, isNewUser, wasAlreadyAuthenticated) => {
+      setIsLinking(true);
+      try {
+        const privyToken = await getAccessToken();
+        await loginOrLinkWithPrivy(privyToken);
+        pushNotification({ type: 'success', title: 'Wallet Enabled', subtitle: 'Your secure digital wallet is active.' });
+      } catch (err) {
+        console.error("Privy linking failed:", err);
+        pushNotification({ type: 'error', title: 'Enable Failed', subtitle: err.message });
+      } finally {
+        setIsLinking(false);
+      }
+    },
+    onError: (err) => {
+      console.error("Privy linking failed:", err);
+      pushNotification({ type: 'error', title: 'Enable Cancelled', subtitle: 'Wallet activation was cancelled.' });
+    }
+  });
 
   useEffect(() => {
     fetchAuctionDetail();
     fetchMaticPrice();
   }, [auctionId]);
-
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      handleClaimSuccess(hash);
-    }
-  }, [isConfirmed, hash]);
 
   const fetchAuctionDetail = async () => {
     try {
@@ -78,73 +79,38 @@ const ClaimNFTPage = () => {
     }
   };
 
-  const handleLinkWallet = async () => {
-    if (!isConnected || !address) return;
-    try {
-      setIsLinking(true);
-      const res = await axios.post('/api/nft/wallet/link', { walletAddress: address });
-      if (res.data.success) {
-        updateProfile({ walletAddress: address.toLowerCase() });
-        pushNotification({ type: 'success', title: 'Wallet Linked', subtitle: 'You can now proceed to claim your NFT.' });
-      }
-    } catch (err) {
-      pushNotification({ type: 'error', title: 'Linking Failed', subtitle: err.response?.data?.message || "Could not link wallet." });
-    } finally {
-      setIsLinking(false);
+  const executeClaim = async () => {
+    if (!user?.walletAddress) {
+      pushNotification({ type: 'warning', title: 'Wallet Not Enabled', subtitle: 'Please enable your secure wallet first.' });
+      return;
     }
-  };
 
-  const handleClaimSuccess = async (txHash) => {
     try {
-      pushNotification({ type: 'success', title: 'Payment Sent', subtitle: 'Recording your deposit on the server...' });
+      setIsClaiming(true);
+      setClaimError('');
       
-      // Record the vault deposit tx hash
-      const res = await axios.post(`/api/nft/deposit/record/${auctionId}`, { txHash });
+      const res = await axios.post(`/api/nft/claim/${auctionId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
       if (res.data.success) {
+        setClaimHash(res.data.txHash);
         pushNotification({ 
           type: 'success', 
-          title: 'Deposit Received!', 
-          subtitle: 'The admin has been notified to finalize your NFT settlement.' 
+          title: 'Asset Claimed!', 
+          subtitle: 'The sponsored transaction was successfully broadcasted.' 
         });
-        // Stay on page to show status or redirect to my collection
-        setTimeout(() => navigate('/nft/my/collection'), 3000);
+        
+        // Auto-redirect to My Collection after success
+        setTimeout(() => navigate('/my-collection'), 4000);
       }
     } catch (err) {
-      console.error("Recording deposit failed", err);
-      pushNotification({ type: 'warning', title: 'Record Pending', subtitle: 'Transaction sent but server update failed. Admin will verify manually.' });
-    }
-  };
-
-  const executeClaim = async () => {
-    if (!isConnected || !address) {
-      pushNotification({ type: 'error', title: 'Wallet Not Connected', subtitle: 'Please connect MetaMask first.' });
-      return;
-    }
-
-    if (!user?.walletAddress) {
-      pushNotification({ type: 'warning', title: 'Wallet Not Linked', subtitle: 'Please link your wallet to your account first.' });
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      
-      // Calculate MATIC amount (Final Bid INR / MATIC Rate)
-      // Example: ₹1000 bid / ₹7 rate = 142.85 MATIC
-      const maticAmount = (auction.highestBid / maticPrice).toFixed(6);
-      
-      writeContract({
-        address: VAULT_CONTRACT_ADDRESS,
-        abi: VAULT_ABI,
-        functionName: 'depositBid',
-        args: [auctionId],
-        value: parseEther(maticAmount)
-      });
-
-    } catch (err) {
-      console.error("Transaction failed", err);
-      pushNotification({ type: 'error', title: 'Transaction Failed', subtitle: err.message });
-      setIsProcessing(false);
+      console.error("Claim failed", err);
+      const errMsg = err.response?.data?.message || err.message || "Failed to claim NFT";
+      setClaimError(errMsg);
+      pushNotification({ type: 'error', title: 'Claim Failed', subtitle: errMsg });
+    } finally {
+      setIsClaiming(false);
     }
   };
 
@@ -168,8 +134,6 @@ const ClaimNFTPage = () => {
   }
 
   const isWinner = user?.id === auction?.winner?._id || user?._id === auction?.winner?._id;
-  
-  // Final bid in INR / (INR/MATIC rate)
   const maticToPay = maticPrice > 0 ? (auction.highestBid / maticPrice).toFixed(6) : "0.00";
 
   if (!isWinner) {
@@ -232,61 +196,57 @@ const ClaimNFTPage = () => {
             <div className="h-px bg-zinc-800" />
             <div className="flex justify-between items-end">
               <div>
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-widest block mb-1">Total to Escrow</span>
+                <span className="text-gray-500 text-xs font-bold uppercase tracking-widest block mb-1">Sponsored Asset Price</span>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-black text-yellow-500">{maticToPay}</span>
                   <span className="text-xl font-bold text-gray-400">MATIC</span>
                 </div>
               </div>
               <div className="text-right text-[10px] text-gray-500 font-medium">
-                1 MATIC ≈ ₹{maticPrice || "..."}
+                Sponored by Platform
                 <br />
-                Gas fees apply
+                ₹{auction.highestBid} covered
               </div>
             </div>
           </div>
 
           {/* Action Section */}
           <div className="space-y-4">
-            <div className="flex justify-center">
-              <ConnectButton />
-            </div>
-
             <AnimatePresence mode="wait">
-              {isConfirmed ? (
+              {claimHash ? (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="p-6 rounded-2xl bg-green-500/10 border border-green-500/20 text-center"
                 >
                   <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                  <h3 className="text-lg font-black text-green-500 mb-1">Payment Sent Successfully!</h3>
-                  <p className="text-xs text-gray-500 mb-4">Your MATIC is in the secure vault. Admin will now finalize the NFT settlement.</p>
-                  <a href={getTxUrl(hash)} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">View on Polygonscan</a>
+                  <h3 className="text-lg font-black text-green-500 mb-1">Asset Claimed Successfully!</h3>
+                  <p className="text-xs text-gray-500 mb-4 font-bold">The platform has sponsored your gas and recorded the claim. You're being redirected to your collection.</p>
+                  <a href={getTxUrl(claimHash)} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">View on Polygonscan</a>
                 </motion.div>
-              ) : isConfirming ? (
+              ) : isClaiming ? (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="p-10 rounded-3xl bg-zinc-900 border border-zinc-800 text-center space-y-4"
                 >
                   <RefreshCw className="w-12 h-12 text-yellow-500 mx-auto animate-spin" />
-                  <h3 className="text-xl font-black">Confirming Payment...</h3>
-                  <p className="text-sm text-gray-500">Please wait while the transaction is being verified on the blockchain.</p>
+                  <h3 className="text-xl font-black">Processing Sponsored Settlement...</h3>
+                  <p className="text-sm text-gray-500">Submitting on-chain transaction. This will be instant and gasless for you!</p>
                 </motion.div>
-              ) : isConnected && !user?.walletAddress ? (
+              ) : !user?.walletAddress ? (
                 <motion.button
-                  key="link-wallet"
+                  key="enable-wallet"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleLinkWallet}
+                  onClick={linkPrivyWallet}
                   disabled={isLinking}
-                  className="w-full py-5 rounded-2xl font-black text-lg bg-white text-black shadow-xl flex items-center justify-center gap-3 border-4 border-yellow-500"
+                  className="w-full py-5 rounded-2xl font-black text-lg bg-white text-black shadow-xl flex items-center justify-center gap-3 border-4 border-yellow-500 cursor-pointer"
                 >
                   {isLinking ? (
                     <RefreshCw className="w-6 h-6 animate-spin" />
                   ) : (
-                    <>Step 1: Link Wallet to Account <ArrowRight className="w-6 h-6" /></>
+                    <>Enable Secure Digital Wallet <ArrowRight className="w-6 h-6" /></>
                   )}
                 </motion.button>
               ) : (
@@ -295,33 +255,23 @@ const ClaimNFTPage = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={executeClaim}
-                  disabled={!isConnected || !user?.walletAddress || isPending}
-                  className={`w-full py-5 rounded-2xl font-black text-lg shadow-2xl transition-all flex items-center justify-center gap-3 ${
-                    isConnected && user?.walletAddress && !isPending
-                      ? 'bg-gradient-to-r from-yellow-400 to-amber-600 text-black shadow-yellow-500/20'
-                      : 'bg-zinc-800 text-gray-500 cursor-not-allowed'
-                  }`}
+                  disabled={isClaiming}
+                  className="w-full py-5 rounded-2xl font-black text-lg shadow-2xl transition-all flex items-center justify-center gap-3 bg-gradient-to-r from-yellow-400 to-amber-600 text-black shadow-yellow-500/20 cursor-pointer"
                 >
-                  {isPending ? (
-                    <>Confirm in Wallet...</>
-                  ) : !user?.walletAddress ? (
-                    <>Link Wallet First</>
-                  ) : (
-                    <>Step 2: Escrow Payment & Claim NFT <ArrowRight className="w-6 h-6" /></>
-                  )}
+                  <>Claim Sponsored NFT <ArrowRight className="w-6 h-6" /></>
                 </motion.button>
               )}
             </AnimatePresence>
 
-            {writeError && (
-              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center">
-                {writeError.message.includes('User rejected') ? 'Transaction was cancelled in wallet.' : writeError.message}
+            {claimError && (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center font-bold">
+                {claimError}
               </div>
             )}
           </div>
 
           <p className="text-center text-[10px] text-gray-500 max-w-sm mx-auto leading-relaxed">
-            By proceeding, you are escrowing MATIC on the Polygon network. The funds will be held in the KnQ Vault contract until the atomic settlement transfers the NFT to your address.
+            By claiming this asset, the platform will automatically execute and sponsor the Polygon transaction for you. The asset will be delivered straight to your secure digital wallet.
           </p>
         </div>
       </div>

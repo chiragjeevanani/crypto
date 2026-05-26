@@ -1,18 +1,4 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { polygon, polygonAmoy } from 'wagmi/chains';
-
 const isMainnet = import.meta.env.VITE_POLYGON_NETWORK === 'mainnet';
-
-/**
- * Wagmi configuration for KnQ Reels Web3.
- * Supports Polygon Mainnet (production) and Polygon Amoy Testnet (development).
- */
-export const wagmiConfig = getDefaultConfig({
-  appName: 'KnQ Reels',
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'knq-reels-dev',
-  chains: isMainnet ? [polygon] : [polygonAmoy],
-  ssr: false,
-});
 
 export const NFT_CONTRACT_ADDRESS = import.meta.env.VITE_NFT_CONTRACT_ADDRESS || '';
 export const VAULT_CONTRACT_ADDRESS = import.meta.env.VITE_VAULT_CONTRACT_ADDRESS || '';

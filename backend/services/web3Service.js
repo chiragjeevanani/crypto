@@ -74,6 +74,7 @@ const getVaultContract = (signerOrProvider) => {
     abi = artifact.abi;
   } else {
     abi = [
+      "function depositBid(string calldata auctionId) external payable",
       "function settleAuction(string calldata auctionId, address nftContract, uint256 tokenId, address payable creator) external",
       "function refundBid(string calldata auctionId) external",
       "function getDeposit(string calldata auctionId) external view returns (tuple(address winner, uint256 amount, bool settled, bool refunded))"
@@ -186,6 +187,30 @@ const getOpenSeaUrl = (tokenId) => {
   return `${base}${nftAddress}/${tokenId}`;
 };
 
+/**
+ * Submit the deposit bid transaction on behalf of the user using minter private key (sponsored/gasless).
+ * 
+ * @param {string} auctionId 
+ * @param {string} maticAmount - Amount in MATIC as string (e.g. "14.285")
+ * @returns {{ txHash: string }}
+ */
+const sponsorDepositBid = async (auctionId, maticAmount) => {
+  const wallet = getMinterWallet();
+  const vault = getVaultContract(wallet);
+
+  console.log(`[Web3] Sponsoring depositBid for Auction ${auctionId} with ${maticAmount} MATIC...`);
+
+  // Define minimal ABI for depositBid inside the fallback if not present in main artifacts
+  const tx = await vault.depositBid(auctionId, {
+    value: ethers.parseEther(maticAmount)
+  });
+
+  const receipt = await tx.wait(1);
+  console.log(`[Web3] Sponsored depositBid confirmed: ${receipt.hash}`);
+
+  return { txHash: receipt.hash };
+};
+
 module.exports = {
   mintNFT,
   settleAuctionOnChain,
@@ -193,4 +218,5 @@ module.exports = {
   verifyTransaction,
   getTxExplorerUrl,
   getOpenSeaUrl,
+  sponsorDepositBid,
 };
