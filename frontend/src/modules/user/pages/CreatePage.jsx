@@ -193,7 +193,7 @@ const overlayButtonClass =
   'w-9 h-9 rounded-full bg-black/30 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:opacity-70';
 
 const sheetOverlayClass =
-  'absolute inset-0 z-40 bg-black/55 backdrop-blur-[2px] flex items-end justify-center';
+  'absolute inset-0 z-[100] bg-black/55 backdrop-blur-[2px] flex items-end justify-center';
 
 const Toggle = ({ enabled, onToggle, isDarkMode = false }) => (
   <button
@@ -238,7 +238,7 @@ const BottomSheet = ({ title, onClose, children, compact = false, scrollable = f
 );
 
 const CenterModal = ({ title, description, primaryLabel, secondaryLabel, onPrimary, onSecondary, isDarkMode = false }) => (
-  <div className={`absolute inset-0 z-40 flex items-center justify-center px-6 ${isDarkMode ? 'bg-black/58' : 'bg-black/45'}`}>
+  <div className={`absolute inset-0 z-[100] flex items-center justify-center px-6 ${isDarkMode ? 'bg-black/58' : 'bg-black/45'}`}>
     <div
       className={`w-full max-w-[300px] rounded-[18px] px-5 py-5 text-center shadow-xl ${
         isDarkMode
@@ -1187,7 +1187,7 @@ const CreatePage = () => {
   const themedFiltersActiveTextClass = 'text-white';
   const themedFiltersIndicatorClass = 'bg-white';
   const themedFiltersCloseClass = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 active:opacity-70';
-  const themedBottomPanelClass = `absolute inset-x-0 bottom-0 z-20 px-4 pb-[max(1.3rem,env(safe-area-inset-bottom))] ${
+  const themedBottomPanelClass = `absolute inset-x-0 bottom-0 z-20 px-4 pb-[calc(max(1.3rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.3rem,env(safe-area-inset-bottom))] ${
     isDarkMode
       ? 'bg-gradient-to-t from-black via-black/80 to-transparent'
       : 'bg-gradient-to-t from-black/60 via-black/20 to-transparent'
@@ -3630,7 +3630,7 @@ const CreatePage = () => {
       </div>
 
       {/* Bottom Toolbar */}
-      <div className="bg-black border-t border-white/5 pt-4 pb-[max(1.2rem,env(safe-area-inset-bottom))]">
+      <div className="bg-black border-t border-white/5 pt-4 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))]">
         <div className="flex gap-6 overflow-x-auto px-6 no-scrollbar">
           {[
             { id: 'text', label: 'Text', icon: <IoTextOutline size={26} /> },
@@ -3908,7 +3908,7 @@ const CreatePage = () => {
 
       {/* Bottom Tools & Buttons */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-20 pb-[max(1.2rem,env(safe-area-inset-bottom))] pt-32 ${
+        className={`absolute inset-x-0 bottom-0 z-20 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))] pt-32 ${
           isDarkMode ? 'bg-gradient-to-t from-black via-black/60 to-transparent' : 'bg-gradient-to-t from-black/80 via-black/40 to-transparent'
         }`}
       >
@@ -4172,7 +4172,7 @@ const CreatePage = () => {
         </div>
       </div>
 
-      <div className="border-t border-black/5 bg-white px-4 py-4">
+      <div className="border-t border-black/5 bg-white px-4 pt-4 pb-[calc(1rem+4.5rem)] md:pb-4">
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -4235,7 +4235,7 @@ const CreatePage = () => {
 
         <div className="flex-1 overflow-y-auto no-scrollbar">
           {displayResults.length > 0 ? (
-            <div className="py-2">
+            <div className="py-2 pb-[4.5rem] md:pb-2">
               {displayResults.map((u) => (
                 <button
                   key={u.id || u._id}
@@ -4302,7 +4302,7 @@ const CreatePage = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(1rem+4.5rem)] md:pb-4 no-scrollbar">
         <p className="mb-4 text-[12px] text-black/35">Popular places in your area</p>
         <div className="space-y-5">
           {locationResults.map((locationItem) => (
@@ -5375,7 +5375,7 @@ const CreatePage = () => {
         </BottomSheet>
       )}
       {activeSheet === 'filters-preview' && (
-        <div className="absolute inset-x-0 bottom-0 z-50 animate-in slide-in-from-bottom duration-500">
+        <div className="absolute inset-x-0 bottom-0 z-[100] animate-in slide-in-from-bottom duration-500">
           <div className="bg-black/60 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] pt-4 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
             <div className="flex items-center justify-between px-6 mb-6">
               <h3 className="text-white text-[17px] font-bold tracking-tight">Filters</h3>
