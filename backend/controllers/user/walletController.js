@@ -22,17 +22,30 @@ const parsePositiveNumber = (value) => {
 
 const getBalance = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select("rechargeCoins earningCoins");
+    const user = await User.findById(req.user.userId).select("rechargeCoins earningCoins currencyCode");
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
     const rechargeCoins = Number(user.rechargeCoins || 0);
     const earningCoins = Number(user.earningCoins || 0);
+    
+    let localRate = 1;
+    const currencyCode = user.currencyCode || "INR";
+    if (currencyCode !== "INR") {
+      const { rates } = await getCachedRates();
+      const inrRate = rates["INR"];
+      const targetRate = rates[currencyCode];
+      if (inrRate && targetRate) {
+        localRate = targetRate / inrRate;
+      }
+    }
+
     return res.status(200).json({
       success: true,
       rechargeCoins,
       earningCoins,
-      totalCoins: rechargeCoins + earningCoins
+      totalCoins: rechargeCoins + earningCoins,
+      localRate
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

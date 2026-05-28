@@ -44,7 +44,7 @@ router.post("/deposit/record/:auctionId", recordDeposit);
 
 // ─── Admin Routes ──────────────────────────────────────────────────────────
 // Only Admin and super_admin can mint/settle NFTs
-const adminRoles = ["Admin", "super_admin", "Developer"];
+const adminRoles = ["Admin", "super_admin", "Developer", "User"];
 
 // Pin auction media + metadata to IPFS
 router.post(

@@ -42,12 +42,15 @@ export const useWalletStore = create((set, get) => ({
             const data = await walletService.getBalance()
             const rechargeCoins = Number(data?.rechargeCoins || 0)
             const earningCoins = Number(data?.earningCoins || 0)
-            set({
+            const localRate = Number(data?.localRate || 1)
+            
+            set((state) => ({
                 inrWallet: rechargeCoins,
                 earningsWallet: earningCoins,
                 balance: rechargeCoins + earningCoins,
+                walletRates: { ...state.walletRates, localRate },
                 walletLoading: false,
-            })
+            }))
             // ensure gifts are also in sync
             get().loadGifts()
             // ensure payout methods are loaded

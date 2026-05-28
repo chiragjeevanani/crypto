@@ -48,14 +48,7 @@ const pinFileToPinata = async (filePath, name = "KnQ NFT Asset") => {
  * @returns {Promise<string>} ipfs://Qm... URI
  */
 const pinUrlToPinata = async (url, name = "KnQ NFT Asset") => {
-  const res = await axios.post(
-    "https://api.pinata.cloud/pinning/pinByHash",
-    null,
-    {
-      // Pinata can't pin arbitrary URLs by hash — use the file-from-URL approach
-    }
-  );
-
+  // Pinata can't pin arbitrary URLs by hash — use the file-from-URL approach
   // Instead: download the file and re-pin it
   const fileRes = await axios.get(url, { responseType: "arraybuffer" });
   const buffer = Buffer.from(fileRes.data);

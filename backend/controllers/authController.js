@@ -8,7 +8,7 @@ const fs = require("fs");
 const { getBaseUrl } = require("../utils/postHelpers");
 const { UPLOAD_DIR } = require("../utils/upload");
 const { cloudinary } = require("../utils/cloudinary");
-const { PrivyClient } = require("@privy-io/node");
+const { PrivyClient } = require("@privy-io/server-auth");
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
 const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "7d";
@@ -119,6 +119,7 @@ const safeUser = (user, kyc = null) => {
     language: user.language || "English",
     kycStatus: user.kycStatus || "unsubmitted",
     isMonetized: user.isMonetized || false,
+    walletAddress: user.walletAddress || "",
     kyc: kyc ? {
         status: kyc.status,
         aadharNumber: kyc.aadharNumber,
@@ -455,14 +456,13 @@ const loginOrRegisterWithPrivy = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid token claims" });
     }
 
-    // Fetch user details from Privy
-    const privyUser = await privyClient.users()._get(privyUserId);
+    const privyUser = await privyClient.getUser(privyUserId);
 
     let email = "";
     let walletAddress = "";
 
-    if (privyUser.linked_accounts) {
-      for (const account of privyUser.linked_accounts) {
+    if (privyUser.linkedAccounts) {
+      for (const account of privyUser.linkedAccounts) {
         if (account.type === "email" && !email) {
           email = account.address;
         }
@@ -473,7 +473,7 @@ const loginOrRegisterWithPrivy = async (req, res) => {
     }
 
     if (!email) {
-      for (const account of privyUser.linked_accounts || []) {
+      for (const account of privyUser.linkedAccounts || []) {
         if (account.email && !email) {
           email = account.email;
         }

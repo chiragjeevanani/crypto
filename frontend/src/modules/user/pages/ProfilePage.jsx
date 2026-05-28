@@ -22,6 +22,7 @@ import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import { savedPostService } from '../services/savedPostService'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
+import { usePrivy } from '@privy-io/react-auth'
 
 const TABS = ['Posts', 'NFTs', 'Tasks']
 const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
@@ -32,6 +33,7 @@ export default function ProfilePage() {
     const { profile, updateProfile, toggleDarkMode, darkMode, user } = useUserStore()
     const { posts, loadPosts } = useFeedStore()
     const { earningsWallet, loadWallet } = useWalletStore()
+    const { logout: privyLogout } = usePrivy()
     
     const profilePosts = useMemo(() => posts.filter((p) => String(p.creator?.id) === String(profile?.id)), [posts, profile?.id])
     const totalViews = useMemo(() => profilePosts.reduce((acc, p) => acc + (p.views || 0), 0), [profilePosts])
@@ -734,9 +736,10 @@ export default function ProfilePage() {
             <LogoutConfirmationModal 
                 isOpen={isLogoutModalOpen} 
                 onClose={() => setIsLogoutModalOpen(false)} 
-                onConfirm={() => {
+                onConfirm={async () => {
                     setIsLogoutModalOpen(false)
                     useUserStore.getState().logout()
+                    try { await privyLogout(); } catch(e) {}
                     window.location.href = '/signin'
                 }}
             />

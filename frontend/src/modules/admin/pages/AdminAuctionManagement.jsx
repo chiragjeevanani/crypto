@@ -7,6 +7,7 @@ import { useFeedStore } from '../../user/store/useFeedStore';
 import Avatar from '../../user/components/shared/Avatar';
 import axios from 'axios';
 import { Globe, ShieldCheck, RefreshCw, Layers } from 'lucide-react';
+import { getStoredToken } from '../../user/store/useUserStore';
 
 const getAssetUrl = (path) => {
     if (!path || path === 'null' || path === 'undefined') return '/person.png';
@@ -278,7 +279,10 @@ export default function AdminAuctionManagement() {
     const handlePrepareIPFS = async (id) => {
         try {
             pushNotification({ type: 'info', title: 'IPFS Pinning', subtitle: 'Uploading media and metadata to IPFS...' });
-            const res = await axios.post(`/api/nft/admin/prepare/${id}`);
+            const token = getStoredToken();
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5004/api'}/nft/admin/prepare/${id}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (res.data.success) {
                 pushNotification({ type: 'success', title: 'IPFS Ready', subtitle: 'Media pinned successfully.' });
                 loadAuctions();
@@ -291,7 +295,10 @@ export default function AdminAuctionManagement() {
     const handleMintNFT = async (id) => {
         try {
             pushNotification({ type: 'info', title: 'Minting', subtitle: 'Initiating on-chain mint transaction...' });
-            const res = await axios.post(`/api/nft/admin/mint/${id}`);
+            const token = getStoredToken();
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5004/api'}/nft/admin/mint/${id}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (res.data.success) {
                 pushNotification({ type: 'success', title: 'Minted!', subtitle: `NFT #${res.data.tokenId} minted to vault.` });
                 loadAuctions();
@@ -304,7 +311,10 @@ export default function AdminAuctionManagement() {
     const handleSettleVault = async (id) => {
         try {
             pushNotification({ type: 'info', title: 'Settlement', subtitle: 'Triggering atomic swap on the vault contract...' });
-            const res = await axios.post(`/api/nft/admin/settle/${id}`);
+            const token = getStoredToken();
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5004/api'}/nft/admin/settle/${id}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (res.data.success) {
                 pushNotification({ type: 'success', title: 'Settled!', subtitle: 'NFT transferred to winner and MATIC to creator.' });
                 loadAuctions();

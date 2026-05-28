@@ -29,6 +29,13 @@ const initiateRecharge = async (req, res) => {
             // ── Razorpay flow (unchanged) ────────────────────────────────
             const coins = Number(amount);
 
+            if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: "Payment gateways are not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your backend .env file." 
+                });
+            }
+
             const instance = new Razorpay({
                 key_id: process.env.RAZORPAY_KEY_ID,
                 key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -79,6 +86,12 @@ const initiateRecharge = async (req, res) => {
 
         } else {
             // ── Stripe Checkout flow (international) ────────────────────
+            if (!process.env.STRIPE_SECRET_KEY) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: "Payment gateways are not configured. Please add STRIPE_SECRET_KEY to your backend .env file." 
+                });
+            }
             const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
             const { getCachedRates } = require("../../utils/exchangeRate");
             

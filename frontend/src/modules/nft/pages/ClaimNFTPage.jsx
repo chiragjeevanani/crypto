@@ -56,7 +56,7 @@ const ClaimNFTPage = () => {
   const fetchAuctionDetail = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/auctions/${auctionId}`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5004/api'}/auctions/${auctionId}`);
       if (res.data.success) {
         setAuction(res.data.auction);
       }
@@ -69,7 +69,7 @@ const ClaimNFTPage = () => {
 
   const fetchMaticPrice = async () => {
     try {
-      const res = await axios.get('/api/config/matic-price');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5004/api'}/config/matic-price`);
       if (res.data.success) {
         setMaticPrice(res.data.price);
       }
@@ -89,7 +89,7 @@ const ClaimNFTPage = () => {
       setIsClaiming(true);
       setClaimError('');
       
-      const res = await axios.post(`/api/nft/claim/${auctionId}`, {}, {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5004/api'}/nft/claim/${auctionId}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

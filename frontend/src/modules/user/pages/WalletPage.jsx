@@ -369,7 +369,7 @@ export default function WalletPage() {
                             <p className="text-xs font-black uppercase tracking-[0.2em] opacity-90 mb-1">{currencyCode} BALANCE</p>
                             <h2 className="text-4xl font-black flex items-baseline gap-1">
                                 <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
-                                {Math.round(inrWallet).toLocaleString()}
+                                {Math.round(inrWallet * (walletRates.localRate || 1)).toLocaleString()}
                             </h2>
                         </div>
                         <button
@@ -432,7 +432,7 @@ export default function WalletPage() {
                             </div>
                             <h2 className="text-4xl font-black flex items-baseline gap-1">
                                 <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
-                                {Math.round(earningsWallet / platformSettings.coinRate).toLocaleString()}
+                                {Math.round((earningsWallet / platformSettings.coinRate) * (walletRates.localRate || 1)).toLocaleString()}
                             </h2>
                         </div>
                         
@@ -468,8 +468,8 @@ export default function WalletPage() {
             <div className="rounded-[24px] p-8 mb-8 bg-surface border border-border/40 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
                     <div className="mb-6">
-                        <h3 className="text-xl font-black tracking-tight uppercase mb-1">Add to INR Balance</h3>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">Recharge your INR wallet</p>
+                        <h3 className="text-xl font-black tracking-tight uppercase mb-1">Add to {currencyCode} Balance</h3>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">Recharge your {currencyCode} wallet</p>
                         <p className="text-[10px] font-bold text-muted uppercase tracking-widest flex items-center gap-2">
                             <Zap size={12} className="text-primary" />
                             Select or enter amount

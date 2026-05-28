@@ -57,10 +57,11 @@ export default function AppShell() {
 
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
-    const { inrWallet, cryptoWallet, earningsWallet } = useWalletStore(useShallow(state => ({
+    const { inrWallet, cryptoWallet, earningsWallet, walletRates } = useWalletStore(useShallow(state => ({
         inrWallet: state.inrWallet,
         cryptoWallet: state.cryptoWallet,
-        earningsWallet: state.earningsWallet
+        earningsWallet: state.earningsWallet,
+        walletRates: state.walletRates
     })))
 
     const platformSettings = usePlatformSettings()
@@ -79,7 +80,7 @@ export default function AppShell() {
     })))
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
 
-    const { getAccessToken } = usePrivy();
+    const { getAccessToken, logout: privyLogout } = usePrivy();
     const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
     const [privyLoading, setPrivyLoading] = useState(false);
 
@@ -441,7 +442,7 @@ export default function AppShell() {
                                 Wallet Summary
                             </p>
                             <p className="mt-1 text-3xl font-extrabold tracking-tight" style={{ color: 'var(--color-text)' }}>
-                                {formatCurrency(earningsInRs, currencySymbol)}
+                                {formatCurrency(Math.round(earningsInRs * (walletRates?.localRate || 1)), currencySymbol)}
                             </p>
                             <div className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
                                 style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--color-success)' }}>
@@ -450,8 +451,8 @@ export default function AppShell() {
                         </div>
                         <div className="space-y-2 px-5 py-4 text-sm">
                             <div className="flex items-center justify-between">
-                                <span style={{ color: 'var(--color-sub)' }}>INR Balance</span>
-                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(inrWallet, currencySymbol)}</span>
+                                <span style={{ color: 'var(--color-sub)' }}>{profile?.currencyCode || 'INR'} Balance</span>
+                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(Math.round(inrWallet * (walletRates?.localRate || 1)), currencySymbol)}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>Crypto Balance</span>
@@ -459,7 +460,7 @@ export default function AppShell() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>Earning Balance</span>
-                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(earningsInRs, currencySymbol)}</span>
+                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(Math.round(earningsInRs * (walletRates?.localRate || 1)), currencySymbol)}</span>
                             </div>
                         </div>
                     </section>
@@ -604,9 +605,10 @@ export default function AppShell() {
             <LogoutConfirmationModal 
                 isOpen={isLogoutModalOpen} 
                 onClose={() => setIsLogoutModalOpen(false)} 
-                onConfirm={() => {
+                onConfirm={async () => {
                     setIsLogoutModalOpen(false)
                     useUserStore.getState().logout()
+                    try { await privyLogout(); } catch(e) {}
                     window.location.href = '/signin'
                 }}
             />

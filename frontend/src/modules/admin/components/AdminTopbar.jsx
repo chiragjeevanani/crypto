@@ -18,9 +18,11 @@ import { useAdminStore } from '../store/useAdminStore';
 import { getRoleLabel, getRoleHandle } from '../utils/roleDisplay';
 import Avatar from '../../user/components/shared/Avatar';
 import LogoutConfirmationModal from '../../user/components/shared/LogoutConfirmationModal';
+import { usePrivy } from '@privy-io/react-auth';
 
 export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMenuOpen }) {
     const { darkMode, toggleDarkMode, logout, user, profile } = useUserStore();
+    const { logout: privyLogout } = usePrivy();
     const { 
         adminNotifications, 
         unreadAdminNotificationsCount, 
@@ -223,9 +225,10 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
             <LogoutConfirmationModal 
                 isOpen={isLogoutModalOpen} 
                 onClose={() => setIsLogoutModalOpen(false)} 
-                onConfirm={() => {
+                onConfirm={async () => {
                     setIsLogoutModalOpen(false)
                     logout()
+                    try { await privyLogout(); } catch(e) {}
                     navigate('/admin/login')
                 }}
             />
