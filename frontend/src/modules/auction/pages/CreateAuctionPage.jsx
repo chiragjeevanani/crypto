@@ -93,8 +93,8 @@ export default function CreateAuctionPage() {
                 finalData.append('title', formData.title);
                 finalData.append('description', formData.description);
                 finalData.append('basePrice', formData.basePrice);
-                finalData.append('startDate', formData.startDate);
-                finalData.append('endDate', formData.endDate);
+                finalData.append('startDate', new Date(formData.startDate).toISOString());
+                finalData.append('endDate', new Date(formData.endDate).toISOString());
                 finalData.append('royaltyPct', formData.royaltyPct);
                 
                 if (paymentData.razorpay_payment_id) {
@@ -131,7 +131,8 @@ export default function CreateAuctionPage() {
                     try {
                         await submitAuction(response);
                     } catch (err) {
-                        pushNotification({ type: 'error', title: 'Submission Failed', subtitle: err.message });
+                        const errorMessage = err.response?.data?.message || err.message;
+                        pushNotification({ type: 'error', title: 'Submission Failed', subtitle: errorMessage });
                     } finally {
                         setLoading(false);
                     }
@@ -147,7 +148,8 @@ export default function CreateAuctionPage() {
             rzp.open();
 
         } catch (err) {
-            pushNotification({ type: 'error', title: 'Error', subtitle: err.message });
+            const errorMessage = err.response?.data?.message || err.message;
+            pushNotification({ type: 'error', title: 'Error', subtitle: errorMessage });
             setLoading(false);
         }
     };
