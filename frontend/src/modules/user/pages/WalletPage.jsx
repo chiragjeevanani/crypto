@@ -160,6 +160,26 @@ export default function WalletPage() {
         verify()
     }, [searchParams, verifyPayment, setSearchParams, loadWallet, loadTransactions])
 
+    // Auto-verify pending top-ups (failsafe if webhook/redirect missed)
+    useEffect(() => {
+        const pendingTopups = transactions.filter(tx => tx.status === 'pending' && tx.type === 'topup');
+        if (pendingTopups.length > 0) {
+            pendingTopups.forEach(async (tx) => {
+                // Try verifying without passing gateway (backend will read it from DB)
+                // For Stripe, it will use the stored session ID automatically.
+                try {
+                    const res = await verifyPayment(tx.id, {})
+                    if (res.ok) {
+                        loadWallet()
+                        loadTransactions()
+                    }
+                } catch (e) {
+                    console.log('Auto-verify failed for tx', tx.id)
+                }
+            })
+        }
+    }, [transactions, verifyPayment, loadWallet, loadTransactions])
+
     const handleQuickAdd = async (amount) => {
         const parsed = Number(amount)
         if (!parsed || parsed <= 0) return
@@ -364,20 +384,22 @@ export default function WalletPage() {
                         color: '#fff' 
                     }}
                 >
-                    <div className="relative z-10 flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-[0.2em] opacity-90 mb-1">{currencyCode} BALANCE</p>
-                            <h2 className="text-4xl font-black flex items-baseline gap-1">
-                                <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
-                                {Math.round(inrWallet * (walletRates.localRate || 1)).toLocaleString()}
-                            </h2>
+                    <div className="relative z-10 flex flex-col gap-3">
+                        <div className="w-full">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-90 mb-1 break-words">{currencyCode} BALANCE</p>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <h2 className="text-3xl font-black flex items-baseline gap-1 min-w-0">
+                                    <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
+                                    <span className="truncate">{Math.round(inrWallet * (walletRates.localRate || 1)).toLocaleString()}</span>
+                                </h2>
+                                <button
+                                    onClick={() => setActiveTab('Linked')}
+                                    className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all active:scale-95 uppercase tracking-widest"
+                                >
+                                    Top up
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            onClick={() => setActiveTab('Linked')}
-                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all active:scale-95 uppercase tracking-widest"
-                        >
-                            Top up
-                        </button>
                     </div>
                     <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
                 </motion.div>
@@ -391,24 +413,27 @@ export default function WalletPage() {
                         color: '#000' 
                     }}
                 >
-                    <div className="relative z-10 flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-[0.2em] opacity-50 mb-1">CRYPTO ASSETS</p>
-                            <div className="flex items-baseline gap-2">
-                                <h2 className="text-3xl font-black truncate">
-                                    {Number(cryptoWallet || 0).toFixed(3)} <span className="text-xs font-medium opacity-40">ETH</span>
-                                </h2>
-                                <span className="text-[9px] font-bold opacity-40 uppercase tracking-wider">
-                                    ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
-                                </span>
+                    <div className="relative z-10 flex flex-col gap-3">
+                        <div className="w-full">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50 mb-1 break-words">CRYPTO ASSETS</p>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex flex-col min-w-0">
+                                    <h2 className="text-3xl font-black flex items-baseline gap-1 min-w-0">
+                                        <span className="truncate">{Number(cryptoWallet || 0).toFixed(3)}</span> 
+                                        <span className="text-xs font-medium opacity-40">ETH</span>
+                                    </h2>
+                                    <span className="text-[9px] font-bold opacity-40 uppercase tracking-wider truncate">
+                                        ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => setActiveTab('Linked')}
+                                    className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black bg-black/5 hover:bg-black/10 transition-all active:scale-95 uppercase tracking-widest"
+                                >
+                                    Manage
+                                </button>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setActiveTab('Linked')}
-                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-black/5 hover:bg-black/10 transition-all active:scale-95 uppercase tracking-widest"
-                        >
-                            Manage
-                        </button>
                     </div>
                     <div className="absolute bottom-[-20%] right-[-10%] w-24 h-24 bg-black/5 rounded-full blur-2xl" />
                 </motion.div>
@@ -422,42 +447,44 @@ export default function WalletPage() {
                         color: '#fff' 
                     }}
                 >
-                    <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex-1">
+                    <div className="relative z-10 flex flex-col gap-3">
+                        <div className="w-full">
                             <div className="flex items-center gap-2 mb-1">
-                                <p className="text-xs font-black uppercase tracking-[0.2em] opacity-80">EARNING WALLET</p>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 break-words">EARNING WALLET</p>
                                 {earningsWallet >= 10 && (
-                                    <span className="bg-white/20 backdrop-blur-md text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase">Unlock</span>
+                                    <span className="bg-white/20 backdrop-blur-md text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase shrink-0">Unlock</span>
                                 )}
                             </div>
-                            <h2 className="text-4xl font-black flex items-baseline gap-1">
-                                <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
-                                {Math.round((earningsWallet / platformSettings.coinRate) * (walletRates.localRate || 1)).toLocaleString()}
-                            </h2>
-                        </div>
-                        
-                        <div className="ml-4">
-                            {earningsWallet < platformSettings.minWithdrawal ? (
-                                <div className="w-24 space-y-1">
-                                    <div className="flex justify-between text-[7px] font-black opacity-70 uppercase tracking-widest leading-none">
-                                        <span>Payout Goal</span>
-                                        <span>{Math.round((earningsWallet / platformSettings.minWithdrawal) * 100)}%</span>
-                                    </div>
-                                    <div className="h-1 bg-black/20 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-white transition-all duration-700" 
-                                            style={{ width: `${Math.min(100, (earningsWallet / platformSettings.minWithdrawal) * 100)}%` }}
-                                        />
-                                    </div>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <h2 className="text-3xl font-black flex items-baseline gap-1 min-w-0">
+                                    <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
+                                    <span className="truncate">{Math.round((earningsWallet / platformSettings.coinRate) * (walletRates.localRate || 1)).toLocaleString()}</span>
+                                </h2>
+                                
+                                <div className="shrink-0 grow flex justify-end">
+                                    {earningsWallet < platformSettings.minWithdrawal ? (
+                                        <div className="w-full max-w-[120px] space-y-1">
+                                            <div className="flex justify-between gap-1 text-[7px] font-black opacity-70 uppercase tracking-widest leading-none">
+                                                <span>Payout Goal</span>
+                                                <span>{Math.round((earningsWallet / platformSettings.minWithdrawal) * 100)}%</span>
+                                            </div>
+                                            <div className="h-1 bg-black/20 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-white transition-all duration-700" 
+                                                    style={{ width: `${Math.min(100, (earningsWallet / platformSettings.minWithdrawal) * 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setActiveTab('Withdraw')}
+                                            className="px-4 py-2 rounded-xl text-[10px] font-black bg-white text-emerald-700 hover:bg-emerald-50 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-black/5"
+                                        >
+                                            Withdraw
+                                        </button>
+                                    )}
                                 </div>
-                            ) : (
-                                <button
-                                    onClick={() => setActiveTab('Withdraw')}
-                                    className="px-4 py-2 rounded-xl text-[10px] font-black bg-white text-emerald-700 hover:bg-emerald-50 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-black/5"
-                                >
-                                    Withdraw
-                                </button>
-                            )}
+                            </div>
                         </div>
                     </div>
                     <div className="absolute top-[-10%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
@@ -482,7 +509,7 @@ export default function WalletPage() {
                                 key={amt}
                                 disabled={isProcessingPayment}
                                 onClick={() => handleQuickAdd(amt)}
-                                className="flex-1 min-w-[70px] sm:flex-none px-4 py-3 rounded-xl text-[10px] font-black transition-all border border-border/20 shadow-sm active:scale-95 bg-bg hover:bg-surface2 text-primary uppercase tracking-widest"
+                                className="flex-1 min-w-[calc(25%-0.5rem)] sm:min-w-0 sm:flex-none px-4 py-3 rounded-xl text-[10px] font-black transition-all border border-border/20 shadow-sm active:scale-95 bg-bg hover:bg-surface2 text-primary uppercase tracking-widest whitespace-nowrap"
                             >
                                 +{currencySymbol}{amt}
                             </button>
