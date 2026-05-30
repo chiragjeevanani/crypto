@@ -22,9 +22,9 @@ const initiateListingFee = async (req, res) => {
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
         // Only India allowed
-        if (user.countryCode !== "IN") {
-            return res.status(403).json({ success: false, message: "Auction creation is currently limited to users from India." });
-        }
+        // if (user.countryCode !== "IN") {
+        //     return res.status(403).json({ success: false, message: "Auction creation is currently limited to users from India." });
+        // }
 
         const config = await getAdminConfig();
         const amount = config.auctionListingFeeINR;

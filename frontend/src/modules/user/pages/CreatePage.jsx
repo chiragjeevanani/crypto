@@ -64,6 +64,11 @@ const createInitialPostState = () => ({
   autoCaptions: true,
   audienceControls: true,
   captionLanguage: 'English',
+  isNFT: false,
+  nftPrice: '',
+  isBusiness: false,
+  dailyBudget: 99,
+  durationDays: 10,
 });
 
 const formatElapsed = (value) => `00:${String(Math.max(0, Math.round(value))).padStart(2, '0')}`;
@@ -2191,6 +2196,18 @@ const CreatePage = () => {
         formData.append('category', 'General');
         formData.append('postData', JSON.stringify(postMetadata));
 
+        // Add NFT and Advertisement options
+        if (postState.isNFT) {
+            formData.append('isNFT', 'true');
+            formData.append('nftPriceINR', (Number(postState.nftPrice) * 83).toString());
+        }
+        if (postState.isBusiness) {
+            formData.append('isBusiness', 'true');
+            formData.append('dailyBudget', postState.dailyBudget?.toString() || '99');
+            formData.append('duration', postState.durationDays?.toString() || '10');
+            formData.append('promoEnabled', 'true');
+        }
+
         showToast('Finalizing post...');
         const response = await reelService.uploadReel(formData);
         
@@ -4158,6 +4175,65 @@ const CreatePage = () => {
         </div>
 
         <div className="px-4 pb-28">
+          <div className="flex flex-col gap-4 mt-2">
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <span className="text-black/45">
+                  <BiWorld size={18} />
+                </span>
+                <span className="text-[15px] font-medium">Advertisement / Promotion</span>
+              </div>
+              <Toggle
+                enabled={postState.isBusiness}
+                isDarkMode={isDarkMode}
+                onToggle={() =>
+                  setPostState((currentState) => ({
+                    ...currentState,
+                    isBusiness: !currentState.isBusiness,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="flex flex-col py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-black/45">
+                    <BiImageAlt size={18} />
+                  </span>
+                  <span className="text-[15px] font-medium">Mint as NFT</span>
+                </div>
+                <Toggle
+                  enabled={postState.isNFT}
+                  isDarkMode={isDarkMode}
+                  onToggle={() =>
+                    setPostState((currentState) => ({
+                      ...currentState,
+                      isNFT: !currentState.isNFT,
+                    }))
+                  }
+                />
+              </div>
+              {postState.isNFT && (
+                <div className="mt-4 px-2">
+                  <label className="text-[13px] text-black/60 mb-1 block">NFT Price (USD)</label>
+                  <input
+                    type="number"
+                    value={postState.nftPrice}
+                    onChange={(e) =>
+                      setPostState((currentState) => ({
+                        ...currentState,
+                        nftPrice: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. 10"
+                    className="w-full bg-[#f4f5f7] border border-black/10 rounded-[8px] px-3 py-2 text-[14px] outline-none"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="mt-3 flex items-center gap-3">
             {CREATE_SHARE_TARGETS.map((targetLabel) => (
               <button
