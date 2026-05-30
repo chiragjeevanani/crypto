@@ -20,8 +20,10 @@ export const postService = {
     return data;
   },
 
-  async getPosts() {
-    const response = await fetch(USER_POSTS, { headers: getAuthHeaders() });
+  async getPosts(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const url = query ? `${USER_POSTS}?${query}` : USER_POSTS;
+    const response = await fetch(url, { headers: getAuthHeaders() });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to load posts");
     return data;
@@ -31,6 +33,13 @@ export const postService = {
     const response = await fetch(`${USER_POSTS}/${id}`, { headers: getAuthHeaders() });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data?.message || "Failed to load post");
+    return data;
+  },
+
+  async getMyNFTs() {
+    const response = await fetch(`${USER_POSTS}/my-nfts`, { headers: getAuthHeaders() });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Failed to load your NFTs");
     return data;
   },
 

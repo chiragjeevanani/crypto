@@ -11,11 +11,37 @@ import { useUserStore } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
 import { getUserNFTListings } from '../../../shared/nftListings'
 import { userCampaignService } from '../services/campaignService'
+import { postService } from '../services/postService'
 import { mapCampaignToTask } from '../utils/campaignMapper'
 import { getJoinedCampaignIds, markCampaignJoined } from '../utils/campaignStorage'
 
 const FILTERS = ['All', 'Active', 'Joined']
 const NFT_TABS = ['Discover', 'My Listings', 'Resale']
+
+const mapPostToNFT = (post) => {
+    const mediaType = post.media?.type || 'image'
+    const mediaUrl = post.media?.url || ''
+    return {
+        id: post.id || post._id,
+        title: post.caption || 'Untitled NFT',
+        thumbnail: mediaType === 'image' ? mediaUrl : (post.media?.thumbnail || ''),
+        price: post.nftPriceINR || 1000,
+        currency: 'INR',
+        status: post.status === 'approved' ? 'listed' : post.status,
+        postStatus: post.status,
+        buyer: null,
+        listedAt: post.createdAt,
+        soldAt: null,
+        views: post.views || 0,
+        bids: post.comments || 0,
+        creatorId: post.creator?.id || '',
+        creatorName: post.creator?.name || post.creator?.username || 'Creator',
+        creatorHandle: post.creator?.handle || '@creator',
+        mediaType,
+        mediaUrl,
+        source: 'backend',
+    }
+}
 
 export default function TasksPage() {
     const navigate = useNavigate()
@@ -33,6 +59,8 @@ export default function TasksPage() {
     const [nftTab, setNftTab] = useState('Discover')
     const [displayCurrency, setDisplayCurrency] = useState('INR')
     const [nftItems, setNftItems] = useState([])
+    const [myNftItems, setMyNftItems] = useState([])
+    const [nftLoading, setNftLoading] = useState(false)
     const [nftMessage, setNftMessage] = useState('')
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
 
@@ -41,7 +69,37 @@ export default function TasksPage() {
     const platformSettings = usePlatformSettings()
 
     useEffect(() => {
-        const hydrate = () => setNftItems(getUserNFTListings())
+        const hydrate = async () => {
+            const localItems = getUserNFTListings()
+            setNftLoading(true)
+            try {
+                // Fetch all approved NFTs for Discover tab
+                const res = await postService.getPosts({ isNFT: true })
+                if (res.success && res.posts) {
+                    const backendNFTs = res.posts.map((post) => mapPostToNFT(post))
+                    const merged = [...backendNFTs, ...localItems.filter(l => !backendNFTs.find(b => b.id === l.id))]
+                    setNftItems(merged)
+                } else {
+                    setNftItems(localItems)
+                }
+
+                // Fetch current user's own NFTs (all statuses) for My Listings tab
+                const myRes = await postService.getMyNFTs()
+                if (myRes.success && myRes.posts) {
+                    const myBackendNFTs = myRes.posts.map((post) => mapPostToNFT(post))
+                    const myLocal = localItems.filter(l => l.creatorId === 'me')
+                    const myMerged = [...myBackendNFTs, ...myLocal.filter(l => !myBackendNFTs.find(b => b.id === l.id))]
+                    setMyNftItems(myMerged)
+                } else {
+                    setMyNftItems(localItems.filter(l => l.creatorId === 'me'))
+                }
+            } catch (err) {
+                setNftItems(localItems)
+                setMyNftItems(localItems.filter(l => l.creatorId === 'me'))
+            } finally {
+                setNftLoading(false)
+            }
+        }
         hydrate()
         const onUpdate = () => hydrate()
         const onStorage = (event) => {
@@ -93,10 +151,12 @@ export default function TasksPage() {
     })
 
     const filteredNFTs = useMemo(() => {
-        if (nftTab === 'My Listings') return nftItems.filter((n) => n.status === 'listed')
-        if (nftTab === 'Resale') return nftItems.filter((n) => n.status === 'sold')
+        if (nftTab === 'My Listings') return myNftItems
+        if (nftTab === 'Resale') return [...nftItems, ...myNftItems].filter((n, i, arr) =>
+            n.status === 'sold' && arr.findIndex(x => x.id === n.id) === i
+        )
         return nftItems
-    }, [nftItems, nftTab])
+    }, [nftItems, myNftItems, nftTab])
 
     const nftFeedPosts = useMemo(() => (
         filteredNFTs.map((nft, idx) => ({
@@ -293,7 +353,29 @@ export default function TasksPage() {
                     )}
 
                     <div className="grid grid-cols-2 gap-3 pb-4">
-                        {filteredNFTs.map((nft) => {
+                        {nftLoading ? (
+                            [1, 2, 3, 4].map((n) => (
+                                <div key={n} className="overflow-hidden rounded-2xl animate-pulse"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                    <div className="w-full aspect-square" style={{ background: 'var(--color-border)' }} />
+                                    <div className="p-3 space-y-2">
+                                        <div className="h-3 rounded" style={{ background: 'var(--color-border)', width: '70%' }} />
+                                        <div className="h-3 rounded" style={{ background: 'var(--color-border)', width: '40%' }} />
+                                    </div>
+                                </div>
+                            ))
+                        ) : filteredNFTs.length === 0 ? (
+                            <div className="col-span-2 py-12 text-center">
+                                <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                                    {nftTab === 'My Listings'
+                                        ? 'You haven\'t minted any NFTs yet. Create a post and enable "Mint as NFT".'
+                                        : nftTab === 'Resale'
+                                        ? 'No resale NFTs available yet.'
+                                        : 'No NFTs found in the marketplace yet.'}
+                                </p>
+                            </div>
+                        ) : null}
+                        {!nftLoading && filteredNFTs.map((nft) => {
                             const usd = +(nft.price / 83).toFixed(2)
                             return (
                                 <div
@@ -305,7 +387,7 @@ export default function TasksPage() {
                                         if (idx >= 0) setActiveNftPostIndex(idx)
                                     }}
                                 >
-                                    <div className="w-full aspect-square bg-surface2 flex items-center justify-center overflow-hidden">
+                                    <div className="w-full aspect-square bg-surface2 flex items-center justify-center overflow-hidden relative">
                                         {nft.mediaType === 'video' && nft.mediaUrl ? (
                                             <video
                                                 src={nft.mediaUrl}
@@ -323,7 +405,7 @@ export default function TasksPage() {
                                             />
                                         ) : (
                                             <img 
-                                                src={nft.thumbnail || '/person.png'} 
+                                                src={nft.thumbnail || nft.mediaUrl || '/person.png'} 
                                                 alt={nft.title} 
                                                 className="w-full h-full object-cover" 
                                                 onError={(e) => {
@@ -331,6 +413,18 @@ export default function TasksPage() {
                                                     e.target.src = '/person.png';
                                                 }}
                                             />
+                                        )}
+                                        {nft.postStatus === 'pending' && (
+                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                                style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>
+                                                PENDING REVIEW
+                                            </div>
+                                        )}
+                                        {nft.postStatus === 'rejected' && (
+                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                                style={{ background: 'rgba(239,68,68,0.9)', color: '#fff' }}>
+                                                REJECTED
+                                            </div>
                                         )}
                                     </div>
                                     <div className="p-3">

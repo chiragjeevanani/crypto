@@ -173,6 +173,29 @@ exports.createPost = async (req, res) => {
 };
 
 /**
+ * User module: get own NFT listings (all statuses - pending, approved, rejected).
+ * Requires token.
+ */
+exports.getMyNFTs = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const baseUrl = getBaseUrl(req);
+    const posts = await populateCreator(
+      Post.find({ creator: userId, isNFT: true }).sort({ createdAt: -1 }).limit(100)
+    ).exec();
+
+    const config = await getAdminConfig();
+    const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, userId, null, config.premiumThreshold));
+    return res.status(200).json({ success: true, posts: list });
+  } catch (error) {
+    console.error("Get My NFTs Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Internal: Interleave campaigns every N posts.
  * campaigns: array of already-formatted campaign objects (via formatCampaignForUser)
  */
@@ -219,7 +242,10 @@ exports.getPosts = async (req, res) => {
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
     const query = { status: "approved", isPublished: true };
-    if (req.query.isNFT === "true") query.isNFT = true;
+    if (req.query.isNFT === "true") {
+      // For NFT discovery: show approved published NFTs
+      query.isNFT = true;
+    }
     if (req.query.creator) query.creator = req.query.creator;
 
     const config = await getAdminConfig();

@@ -3,6 +3,7 @@ const {
   createPost,
   getPosts,
   getPostById,
+  getMyNFTs,
   toggleLike,
   getComments,
   createComment,
@@ -17,6 +18,7 @@ const { upload } = require("../../utils/upload");
 const router = express.Router();
 
 router.post("/", protect, authorize("User", "SuperNode", "Admin", "super_admin", "Developer"), upload.single("media"), createPost);
+router.get("/my-nfts", protect, getMyNFTs);
 router.get("/", protect, getPosts);
 router.post("/:id/like", protect, toggleLike);
 router.post("/:id/share", protect, sharePost);
