@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 const Message = require("../models/Message");
 const Post = require("../models/Post");
+const GroupChat = require("../models/GroupChat");
 
 // Shared map: userId (string) -> socketId
 // Controllers import emitToUser to push targeted events without importing io
@@ -57,12 +58,21 @@ const initSocket = (server) => {
 
   io.on("connection", (socket) => {
     // We expect the user to emit their userId upon connection (or derive from auth if using middleware)
-    socket.on("register_user", (userId) => {
+    socket.on("register_user", async (userId) => {
       if (!userId) return;
       socket.userId = userId;
       onlineUsers.set(userId.toString(), socket.id);
       io.emit("user_status_changed", { userId, status: "online" });
-      // console.log(`User ${userId} registered at socket ${socket.id}`);
+      
+      try {
+        // Auto-join all group rooms for this user
+        const userGroups = await GroupChat.find({ members: userId }).select('_id');
+        userGroups.forEach(g => {
+          socket.join(g._id.toString());
+        });
+      } catch (err) {
+        console.error("[Socket] Failed to join group rooms:", err);
+      }
     });
 
     socket.on("join_room", (roomId) => {
@@ -78,14 +88,22 @@ const initSocket = (server) => {
         socket.to(roomId).emit("user_stop_typing", { roomId, userId });
     });
 
-    socket.on("mark_seen", async ({ roomId, userId, currentUserId }) => {
+    socket.on("mark_seen", async ({ roomId, userId, currentUserId, isGroup }) => {
         try {
-            // Update all messages in this room received by currentUserId to 'seen'
-            await Message.updateMany(
-                { roomId, receiver: currentUserId, status: { $ne: "seen" } },
-                { $set: { status: "seen", seenAt: new Date() } }
-            );
-            // Notify the other user (if online)
+            if (isGroup) {
+                // Add currentUserId to seenBy array for all messages in this group not sent by them
+                await Message.updateMany(
+                    { groupId: roomId, sender: { $ne: currentUserId }, seenBy: { $ne: currentUserId } },
+                    { $addToSet: { seenBy: currentUserId } }
+                );
+            } else {
+                // Update all messages in this room received by currentUserId to 'seen'
+                await Message.updateMany(
+                    { roomId, receiver: currentUserId, status: { $ne: "seen" } },
+                    { $set: { status: "seen", seenAt: new Date() } }
+                );
+            }
+            // Notify the other user(s)
             socket.to(roomId).emit("messages_seen_update", { roomId, userId: currentUserId });
             
             // Notify the current user's other sessions/tabs to reset unread count for this room
@@ -96,38 +114,47 @@ const initSocket = (server) => {
     });
 
     socket.on("send_message", async (data) => {
-      const { roomId, sender, receiver, text, type, payload } = data;
-      // console.log("[Socket] Received send_message:", { roomId, sender, receiver, type });
+      const { roomId, sender, receiver, groupId, text, type, payload } = data;
+      // console.log("[Socket] Received send_message:", { roomId, sender, receiver, groupId, type });
 
-      if (!sender || !receiver || !roomId) {
-          console.error("[Socket] Missing required fields for message:", { sender, receiver, roomId });
+      if (!sender || !roomId || (!receiver && !groupId)) {
+          console.error("[Socket] Missing required fields for message:", { sender, receiver, groupId, roomId });
           return;
       }
 
-      if (sender.toString() === receiver.toString()) {
+      if (!groupId && sender.toString() === receiver.toString()) {
           console.warn("[Socket] User tried to message themselves:", sender);
           return;
       }
       
       try {
-        // Validate IDs before casting
-        if (!mongoose.Types.ObjectId.isValid(sender) || !mongoose.Types.ObjectId.isValid(receiver)) {
-            console.error("[Socket] Invalid sender or receiver ID:", { sender, receiver });
-            return;
-        }
-
         const senderObj = new mongoose.Types.ObjectId(sender);
-        const receiverObj = new mongoose.Types.ObjectId(receiver);
-
-        const newMessage = await Message.create({
-          sender: senderObj,
-          receiver: receiverObj,
-          roomId,
-          text: text || "",
-          type: type || "text",
-          payload: payload || null,
-          status: onlineUsers.has(receiver.toString()) ? "delivered" : "sent"
-        });
+        
+        let newMessage;
+        if (groupId) {
+            // Group Chat Message
+            newMessage = await Message.create({
+                sender: senderObj,
+                groupId: new mongoose.Types.ObjectId(groupId),
+                roomId, // usually same as groupId
+                text: text || "",
+                type: type || "text",
+                payload: payload || null,
+                seenBy: [senderObj]
+            });
+        } else {
+            // 1v1 Message
+            const receiverObj = new mongoose.Types.ObjectId(receiver);
+            newMessage = await Message.create({
+                sender: senderObj,
+                receiver: receiverObj,
+                roomId,
+                text: text || "",
+                type: type || "text",
+                payload: payload || null,
+                status: onlineUsers.has(receiver.toString()) ? "delivered" : "sent"
+            });
+        }
 
         const formattedMsg = {
             id: newMessage._id.toString(),
@@ -137,30 +164,56 @@ const initSocket = (server) => {
             type: type || "text",
             payload: payload || null,
             status: newMessage.status,
+            seenBy: newMessage.seenBy,
             timestamp: new Date(newMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         };
 
         // Broadcast to others in the room
         socket.to(roomId).emit("receive_message", formattedMsg);
         
-        // Notify the receiver privately if they are online but NOT necessarily in the room
-        const receiverSocketId = onlineUsers.get(receiver.toString());
-        if (receiverSocketId) {
-            io.to(receiverSocketId).emit("new_message_alert", {
-                roomId,
-                message: formattedMsg,
-                chat: {
-                   id: sender.toString(),
-                   username: "Other" // Placeholder, client usually knows who sent it or fetches updated list
-                }
-            });
+        if (groupId) {
+            // Fetch group members to notify them if they are online but not in the room window
+            const group = await GroupChat.findById(groupId).select('members name');
+            if (group) {
+                group.members.forEach(memberId => {
+                    if (memberId.toString() !== sender.toString()) {
+                        const socketId = onlineUsers.get(memberId.toString());
+                        if (socketId) {
+                            io.to(socketId).emit("new_message_alert", {
+                                roomId,
+                                message: formattedMsg,
+                                chat: {
+                                   id: groupId,
+                                   username: group.name,
+                                   isGroup: true
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        } else {
+            // Notify the receiver privately
+            const receiverSocketId = onlineUsers.get(receiver.toString());
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("new_message_alert", {
+                    roomId,
+                    message: formattedMsg,
+                    chat: {
+                       id: sender.toString(),
+                       username: "Other", // Placeholder
+                       isGroup: false
+                    }
+                });
+            }
+            // Notify sender about delivery
+            socket.emit("message_status_sent", { id: formattedMsg.id, status: newMessage.status });
         }
         
         // Notify sender to update their own ConversationList
-        socket.emit("own_message_sent", { ...formattedMsg, senderId: receiver.toString(), receiverId: sender.toString() });
-
-        // Notify sender about delivery (status update)
-        socket.emit("message_status_sent", { id: formattedMsg.id, status: newMessage.status });
+        const updateData = { ...formattedMsg, senderId: sender.toString() };
+        if (!groupId) updateData.receiverId = receiver.toString();
+        socket.emit("own_message_sent", updateData);
 
         // Increment share count if sharing a post/reel
         if ((type === 'post' || type === 'reel') && payload?.id) {

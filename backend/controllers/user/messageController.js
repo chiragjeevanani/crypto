@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Message = require("../../models/Message");
+const GroupChat = require("../../models/GroupChat");
 const User = require("../../models/User");
 const { broadcastToRoom, emitToUser } = require("../../utils/socket");
 
@@ -43,13 +44,17 @@ exports.getConversations = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
+    const userGroups = await GroupChat.find({ members: currentUserId }).select('_id name avatar');
+    const groupIds = userGroups.map(g => g._id);
+
     // Find latest messages for users
     const messages = await Message.aggregate([
       {
         $match: {
           $or: [
             { sender: new mongoose.Types.ObjectId(currentUserId) },
-            { receiver: new mongoose.Types.ObjectId(currentUserId) }
+            { receiver: new mongoose.Types.ObjectId(currentUserId) },
+            { groupId: { $in: groupIds } }
           ]
         }
       },
@@ -65,40 +70,100 @@ exports.getConversations = async (req, res) => {
 
     const result = await Promise.all(
       messages.map(async (m) => {
-        const otherUserId = m.lastMessage.sender.toString() === currentUserId.toString()
-          ? m.lastMessage.receiver
-          : m.lastMessage.sender;
+        if (m.lastMessage.groupId) {
+          const group = userGroups.find(g => g._id.toString() === m.lastMessage.groupId.toString());
+          if (!group) return null;
 
-        const otherUser = await User.findById(otherUserId).select("name handle avatar").lean();
-        if (!otherUser) return null;
-
-        // Calculate unread count for this conversation
-        const unreadCount = await Message.countDocuments({
+          const unreadCount = await Message.countDocuments({
             roomId: m._id,
-            receiver: currentUserId,
-            status: { $ne: "seen" }
-        });
+            groupId: group._id,
+            sender: { $ne: currentUserId },
+            seenBy: { $ne: currentUserId }
+          });
 
-        return {
-          id: m._id,
-          user: {
-            id: otherUser._id,
-            username: otherUser.name || "User",
-            handle: otherUser.handle || "",
-            avatar: otherUser.avatar || ""
-          },
-          lastMessage: {
-            text: m.lastMessage.text,
-            timestamp: new Date(m.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-            unreadCount
-          },
-          isOnline: false // Frontend will update this via socket
-        };
+          return {
+            id: m._id,
+            isGroup: true,
+            groupId: group._id,
+            user: {
+              id: group._id,
+              username: group.name,
+              handle: "Group",
+              avatar: group.avatar || ""
+            },
+            lastMessage: {
+              text: m.lastMessage.text,
+              timestamp: new Date(m.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+              unreadCount
+            },
+            isOnline: true // Groups can always be considered active
+          };
+        } else {
+          const otherUserId = m.lastMessage.sender.toString() === currentUserId.toString()
+            ? m.lastMessage.receiver
+            : m.lastMessage.sender;
+
+          const otherUser = await User.findById(otherUserId).select("name handle avatar").lean();
+          if (!otherUser) return null;
+
+          // Calculate unread count for this conversation
+          const unreadCount = await Message.countDocuments({
+              roomId: m._id,
+              receiver: currentUserId,
+              status: { $ne: "seen" }
+          });
+
+          return {
+            id: m._id,
+            isGroup: false,
+            user: {
+              id: otherUser._id,
+              username: otherUser.name || "User",
+              handle: otherUser.handle || "",
+              avatar: otherUser.avatar || ""
+            },
+            lastMessage: {
+              text: m.lastMessage.text,
+              timestamp: new Date(m.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+              unreadCount
+            },
+            isOnline: false // Frontend will update this via socket
+          };
+        }
       })
     );
+
+    // Identify groups that have NO messages at all but the user is a member of
+    const groupsWithMessages = new Set(
+      result.filter(Boolean).filter(c => c.isGroup).map(c => c.groupId.toString())
+    );
+
+    const emptyGroups = userGroups
+      .filter(g => !groupsWithMessages.has(g._id.toString()))
+      .map(g => ({
+        id: g._id.toString(), // use group id as room id
+        isGroup: true,
+        groupId: g._id,
+        user: {
+          id: g._id,
+          username: g.name,
+          handle: "Group",
+          avatar: g.avatar || ""
+        },
+        lastMessage: {
+          text: "Group created",
+          timestamp: "",
+          unreadCount: 0
+        },
+        isOnline: true
+      }));
+
+    const finalConversations = [...result.filter(Boolean), ...emptyGroups]
+      .filter(c => c.user.id.toString() !== currentUserId.toString());
+
     res.json({ 
       success: true, 
-      conversations: result.filter(Boolean).filter(c => c.user.id.toString() !== currentUserId.toString()) 
+      conversations: finalConversations 
     });
   } catch (error) {
     console.error("[Message] getConversations error:", error);
@@ -163,11 +228,24 @@ exports.uploadMedia = async (req, res) => {
 exports.getUnreadTotal = async (req, res) => {
     try {
         const currentUserId = req.user.userId;
-        const total = await Message.countDocuments({
+        
+        // Unread 1v1 messages
+        const unread1v1 = await Message.countDocuments({
             receiver: currentUserId,
             status: { $ne: "seen" }
         });
-        res.json({ success: true, total });
+
+        // Unread group messages
+        const userGroups = await GroupChat.find({ members: currentUserId }).select('_id');
+        const groupIds = userGroups.map(g => g._id);
+
+        const unreadGroups = await Message.countDocuments({
+            groupId: { $in: groupIds },
+            sender: { $ne: currentUserId },
+            seenBy: { $ne: currentUserId }
+        });
+
+        res.json({ success: true, total: unread1v1 + unreadGroups });
     } catch (error) {
         console.error("[Message] getUnreadTotal error:", error);
         res.status(500).json({ success: false, message: "Failed to fetch unread total" });
@@ -286,5 +364,219 @@ exports.deleteChat = async (req, res) => {
   } catch (error) {
     console.error("[Message] deleteChat error:", error);
     res.status(500).json({ success: false, message: "Failed to delete chat" });
+  }
+};
+
+// --- Group Chat Methods ---
+
+exports.createGroup = async (req, res) => {
+  try {
+    const { name, members } = req.body;
+    const currentUserId = req.user.userId;
+
+    if (!name) return res.status(400).json({ success: false, message: "Group name is required" });
+    
+    const user = await User.findById(currentUserId);
+
+    // Ensure creator is in the members list
+    const memberSet = new Set(members || []);
+    memberSet.add(currentUserId.toString());
+
+    const group = await GroupChat.create({
+      name,
+      creator: currentUserId,
+      members: Array.from(memberSet),
+      admins: [currentUserId]
+    });
+
+    // Create a system message
+    const msg = await Message.create({
+      roomId: group._id.toString(),
+      groupId: group._id,
+      sender: currentUserId, // Using creator as sender for system message context
+      text: `${user.username || user.name || 'A user'} created the group "${name}"`,
+      type: 'system',
+      status: 'sent',
+      seenBy: [currentUserId]
+    });
+
+    // Broadcast to members
+    broadcastToRoom(group._id.toString(), "receive_message", {
+      id: msg._id.toString(),
+      sender: 'other',
+      senderId: currentUserId.toString(),
+      text: msg.text,
+      type: msg.type,
+      timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    });
+
+    res.status(201).json({ success: true, group });
+  } catch (error) {
+    console.error("[GroupChat] createGroup error:", error);
+    res.status(500).json({ success: false, message: "Failed to create group" });
+  }
+};
+
+exports.getGroups = async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const groups = await GroupChat.find({ members: currentUserId }).populate("members", "name handle avatar");
+    res.json({ success: true, groups });
+  } catch (error) {
+    console.error("[GroupChat] getGroups error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch groups" });
+  }
+};
+
+exports.addGroupMembers = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { members } = req.body; // array of user IDs
+    const currentUserId = req.user.userId;
+    const group = await GroupChat.findById(groupId);
+    
+    if (!group) return res.status(404).json({ success: false, message: "Group not found" });
+    
+    // Basic auth: Must be a member to add others (or restrict to admins)
+    if (!group.members.includes(currentUserId)) {
+      return res.status(403).json({ success: false, message: "Not a group member" });
+    }
+
+    const addedIds = [];
+    members.forEach(m => {
+      if (!group.members.includes(m)) {
+        group.members.push(m);
+        addedIds.push(m);
+      }
+    });
+
+    await group.save();
+
+    if (addedIds.length > 0) {
+      const user = await User.findById(currentUserId);
+      const addedUsers = await User.find({ _id: { $in: addedIds } }, 'username name');
+      const addedNames = addedUsers.map(u => u.username || u.name).join(', ');
+
+      // Create a system message
+      const msg = await Message.create({
+        roomId: group._id.toString(),
+        groupId: group._id,
+        sender: currentUserId,
+        text: `${user.username || user.name || 'A user'} added ${addedNames || 'someone'}`,
+        type: 'system',
+        status: 'sent',
+        seenBy: [currentUserId]
+      });
+
+      // Broadcast to members
+      broadcastToRoom(group._id.toString(), "receive_message", {
+        id: msg._id.toString(),
+        sender: 'other',
+        senderId: currentUserId.toString(),
+        text: msg.text,
+        type: msg.type,
+        timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      });
+    }
+
+    res.json({ success: true, group });
+  } catch (error) {
+    console.error("[GroupChat] addGroupMembers error:", error);
+    res.status(500).json({ success: false, message: "Failed to add members" });
+  }
+};
+
+exports.leaveGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const currentUserId = req.user.userId;
+
+    const group = await GroupChat.findById(groupId);
+    if (!group) return res.status(404).json({ success: false, message: "Group not found" });
+
+    group.members = group.members.filter(m => m.toString() !== currentUserId.toString());
+    group.admins = group.admins.filter(m => m.toString() !== currentUserId.toString());
+
+    if (group.members.length === 0) {
+      await GroupChat.findByIdAndDelete(groupId);
+      // Optional: Delete all group messages too
+      await Message.deleteMany({ groupId });
+    } else {
+      await group.save();
+    }
+
+    res.json({ success: true, message: "Left group successfully" });
+  } catch (error) {
+    console.error("[GroupChat] leaveGroup error:", error);
+    res.status(500).json({ success: false, message: "Failed to leave group" });
+  }
+};
+
+exports.getGroupDetails = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const group = await GroupChat.findById(groupId).populate("members", "name username handle avatar email");
+    if (!group) return res.status(404).json({ success: false, message: "Group not found" });
+
+    // Must be a member to view details
+    if (!group.members.some(m => m._id.toString() === req.user.userId)) {
+      return res.status(403).json({ success: false, message: "Not a group member" });
+    }
+
+    res.json({ success: true, group });
+  } catch (error) {
+    console.error("[GroupChat] getGroupDetails error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch group details" });
+  }
+};
+
+exports.updateGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { name, avatar } = req.body;
+    const group = await GroupChat.findById(groupId);
+    if (!group) return res.status(404).json({ success: false, message: "Group not found" });
+
+    // Optional: Check if user is admin, for now allow any member or restrict to admins
+    if (!group.admins.includes(req.user.userId)) {
+      return res.status(403).json({ success: false, message: "Only admins can edit group" });
+    }
+
+    if (name) group.name = name;
+    if (avatar !== undefined) group.avatar = avatar;
+
+    await group.save();
+    res.json({ success: true, group });
+  } catch (error) {
+    console.error("[GroupChat] updateGroup error:", error);
+    res.status(500).json({ success: false, message: "Failed to update group" });
+  }
+};
+
+exports.removeGroupMember = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { memberId } = req.body;
+    const group = await GroupChat.findById(groupId);
+    if (!group) return res.status(404).json({ success: false, message: "Group not found" });
+
+    // Must be admin to remove someone
+    if (!group.admins.includes(req.user.userId)) {
+      return res.status(403).json({ success: false, message: "Only admins can remove members" });
+    }
+
+    // Cannot remove yourself this way (use leave group)
+    if (memberId === req.user.userId) {
+      return res.status(400).json({ success: false, message: "Use leave group to remove yourself" });
+    }
+
+    group.members = group.members.filter(m => m.toString() !== memberId.toString());
+    group.admins = group.admins.filter(m => m.toString() !== memberId.toString());
+
+    await group.save();
+    res.json({ success: true, message: "Member removed successfully" });
+  } catch (error) {
+    console.error("[GroupChat] removeGroupMember error:", error);
+    res.status(500).json({ success: false, message: "Failed to remove member" });
   }
 };

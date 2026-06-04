@@ -6,6 +6,7 @@ import { messageService } from '../../../../services/messageService'
 import { searchService } from '../../services/searchService'
 import { getSocket } from '../../../../socket'
 import Avatar from '../../components/shared/Avatar'
+import CreateGroupModal from './CreateGroupModal'
 
 export default function ConversationList({ onSelectChat, selectedChatId }) {
     const { profile } = useUserStore()
@@ -14,6 +15,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
     const [searchResults, setSearchResults] = useState([])
     const [loading, setLoading] = useState(true)
     const [searching, setSearching] = useState(false)
+    const [showGroupModal, setShowGroupModal] = useState(false)
     const navigate = useNavigate()
 
     const fetchConversations = useCallback(() => {
@@ -194,7 +196,10 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                 <h2 className="text-lg font-bold truncate" style={{ color: 'var(--color-text)' }}>
                     {profile?.username || 'Messages'}
                 </h2>
-                <button className="p-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors">
+                <button 
+                    onClick={() => setShowGroupModal(true)}
+                    className="p-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                >
                     <Edit size={18} style={{ color: 'var(--color-text)' }} />
                 </button>
             </div>
@@ -299,6 +304,26 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                     </div>
                 )}
             </div>
+
+            <CreateGroupModal 
+                isOpen={showGroupModal}
+                onClose={() => setShowGroupModal(false)}
+                onCreate={(group) => {
+                    fetchConversations();
+                    // Optionally select the newly created group chat immediately
+                    onSelectChat({
+                        id: group._id,
+                        isGroup: true,
+                        groupId: group._id,
+                        user: {
+                            id: group._id,
+                            username: group.name,
+                            avatar: group.avatar || ''
+                        },
+                        lastMessage: { text: 'Group created', timestamp: 'Just now' }
+                    });
+                }}
+            />
         </div>
     )
 }

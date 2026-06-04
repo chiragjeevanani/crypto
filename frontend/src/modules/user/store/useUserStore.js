@@ -470,7 +470,7 @@ export const useUserStore = create((set, get) => ({
             
             return { success: true, user }
         } catch (err) {
-            console.error("[Store] Profile update failed:", err.message)
+            console.warn("[Store] Profile update failed:", err.message)
             throw err
         }
     },

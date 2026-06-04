@@ -53,7 +53,66 @@ export default function ProfilePage() {
     const [following, setFollowing] = useState([])
     const [joinedCampaigns, setJoinedCampaigns] = useState([])
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
-    const nftListings = useMemo(() => profilePosts.filter(p => p.isNFT || p.postType === 'nft'), [profilePosts])
+    const [ownedNfts, setOwnedNfts] = useState([])
+
+    useEffect(() => {
+        if (!profile?.id) return;
+        let mounted = true;
+        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/nft/user/${profile.id}/collection`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (mounted && data.success) {
+                setOwnedNfts(data.nfts || []);
+            }
+        })
+        .catch(console.error);
+        return () => { mounted = false; };
+    }, [profile?.id]);
+
+    const nftListings = useMemo(() => {
+        const createdNfts = profilePosts.filter(p => p.isNFT || p.postType === 'nft').map(p => ({
+            ...p,
+            title: p.title || p.caption || 'Untitled NFT',
+            price: p.price || p.nftPriceINR || 0,
+            views: p.views || 0,
+            bids: p.bids || 0
+        }));
+        
+        const mappedOwned = ownedNfts.map(o => ({
+            id: o.auction?._id || o.tokenId || Math.random().toString(),
+            creator: {
+                id: profile.id,
+                username: profile.fullName || profile.username,
+                handle: profile.handle,
+                avatar: profile.avatar
+            },
+            media: { url: o.auction?.mediaUrl, type: o.auction?.mediaType },
+            caption: o.auction?.title || 'Owned NFT',
+            title: o.auction?.title || 'Owned NFT',
+            status: o.auction?.nftStatus || 'sold',
+            price: o.auction?.highestBid || o.auction?.basePrice || 0,
+            nftPriceINR: o.auction?.highestBid || o.auction?.basePrice || 0,
+            views: 0,
+            bids: o.auction?.highestBid ? 1 : 0,
+            thumbnail: o.auction?.mediaUrl,
+            isOwned: true,
+            isNFT: true,
+            createdAt: o.createdAt || new Date().toISOString(),
+            likes: [],
+            comments: 0,
+            shares: 0
+        }));
+        
+        const combined = [...createdNfts];
+        for (const owned of mappedOwned) {
+            if (!combined.find(p => p.id === owned.id || (p.media?.url && p.media?.url === owned.media?.url))) {
+                combined.push(owned);
+            }
+        }
+        return combined;
+    }, [profilePosts, ownedNfts])
     const [savedPosts, setSavedPosts] = useState([])
     const [savedLoading, setSavedLoading] = useState(false)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)

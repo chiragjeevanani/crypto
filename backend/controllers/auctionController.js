@@ -1,5 +1,6 @@
 const Auction = require("../models/Auction");
 const Bid = require("../models/Bid");
+const Post = require("../models/Post");
 const User = require("../models/User");
 const WalletTransaction = require("../models/WalletTransaction");
 const { getAdminConfig } = require("../utils/adminConfig");

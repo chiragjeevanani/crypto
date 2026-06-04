@@ -10,8 +10,16 @@ const messageSchema = new mongoose.Schema(
     receiver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: false // Optional for group messages
     },
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GroupChat"
+    },
+    seenBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }],
     roomId: {
       type: String,
       required: true,
@@ -23,7 +31,7 @@ const messageSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["text", "post", "reel", "image", "file", "audio", "video"],
+      enum: ["text", "post", "reel", "image", "file", "audio", "video", "system"],
       default: "text"
     },
     payload: {

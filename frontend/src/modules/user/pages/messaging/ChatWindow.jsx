@@ -8,6 +8,7 @@ import { messageService } from '../../../../services/messageService'
 import Avatar from '../../components/shared/Avatar'
 import ActionConfirmationModal from '../../components/shared/ActionConfirmationModal'
 import { Trash2 as TrashIcon } from 'lucide-react'
+import GroupDetailsModal from './GroupDetailsModal'
 
 export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost }) {
     const navigate = useNavigate()
@@ -27,7 +28,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const [editInputValue, setEditInputValue] = useState('')
     const [showChatOptions, setShowChatOptions] = useState(false)
     const [isDeleteChatModalOpen, setIsDeleteChatModalOpen] = useState(false)
+    const [showGroupDetails, setShowGroupDetails] = useState(false)
     const [tick, setTick] = useState(0)
+
+    // Current Group state
+    const [groupData, setGroupData] = useState({ name: chat?.user?.username, avatar: chat?.user?.avatar })
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -40,13 +45,15 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         }
     }, [chat?.initialMessage])
 
-    // Sort user IDs for a consistent roomId
+    // Sort user IDs for a consistent roomId (or use groupId directly)
     useEffect(() => {
-        if (profile?.id && chat?.user?.id) {
+        if (chat?.isGroup && chat?.groupId) {
+            setRoomId(chat.groupId.toString())
+        } else if (profile?.id && chat?.user?.id) {
             const sortedIds = [profile.id.toString(), chat.user.id.toString()].sort()
             setRoomId(`${sortedIds[0]}-${sortedIds[1]}`)
         }
-    }, [profile?.id, chat?.user?.id])
+    }, [profile?.id, chat?.user?.id, chat?.isGroup, chat?.groupId])
 
     useEffect(() => {
         if (!roomId) return
@@ -61,7 +68,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         messageService.getMessages(roomId).then(msgs => {
             setMessages(msgs)
             // Mark all existing messages as seen
-            socket.emit('mark_seen', { roomId, userId: chat.user.id, currentUserId: profile.id })
+            socket.emit('mark_seen', { roomId, userId: chat.user.id, currentUserId: profile.id, isGroup: chat.isGroup })
         }).catch(err => console.error('Fetch messages error:', err))
 
         // Join room
@@ -71,7 +78,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         const handleReceiveMessage = (msg) => {
             setMessages(prev => [...prev, msg])
             // If window is active, mark as seen
-            socket.emit('mark_seen', { roomId, userId: chat.user.id, currentUserId: profile.id })
+            socket.emit('mark_seen', { roomId, userId: chat.user.id, currentUserId: profile.id, isGroup: chat.isGroup })
         }
 
         const handleUserTyping = (data) => {
@@ -206,7 +213,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             const messageData = {
                 roomId,
                 sender: profile.id,
-                receiver: chat.user.id,
+                receiver: chat.isGroup ? null : chat.user.id,
+                groupId: chat.isGroup ? chat.groupId : null,
                 text: inputValue.trim() || `Sent a ${type}`,
                 type: type,
                 payload
@@ -232,7 +240,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             const messageData = {
                 roomId,
                 sender: profile.id,
-                receiver: chat.user.id,
+                receiver: chat.isGroup ? null : chat.user.id,
+                groupId: chat.isGroup ? chat.groupId : null,
                 text: inputValue,
                 type: 'text'
             }
@@ -279,7 +288,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 const messageData = {
                     roomId,
                     sender: profile.id,
-                    receiver: chat.user.id,
+                    receiver: chat.isGroup ? null : chat.user.id,
+                    groupId: chat.isGroup ? chat.groupId : null,
                     text: data.name,
                     type: data.type, // 'image' or 'file'
                     payload: {
@@ -533,6 +543,16 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             )
         }
 
+        if (msg.type === 'system') {
+            return (
+                <div className="w-full flex justify-center my-2">
+                    <div className="px-3 py-1 rounded-full text-[10px] font-medium" style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
+                        {msg.text}
+                    </div>
+                </div>
+            )
+        }
+
         return null
     }
 
@@ -557,8 +577,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         )}
                     </div>
                     <div className="min-w-0">
-                        <h4 className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{chat.user.username}</h4>
-                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{isOnline ? 'Active now' : 'Offline'}</p>
+                        <h4 className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{chat.isGroup ? groupData.name : chat.user.username}</h4>
+                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{chat.isGroup ? 'Group Chat' : isOnline ? 'Active now' : 'Offline'}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-4 relative">
@@ -593,7 +613,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     <button 
                                         onClick={() => {
                                             setShowChatOptions(false)
-                                            // Add block user or other options here if needed
+                                            if (chat.isGroup) {
+                                                setShowGroupDetails(true)
+                                            } else {
+                                                // 1v1 Chat details
+                                            }
                                         }}
                                         className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-[var(--color-surface2)] transition-colors"
                                         style={{ color: 'var(--color-text)' }}
@@ -612,17 +636,19 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             <div className="flex-1 overflow-y-auto hide-scrollbar p-4 flex flex-col gap-4">
                 <div className="flex flex-col items-center py-8">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center mb-3" style={{ background: 'var(--color-surface2)' }}>
-                        <img src={chat.user.avatar || '/person.png'} alt={chat.user.username} className={`w-full h-full object-cover ${!chat.user.avatar ? 'opacity-60' : ''}`} />
+                        <img src={chat.isGroup ? (groupData.avatar || '/group-placeholder.png') : (chat.user.avatar || '/person.png')} alt={chat.isGroup ? groupData.name : chat.user.username} className={`w-full h-full object-cover ${(!chat.isGroup && !chat.user.avatar) ? 'opacity-60' : ''}`} />
                     </div>
-                    <h5 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{chat.user.username}</h5>
-                    <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; KnQ Reels</p>
-                    <button 
-                        onClick={() => navigate(`/user/${chat.user.id}`)}
-                        className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
-                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                    >
-                        View Profile
-                    </button>
+                    <h5 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{chat.isGroup ? groupData.name : chat.user.username}</h5>
+                    {!chat.isGroup && <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>{chat.user.handle} &bull; KnQ Reels</p>}
+                    {!chat.isGroup && (
+                        <button 
+                            onClick={() => navigate(`/user/${chat.user.id}`)}
+                            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                        >
+                            View Profile
+                        </button>
+                    )}
                 </div>
 
                 <div className="text-center text-[11px] py-4" style={{ color: 'var(--color-muted)' }}>CHAT HISTORY</div>
@@ -883,6 +909,19 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 confirmText="Yes, Delete All"
                 variant="danger"
                 Icon={TrashIcon}
+            />
+
+            {/* Group Details Modal */}
+            <GroupDetailsModal 
+                isOpen={showGroupDetails}
+                onClose={() => setShowGroupDetails(false)}
+                groupId={chat?.groupId}
+                onGroupUpdated={(updatedGroup) => {
+                    setGroupData({ name: updatedGroup.name, avatar: updatedGroup.avatar });
+                }}
+                onLeave={() => {
+                    if (onBack) onBack();
+                }}
             />
         </div>
     )

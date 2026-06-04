@@ -46,11 +46,14 @@ export default function UserProfilePage() {
         const load = async () => {
             setProfileLoading(true)
             try {
-                const [fRes, gRes, uRes, nRes] = await Promise.all([
+                const [fRes, gRes, uRes, nRes, cRes] = await Promise.all([
                     followService.getFollowers(id),
                     followService.getFollowing(id),
                     searchService.getUserById(id),
                     fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/user/posts?creator=${id}&isNFT=true`, { 
+                        headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` } 
+                    }).then(r => r.json().catch(() => ({}))),
+                    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/nft/user/${id}/collection`, { 
                         headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` } 
                     }).then(r => r.json().catch(() => ({})))
                 ])
@@ -60,7 +63,41 @@ export default function UserProfilePage() {
                 if (uRes.success) {
                     setProfileUser(uRes.user)
                 }
-                setNfts(nRes.posts || [])
+                
+                // Combine created NFTs and owned NFTs
+                const createdPosts = nRes.posts || [];
+                const ownedNfts = (cRes.nfts || []).map(o => ({
+                    id: o.auction?._id || o.tokenId || Math.random().toString(),
+                    creator: {
+                        id: profileUser?.id || id,
+                        username: profileUser?.fullName || profileUser?.username || 'User',
+                        handle: profileUser?.handle,
+                        avatar: profileUser?.avatar
+                    },
+                    media: { url: o.auction?.mediaUrl, type: o.auction?.mediaType },
+                    caption: o.auction?.title || 'Owned NFT',
+                    title: o.auction?.title || 'Owned NFT',
+                    status: o.auction?.nftStatus || 'sold',
+                    price: o.auction?.highestBid || o.auction?.basePrice || 0,
+                    nftPriceINR: o.auction?.highestBid || o.auction?.basePrice || 0,
+                    views: 0,
+                    bids: o.auction?.highestBid ? 1 : 0,
+                    thumbnail: o.auction?.mediaUrl,
+                    isOwned: true,
+                    isNFT: true,
+                    createdAt: o.createdAt || new Date().toISOString(),
+                    likes: [],
+                    comments: 0,
+                    shares: 0
+                }));
+                
+                const combined = [...createdPosts];
+                for (const owned of ownedNfts) {
+                    if (!combined.find(p => p.id === owned.id)) {
+                        combined.push(owned);
+                    }
+                }
+                setNfts(combined);
                 setProfileLoading(false)
             } catch (err) {
                 console.error("Failed to load user profile:", err)

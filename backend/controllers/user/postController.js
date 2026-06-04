@@ -327,7 +327,7 @@ exports.getPostById = async (req, res) => {
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
     const post = await populateCreator(Post.findOne({ _id: req.params.id, status: "approved" })).exec();
-    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+    if (!post) return res.status(200).json({ success: false, message: "Post not found" });
     const baseUrl = getBaseUrl(req);
     const formatted = formatPostForUserFeed(post, baseUrl, null, currentUserId, followingIds);
     return res.status(200).json({ success: true, post: formatted });
@@ -347,7 +347,7 @@ exports.toggleLike = async (req, res) => {
     const postId = req.params.id;
     // 1. Fetch current like status once
     const post = await Post.findById(postId).select("likedBy");
-    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+    if (!post) return res.status(200).json({ success: false, message: "Post not found" });
 
     const idStr = userId.toString();
     const hasLiked = (post.likedBy || []).some((oid) => oid && oid.toString() === idStr);
@@ -434,7 +434,7 @@ exports.createComment = async (req, res) => {
     const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
     if (!text) return res.status(400).json({ success: false, message: "Comment text is required" });
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+    if (!post) return res.status(200).json({ success: false, message: "Post not found" });
     const comment = await Comment.create({ post: post._id, author: userId, text });
     post.comments = (post.comments || 0) + 1;
     await post.save();
@@ -462,7 +462,7 @@ exports.sharePost = async (req, res) => {
     const postId = req.params.id;
     if (!postId) return res.status(400).json({ success: false, message: "Post id is required" });
     const post = await Post.findById(postId).select("sharedBy shares");
-    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+    if (!post) return res.status(200).json({ success: false, message: "Post not found" });
 
     const alreadyShared = (post.sharedBy || []).some(id => id && id.toString() === userId.toString());
     
@@ -498,7 +498,7 @@ exports.recordView = async (req, res) => {
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
     
     const post = await Post.findById(req.params.id).select("viewedBy views");
-    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+    if (!post) return res.status(200).json({ success: false, message: "Post not found" });
 
     const hasViewed = (post.viewedBy || []).some(v => v && v.toString() === userId.toString());
 
@@ -536,7 +536,7 @@ exports.reportPost = async (req, res) => {
 
     const post = await Post.findById(postId);
     if (!post) {
-      return res.status(404).json({ success: false, message: "Post not found" });
+      return res.status(200).json({ success: false, message: "Post not found" });
     }
 
     const report = await Report.create({
@@ -570,7 +570,7 @@ exports.deletePost = async (req, res) => {
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
 
     const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+    if (!post) return res.status(200).json({ success: false, message: "Post not found" });
 
     // Verify ownership
     if (post.creator.toString() !== userId.toString()) {

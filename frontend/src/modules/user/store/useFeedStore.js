@@ -99,7 +99,7 @@ export const useFeedStore = create((set, get) => ({
                 return res.post
             }
         } catch (err) {
-            console.error('Failed to fetch single post:', err)
+            console.warn('Failed to fetch single post:', err)
         }
         return null
     },
@@ -170,7 +170,6 @@ export const useFeedStore = create((set, get) => ({
                 reelFeed: state.reelFeed.map(syncItem)
             }))
         } catch (err) {
-            console.error('[Store] Like error:', err)
             // Rollback on error
             set(() => ({
                 posts: originalPosts || [],
@@ -355,7 +354,7 @@ export const useFeedStore = create((set, get) => ({
                 notificationsLoading: false
             })
         } catch (err) {
-            console.error('[Notifications] Failed to load:', err.message)
+            console.warn('[Notifications] Failed to load:', err.message)
             set({ notificationsLoading: false })
         }
     },
@@ -368,7 +367,7 @@ export const useFeedStore = create((set, get) => ({
                 notifications: state.notifications.map((n) => ({ ...n, isRead: true }))
             }))
         } catch (err) {
-            console.error('[Notifications] Failed to mark all read:', err.message)
+            console.warn('[Notifications] Failed to mark all read:', err.message)
         }
     },
 
@@ -382,7 +381,7 @@ export const useFeedStore = create((set, get) => ({
         try {
             await notificationService.markOneRead(id)
         } catch (err) {
-            console.error('[Notifications] Failed to mark one read:', err.message)
+            console.warn('[Notifications] Failed to mark one read:', err.message)
         }
     },
 
@@ -415,7 +414,7 @@ export const useFeedStore = create((set, get) => ({
             const res = await notificationService.getSuggestions()
             set({ suggestions: res.suggestions || [], suggestionsLoading: false })
         } catch (err) {
-            console.error('[Suggestions] Failed to load:', err.message)
+            console.warn('[Suggestions] Failed to load:', err.message)
             set({ suggestionsLoading: false })
         }
     },
@@ -425,7 +424,7 @@ export const useFeedStore = create((set, get) => ({
             const res = await savedPostService.getSavedPostIds()
             set({ savedPostIds: new Set(res.ids || []) })
         } catch (err) {
-            console.error('Failed to fetch saved post IDs:', err)
+            console.warn('Failed to fetch saved post IDs:', err)
         }
     },
 
@@ -483,7 +482,7 @@ export const useFeedStore = create((set, get) => ({
                 reelFeed: state.reelFeed.filter((p) => String(p.id) !== String(postId))
             }))
         } catch (err) {
-            console.error('Failed to delete post:', err)
+            console.warn('Failed to delete post:', err)
             throw err
         }
     },

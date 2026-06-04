@@ -45,5 +45,33 @@ export const messageService = {
     deleteChat: async (roomId) => {
         const response = await axios.delete(`${API_URL}/user/messages/conversations/${roomId}`, getAuthHeader());
         return response.data;
+    },
+    createGroup: async (name, members) => {
+        const response = await axios.post(`${API_URL}/user/messages/group`, { name, members }, getAuthHeader());
+        return response.data;
+    },
+    getGroups: async () => {
+        const response = await axios.get(`${API_URL}/user/messages/groups`, getAuthHeader());
+        return response.data.groups;
+    },
+    addGroupMembers: async (groupId, members) => {
+        const response = await axios.post(`${API_URL}/user/messages/group/${groupId}/add`, { members }, getAuthHeader());
+        return response.data;
+    },
+    removeGroupMember: async (groupId, memberId) => {
+        const response = await axios.post(`${API_URL}/user/messages/group/${groupId}/remove`, { memberId }, getAuthHeader());
+        return response.data;
+    },
+    leaveGroup: async (groupId) => {
+        const response = await axios.post(`${API_URL}/user/messages/group/${groupId}/leave`, {}, getAuthHeader());
+        return response.data;
+    },
+    getGroupDetails: async (groupId) => {
+        const response = await axios.get(`${API_URL}/user/messages/group/${groupId}`, getAuthHeader());
+        return response.data.group;
+    },
+    updateGroup: async (groupId, name, avatar) => {
+        const response = await axios.put(`${API_URL}/user/messages/group/${groupId}`, { name, avatar }, getAuthHeader());
+        return response.data.group;
     }
 };

@@ -5,6 +5,7 @@ const { verifyAlchemySignature } = require("../middleware/alchemyWebhookMiddlewa
 const {
   linkWallet,
   getMyCollection,
+  getUserCollection,
   getNFTDetail,
   getMarketplace,
   prepareIPFS,
@@ -35,6 +36,9 @@ router.post("/wallet/link", linkWallet);
 
 // Get logged-in user's NFT collection
 router.get("/my/collection", getMyCollection);
+
+// Get any user's NFT collection
+router.get("/user/:userId/collection", getUserCollection);
 
 // Settle NFT with sponsored gas/transaction
 router.post("/claim/:auctionId", claimNFTBySponsor);

@@ -1,4 +1,5 @@
 const Auction = require("../models/Auction");
+const Post = require("../models/Post");
 const User = require("../models/User");
 const axios = require("axios");
 const NFTOwnership = require("../models/NFTOwnership");
@@ -88,6 +89,70 @@ const getMyCollection = async (req, res) => {
     res.status(200).json({ success: true, nfts: formatted, total: formatted.length });
   } catch (err) {
     console.error("[NFT] getMyCollection error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * GET /api/nft/user/:userId/collection
+ * Returns all NFTs owned by a specific user (by their userId).
+ */
+const getUserCollection = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findById(userId).select("walletAddress");
+    const walletQuery = user?.walletAddress ? user.walletAddress.trim() : "";
+
+    // Query by wallet address (if linked) OR by user ID
+    const queryConditions = [{ toUserId: userId }];
+    if (walletQuery) {
+      queryConditions.push({ toAddress: { $regex: new RegExp(walletQuery, "i") } });
+    }
+
+    const ownerships = await NFTOwnership.find({ $or: queryConditions })
+      .populate({ path: "auctionId", select: "title description mediaUrl mediaType nftStatus tokenId highestBid basePrice" })
+      .sort({ createdAt: -1 });
+
+    // Filter out NFTs that were transferred away
+    const transferOutConditions = [{ fromUserId: userId }];
+    if (walletQuery) {
+      transferOutConditions.push({ fromAddress: { $regex: new RegExp(walletQuery, "i") } });
+    }
+
+    const transferredOut = new Set(
+      (await NFTOwnership.find({ $or: transferOutConditions }))
+        .map((o) => `${o.contractAddress}:${o.tokenId}`)
+    );
+
+    const currentNFTs = ownerships.filter(
+      (o) => !transferredOut.has(`${o.contractAddress}:${o.tokenId}`)
+    );
+
+    // Filter out duplicates (e.g. mint + claim records for same token)
+    const uniqueTokens = new Set();
+    const uniqueNFTs = [];
+    for (const o of currentNFTs) {
+      const key = `${o.contractAddress}:${o.tokenId}`;
+      if (!uniqueTokens.has(key)) {
+        uniqueTokens.add(key);
+        uniqueNFTs.push(o);
+      }
+    }
+
+    const formatted = uniqueNFTs.map((o) => ({
+      tokenId: o.tokenId,
+      contractAddress: o.contractAddress,
+      auction: o.auctionId,
+      acquiredAt: o.createdAt,
+      platform: o.platform,
+      openSeaUrl: getOpenSeaUrl(o.tokenId),
+      explorerUrl: getTxExplorerUrl(o.txHash)
+    }));
+
+    res.status(200).json({ success: true, nfts: formatted, total: formatted.length });
+  } catch (err) {
+    console.error("[NFT] getUserCollection error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -602,6 +667,23 @@ const claimNFTBySponsor = async (req, res) => {
       transferType: "claim"
     });
 
+    // Create a Post for the winner so it appears in their feed/profile
+    await Post.create({
+      creator: auction.winner,
+      media: {
+        url: auction.mediaUrl,
+        type: auction.mediaType
+      },
+      caption: `I just claimed my NFT for ${auction.title}! 🎉`,
+      title: auction.title,
+      postType: "nft",
+      isNFT: true,
+      nftPriceINR: auction.highestBid,
+      status: "approved",
+      isPublished: true,
+      nftStatus: "sold"
+    });
+
     return res.status(200).json({
       success: true,
       message: "NFT deposit transaction successfully sponsored.",
@@ -618,6 +700,7 @@ const claimNFTBySponsor = async (req, res) => {
 module.exports = {
   linkWallet,
   getMyCollection,
+  getUserCollection,
   getNFTDetail,
   getMarketplace,
   prepareIPFS,

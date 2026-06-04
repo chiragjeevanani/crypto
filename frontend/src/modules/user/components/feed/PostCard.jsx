@@ -104,7 +104,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
             ([entry]) => {
                 if (entry.isIntersecting) {
                     const recordView = useFeedStore.getState().recordView
-                    if (recordView) recordView(post.id)
+                    if (recordView && !post.isOwned) recordView(post.id)
 
                     const playMedia = async () => {
                         try {
@@ -606,7 +606,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         />
                     )}
                     <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
-                        {formatCount((post.category === 'Campaign' && post.campaignSubmission) ? (post.votes || post.likes || 0) : post.likes)}
+                        {formatCount((post.category === 'Campaign' && post.campaignSubmission) ? (post.votes || (Array.isArray(post.likes) ? post.likes.length : post.likes) || 0) : (Array.isArray(post.likes) ? post.likes.length : (post.likes || 0)))}
                     </span>
                     {(post.category === 'Campaign' && post.campaignSubmission) && (
                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-0.5" style={{ color: 'var(--color-primary)' }}>Vote</span>
@@ -632,7 +632,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                 >
                     <MessageCircle size={23} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />
                     <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
-                        {formatCount(post.comments)}
+                        {formatCount(post.comments || 0)}
                     </span>
                 </motion.button>
 
@@ -646,7 +646,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                 >
                     <Share2 size={23} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />
                     <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
-                        {formatCount(post.shares)}
+                        {formatCount(post.shares || 0)}
                     </span>
                 </motion.button>
 

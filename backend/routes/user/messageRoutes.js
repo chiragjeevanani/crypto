@@ -14,5 +14,13 @@ router.post("/upload", protect, upload.single("file"), messageController.uploadM
 router.delete("/messages/:messageId", protect, messageController.deleteMessage);
 router.put("/messages/:messageId", protect, messageController.editMessage);
 router.delete("/conversations/:roomId", protect, messageController.deleteChat);
+// Group Chat Routes
+router.post("/group", protect, messageController.createGroup);
+router.get("/groups", protect, messageController.getGroups);
+router.get("/group/:groupId", protect, messageController.getGroupDetails);
+router.put("/group/:groupId", protect, messageController.updateGroup);
+router.post("/group/:groupId/add", protect, messageController.addGroupMembers);
+router.post("/group/:groupId/remove", protect, messageController.removeGroupMember);
+router.post("/group/:groupId/leave", protect, messageController.leaveGroup);
 
 module.exports = router;

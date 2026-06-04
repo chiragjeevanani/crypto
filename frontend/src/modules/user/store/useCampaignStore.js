@@ -46,7 +46,7 @@ export const useCampaignStore = create((set, get) => ({
             }))
             return true
         } catch (error) {
-            console.error('Submit entry failed:', error)
+            console.warn('Submit entry failed:', error)
             return false
         }
     },
@@ -68,7 +68,7 @@ export const useCampaignStore = create((set, get) => ({
             }))
             return true
         } catch (error) {
-            console.error('Vote failed:', error)
+            console.warn('Vote failed:', error)
             return false
         }
     },

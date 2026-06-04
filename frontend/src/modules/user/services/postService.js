@@ -16,7 +16,7 @@ export const postService = {
       body: formData
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to create post");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to create post");
     return data;
   },
 
@@ -25,21 +25,21 @@ export const postService = {
     const url = query ? `${USER_POSTS}?${query}` : USER_POSTS;
     const response = await fetch(url, { headers: getAuthHeaders() });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to load posts");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load posts");
     return data;
   },
 
   async getPostById(id) {
     const response = await fetch(`${USER_POSTS}/${id}`, { headers: getAuthHeaders() });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to load post");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load post");
     return data;
   },
 
   async getMyNFTs() {
     const response = await fetch(`${USER_POSTS}/my-nfts`, { headers: getAuthHeaders() });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to load your NFTs");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load your NFTs");
     return data;
   },
 
@@ -49,14 +49,14 @@ export const postService = {
       headers: getAuthHeaders()
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to update like");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to update like");
     return data;
   },
 
   async getComments(id) {
     const response = await fetch(`${USER_POSTS}/${id}/comments`, { headers: getAuthHeaders() });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to load comments");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load comments");
     return data;
   },
 
@@ -67,7 +67,7 @@ export const postService = {
       body: JSON.stringify({ text })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to add comment");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to add comment");
     return data;
   },
 
@@ -77,7 +77,7 @@ export const postService = {
       headers: getAuthHeaders()
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to record share");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to record share");
     return data;
   },
 
@@ -87,7 +87,7 @@ export const postService = {
       headers: getAuthHeaders()
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to record view");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to record view");
     return data;
   },
 
@@ -98,7 +98,7 @@ export const postService = {
       body: JSON.stringify({ reason, description })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to submit report");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to submit report");
     return data;
   },
 
@@ -108,7 +108,7 @@ export const postService = {
       headers: getAuthHeaders()
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || "Failed to delete post");
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to delete post");
     return data;
   }
 };
