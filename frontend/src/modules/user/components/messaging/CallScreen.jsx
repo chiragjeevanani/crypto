@@ -126,7 +126,17 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                 if (!isMounted || err?.message?.includes('OPERATION_ABORTED') || err?.message?.includes('cancel')) {
                     return;
                 }
-                setError(err.message || 'Failed to connect to call');
+                
+                let errorMessage = err.message || 'Failed to connect to call';
+                if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Permission denied')) {
+                    errorMessage = 'Camera or Microphone access was denied. Please allow permissions in your browser settings and try again.';
+                } else if (errorMessage.includes('NotReadableError') || errorMessage.includes('Device in use')) {
+                    errorMessage = 'Camera or Microphone is currently in use by another application. Please close other apps using your camera and try again.';
+                } else if (errorMessage.includes('NotFoundError')) {
+                    errorMessage = 'No Camera or Microphone found on this device.';
+                }
+
+                setError(errorMessage);
             }
         };
 
