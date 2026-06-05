@@ -102,23 +102,26 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                 setConnected(true);
 
                 // Create and publish local tracks
-                const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                if (!isMounted) {
-                    micTrack.close();
-                    return;
-                }
-                localTracksRef.current.mic = micTrack;
-
-                const tracksToPublish = [micTrack];
-
+                let tracksToPublish = [];
+                
                 if (callType === 'video') {
-                    const camTrack = await AgoraRTC.createCameraVideoTrack();
+                    const [micTrack, camTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
                     if (!isMounted) {
+                        micTrack.close();
                         camTrack.close();
                         return;
                     }
+                    localTracksRef.current.mic = micTrack;
                     localTracksRef.current.cam = camTrack;
-                    tracksToPublish.push(camTrack);
+                    tracksToPublish = [micTrack, camTrack];
+                } else {
+                    const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    if (!isMounted) {
+                        micTrack.close();
+                        return;
+                    }
+                    localTracksRef.current.mic = micTrack;
+                    tracksToPublish = [micTrack];
                 }
 
                 await client.publish(tracksToPublish);
