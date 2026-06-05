@@ -73,6 +73,7 @@ import MessagingPage from './modules/user/pages/messaging/MessagingPage'
 import NotificationsPage from './modules/user/pages/NotificationsPage'
 import GlobalModal from './modules/user/components/common/GlobalModal'
 import SocketHandler from './modules/user/components/common/SocketHandler'
+import CallScreen from './modules/user/components/messaging/CallScreen'
 import AuctionListingPage from './modules/auction/pages/AuctionListingPage'
 import AuctionDetailPage from './modules/auction/pages/AuctionDetailPage'
 import CreateAuctionPage from './modules/auction/pages/CreateAuctionPage'
@@ -118,12 +119,13 @@ export default function App() {
     }
   }, [authChecked, isAuthenticated, fetchSavedPostIds, loadWallet, loadGifts])
 
-  return (
-    <>
-      <GlobalModal />
-      <SocketHandler />
-      <ErrorBoundary>
-        <Routes>
+    return (
+      <>
+        <GlobalModal />
+        <SocketHandler />
+        <CallScreen />
+        <ErrorBoundary>
+          <Routes>
           <Route path="/admin/login" element={<LoginPage />} />
           {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
           <Route path="/" element={<RootRoute />} />

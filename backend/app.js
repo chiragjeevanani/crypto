@@ -34,6 +34,7 @@ const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
 const auctionRoutes = require("./routes/auctionRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const nftRoutes = require("./routes/nftRoutes"); // Web3 NFT routes
+const agoraRoutes = require("./routes/agoraRoutes"); // Agora Voice/Video endpoints
 const { processEndedAuctions } = require("./controllers/auctionController");
 const { processVaultSettlements } = require("./controllers/nftController");
 
@@ -90,6 +91,7 @@ app.use("/api/admin/notifications", adminNotificationRoutes);
 app.use("/api/auctions", auctionRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/nft", nftRoutes); // Web3 NFT endpoints
+app.use("/api/agora", agoraRoutes); // Agora Token generation
 // Route removed from here to be moved higher up
 
 // Background jobs function - called after DB is connected

@@ -389,12 +389,16 @@ exports.createGroup = async (req, res) => {
       admins: [currentUserId]
     });
 
+    const userName = (user.username && user.username !== 'undefined') ? user.username : 
+                     (user.name && user.name !== 'undefined') ? user.name : 
+                     (user.handle && user.handle !== 'undefined') ? user.handle : 'A user';
+
     // Create a system message
     const msg = await Message.create({
       roomId: group._id.toString(),
       groupId: group._id,
       sender: currentUserId, // Using creator as sender for system message context
-      text: `${user.username || user.name || 'A user'} created the group "${name}"`,
+      text: `${userName} created the group "${name}"`,
       type: 'system',
       status: 'sent',
       seenBy: [currentUserId]
@@ -454,15 +458,24 @@ exports.addGroupMembers = async (req, res) => {
 
     if (addedIds.length > 0) {
       const user = await User.findById(currentUserId);
-      const addedUsers = await User.find({ _id: { $in: addedIds } }, 'username name');
-      const addedNames = addedUsers.map(u => u.username || u.name).join(', ');
+      const addedUsers = await User.find({ _id: { $in: addedIds } });
+      const addedNames = addedUsers.map(u => {
+          if (u.username && u.username !== 'undefined') return u.username;
+          if (u.name && u.name !== 'undefined') return u.name;
+          if (u.handle && u.handle !== 'undefined') return u.handle;
+          return 'someone';
+      }).join(', ');
+
+      const userName = (user.username && user.username !== 'undefined') ? user.username : 
+                       (user.name && user.name !== 'undefined') ? user.name : 
+                       (user.handle && user.handle !== 'undefined') ? user.handle : 'A user';
 
       // Create a system message
       const msg = await Message.create({
         roomId: group._id.toString(),
         groupId: group._id,
         sender: currentUserId,
-        text: `${user.username || user.name || 'A user'} added ${addedNames || 'someone'}`,
+        text: `${userName} added ${addedNames || 'someone'}`,
         type: 'system',
         status: 'sent',
         seenBy: [currentUserId]

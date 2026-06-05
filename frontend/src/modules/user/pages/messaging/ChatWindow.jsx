@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Info, Phone, Video, Send, Image as ImageIcon, Smile, Paperclip, PlayCircle, MoreHorizontal, X, Trash2, Edit2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore } from '../../store/useUserStore'
+import { useCallStore } from '../../store/useCallStore'
 import { getSocket } from '../../../../socket'
 import { messageService } from '../../../../services/messageService'
 import Avatar from '../../components/shared/Avatar'
@@ -13,6 +14,7 @@ import GroupDetailsModal from './GroupDetailsModal'
 export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost }) {
     const navigate = useNavigate()
     const { profile } = useUserStore()
+    const { setOutgoingCall } = useCallStore()
     const [messages, setMessages] = useState([])
     const [inputValue, setInputValue] = useState('')
     const messagesEndRef = useRef(null)
@@ -38,6 +40,32 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
     
+    const handleCall = (type) => {
+        if (chat?.isGroup) return; // Currently only 1v1 calls
+        
+        const otherId = chat.user.id || chat.user._id;
+        // Agora channel names must be 64 bytes or less.
+        const channelName = `call_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const socket = getSocket();
+        
+        socket.emit("initiate_call", {
+            receiverId: otherId,
+            channelName,
+            callType: type,
+            callerData: {
+                id: profile.id,
+                username: profile.username,
+                avatar: profile.avatar
+            }
+        });
+
+        setOutgoingCall({
+            receiverData: { ...chat.user, id: otherId },
+            channelName,
+            callType: type
+        });
+    };
+
     // Set initial message if provided (e.g. from CTA redirect)
     useEffect(() => {
         if (chat?.initialMessage) {
@@ -100,15 +128,16 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             }
         }
 
+        const handleUserStatusChanged = (data) => {
+            if (data.userId && data.userId.toString() === chat?.user?.id?.toString()) {
+                setIsOnline(data.status === 'online')
+            }
+        }
+
         const handleStatusSent = (data) => {
             setMessages(prev => prev.map(m => m.id === data.id ? { ...m, status: data.status } : m))
         }
 
-        const handleStatusChanged = (data) => {
-            if (data.userId === chat.user.id) {
-                setIsOnline(data.status === 'online')
-            }
-        }
 
         const handleOwnMessageSent = (data) => {
             // Find the optimistic message (starts with 'me-') and update its ID
@@ -162,7 +191,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         socket.on('messages_seen_update', handleMessagesSeenUpdate)
         socket.on('message_status_sent', handleStatusSent)
         socket.on('own_message_sent', handleOwnMessageSent)
-        socket.on('user_status_changed', handleStatusChanged)
+        socket.on('user_status_changed', handleUserStatusChanged)
         socket.on('message_deleted', handleMessageDeleted)
         socket.on('message_edited', handleMessageEdited)
         socket.on('chat_deleted', handleChatDeleted)
@@ -180,7 +209,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             socket.off('messages_seen_update', handleMessagesSeenUpdate)
             socket.off('message_status_sent', handleStatusSent)
             socket.off('own_message_sent', handleOwnMessageSent)
-            socket.off('user_status_changed', handleStatusChanged)
+            socket.off('user_status_changed', handleUserStatusChanged)
             socket.off('message_deleted', handleMessageDeleted)
             socket.off('message_edited', handleMessageEdited)
             socket.off('chat_deleted', handleChatDeleted)
@@ -544,6 +573,18 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         }
 
         if (msg.type === 'system') {
+            if (msg.payload?.isCallLog) {
+                const Icon = msg.payload.callType === 'video' ? Video : Phone;
+                const isFailed = msg.payload.callStatus === 'Missed' || msg.payload.callStatus === 'Declined';
+                return (
+                    <div className="w-full flex justify-center my-3">
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}>
+                            <Icon size={16} className={isFailed ? 'text-red-500' : 'text-gray-500'} />
+                            <span className="text-xs font-medium">{msg.text}</span>
+                        </div>
+                    </div>
+                )
+            }
             return (
                 <div className="w-full flex justify-center my-2">
                     <div className="px-3 py-1 rounded-full text-[10px] font-medium" style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
@@ -582,6 +623,22 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     </div>
                 </div>
                 <div className="flex items-center gap-4 relative">
+                    {!chat?.isGroup && (
+                        <>
+                            <button 
+                                onClick={() => handleCall('audio')}
+                                className="p-1.5 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                            >
+                                <Phone size={18} style={{ color: 'var(--color-text)' }} />
+                            </button>
+                            <button 
+                                onClick={() => handleCall('video')}
+                                className="p-1.5 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                            >
+                                <Video size={18} style={{ color: 'var(--color-text)' }} />
+                            </button>
+                        </>
+                    )}
                     <button 
                         onClick={() => setShowChatOptions(!showChatOptions)}
                         className="p-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors"

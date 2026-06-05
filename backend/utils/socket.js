@@ -232,6 +232,102 @@ const initSocket = (server) => {
       }
     });
 
+    // --- Agora Call Signaling Events ---
+    const logCallHistory = async (senderId, receiverId, callType, callStatus) => {
+        try {
+            const sortedIds = [senderId.toString(), receiverId.toString()].sort();
+            const roomId = `${sortedIds[0]}-${sortedIds[1]}`;
+            const senderObj = new mongoose.Types.ObjectId(senderId);
+            const receiverObj = new mongoose.Types.ObjectId(receiverId);
+
+            const newMessage = await Message.create({
+                sender: senderObj,
+                receiver: receiverObj,
+                roomId,
+                text: `${callType === 'video' ? 'Video' : 'Audio'} Call: ${callStatus}`,
+                type: "system",
+                payload: { isCallLog: true, callType, callStatus },
+                status: "delivered"
+            });
+
+            const formattedMsg = {
+                id: newMessage._id.toString(),
+                sender: "other",
+                senderId: senderId.toString(),
+                text: newMessage.text,
+                type: "system",
+                payload: newMessage.payload,
+                status: newMessage.status,
+                seenBy: newMessage.seenBy,
+                timestamp: new Date(newMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+            };
+
+            // Emit to receiver
+            const receiverSocketId = onlineUsers.get(receiverId.toString());
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("receive_message", formattedMsg);
+            }
+
+            // Emit to sender
+            const senderSocketId = onlineUsers.get(senderId.toString());
+            if (senderSocketId) {
+                const updateData = { ...formattedMsg, senderId: senderId.toString(), receiverId: receiverId.toString() };
+                io.to(senderSocketId).emit("own_message_sent", updateData);
+            }
+        } catch (err) {
+            console.error("[Socket] Failed to log call history:", err);
+        }
+    };
+    
+    // Caller initiates a call
+    socket.on("initiate_call", ({ receiverId, channelName, callType, callerData }) => {
+        if (!receiverId) return;
+        const receiverSocketId = onlineUsers.get(receiverId.toString());
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("incoming_call", {
+                callerData,
+                channelName,
+                callType
+            });
+        } else {
+            // Notify caller that user is offline
+            socket.emit("call_failed", { reason: "User is offline" });
+            logCallHistory(socket.userId || callerData?.id, receiverId, callType, 'Missed');
+        }
+    });
+
+    // Receiver accepts the call
+    socket.on("accept_call", ({ callerId, channelName }) => {
+        if (!callerId) return;
+        const callerSocketId = onlineUsers.get(callerId.toString());
+        if (callerSocketId) {
+            io.to(callerSocketId).emit("call_accepted", { channelName });
+        }
+    });
+
+    // Receiver rejects the call
+    socket.on("reject_call", ({ callerId, channelName, callType }) => {
+        if (!callerId) return;
+        const callerSocketId = onlineUsers.get(callerId.toString());
+        if (callerSocketId) {
+            io.to(callerSocketId).emit("call_rejected", { channelName });
+        }
+        logCallHistory(callerId, socket.userId, callType || 'audio', 'Declined');
+    });
+
+    // Either party ends the call
+    socket.on("end_call", ({ otherUserId, channelName, callType }) => {
+        if (!otherUserId) return;
+        const otherSocketId = onlineUsers.get(otherUserId.toString());
+        if (otherSocketId) {
+            io.to(otherSocketId).emit("call_ended", { channelName });
+        }
+        // Assuming callerId is the person who initiated it, this might be backwards for the receiver.
+        // But for a simple log, it works either way. We can pass the person who initiated as sender.
+        logCallHistory(socket.userId, otherUserId, callType || 'video', 'Ended');
+    });
+    // -----------------------------------
+
     socket.on("disconnect", () => {
       if (socket.userId) {
           onlineUsers.delete(socket.userId.toString());

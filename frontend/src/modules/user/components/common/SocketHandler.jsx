@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useUserStore } from '../../store/useUserStore'
 import { useFeedStore } from '../../store/useFeedStore'
+import { useCallStore } from '../../store/useCallStore'
 import { getSocket } from '../../../../socket'
 
 export default function SocketHandler() {
@@ -34,16 +35,52 @@ export default function SocketHandler() {
             }
         }
 
+        // --- Call Signaling ---
+        const onIncomingCall = (data) => {
+            // data: { callerData, channelName, callType }
+            useCallStore.getState().setIncomingCall(data)
+        }
+
+        const onCallAccepted = (data) => {
+            // data: { channelName }
+            const store = useCallStore.getState()
+            if (store.outgoingCall && store.outgoingCall.channelName === data.channelName) {
+                store.setActiveCall({
+                    channelName: data.channelName,
+                    callType: store.outgoingCall.callType,
+                    otherUserId: store.outgoingCall.receiverData.id
+                })
+            }
+        }
+
+        const onCallRejected = () => {
+            useCallStore.getState().clearCall()
+        }
+
+        const onCallEnded = () => {
+            useCallStore.getState().clearCall()
+        }
+
         socket.on('connect', onReconnect)
         socket.on('reconnect', onReconnect)
         socket.on('notification', onNotification)
         socket.on('notification_broadcast', onBroadcast)
+        
+        socket.on('incoming_call', onIncomingCall)
+        socket.on('call_accepted', onCallAccepted)
+        socket.on('call_rejected', onCallRejected)
+        socket.on('call_ended', onCallEnded)
 
         return () => {
             socket.off('connect', onReconnect)
             socket.off('reconnect', onReconnect)
             socket.off('notification', onNotification)
             socket.off('notification_broadcast', onBroadcast)
+            
+            socket.off('incoming_call', onIncomingCall)
+            socket.off('call_accepted', onCallAccepted)
+            socket.off('call_rejected', onCallRejected)
+            socket.off('call_ended', onCallEnded)
         }
     }, [profile?.id, isAuthenticated, authChecked, addLiveNotification])
 
