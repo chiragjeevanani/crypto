@@ -45,12 +45,6 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [error, setError] = useState(null);
-    const [debugLog, setDebugLog] = useState('');
-
-    const addLog = (msg) => {
-        console.log(msg);
-        setDebugLog(prev => prev + '\n' + msg);
-    };
 
     // Map of uid -> { videoTrack, audioTrack }
     const remoteVideoRefs = useRef({});
@@ -69,11 +63,10 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
 
             // Remote user events
             const handleUserPublished = async (user, mediaType) => {
-                addLog(`[Agora] Remote user published: ${user.uid} (${mediaType})`);
                 try {
                     await client.subscribe(user, mediaType);
                 } catch (e) {
-                    addLog(`[Agora] Failed to subscribe to ${user.uid}: ${e.message}`);
+                    console.error(`[Agora] Failed to subscribe to ${user.uid}: ${e.message}`);
                     return;
                 }
 
@@ -87,11 +80,10 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
             };
 
             const handleUserUnpublished = (user, mediaType) => {
-                addLog(`[Agora] Remote user unpublished: ${user.uid} (${mediaType})`);
+                // Nothing to do
             };
 
             const handleUserLeft = (user) => {
-                addLog(`[Agora] Remote user left: ${user.uid}`);
                 setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
             };
 
@@ -100,12 +92,9 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
             client.on('user-left', handleUserLeft);
 
             try {
-                addLog(`[Agora] Joining channel: ${channelName} with uid 0`);
                 const assignedUid = await client.join(appId, channelName, token || null, 0);
-                addLog(`[Agora] Joined successfully. Assigned UID: ${assignedUid}`);
                 
                 if (!isMounted) {
-                    addLog(`[Agora] Unmounted during join, leaving...`);
                     client.leave();
                     return;
                 }
@@ -133,13 +122,10 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                 }
 
                 await client.publish(tracksToPublish);
-                addLog(`[Agora] Published local tracks successfully`);
             } catch (err) {
                 if (!isMounted || err?.message?.includes('OPERATION_ABORTED') || err?.message?.includes('cancel')) {
-                    addLog(`[Agora] Ignored abort error: ${err.message}`);
                     return;
                 }
-                addLog(`[Agora] Fatal error: ${err.message}`);
                 setError(err.message || 'Failed to connect to call');
             }
         };
@@ -205,15 +191,6 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
 
             {/* Main Video Area */}
             <div className="flex-1 relative flex items-center justify-center bg-gray-900 overflow-hidden">
-                {/* DEBUG LOG OVERLAY */}
-                <div className="absolute top-4 left-4 z-50 bg-black/70 text-green-400 font-mono text-xs p-2 rounded max-w-sm whitespace-pre-wrap max-h-64 overflow-y-auto pointer-events-none">
-                    <div>Channel: {channelName}</div>
-                    <div>State: {connected ? 'Connected' : 'Connecting'}</div>
-                    <div>Remote Users: {remoteUsers.length}</div>
-                    <hr className="my-1 border-white/20"/>
-                    {debugLog}
-                </div>
-
                 {callType === 'video' ? (
                     <>
                         {/* Remote video full-screen */}
