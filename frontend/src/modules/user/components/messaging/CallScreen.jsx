@@ -5,6 +5,35 @@ import { agoraService } from '../../services/agoraService';
 import { getSocket } from '../../../../socket';
 import { Phone, Video, PhoneOff, Mic, MicOff, VideoOff, Camera } from 'lucide-react';
 
+// ─── MEDIA PLAYER COMPONENT ───────────────────────────────────────────────────
+// Properly handles playing Agora tracks without re-calling play() on every render
+const MediaPlayer = ({ videoTrack, audioTrack }) => {
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        
+        if (videoTrack) {
+            videoTrack.play(containerRef.current);
+        }
+        
+        return () => {
+            if (videoTrack) videoTrack.stop();
+        };
+    }, [videoTrack]);
+
+    useEffect(() => {
+        if (audioTrack) {
+            audioTrack.play();
+        }
+        return () => {
+            if (audioTrack) audioTrack.stop();
+        };
+    }, [audioTrack]);
+
+    return <div ref={containerRef} className="w-full h-full" style={{ background: '#111' }}></div>;
+};
+
 // ─── RAW AGORA CALL ENGINE ────────────────────────────────────────────────────
 // Uses the raw Agora SDK instead of hooks to get reliable connection state.
 function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall }) {
@@ -16,59 +45,72 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [error, setError] = useState(null);
+    const [debugLog, setDebugLog] = useState('');
+
+    const addLog = (msg) => {
+        console.log(msg);
+        setDebugLog(prev => prev + '\n' + msg);
+    };
 
     // Map of uid -> { videoTrack, audioTrack }
     const remoteVideoRefs = useRef({});
 
     useEffect(() => {
-        const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
-        clientRef.current = client;
-
-        // Remote user events
-        const handleUserPublished = async (user, mediaType) => {
-            await client.subscribe(user, mediaType);
-
-            if (mediaType === 'audio' && user.audioTrack) {
-                user.audioTrack.play();
-            }
-
-            setRemoteUsers(prev => {
-                const existing = prev.find(u => u.uid === user.uid);
-                if (existing) {
-                    return prev.map(u => u.uid === user.uid ? user : u);
-                }
-                return [...prev, user];
-            });
-        };
-
-        const handleUserUnpublished = (user) => {
-            setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
-        };
-
-        const handleUserLeft = (user) => {
-            setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
-        };
-
-        client.on('user-published', handleUserPublished);
-        client.on('user-unpublished', handleUserUnpublished);
-        client.on('user-left', handleUserLeft);
-
         let isMounted = true;
+        let client = null;
 
-        const joinAndPublish = async () => {
+        const initAgora = async () => {
+            // Debounce to avoid React 18 Strict Mode double-mount destroying Agora's websocket
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (!isMounted) return;
+
+            client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+            clientRef.current = client;
+
+            // Remote user events
+            const handleUserPublished = async (user, mediaType) => {
+                addLog(`[Agora] Remote user published: ${user.uid} (${mediaType})`);
+                try {
+                    await client.subscribe(user, mediaType);
+                } catch (e) {
+                    addLog(`[Agora] Failed to subscribe to ${user.uid}: ${e.message}`);
+                    return;
+                }
+
+                setRemoteUsers(prev => {
+                    const existing = prev.find(u => u.uid === user.uid);
+                    if (existing) {
+                        return prev.map(u => u.uid === user.uid ? user : u);
+                    }
+                    return [...prev, user];
+                });
+            };
+
+            const handleUserUnpublished = (user, mediaType) => {
+                addLog(`[Agora] Remote user unpublished: ${user.uid} (${mediaType})`);
+            };
+
+            const handleUserLeft = (user) => {
+                addLog(`[Agora] Remote user left: ${user.uid}`);
+                setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
+            };
+
+            client.on('user-published', handleUserPublished);
+            client.on('user-unpublished', handleUserUnpublished);
+            client.on('user-left', handleUserLeft);
+
             try {
-                // uid must be a number; 0 = auto-assign
-                const numUid = typeof uid === 'number' ? uid : (parseInt(uid, 10) || 0);
-                console.log('[Agora] Joining channel:', channelName, 'uid:', numUid);
-                await client.join(appId, channelName, token || null, numUid);
+                addLog(`[Agora] Joining channel: ${channelName} with uid 0`);
+                const assignedUid = await client.join(appId, channelName, token || null, 0);
+                addLog(`[Agora] Joined successfully. Assigned UID: ${assignedUid}`);
                 
                 if (!isMounted) {
+                    addLog(`[Agora] Unmounted during join, leaving...`);
                     client.leave();
                     return;
                 }
                 
                 setConnected(true);
-                console.log('[Agora] Joined channel successfully');
 
                 // Create and publish local tracks
                 const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
@@ -91,43 +133,36 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                 }
 
                 await client.publish(tracksToPublish);
-                console.log('[Agora] Published local tracks');
+                addLog(`[Agora] Published local tracks successfully`);
             } catch (err) {
                 if (!isMounted || err?.message?.includes('OPERATION_ABORTED') || err?.message?.includes('cancel')) {
-                    console.log('[Agora] Ignored abort error during unmount or remount');
+                    addLog(`[Agora] Ignored abort error: ${err.message}`);
                     return;
                 }
-                console.error('[Agora] Failed to join or publish:', err);
+                addLog(`[Agora] Fatal error: ${err.message}`);
                 setError(err.message || 'Failed to connect to call');
             }
         };
 
-        joinAndPublish();
+        initAgora();
 
         return () => {
             isMounted = false;
-            // Cleanup
-            client.off('user-published', handleUserPublished);
-            client.off('user-unpublished', handleUserUnpublished);
-            client.off('user-left', handleUserLeft);
+            if (client) {
+                client.off('user-published', () => {});
+                client.off('user-unpublished', () => {});
+                client.off('user-left', () => {});
 
-            const { mic, cam } = localTracksRef.current;
-            if (mic) { mic.stop(); mic.close(); }
-            if (cam) { cam.stop(); cam.close(); }
+                const { mic, cam } = localTracksRef.current;
+                if (mic) { mic.stop(); mic.close(); }
+                if (cam) { cam.stop(); cam.close(); }
 
-            client.leave().catch(() => {});
+                client.leave().catch(() => {});
+            }
         };
     }, [appId, channelName, token, uid, callType]);
 
-    // Play remote video tracks into DOM nodes
-    useEffect(() => {
-        remoteUsers.forEach(user => {
-            if (user.videoTrack && remoteVideoRefs.current[user.uid]) {
-                user.videoTrack.play(remoteVideoRefs.current[user.uid]);
-            }
-        });
-    }, [remoteUsers]);
-
+    // Toggle functions
     const toggleMute = () => {
         const mic = localTracksRef.current.mic;
         if (mic) {
@@ -169,22 +204,23 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
             </div>
 
             {/* Main Video Area */}
-            <div className="flex-1 relative flex items-center justify-center bg-gray-900">
+            <div className="flex-1 relative flex items-center justify-center bg-gray-900 overflow-hidden">
+                {/* DEBUG LOG OVERLAY */}
+                <div className="absolute top-4 left-4 z-50 bg-black/70 text-green-400 font-mono text-xs p-2 rounded max-w-sm whitespace-pre-wrap max-h-64 overflow-y-auto pointer-events-none">
+                    <div>Channel: {channelName}</div>
+                    <div>State: {connected ? 'Connected' : 'Connecting'}</div>
+                    <div>Remote Users: {remoteUsers.length}</div>
+                    <hr className="my-1 border-white/20"/>
+                    {debugLog}
+                </div>
+
                 {callType === 'video' ? (
                     <>
                         {/* Remote video full-screen */}
                         {remoteUsers.map(user => (
-                            <div
-                                key={user.uid}
-                                ref={node => {
-                                    if (node) {
-                                        remoteVideoRefs.current[user.uid] = node;
-                                        if (user.videoTrack) user.videoTrack.play(node);
-                                    }
-                                }}
-                                className="absolute inset-0"
-                                style={{ background: '#111' }}
-                            />
+                            <div key={user.uid} className="absolute inset-0">
+                                <MediaPlayer videoTrack={user.videoTrack} audioTrack={user.audioTrack} />
+                            </div>
                         ))}
 
                         {remoteUsers.length === 0 && (
@@ -194,14 +230,7 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                         {/* Local video PiP */}
                         <div className="absolute bottom-28 right-5 w-28 h-40 bg-gray-800 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20">
                             {localTracksRef.current.cam && !isVideoOff ? (
-                                <div
-                                    ref={node => {
-                                        if (node && localTracksRef.current.cam) {
-                                            localTracksRef.current.cam.play(node);
-                                        }
-                                    }}
-                                    className="w-full h-full"
-                                />
+                                <MediaPlayer videoTrack={localTracksRef.current.cam} />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                     <VideoOff size={28} className="text-gray-500" />
@@ -313,13 +342,12 @@ export default function CallScreen() {
                 callerId: incomingCall.callerData.id,
                 channelName: incomingCall.channelName
             });
-            const randomUid = Math.floor(Math.random() * 900000) + 100000;
-            const { token, uid } = await agoraService.getToken(incomingCall.channelName, randomUid);
+            const { token, uid } = await agoraService.getToken(incomingCall.channelName, 0);
             setActiveCall({
                 channelName: incomingCall.channelName,
                 callType: incomingCall.callType,
                 token,
-                uid,
+                uid: 0,
                 otherUserId: incomingCall.callerData.id
             });
         } catch (err) {
@@ -354,10 +382,9 @@ export default function CallScreen() {
     // ── Caller: fetch token once receiver accepted
     useEffect(() => {
         if (!activeCall || activeCall.token) return;
-        const randomUid = Math.floor(Math.random() * 900000) + 100000;
-        agoraService.getToken(activeCall.channelName, randomUid)
-            .then(({ token, uid }) => {
-                setActiveCall({ ...activeCall, token, uid });
+        agoraService.getToken(activeCall.channelName, 0)
+            .then(({ token }) => {
+                setActiveCall({ ...activeCall, token, uid: 0 });
             })
             .catch(err => {
                 console.error('[Call] Failed to get token:', err);
