@@ -3,12 +3,10 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, ShieldCheck, Zap, Globe } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
-import { useLogin, usePrivy } from '@privy-io/react-auth';
 
 export default function SignInPage() {
     const navigate = useNavigate();
     const loginUser = useUserStore(state => state.loginUser);
-    const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
     const authLoading = useUserStore(state => state.authLoading);
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
@@ -17,29 +15,6 @@ export default function SignInPage() {
         password: ''
     });
 
-    const { getAccessToken } = usePrivy();
-    const [privyLoading, setPrivyLoading] = useState(false);
-
-    const { login } = useLogin({
-        onComplete: async (user, isNewUser, wasAlreadyAuthenticated) => {
-            setPrivyLoading(true);
-            setAuthError('');
-            try {
-                const token = await getAccessToken();
-                await loginOrLinkWithPrivy(token);
-                navigate('/home');
-            } catch (err) {
-                console.error("Privy login error:", err);
-                setAuthError(err.message || "Failed to log in with Privy");
-            } finally {
-                setPrivyLoading(false);
-            }
-        },
-        onError: (err) => {
-            console.error("Privy login failed:", err);
-            setAuthError("Privy login was cancelled or failed");
-        }
-    });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -72,26 +47,7 @@ export default function SignInPage() {
                         <h1 className="text-2xl font-bold tracking-tight text-text">Sign In</h1>
                     </div>
 
-                    {/* Privy Social Auth */}
-                    <button
-                        onClick={login}
-                        disabled={privyLoading || authLoading}
-                        className="w-full bg-primary text-black font-bold uppercase tracking-widest text-[11px] py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 mb-6"
-                    >
-                        {privyLoading ? (
-                            <Zap className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <>
-                                <Globe className="w-4 h-4" /> Continue with Google / OTP
-                            </>
-                        )}
-                    </button>
 
-                    <div className="relative flex py-2 items-center mb-6">
-                        <div className="flex-grow border-t" style={{ borderColor: 'var(--color-border)' }}></div>
-                        <span className="flex-shrink mx-4 text-[10px] text-muted font-bold uppercase tracking-wider">or email login</span>
-                        <div className="flex-grow border-t" style={{ borderColor: 'var(--color-border)' }}></div>
-                    </div>
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Email</label>

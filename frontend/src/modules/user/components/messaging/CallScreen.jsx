@@ -231,6 +231,12 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                 ) : (
                     /* Audio-only view */
                     <div className="flex flex-col items-center gap-6">
+                        {/* Render hidden MediaPlayers to ensure remote audio tracks are played */}
+                        {remoteUsers.map(user => (
+                            <div key={user.uid} className="hidden">
+                                <MediaPlayer audioTrack={user.audioTrack} />
+                            </div>
+                        ))}
                         <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-[0_0_60px_rgba(59,130,246,0.4)] animate-pulse">
                             <Phone size={50} className="text-white" />
                         </div>

@@ -20,7 +20,7 @@ import { postService } from '../../services/postService'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
-const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
+const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) => {
     if (!post?.creator) return <ReelFullSkeleton />
 
     const {
@@ -573,7 +573,25 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
                             </div>
                         </div>
                     )}
-                </div>                {typeof document !== 'undefined' && createPortal(
+                </div>
+
+                {/* NFT Action Button */}
+                {post.nftData && (
+                    <div className="absolute right-4 z-40" style={{ bottom: 'calc(16px + var(--reels-bottom-offset, 0px))' }}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onNftAction?.(post.nftData)
+                            }}
+                            className="px-4 py-2 rounded-xl text-xs font-bold shadow-lg"
+                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                        >
+                            {post.nftData.status === 'listed' ? 'Buy NFT' : 'Resell NFT'}
+                        </button>
+                    </div>
+                )}
+                
+                {typeof document !== 'undefined' && createPortal(
                     <AnimatePresence>
                         {showComments && (
                             <>
@@ -697,7 +715,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose }) => {
 
 const ReelPost = memo(ReelPostInner)
 
-export default function PostFeedModal({ posts = [], startIndex = null, onClose, forceReels = false }) {
+export default function PostFeedModal({ posts = [], startIndex = null, onClose, forceReels = false, onNftAction }) {
     const containerRef = useRef(null)
     const postRefs = useRef({})
     const [activeReelIndex, setActiveReelIndex] = useState(null)
@@ -871,7 +889,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                 {isReelsMode
                                     ? post?.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
-                                        : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && Math.abs(index - activeReelIndex) <= 1} onClose={onClose} />
+                                        : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && Math.abs(index - activeReelIndex) <= 1} onClose={onClose} onNftAction={onNftAction} />
                                     : post && <PostCard post={post} onDeleteSuccess={onClose} />}
                             </div>
                         ))}

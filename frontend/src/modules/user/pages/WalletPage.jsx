@@ -15,7 +15,6 @@ const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 export default function WalletPage() {
     const {
         inrWallet,
-        cryptoWallet,
         earningsWallet,
         walletRates,
         giftEarnings,
@@ -32,7 +31,6 @@ export default function WalletPage() {
         requestWithdrawal,
     } = useWalletStore(useShallow(state => ({
         inrWallet: state.inrWallet,
-        cryptoWallet: state.cryptoWallet,
         earningsWallet: state.earningsWallet,
         walletRates: state.walletRates,
         giftEarnings: state.giftEarnings,
@@ -402,40 +400,6 @@ export default function WalletPage() {
                         </div>
                     </div>
                     <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-                </motion.div>
-
-                {/* Crypto Wallet Card */}
-                <motion.div 
-                    whileHover={{ scale: 1.01 }}
-                    className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-black/5"
-                    style={{ 
-                        background: 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)', 
-                        color: '#000' 
-                    }}
-                >
-                    <div className="relative z-10 flex flex-col gap-3">
-                        <div className="w-full">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50 mb-1 break-words">CRYPTO ASSETS</p>
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="flex flex-col min-w-0">
-                                    <h2 className="text-3xl font-black flex items-baseline gap-1 min-w-0">
-                                        <span className="truncate">{Number(cryptoWallet || 0).toFixed(3)}</span> 
-                                        <span className="text-xs font-medium opacity-40">ETH</span>
-                                    </h2>
-                                    <span className="text-[9px] font-bold opacity-40 uppercase tracking-wider truncate">
-                                        ≈ {currencySymbol}{Math.round(cryptoWallet * walletRates.inrPerCrypto).toLocaleString()}
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={() => setActiveTab('Linked')}
-                                    className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black bg-black/5 hover:bg-black/10 transition-all active:scale-95 uppercase tracking-widest"
-                                >
-                                    Manage
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="absolute bottom-[-20%] right-[-10%] w-24 h-24 bg-black/5 rounded-full blur-2xl" />
                 </motion.div>
 
                 {/* Earning Wallet Card */}

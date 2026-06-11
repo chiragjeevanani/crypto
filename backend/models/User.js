@@ -123,17 +123,6 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    // ─── Web3 Wallet (additive — safe defaults) ────────────────────────────
-    walletAddress: {
-      type: String,
-      trim: true,
-      default: "",
-      index: true       // indexed for NFT ownership lookups
-    },
-    walletVerifiedAt: {
-      type: Date,
-      default: null
-    },
     // ─── Payout Methods ───────────────────────────────────────────────────
     payoutMethods: [{
       type: { type: String, enum: ['bank', 'upi'] },

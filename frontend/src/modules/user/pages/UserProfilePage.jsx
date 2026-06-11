@@ -67,25 +67,25 @@ export default function UserProfilePage() {
                 // Combine created NFTs and owned NFTs
                 const createdPosts = nRes.posts || [];
                 const ownedNfts = (cRes.nfts || []).map(o => ({
-                    id: o.auction?._id || o.tokenId || Math.random().toString(),
+                    id: o.auctionId || o.collectibleId || Math.random().toString(),
                     creator: {
                         id: profileUser?.id || id,
                         username: profileUser?.fullName || profileUser?.username || 'User',
                         handle: profileUser?.handle,
                         avatar: profileUser?.avatar
                     },
-                    media: { url: o.auction?.mediaUrl, type: o.auction?.mediaType },
-                    caption: o.auction?.title || 'Owned NFT',
-                    title: o.auction?.title || 'Owned NFT',
-                    status: o.auction?.nftStatus || 'sold',
-                    price: o.auction?.highestBid || o.auction?.basePrice || 0,
-                    nftPriceINR: o.auction?.highestBid || o.auction?.basePrice || 0,
+                    media: { url: o.mediaUrl, type: o.mediaType },
+                    caption: o.description || o.title || 'Owned NFT',
+                    title: o.title || 'Owned NFT',
+                    status: o.status || 'sold',
+                    price: o.salePrice || 0,
+                    nftPriceINR: o.salePrice || 0,
                     views: 0,
-                    bids: o.auction?.highestBid ? 1 : 0,
-                    thumbnail: o.auction?.mediaUrl,
+                    bids: 0,
+                    thumbnail: o.mediaUrl,
                     isOwned: true,
                     isNFT: true,
-                    createdAt: o.createdAt || new Date().toISOString(),
+                    createdAt: o.acquiredAt || new Date().toISOString(),
                     likes: [],
                     comments: 0,
                     shares: 0

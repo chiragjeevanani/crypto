@@ -95,7 +95,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
 
         const handleUnreadReset = (data) => {
             setConversations(prev => prev.map(conv => 
-                conv.roomId === data.roomId ? { ...conv, unreadCount: 0 } : conv
+                (conv.id === data.roomId || conv.roomId === data.roomId) ? { ...conv, lastMessage: { ...conv.lastMessage, unreadCount: 0 } } : conv
             ))
         }
 
@@ -171,7 +171,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
     useEffect(() => {
         if (selectedChatId) {
             setConversations(prev => prev.map(c => {
-                if ((c.id || c.user.id) === selectedChatId && c.lastMessage?.unreadCount > 0) {
+                if ((c.id === selectedChatId || c.user.id === selectedChatId) && c.lastMessage?.unreadCount > 0) {
                     return {
                         ...c,
                         lastMessage: { ...c.lastMessage, unreadCount: 0 }
@@ -258,7 +258,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                                 setSearchQuery('')
                                 onSelectChat(conv)
                             }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface2)] text-left ${selectedChatId === (conv.id || conv.user.id) ? 'bg-[var(--color-surface2)]' : ''}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface2)] text-left ${(selectedChatId === conv.id || selectedChatId === conv.user.id) ? 'bg-[var(--color-surface2)]' : ''}`}
                         >
                             <div className="relative">
                                 <Avatar 

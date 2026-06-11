@@ -22,8 +22,6 @@ import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import { savedPostService } from '../services/savedPostService'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
-import { usePrivy } from '@privy-io/react-auth'
-
 const TABS = ['Posts', 'NFTs', 'Tasks']
 const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
@@ -33,7 +31,6 @@ export default function ProfilePage() {
     const { profile, updateProfile, toggleDarkMode, darkMode, user } = useUserStore()
     const { posts, loadPosts } = useFeedStore()
     const { earningsWallet, loadWallet } = useWalletStore()
-    const { logout: privyLogout } = usePrivy()
     
     const profilePosts = useMemo(() => posts.filter((p) => String(p.creator?.id) === String(profile?.id)), [posts, profile?.id])
     const totalViews = useMemo(() => profilePosts.reduce((acc, p) => acc + (p.views || 0), 0), [profilePosts])
@@ -81,25 +78,25 @@ export default function ProfilePage() {
         }));
         
         const mappedOwned = ownedNfts.map(o => ({
-            id: o.auction?._id || o.tokenId || Math.random().toString(),
+            id: o.auctionId || o.collectibleId || Math.random().toString(),
             creator: {
-                id: profile.id,
-                username: profile.fullName || profile.username,
-                handle: profile.handle,
-                avatar: profile.avatar
+                id: o.creator?._id || profile.id,
+                username: o.creator?.name || profile.fullName || profile.username,
+                handle: o.creator?.handle || profile.handle,
+                avatar: o.creator?.avatar || profile.avatar
             },
-            media: { url: o.auction?.mediaUrl, type: o.auction?.mediaType },
-            caption: o.auction?.title || 'Owned NFT',
-            title: o.auction?.title || 'Owned NFT',
-            status: o.auction?.nftStatus || 'sold',
-            price: o.auction?.highestBid || o.auction?.basePrice || 0,
-            nftPriceINR: o.auction?.highestBid || o.auction?.basePrice || 0,
+            media: { url: o.mediaUrl, type: o.mediaType },
+            caption: o.description || o.title || 'Owned NFT',
+            title: o.title || 'Owned NFT',
+            status: o.status || 'sold',
+            price: o.salePrice || 0,
+            nftPriceINR: o.salePrice || 0,
             views: 0,
-            bids: o.auction?.highestBid ? 1 : 0,
-            thumbnail: o.auction?.mediaUrl,
+            bids: 0,
+            thumbnail: o.mediaUrl,
             isOwned: true,
             isNFT: true,
-            createdAt: o.createdAt || new Date().toISOString(),
+            createdAt: o.acquiredAt || new Date().toISOString(),
             likes: [],
             comments: 0,
             shares: 0

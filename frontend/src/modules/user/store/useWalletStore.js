@@ -10,10 +10,8 @@ function round2(value) {
 
 export const useWalletStore = create((set, get) => ({
     inrWallet: 0,
-    cryptoWallet: 0,
     earningsWallet: 0,
     balance: 0, 
-    giftSpendWallet: 'inr', 
     walletRates: { inrPerCrypto: INR_PER_CRYPTO },
 
     giftEarnings: 0,
@@ -189,23 +187,6 @@ export const useWalletStore = create((set, get) => ({
     addFundsToWallet: async ({ wallet, amount }) => {
         const parsed = Number(amount || 0)
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Enter valid amount.' }
-        if (wallet === 'crypto') {
-            set((state) => ({
-                cryptoWallet: round2(state.cryptoWallet + parsed),
-                transactions: [
-                    {
-                        id: `tx_${Date.now()}`,
-                        type: 'topup',
-                        title: `Added ${parsed} ETH to crypto wallet`,
-                        amount: Math.round(parsed * state.walletRates.inrPerCrypto),
-                        date: new Date().toISOString(),
-                        status: 'completed',
-                    },
-                    ...state.transactions,
-                ],
-            }))
-            return { ok: true }
-        }
         try {
             await walletService.deposit(parsed, `dep_${Date.now()}`)
             await get().loadWallet()
@@ -259,27 +240,6 @@ export const useWalletStore = create((set, get) => ({
         const parsed = Number(amount || 0)
         const state = get()
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Invalid gift amount.' }
-        if (state.giftSpendWallet === 'crypto') {
-            const neededCrypto = parsed / state.walletRates.inrPerCrypto
-            if (state.cryptoWallet < neededCrypto) {
-                return { ok: false, message: 'Not enough Crypto balance.', error: 'insufficient_balance' }
-            }
-            set((prev) => ({
-                cryptoWallet: round2(prev.cryptoWallet - neededCrypto),
-                transactions: [
-                    {
-                        id: `tx_${Date.now()}`,
-                        type: 'gift_sent',
-                        title: 'Gift sent from Crypto wallet',
-                        amount: -Math.round(parsed),
-                        date: new Date().toISOString(),
-                        status: 'completed',
-                    },
-                    ...prev.transactions,
-                ],
-            }))
-            return { ok: true }
-        }
         if (state.inrWallet < parsed) {
             return { ok: false, message: 'Not enough INR balance.', error: 'insufficient_balance' }
         }
@@ -332,26 +292,23 @@ export const useWalletStore = create((set, get) => ({
         return { ok: false, message: 'Earnings can only be withdrawn to your bank/upi account.' }
     },
 
-    buyNft: (amount, title = 'NFT purchase') => {
+    buyNft: async (postId, amount, title = 'NFT purchase') => {
         const parsed = Number(amount || 0)
         const state = get()
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Invalid NFT price.' }
         if (state.inrWallet < parsed) return { ok: false, message: 'Not enough INR wallet balance.' }
-        set((prev) => ({
-            inrWallet: round2(prev.inrWallet - parsed),
-            transactions: [
-                {
-                    id: `tx_${Date.now()}`,
-                    type: 'nft_buy',
-                    title: `Bought NFT: ${title}`,
-                    amount: -Math.round(parsed),
-                    date: new Date().toISOString(),
-                    status: 'completed',
-                },
-                ...prev.transactions,
-            ],
-        }))
-        return { ok: true }
+        
+        try {
+            await walletService.buyPostNFT(postId)
+            
+            // Sync wallet balances
+            await get().loadWallet()
+            await get().loadTransactions()
+
+            return { ok: true }
+        } catch (error) {
+            return { ok: false, message: error.message }
+        }
     },
 
     addGiftEarning: (amount) => set((state) => {

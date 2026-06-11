@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { useLogin, usePrivy } from '@privy-io/react-auth'
+
 import {
     Home,
     Search,
@@ -57,9 +57,8 @@ export default function AppShell() {
 
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
-    const { inrWallet, cryptoWallet, earningsWallet, walletRates } = useWalletStore(useShallow(state => ({
+    const { inrWallet, earningsWallet, walletRates } = useWalletStore(useShallow(state => ({
         inrWallet: state.inrWallet,
-        cryptoWallet: state.cryptoWallet,
         earningsWallet: state.earningsWallet,
         walletRates: state.walletRates
     })))
@@ -79,24 +78,6 @@ export default function AppShell() {
         profile: state.profile
     })))
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
-
-    const { getAccessToken, logout: privyLogout } = usePrivy();
-    const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
-    const [privyLoading, setPrivyLoading] = useState(false);
-
-    const { login: linkPrivyWallet } = useLogin({
-        onComplete: async (privyUser, isNewUser, wasAlreadyAuthenticated) => {
-            setPrivyLoading(true);
-            try {
-                const token = await getAccessToken();
-                await loginOrLinkWithPrivy(token);
-            } catch (err) {
-                console.error("Privy linking failed:", err);
-            } finally {
-                setPrivyLoading(false);
-            }
-        }
-    });
 
     const [activeCampaigns, setActiveCampaigns] = useState([])
     const [campaignLoading, setCampaignLoading] = useState(false)
@@ -179,7 +160,6 @@ export default function AppShell() {
             .slice(0, 4)
     }, [leaderboardItems])
 
-    const cryptoBalance = Number(cryptoWallet || 0).toFixed(4)
     const today = new Date().toISOString().slice(0, 10)
     const currencySymbol = profile?.currencySymbol || '₹'
 
@@ -404,23 +384,6 @@ export default function AppShell() {
 
             <main className="app-shell-main flex flex-col flex-1 overflow-y-auto hide-scrollbar pb-safe md:pb-6 md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]">
                 <div className="mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col pt-4">
-                    {user && !user.walletAddress && (
-                        <div className="mb-4 bg-surface border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-                            <div className="flex items-center gap-3">
-                                <Wallet className="text-primary w-5 h-5 shrink-0" />
-                                <p className="text-xs font-semibold text-text">
-                                    Enable your secure digital wallet to collect and trade creator collectibles
-                                </p>
-                            </div>
-                            <button
-                                onClick={linkPrivyWallet}
-                                disabled={privyLoading}
-                                className="px-4 py-2 bg-primary text-black font-bold uppercase tracking-wider text-[10px] rounded-lg shrink-0 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
-                            >
-                                {privyLoading ? 'Enabling...' : 'Enable Wallet'}
-                            </button>
-                        </div>
-                    )}
                     <Outlet />
                 </div>
             </main>
@@ -453,10 +416,6 @@ export default function AppShell() {
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>{profile?.currencyCode || 'INR'} Balance</span>
                                 <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{formatCurrency(Math.round(inrWallet * (walletRates?.localRate || 1)), currencySymbol)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span style={{ color: 'var(--color-sub)' }}>Crypto Balance</span>
-                                <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{cryptoBalance} ETH</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span style={{ color: 'var(--color-sub)' }}>Earning Balance</span>
@@ -608,7 +567,6 @@ export default function AppShell() {
                 onConfirm={async () => {
                     setIsLogoutModalOpen(false)
                     useUserStore.getState().logout()
-                    try { await privyLogout(); } catch(e) {}
                     window.location.href = '/signin'
                 }}
             />

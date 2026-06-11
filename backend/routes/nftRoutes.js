@@ -1,74 +1,51 @@
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/authMiddleware");
-const { verifyAlchemySignature } = require("../middleware/alchemyWebhookMiddleware");
 const {
-  linkWallet,
   getMyCollection,
   getUserCollection,
   getNFTDetail,
   getMarketplace,
-  prepareIPFS,
-  mintAuctionNFT,
-  recordDeposit,
-  settleAuction,
-  syncOwnershipWebhook,
-  claimNFTBySponsor
+  buyCollectible,
+  buyPostNFT,
+  getOwnershipCertificate,
+  migrateNFTOwnerships,
 } = require("../controllers/nftController");
 
 // ─── Public Routes ─────────────────────────────────────────────────────────
 
-// NFT marketplace — all minted NFTs
+// All live collectibles / marketplace
 router.get("/marketplace", getMarketplace);
 
-// Single NFT detail page
+// Single collectible detail (uses auctionId as tokenId for URL compat)
 router.get("/:tokenId", getNFTDetail);
-
-// Alchemy webhook for syncing secondary market transfers
-// Verified by Alchemy signature middleware
-router.post("/webhook/transfer", verifyAlchemySignature, syncOwnershipWebhook);
 
 // ─── Authenticated User Routes ─────────────────────────────────────────────
 router.use(protect);
 
-// Link MetaMask wallet to account
-router.post("/wallet/link", linkWallet);
-
-// Get logged-in user's NFT collection
+// Get logged-in user's collectible collection
 router.get("/my/collection", getMyCollection);
 
-// Get any user's NFT collection
+// Get any user's collectible collection
 router.get("/user/:userId/collection", getUserCollection);
 
-// Settle NFT with sponsored gas/transaction
-router.post("/claim/:auctionId", claimNFTBySponsor);
+// Claim / buy a collectible after winning an auction
+router.post("/buy/:auctionId", buyCollectible);
 
-// Record on-chain vault deposit (winner only)
-router.post("/deposit/record/:auctionId", recordDeposit);
+// Buy an NFT Post directly
+router.post("/buy-post/:postId", buyPostNFT);
+
+// Get ownership certificate for a collectible
+router.get("/certificate/:auctionId", getOwnershipCertificate);
 
 // ─── Admin Routes ──────────────────────────────────────────────────────────
-// Only Admin and super_admin can mint/settle NFTs
-const adminRoles = ["Admin", "super_admin", "Developer", "User"];
+const adminRoles = ["Admin", "super_admin", "Developer"];
 
-// Pin auction media + metadata to IPFS
+// One-time migration from old NFTOwnership records
 router.post(
-  "/admin/prepare/:auctionId",
+  "/admin/migrate",
   authorize(...adminRoles),
-  prepareIPFS
-);
-
-// Mint NFT on-chain to the VAULT contract
-router.post(
-  "/admin/mint/:auctionId",
-  authorize(...adminRoles),
-  mintAuctionNFT
-);
-
-// Settle NFT auction (atomic transfer of NFT and MATIC)
-router.post(
-  "/admin/settle/:auctionId",
-  authorize(...adminRoles),
-  settleAuction
+  migrateNFTOwnerships
 );
 
 module.exports = router;

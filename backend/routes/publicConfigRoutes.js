@@ -41,4 +41,15 @@ router.get("/matic-price", async (req, res) => {
 // Public route to get platform settings
 router.get("/", getConfig);
 
+// Route to get real-time fiat exchange rates
+router.get("/exchange-rates", async (req, res) => {
+  try {
+    const { getExchangeRates } = require("../utils/exchangeRate");
+    const data = await getExchangeRates("USD");
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

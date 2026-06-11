@@ -7,7 +7,6 @@ import { useUserStore } from '../../user/store/useUserStore';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import Avatar from '../../user/components/shared/Avatar';
 import { WEB3_ENABLED, ipfsToHttp } from '../../../web3config';
-import { useLogin, usePrivy } from '@privy-io/react-auth';
 import axios from 'axios';
 
 const getAssetUrl = (path) => {
@@ -28,27 +27,10 @@ export default function AuctionDetailPage() {
     const { user, token } = useUserStore();
     const { pushNotification } = useFeedStore();
     const loginOrLinkWithPrivy = useUserStore(state => state.loginOrLinkWithPrivy);
-    const { getAccessToken } = usePrivy();
-    
     const [bidAmount, setBidAmount] = useState('');
     const [timeLeft, setTimeLeft] = useState('');
     const [placingBid, setPlacingBid] = useState(false);
     const [activeTab, setActiveTab] = useState('bids'); // 'bids' or 'details'
-    const [isLinking, setIsLinking] = useState(false);
-
-    const { login: linkPrivyWallet } = useLogin({
-        onComplete: async (privyUser, isNewUser, wasAlreadyAuthenticated) => {
-            setIsLinking(true);
-            try {
-                const privyToken = await getAccessToken();
-                await loginOrLinkWithPrivy(privyToken);
-            } catch (err) {
-                console.error("Privy linking failed:", err);
-            } finally {
-                setIsLinking(false);
-            }
-        }
-    });
 
     useEffect(() => {
         fetchAuctionDetail(id);
@@ -294,53 +276,7 @@ export default function AuctionDetailPage() {
                         <p className="text-sm font-bold text-muted">Winner: <span className="text-primary">@{currentAuction.winner?.handle || currentAuction.winner?.name || 'None'}</span></p>
                     </div>
 
-                    {/* Web3 Claim Section */}
-                    {isWinner && WEB3_ENABLED && currentAuction.nftStatus !== 'minted' && (
-                        <div className="mt-4 p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-center">
-                            <h4 className="font-black text-yellow-500 text-sm mb-2">YOU WON! CLAIM YOUR NFT</h4>
-                            
-                            {!user?.walletAddress ? (
-                                <>
-                                    <p className="text-xs text-muted mb-4 font-bold">Enable your secure digital wallet to receive your unique digital collectible on Polygon.</p>
-                                    <button 
-                                        onClick={linkPrivyWallet}
-                                        disabled={isLinking}
-                                        className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl shadow-lg shadow-yellow-500/20 cursor-pointer disabled:opacity-50"
-                                    >
-                                        {isLinking ? 'Activating...' : 'Enable Digital Wallet'}
-                                    </button>
-                                </>
-                            ) : currentAuction.nftStatus === 'ipfs_ready' ? (
-                                <button 
-                                    onClick={() => navigate(`/nfts/claim/${currentAuction._id}`)}
-                                    className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl shadow-lg shadow-yellow-500/20 cursor-pointer"
-                                >
-                                    Proceed to Claim NFT
-                                </button>
-                            ) : (
-                                <div className="p-3 bg-surface2 rounded-xl flex items-center gap-3 text-left">
-                                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-                                        <RefreshCw size={14} className="animate-spin text-yellow-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-yellow-500">PREPARING ASSETS...</p>
-                                        <p className="text-[9px] text-muted">We are currently pinning your media to IPFS.</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
-                    {currentAuction.nftStatus === 'minted' && (
-                        <div className="mt-4">
-                            <Link 
-                                to={`/nfts/${currentAuction.tokenId}`}
-                                className="inline-flex items-center gap-2 px-6 py-2 bg-zinc-900 border border-zinc-800 text-yellow-500 rounded-full text-xs font-black"
-                            >
-                                <Globe size={14} /> VIEW MINTED NFT
-                            </Link>
-                        </div>
-                    )}
                 </div>
             ) : null}
         </div>

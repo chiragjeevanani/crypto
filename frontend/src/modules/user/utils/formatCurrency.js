@@ -1,10 +1,12 @@
+import { useEffect } from 'react'
 import { useUserStore } from '../store/useUserStore'
 
 export function formatCurrency(amount, symbol = '₹') {
-    if (amount >= 1000) {
-        return `${symbol}${(amount / 1000).toFixed(1)}K`
+    const safeAmount = Number(amount) || 0;
+    if (safeAmount >= 1000) {
+        return `${symbol}${(safeAmount / 1000).toFixed(1)}K`
     }
-    return `${symbol}${amount}`
+    return `${symbol}${Number.isInteger(safeAmount) ? safeAmount : safeAmount.toFixed(2)}`
 }
 
 /** @deprecated Use useUserCurrency() hook instead to get the user's actual currency symbol */
@@ -40,8 +42,29 @@ export function daysLeft(isoDate) {
  */
 export function useUserCurrency() {
     const profile = useUserStore(state => state.profile)
+    const exchangeRates = useUserStore(state => state.exchangeRates)
+    const fetchExchangeRates = useUserStore(state => state.fetchExchangeRates)
+
+    useEffect(() => {
+        if (!exchangeRates) {
+            fetchExchangeRates()
+        }
+    }, [exchangeRates, fetchExchangeRates])
+
     const symbol = profile?.currencySymbol || '₹'
     const code   = profile?.currencyCode   || 'INR'
-    const format = (amount) => formatCurrency(amount, symbol)
+    
+    const format = (amount) => {
+        let finalAmount = amount
+        if (exchangeRates && code !== 'INR' && code !== 'USD') {
+            const rateINR = exchangeRates['INR'] || 83
+            const rateTarget = exchangeRates[code] || 1
+            finalAmount = amount * (rateTarget / rateINR)
+        } else if (exchangeRates && code === 'USD') {
+            const rateINR = exchangeRates['INR'] || 83
+            finalAmount = amount / rateINR
+        }
+        return formatCurrency(finalAmount, symbol)
+    }
     return { symbol, code, format }
 }

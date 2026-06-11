@@ -16,7 +16,7 @@ import { mapCampaignToTask } from '../utils/campaignMapper'
 import { getJoinedCampaignIds, markCampaignJoined } from '../utils/campaignStorage'
 
 const FILTERS = ['All', 'Active', 'Joined']
-const NFT_TABS = ['Discover', 'My Listings', 'Resale']
+const NFT_TABS = ['Discover', 'My Listings', 'My Collection', 'Resale']
 
 const mapPostToNFT = (post) => {
     const mediaType = post.media?.type || 'image'
@@ -58,8 +58,11 @@ export default function TasksPage() {
 
     const [nftTab, setNftTab] = useState('Discover')
     const [displayCurrency, setDisplayCurrency] = useState('INR')
+    const [exchangeRates, setExchangeRates] = useState(null)
+    const [ratesLoading, setRatesLoading] = useState(false)
     const [nftItems, setNftItems] = useState([])
     const [myNftItems, setMyNftItems] = useState([])
+    const [myCollection, setMyCollection] = useState([])
     const [nftLoading, setNftLoading] = useState(false)
     const [nftMessage, setNftMessage] = useState('')
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
@@ -68,7 +71,24 @@ export default function TasksPage() {
     const { profile } = useUserStore()
     const platformSettings = usePlatformSettings()
 
+    const [modalConfig, setModalConfig] = useState(null)
+
     useEffect(() => {
+        const fetchRates = async () => {
+            setRatesLoading(true)
+            try {
+                const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+                const res = await fetch(`${API_BASE}/config/exchange-rates`)
+                const data = await res.json()
+                if (data.success) setExchangeRates(data.rates)
+            } catch (err) {
+                console.error('Failed to fetch exchange rates')
+            } finally {
+                setRatesLoading(false)
+            }
+        }
+        fetchRates()
+
         const hydrate = async () => {
             const localItems = getUserNFTListings()
             setNftLoading(true)
@@ -93,6 +113,14 @@ export default function TasksPage() {
                 } else {
                     setMyNftItems(localItems.filter(l => l.creatorId === 'me'))
                 }
+
+                // Fetch current user's purchased NFTs for My Collection tab
+                const collRes = await postService.getMyCollection()
+                if (collRes.success && collRes.posts) {
+                    setMyCollection(collRes.posts.map((post) => mapPostToNFT(post)))
+                } else {
+                    setMyCollection([])
+                }
             } catch (err) {
                 setNftItems(localItems)
                 setMyNftItems(localItems.filter(l => l.creatorId === 'me'))
@@ -107,11 +135,18 @@ export default function TasksPage() {
         }
         window.addEventListener('nft-listings-updated', onUpdate)
         window.addEventListener('storage', onStorage)
+        window.addEventListener('storage', onStorage)
         return () => {
             window.removeEventListener('nft-listings-updated', onUpdate)
             window.removeEventListener('storage', onStorage)
         }
     }, [])
+
+    useEffect(() => {
+        if (profile?.currencyCode && profile.currencyCode !== 'INR' && displayCurrency === 'INR') {
+            setDisplayCurrency(profile.currencyCode)
+        }
+    }, [profile?.currencyCode])
 
     useEffect(() => {
         let mounted = true
@@ -152,15 +187,16 @@ export default function TasksPage() {
 
     const filteredNFTs = useMemo(() => {
         if (nftTab === 'My Listings') return myNftItems
-        if (nftTab === 'Resale') return [...nftItems, ...myNftItems].filter((n, i, arr) =>
+        if (nftTab === 'My Collection') return myCollection
+        if (nftTab === 'Resale') return [...nftItems, ...myNftItems, ...myCollection].filter((n, i, arr) =>
             n.status === 'sold' && arr.findIndex(x => x.id === n.id) === i
         )
         return nftItems
-    }, [nftItems, myNftItems, nftTab])
+    }, [nftItems, myNftItems, myCollection, nftTab])
 
     const nftFeedPosts = useMemo(() => (
         filteredNFTs.map((nft, idx) => ({
-            id: `nft-post-${nft.id}`,
+            id: nft.id,
             creator: {
                 id: nft.creatorId || `nft-creator-${idx + 1}`,
                 username: nft.creatorName || 'NFT Creator',
@@ -182,34 +218,67 @@ export default function TasksPage() {
             earnings: nft.price || 0,
             isLiked: false,
             createdAt: nft.listedAt || new Date().toISOString(),
+            nftData: nft, // Add nftData for the modal
         }))
     ), [filteredNFTs])
 
-    const toggleBuyResell = (nft) => {
-        setNftItems((state) =>
-            state.map((item) => {
-                if (item.id !== nft.id) return item
-                if (item.status === 'listed') {
-                    const purchase = buyNft(item.price, item.title)
+    const toggleBuyResell = async (nft) => {
+        if (nft.status === 'listed') {
+            const isLocal = displayCurrency === 'INR';
+            const rateINR = exchangeRates?.['INR'] || 83;
+            const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+            const converted = isLocal ? nft.price : (nft.price * 1.05 * (rateTarget / rateINR));
+            const valueStr = converted.toFixed(isLocal ? 0 : 2);
+            const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
+            const displayPriceStr = `${symbol}${valueStr}`;
+
+            setModalConfig({
+                type: 'confirm',
+                title: 'Confirm Purchase',
+                message: `Confirm purchase of "${nft.title}" for ${displayPriceStr} from your wallet balance?`,
+                onConfirm: async () => {
+                    setModalConfig(null);
+                    const purchase = await buyNft(nft.id, nft.price, nft.title)
                     if (!purchase?.ok) {
                         setNftMessage(purchase?.message || 'Unable to buy NFT.')
-                        return item
+                        return
                     }
-                    const commission = Number(platformSettings.commission || 0)
-                    if (item.creatorId === profile.id) {
-                        addNftEarning(item.price, item.title)
+                    
+                    setNftMessage(`NFT bought successfully for ${displayPriceStr}.`)
+                    setNftItems((state) => state.map((item) => 
+                        item.id === nft.id 
+                            ? { ...item, status: 'sold', buyer: '@globalcollector', soldAt: new Date().toISOString() } 
+                            : item
+                    ))
+                    
+                    // Re-fetch my collection so the new purchase shows up
+                    const myCollRes = await postService.getMyCollection()
+                    if (myCollRes.success && myCollRes.posts) {
+                        setMyCollection(myCollRes.posts.map(post => mapPostToNFT(post)))
                     }
-                    setNftMessage(
-                        item.creatorId === profile.id
-                            ? `NFT sold. Commission ${commission}% deducted, net added to your earning wallet.`
-                            : `NFT bought successfully for ₹${item.price}.`,
-                    )
-                    return { ...item, status: 'sold', buyer: '@globalcollector', soldAt: new Date().toISOString() }
-                }
-                setNftMessage('NFT relisted for sale.')
-                return { ...item, status: 'listed', buyer: null, listedAt: new Date().toISOString() }
-            }),
-        )
+                },
+                onCancel: () => setModalConfig(null)
+            })
+        } else if (nft.status === 'sold') {
+            setModalConfig({
+                type: 'prompt',
+                title: 'Relist NFT',
+                message: 'Enter your resale price:',
+                defaultValue: nft.price * 1.2,
+                onConfirm: (newPrice) => {
+                    setModalConfig(null);
+                    if (!newPrice) return;
+                    
+                    setNftMessage(`NFT "${nft.title}" successfully relisted for ${displayCurrency === 'USD' ? '$' + +(newPrice * 1.05 * (exchangeRates?.['INR'] ? (1 / exchangeRates['INR']) : (1 / 83))).toFixed(2) : '₹' + newPrice}.`)
+                    setMyCollection((state) => state.map((item) =>
+                        item.id === nft.id
+                            ? { ...item, status: 'listed', price: Number(newPrice), listedAt: new Date().toISOString() }
+                            : item
+                    ))
+                },
+                onCancel: () => setModalConfig(null)
+            })
+        }
     }
 
     useEffect(() => {
@@ -337,7 +406,7 @@ export default function TasksPage() {
                             ))}
                         </div>
                         <button
-                            onClick={() => setDisplayCurrency((v) => (v === 'INR' ? 'USD' : 'INR'))}
+                            onClick={() => setDisplayCurrency((v) => (v === 'INR' ? (profile?.currencyCode && profile.currencyCode !== 'INR' ? profile.currencyCode : 'USD') : 'INR'))}
                             className="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer"
                             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}
                         >
@@ -369,6 +438,8 @@ export default function TasksPage() {
                                 <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
                                     {nftTab === 'My Listings'
                                         ? 'You haven\'t minted any NFTs yet. Create a post and enable "Mint as NFT".'
+                                        : nftTab === 'My Collection'
+                                        ? 'Your collection is empty. Buy an NFT from Discover to start collecting.'
                                         : nftTab === 'Resale'
                                         ? 'No resale NFTs available yet.'
                                         : 'No NFTs found in the marketplace yet.'}
@@ -376,7 +447,13 @@ export default function TasksPage() {
                             </div>
                         ) : null}
                         {!nftLoading && filteredNFTs.map((nft) => {
-                            const usd = +(nft.price / 83).toFixed(2)
+                            const isLocal = displayCurrency === 'INR';
+                            const rateINR = exchangeRates?.['INR'] || 83;
+                            const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                            const converted = isLocal ? nft.price : (nft.price * 1.05 * (rateTarget / rateINR));
+                            const valueStr = converted.toFixed(isLocal ? 0 : 2);
+                            const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
+                            const displayPriceStr = `${symbol}${valueStr}`;
                             return (
                                 <div
                                     key={nft.id}
@@ -428,13 +505,12 @@ export default function TasksPage() {
                                         )}
                                     </div>
                                     <div className="p-3">
-                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
-                                        <div className="mt-1 flex items-center justify-between">
-                                            <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
-                                                {displayCurrency === 'USD' ? `$${usd}` : `₹${nft.price}`}
-                                            </p>
-                                            <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{nft.bids} bids</p>
-                                        </div>
+                                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
+                                            <div className="mt-1 flex items-center justify-between">
+                                                <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
+                                                    {displayPriceStr}
+                                                </p>
+                                            </div>
 
                                         <button
                                             onClick={(e) => {
@@ -455,7 +531,65 @@ export default function TasksPage() {
                         posts={nftFeedPosts}
                         startIndex={activeNftPostIndex}
                         onClose={() => setActiveNftPostIndex(null)}
+                        forceReels={true}
+                        onNftAction={(nft) => {
+                            setActiveNftPostIndex(null); // Optional: close modal on action
+                            toggleBuyResell(nft);
+                        }}
                     />
+
+                    {modalConfig && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="w-full max-w-sm overflow-hidden rounded-2xl p-5 shadow-xl"
+                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                            >
+                                <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--color-text)' }}>
+                                    {modalConfig.title}
+                                </h3>
+                                <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>
+                                    {modalConfig.message}
+                                </p>
+                                
+                                {modalConfig.type === 'prompt' && (
+                                    <input
+                                        type="number"
+                                        autoFocus
+                                        defaultValue={modalConfig.defaultValue}
+                                        id="prompt-input"
+                                        className="w-full mb-4 px-3 py-2 rounded-lg text-sm outline-none"
+                                        style={{ background: 'var(--color-background)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                    />
+                                )}
+
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <button
+                                        onClick={modalConfig.onCancel}
+                                        className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                                        style={{ color: 'var(--color-text)', background: 'var(--color-background)', border: '1px solid var(--color-border)' }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (modalConfig.type === 'prompt') {
+                                                const val = document.getElementById('prompt-input')?.value;
+                                                modalConfig.onConfirm(val);
+                                            } else {
+                                                modalConfig.onConfirm();
+                                            }
+                                        }}
+                                        className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                                        style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
                 </>
             )}
         </div>

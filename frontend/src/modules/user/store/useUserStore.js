@@ -127,6 +127,21 @@ export const useUserStore = create((set, get) => ({
         submittedAt: null,
     },
     profile: storedUser ? profileFromUser(storedUser) : defaultProfile,
+    exchangeRates: null,
+
+    fetchExchangeRates: async () => {
+        if (get().exchangeRates) return;
+        try {
+            const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+            const res = await fetch(`${API_BASE}/config/exchange-rates`)
+            const data = await res.json()
+            if (data.success) {
+                set({ exchangeRates: data.rates })
+            }
+        } catch (err) {
+            console.error('Failed to fetch exchange rates:', err)
+        }
+    },
 
     toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
     setAuthError: (message) => set({ authError: message || '' }),
@@ -252,27 +267,6 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
-    loginOrLinkWithPrivy: async (privyToken) => {
-        set({ authLoading: true, authError: '' })
-        try {
-            const response = await authService.loginOrLinkPrivy(privyToken)
-            const { token, refreshToken, user } = response
-            saveAuthToStorage({ token, refreshToken, user })
-            set({
-                token,
-                user,
-                profile: profileFromUser(user),
-                isAuthenticated: true,
-                authChecked: true,
-                authLoading: false,
-                authError: ''
-            })
-            return { user }
-        } catch (error) {
-            set({ authLoading: false, authError: error.message })
-            throw error
-        }
-    },
 
     loginAdmin: async ({ email, password }) => {
         set({ authLoading: true, authError: '' })

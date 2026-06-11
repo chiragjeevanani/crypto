@@ -196,6 +196,29 @@ exports.getMyNFTs = async (req, res) => {
 };
 
 /**
+ * User module: get NFT collection (NFTs the user currently owns).
+ * Requires token.
+ */
+exports.getMyCollection = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const baseUrl = getBaseUrl(req);
+    const posts = await populateCreator(
+      Post.find({ owner: userId, isNFT: true }).sort({ createdAt: -1 }).limit(100)
+    ).exec();
+
+    const config = await getAdminConfig();
+    const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, userId, null, config.premiumThreshold));
+    return res.status(200).json({ success: true, posts: list });
+  } catch (error) {
+    console.error("Get My Collection Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Internal: Interleave campaigns every N posts.
  * campaigns: array of already-formatted campaign objects (via formatCampaignForUser)
  */
@@ -254,61 +277,94 @@ exports.getPosts = async (req, res) => {
     ).exec();
     const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
 
-    // Interleave Active Campaigns
-    const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).limit(10).lean();
-    const now = new Date();
-    const activeCampaigns = campaignsRaw
-      .map((c) => ({ ...c, status: computeStatus(c) }))
-      .filter((c) => {
-        if (c.status !== "Active") return false;
-        const now = new Date();
-        const start = c.startDate ? new Date(c.startDate) : null;
-        const end = c.endDate ? new Date(c.endDate) : null;
-        
-        if (start && start > now) return false;
-        if (end) {
-          // Set end time to 23:59:59.999 of that day to ensure it lasts the whole day
-          const endOfDay = new Date(end);
-          endOfDay.setHours(23, 59, 59, 999);
-          if (endOfDay < now) return false;
-        }
-        return true;
-      })
-      .map((c) => formatCampaignForUser(c, req));
+    // Interleave Active Campaigns only if not NFT feed
+    let interleaved = list;
+    if (req.query.isNFT !== "true") {
+      const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).limit(10).lean();
+      const now = new Date();
+      const activeCampaigns = campaignsRaw
+        .map((c) => ({ ...c, status: computeStatus(c) }))
+        .filter((c) => {
+          if (c.status !== "Active") return false;
+          const start = c.startDate ? new Date(c.startDate) : null;
+          const end = c.endDate ? new Date(c.endDate) : null;
+          
+          if (start && start > now) return false;
+          if (end) {
+            const endOfDay = new Date(end);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (endOfDay < now) return false;
+          }
+          return true;
+        })
+        .map((c) => formatCampaignForUser(c, req));
 
-    const interleaved = injectCampaignCards(list, activeCampaigns, 5);
+      interleaved = injectCampaignCards(list, activeCampaigns, 5);
 
-    if (!interleaved.length) {
-      const demoPost = {
-        id: "demo-post-1",
-        creator: {
-          id: "",
-          username: "Welcome to Crypto App",
-          handle: "@crypto_app",
-          avatar: null,
-          isFollowing: false
-        },
-        media: {
-          type: "image",
-          url:
-            "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&w=800&q=80",
-          aspectRatio: "4/3"
-        },
-        caption:
-          "There are no posts yet. Create your first post to start earning from tasks, campaigns, and gifts.",
-        postType: "regular",
-        allowGifts: false,
-        likes: 0,
-        comments: 0,
-        shares: 0,
-        earnings: 0,
-        isLiked: false,
-        createdAt: new Date(),
-        status: "approved",
-        category: "General",
-        musicTrackId: "none"
-      };
-      return res.status(200).json({ success: true, posts: [demoPost] });
+      if (!interleaved.length) {
+        const demoPost = {
+          id: "demo-post-1",
+          creator: {
+            id: "",
+            username: "Welcome to Crypto App",
+            handle: "@crypto_app",
+            avatar: null,
+            isFollowing: false
+          },
+          media: {
+            type: "image",
+            url: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&w=800&q=80",
+            aspectRatio: "4/3"
+          },
+          caption: "There are no posts yet. Create your first post to start earning from tasks, campaigns, and gifts.",
+          postType: "regular",
+          allowGifts: false,
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          earnings: 0,
+          isLiked: false,
+          createdAt: new Date(),
+          status: "approved",
+          category: "General",
+          musicTrackId: "none"
+        };
+        return res.status(200).json({ success: true, posts: [demoPost] });
+      }
+    } else {
+      // If it's the NFT feed and there are no NFTs, provide a demo NFT
+      if (!list.length) {
+        const demoNFT = {
+          id: "demo-nft-1",
+          creator: {
+            id: "system",
+            username: "Crypto App Official",
+            handle: "@crypto_app",
+            avatar: null,
+            isFollowing: false
+          },
+          media: {
+            type: "image",
+            url: "https://images.unsplash.com/photo-1620321023374-d1a68fbc720d?auto=format&fit=crop&w=800&q=80",
+            aspectRatio: "1/1"
+          },
+          caption: "Demo Exclusive NFT",
+          postType: "nft",
+          isNFT: true,
+          nftPriceINR: 500,
+          allowGifts: false,
+          likes: 120,
+          comments: 0,
+          shares: 10,
+          earnings: 0,
+          isLiked: false,
+          createdAt: new Date(),
+          status: "approved",
+          category: "Digital Art",
+          musicTrackId: "none"
+        };
+        return res.status(200).json({ success: true, posts: [demoNFT] });
+      }
     }
 
     return res.status(200).json({ success: true, posts: interleaved });

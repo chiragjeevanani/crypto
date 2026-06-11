@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useUserStore } from '../../user/store/useUserStore';
-import { NFT_CONTRACT_ADDRESS, ipfsToHttp, getOpenSeaUrl } from '../../../web3config';
 import axios from 'axios';
-import { ShoppingBag, Filter, Search, Globe, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Filter, Search, ShieldCheck, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
@@ -34,7 +33,7 @@ const NFTMarketplacePage = () => {
   };
 
   const filteredNfts = nfts.filter(nft => 
-    nft.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    nft.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     nft.creator?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     nft.creator?.handle?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -58,7 +57,7 @@ const NFTMarketplacePage = () => {
             transition={{ delay: 0.1 }}
             className="text-gray-400 max-w-lg mx-auto"
           >
-            Own unique moments from your favorite Indian creators. Verified on Polygon.
+            Own unique moments from your favorite creators. Platform-verified collectibles.
           </motion.p>
         </div>
       </div>
@@ -105,8 +104,8 @@ const NFTMarketplacePage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredNfts.map((nft) => (
               <Link 
-                to={`/nfts/${nft.tokenId}`} 
-                key={nft.tokenId}
+                to={`/nfts/${nft.auctionId}`} 
+                key={nft.auctionId}
                 className={`group rounded-2xl overflow-hidden transition-all hover:-translate-y-1 hover:shadow-2xl ${darkMode ? 'bg-zinc-900 border border-zinc-800' : 'bg-white border border-gray-100'}`}
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -126,19 +125,19 @@ const NFTMarketplacePage = () => {
                     />
                   )}
                   <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-bold text-white flex items-center gap-1">
-                    <Globe className="w-3 h-3 text-yellow-400" />
-                    POLYGON
+                    <ShieldCheck className="w-3 h-3 text-yellow-400" />
+                    KnQ VERIFIED
                   </div>
                 </div>
                 
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <img src={nft.creator?.avatar || '/default-avatar.png'} className="w-5 h-5 rounded-full" />
+                    <img src={nft.creator?.avatar || '/default-avatar.png'} className="w-5 h-5 rounded-full" alt="" />
                     <span className="text-xs text-gray-500 truncate">@{nft.creator?.handle || 'creator'}</span>
                   </div>
                   <h3 className="font-bold truncate mb-1">{nft.title}</h3>
                   <div className="flex items-center justify-between mt-3">
-                    <div className="text-xs text-gray-500">Last Bid</div>
+                    <div className="text-xs text-gray-500">Highest Bid</div>
                     <div className="font-bold text-yellow-500">{nft.highestBid} Coins</div>
                   </div>
                 </div>
@@ -148,7 +147,7 @@ const NFTMarketplacePage = () => {
         ) : (
           <div className="text-center py-20">
             <ShoppingBag className="w-16 h-16 text-gray-600 mx-auto mb-4 opacity-20" />
-            <h3 className="text-xl font-bold mb-2">No NFTs found</h3>
+            <h3 className="text-xl font-bold mb-2">No collectibles found</h3>
             <p className="text-gray-500">Try changing your filters or check back later.</p>
           </div>
         )}

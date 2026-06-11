@@ -93,6 +93,7 @@ export const walletService = {
         request("/wallet/gift", {
             method: "POST",
             body: JSON.stringify({ giftId, receiverId, postId, reelId })
-        })
+        }),
+    buyPostNFT: (postId) => request(`/nft/buy-post/${postId}`, { method: "POST" })
 };
 

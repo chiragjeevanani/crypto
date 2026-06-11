@@ -43,6 +43,13 @@ export const postService = {
     return data;
   },
 
+  async getMyCollection() {
+    const response = await fetch(`${USER_POSTS}/my-collection`, { headers: getAuthHeaders() });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load your collection");
+    return data;
+  },
+
   async likePost(id) {
     const response = await fetch(`${USER_POSTS}/${id}/like`, {
       method: "POST",

@@ -19,6 +19,7 @@ const router = express.Router();
 
 router.post("/", protect, authorize("User", "SuperNode", "Admin", "super_admin", "Developer"), upload.single("media"), createPost);
 router.get("/my-nfts", protect, getMyNFTs);
+router.get("/my-collection", protect, require("../../controllers/user/postController").getMyCollection);
 router.get("/", protect, getPosts);
 router.post("/:id/like", protect, toggleLike);
 router.post("/:id/share", protect, sharePost);

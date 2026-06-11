@@ -1,7 +1,9 @@
 import { Gem } from 'lucide-react'
 import { cn } from '../../utils/cn'
+import { useUserCurrency } from '../../utils/formatCurrency'
 
 export default function NFTBadge({ status = 'listed', price, className }) {
+    const { format } = useUserCurrency()
     const statusMap = {
         listed: { label: 'NFT Listed', color: 'var(--color-purple)' },
         sold: { label: 'NFT Sold', color: 'var(--color-success)' },
@@ -18,7 +20,7 @@ export default function NFTBadge({ status = 'listed', price, className }) {
         >
             <Gem size={10} strokeWidth={2.5} />
             {label}
-            {price && ` · ₹${price}`}
+            {price !== undefined && price !== null && ` · ${format(price)}`}
         </span>
     )
 }

@@ -7,6 +7,11 @@ const postSchema = new mongoose.Schema(
       ref: "User",
       required: true
     },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
     media: {
       type: {
         type: String,
@@ -25,7 +30,7 @@ const postSchema = new mongoose.Schema(
     nftPriceINR: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "flagged"],
+      enum: ["pending", "approved", "rejected", "flagged", "sold"],
       default: "pending"
     },
     rejectReason: { type: String, default: "" },

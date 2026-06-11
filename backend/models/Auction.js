@@ -69,27 +69,20 @@ const auctionSchema = new mongoose.Schema(
       default: 0
     },
 
-    // ─── Web3 / NFT Fields (additive — all have safe defaults) ────────────────
-    // NFT lifecycle: none → pending_ipfs → ipfs_ready → minting → minted | deposit_received | settling | settled | failed | failed_settle
+    // ─── Collectible (Web2) Status ────────────────────────────────────────────
+    // Tracks whether the auction's collectible has been claimed by the winner
     nftStatus: {
       type: String,
-      enum: ["none", "pending_ipfs", "ipfs_ready", "minting", "minted", "deposit_received", "settling", "settled", "failed", "failed_settle"],
+      enum: ["none", "pending", "settled"],
       default: "none"
     },
-    // IPFS URIs (ipfs://Qm...)
-    ipfsFileUri: { type: String, default: "" },      // media file on IPFS
-    ipfsMetadataUri: { type: String, default: "" },  // metadata JSON on IPFS
-    // On-chain data (populated after mint/settle)
-    tokenId: { type: Number, default: null },
-    contractAddress: { type: String, default: "" },
-    mintTxHash: { type: String, default: "" },
-    vaultDepositTxHash: { type: String, default: "" },
-    settlementTxHash: { type: String, default: "" },
-    // Wallet addresses
-    winnerWalletAddress: { type: String, default: "" },  // buyer's wallet
-    creatorWalletAddress: { type: String, default: "" }, // creator's wallet for royalties
-    // Royalty percentage (default 10%)
+    // Cloudinary public_id for the collectible media (for certificate generation)
+    mediaPublicId: { type: String, default: "" },
+    // URL to a platform-generated ownership certificate (Cloudinary image)
+    ownershipCertUrl: { type: String, default: "" },
+    // Creator royalty percentage on resales (tracked in DB, not on-chain)
     royaltyPct: { type: Number, default: 10, min: 0, max: 30 }
+
   },
   { timestamps: true }
 );

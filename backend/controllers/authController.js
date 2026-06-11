@@ -8,7 +8,7 @@ const fs = require("fs");
 const { getBaseUrl } = require("../utils/postHelpers");
 const { UPLOAD_DIR } = require("../utils/upload");
 const { cloudinary } = require("../utils/cloudinary");
-const { PrivyClient } = require("@privy-io/server-auth");
+
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
 const accessExpiry = process.env.JWT_ACCESS_EXPIRES_IN || "7d";
@@ -432,108 +432,7 @@ const updateAvatar = async (req, res) => {
   }
 };
 
-const loginOrRegisterWithPrivy = async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ success: false, message: "Token is required" });
-    }
 
-    if (!process.env.PRIVY_APP_ID || !process.env.PRIVY_APP_SECRET) {
-      return res.status(500).json({ success: false, message: "Privy keys are not configured on server" });
-    }
-
-    const privyClient = new PrivyClient(
-      process.env.PRIVY_APP_ID,
-      process.env.PRIVY_APP_SECRET
-    );
-
-    // Verify token
-    const verifiedClaims = await privyClient.verifyAuthToken(token);
-    const privyUserId = verifiedClaims.userId || verifiedClaims.sub;
-
-    if (!privyUserId) {
-      return res.status(401).json({ success: false, message: "Invalid token claims" });
-    }
-
-    const privyUser = await privyClient.getUser(privyUserId);
-
-    let email = "";
-    let walletAddress = "";
-
-    if (privyUser.linkedAccounts) {
-      for (const account of privyUser.linkedAccounts) {
-        if (account.type === "email" && !email) {
-          email = account.address;
-        }
-        if (account.type === "wallet" && !walletAddress) {
-          walletAddress = account.address;
-        }
-      }
-    }
-
-    if (!email) {
-      for (const account of privyUser.linkedAccounts || []) {
-        if (account.email && !email) {
-          email = account.email;
-        }
-      }
-    }
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Privy account must have a linked email" });
-    }
-
-    // Find or create user
-    let user = await User.findOne({ email: email.toLowerCase() });
-
-    if (user) {
-      let updated = false;
-      if (walletAddress && !user.walletAddress) {
-        user.walletAddress = walletAddress;
-        updated = true;
-      }
-      if (updated) {
-        await user.save();
-      }
-    } else {
-      const name = email.split("@")[0] || "User";
-      const referralCode = generateReferralCode(name);
-      const locale = await resolveLocaleFromCountry("IN");
-
-      // Generate a random temporary password since password is required by model schema
-      const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-10), 10);
-
-      user = await User.create({
-        name,
-        email: email.toLowerCase(),
-        password: randomPassword,
-        role: "User",
-        walletAddress: walletAddress || "",
-        countryCode: locale.countryCode,
-        countryName: locale.countryName,
-        currencyCode: locale.currencyCode,
-        currencySymbol: locale.currencySymbol,
-        referralCode,
-      });
-    }
-
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-
-    return res.status(200).json({
-      success: true,
-      message: "Authentication successful",
-      token: accessToken,
-      refreshToken,
-      user: safeUser(user)
-    });
-
-  } catch (error) {
-    console.error("[Privy Auth Error]:", error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
 
 module.exports = {
   registerUser,
@@ -542,6 +441,5 @@ module.exports = {
   refreshTokens,
   getMe,
   updateProfile,
-  updateAvatar,
-  loginOrRegisterWithPrivy
+  updateAvatar
 };

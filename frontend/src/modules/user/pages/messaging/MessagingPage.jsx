@@ -66,7 +66,7 @@ export default function MessagingPage() {
                     <div className="w-80 border-r" style={{ borderColor: 'var(--color-border)' }}>
                         <ConversationList 
                             onSelectChat={handleSelectChat} 
-                            selectedChatId={selectedChat?.user?.id} 
+                            selectedChatId={selectedChat?.id || selectedChat?.user?.id} 
                         />
                     </div>
                     <div className="flex-1 flex flex-col">
@@ -113,7 +113,7 @@ export default function MessagingPage() {
                             >
                         <ConversationList 
                             onSelectChat={handleSelectChat} 
-                            selectedChatId={selectedChat?.user?.id} 
+                            selectedChatId={selectedChat?.id || selectedChat?.user?.id} 
                         />
                             </motion.div>
                         ) : (
