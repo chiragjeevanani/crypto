@@ -1,9 +1,15 @@
 const Auction = require("../models/Auction");
 const Post = require("../models/Post");
 const User = require("../models/User");
+const AdminConfig = require("../models/AdminConfig");
 const CollectibleOwnership = require("../models/CollectibleOwnership");
 const NFTOffer = require("../models/NFTOffer");
 const { emitToUser } = require("../utils/socket");
+const { cloudinary } = require("../utils/cloudinary");
+const { DEFAULTS } = require("../utils/adminConfig");
+const fs = require("fs");
+const path = require("path");
+const { UPLOAD_DIR } = require("../utils/upload");
 
 // ─── Helper: Generate Platform Collectible ID ────────────────────────────────
 const generateCollectibleId = async () => {
@@ -483,6 +489,124 @@ const migrateNFTOwnerships = async (req, res) => {
   }
 };
 
+// ─── Get NFT Terms & Conditions ───────────────────────────────────────────────
+
+/**
+ * GET /api/nft/terms
+ * Returns admin-managed NFT submission terms and conditions.
+ */
+const getNFTTerms = async (req, res) => {
+  try {
+    let config = await AdminConfig.findOne().exec();
+    const terms = config?.nftTermsAndConditions || DEFAULTS.nftTermsAndConditions || "Please contact the platform admin for terms and conditions.";
+    res.status(200).json({ success: true, terms });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── User Submit NFT ──────────────────────────────────────────────────────────
+
+/**
+ * POST /api/nft/submit
+ * Allows authenticated users to submit an NFT (image/video/audio).
+ * Creates an Auction record with status=pending for admin review.
+ */
+const submitNFT = async (req, res) => {
+  const userId = req.user.userId;
+  const { title, description, basePrice, royaltyPct, termsAccepted } = req.body;
+
+  if (!termsAccepted || termsAccepted === 'false') {
+    return res.status(400).json({ success: false, message: "You must accept the terms and conditions to submit an NFT." });
+  }
+
+  if (!title || !description || !basePrice) {
+    return res.status(400).json({ success: false, message: "Title, description, and base price are required." });
+  }
+
+  try {
+    const files = req.files || {};
+    const mediaFile = files.media ? files.media[0] : null;
+    const proofVideoFile = files.proofVideo ? files.proofVideo[0] : null;
+
+    if (!mediaFile) {
+      return res.status(400).json({ success: false, message: "Please upload a media file (image, video, or audio)." });
+    }
+
+    let mediaUrl = "";
+    let mediaType = "image";
+    let proofVideoUrl = "";
+
+    if (mediaFile.mimetype.startsWith("video/")) mediaType = "video";
+    else if (mediaFile.mimetype.startsWith("audio/")) mediaType = "audio";
+    else mediaType = "image";
+
+    const localMediaPath = path.join(UPLOAD_DIR, mediaFile.filename);
+    const useCloudinary = Boolean(
+      cloudinary &&
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+    );
+
+    if (useCloudinary) {
+      try {
+        const mediaUploadResult = await cloudinary.uploader.upload(localMediaPath, {
+          resource_type: "auto",
+          folder: "crypto-app/nft-submissions"
+        });
+        mediaUrl = mediaUploadResult.secure_url;
+        fs.unlink(localMediaPath, () => {});
+
+        if (proofVideoFile) {
+          const localProofPath = path.join(UPLOAD_DIR, proofVideoFile.filename);
+          const proofUploadResult = await cloudinary.uploader.upload(localProofPath, {
+            resource_type: "video",
+            folder: "crypto-app/nft-proofs"
+          });
+          proofVideoUrl = proofUploadResult.secure_url;
+          fs.unlink(localProofPath, () => {});
+        }
+      } catch (cloudErr) {
+        console.error("[SubmitNFT] Cloudinary upload failed:", cloudErr);
+        mediaUrl = `/uploads/${mediaFile.filename}`;
+        if (proofVideoFile) proofVideoUrl = `/uploads/${proofVideoFile.filename}`;
+      }
+    } else {
+      mediaUrl = `/uploads/${mediaFile.filename}`;
+      if (proofVideoFile) proofVideoUrl = `/uploads/${proofVideoFile.filename}`;
+    }
+
+    // Use sensible auction dates: starts now, ends in 7 days by default
+    const startDate = new Date();
+    const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const auction = await Auction.create({
+      title,
+      description,
+      mediaUrl,
+      mediaType,
+      proofVideoUrl,
+      basePrice: Number(basePrice),
+      startDate,
+      endDate,
+      creator: userId,
+      status: "pending",
+      listingFeePaid: true,
+      royaltyPct: Number(royaltyPct) || 10,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Your NFT has been submitted for review. Once admin verifies it, it will go live in the marketplace.",
+      auction,
+    });
+  } catch (err) {
+    console.error("[SubmitNFT] Error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── Resale & Offers ────────────────────────────────────────────────────────────
 
 const relistNFT = async (req, res) => {
@@ -736,5 +860,7 @@ module.exports = {
   cancelOffer,
   getOffersForCollectible,
   getMyOffers,
-  getResaleListings
+  getResaleListings,
+  submitNFT,
+  getNFTTerms
 };

@@ -20,6 +20,10 @@ const auctionSchema = new mongoose.Schema(
       enum: ["image", "video", "audio"],
       default: "image"
     },
+    proofVideoUrl: {
+      type: String,
+      default: ""
+    },
     basePrice: {
       type: Number,
       required: true,

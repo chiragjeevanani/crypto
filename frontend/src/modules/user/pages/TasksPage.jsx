@@ -1,22 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import TaskCard from '../components/tasks/TaskCard'
 import CampaignSkeleton from '../components/feed/CampaignSkeleton'
 import ReelSkeleton from '../components/feed/ReelSkeleton'
 import TaskDetailPage from './TaskDetailPage'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { useWalletStore } from '../store/useWalletStore'
-import { useUserStore } from '../store/useUserStore'
+import { useUserStore, getStoredToken } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
 import { getUserNFTListings } from '../../../shared/nftListings'
 import { userCampaignService } from '../services/campaignService'
 import { postService } from '../services/postService'
 import { mapCampaignToTask } from '../utils/campaignMapper'
 import { getJoinedCampaignIds, markCampaignJoined } from '../utils/campaignStorage'
+import axios from 'axios'
 
 const FILTERS = ['All', 'Active', 'Joined']
 const NFT_TABS = ['Discover', 'My Listings', 'My Collection', 'My Offers', 'Resale']
+
 
 const mapPostToNFT = (post) => {
     const mediaType = post.mediaType || post.media?.type || 'image'
@@ -560,6 +562,18 @@ export default function TasksPage() {
                                 {tab}
                             </button>
                         ))}
+                        {/* Create button — redirects to /create instead of opening modal */}
+                        <button
+                            onClick={() => navigate('/create')}
+                            className="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap flex-shrink-0 flex items-center gap-1"
+                            style={{
+                                background: 'var(--color-background)',
+                                color: 'var(--color-primary)',
+                                border: '1px solid var(--color-primary)',
+                            }}
+                        >
+                            + Create
+                        </button>
                     </div>
 
 
@@ -823,6 +837,7 @@ export default function TasksPage() {
                             </motion.div>
                         </div>
                     )}
+
                 </>
             )}
         </div>

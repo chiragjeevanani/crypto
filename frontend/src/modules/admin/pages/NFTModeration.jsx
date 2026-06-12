@@ -13,12 +13,131 @@ import {
     Ban,
     History,
     Search,
-    MessageSquareX
+    MessageSquareX,
+    ScrollText,
+    Save,
+    Loader2,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react';
 import { AdminPageHeader } from '../components/shared';
 import { moderationService } from '../services/moderationService';
+import axios from 'axios';
+import { getStoredToken } from '../../user/store/useUserStore';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// ─── Terms & Conditions Manager Card ─────────────────────────────────────────
+function NFTTermsManager() {
+    const [terms, setTerms] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [expanded, setExpanded] = useState(false);
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const res = await axios.get('/api/nft/terms');
+                if (res.data.success) setTerms(res.data.terms);
+            } catch {
+                setTerms('');
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, []);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const token = getStoredToken?.() || localStorage.getItem('token');
+            await axios.put(`${API_BASE}/admin/config`, { nftTermsAndConditions: terms }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            alert('Failed to save: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="bg-surface border border-surface rounded-xl overflow-hidden mb-8">
+            <button
+                onClick={() => setExpanded(p => !p)}
+                className="w-full flex items-center justify-between px-6 py-4 hover:bg-surface2 transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <ScrollText className="w-4 h-4 text-primary" />
+                    <div className="text-left">
+                        <p className="text-sm font-bold text-text">NFT Submission Terms & Conditions</p>
+                        <p className="text-[10px] text-muted font-medium">Manage the terms users must accept before submitting an NFT</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    {saved && (
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Saved
+                        </span>
+                    )}
+                    {expanded ? <ChevronUp className="w-4 h-4 text-muted" /> : <ChevronDown className="w-4 h-4 text-muted" />}
+                </div>
+            </button>
+
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-6 pb-6 pt-1 border-t border-surface space-y-4">
+                            <p className="text-[10px] text-amber-500/80 font-medium uppercase tracking-wider bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">
+                                These terms are shown to users before they submit an NFT. Users must accept before they can proceed.
+                            </p>
+                            {loading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                </div>
+                            ) : (
+                                <textarea
+                                    value={terms}
+                                    onChange={(e) => setTerms(e.target.value)}
+                                    rows={10}
+                                    placeholder="Enter the NFT submission terms and conditions..."
+                                    className="w-full bg-bg border border-surface rounded-lg p-4 text-xs font-medium text-text outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 resize-none leading-relaxed font-mono"
+                                />
+                            )}
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving || loading}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-primary text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50 shadow-sm"
+                                >
+                                    {saving ? (
+                                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+                                    ) : saved ? (
+                                        <><CheckCircle2 className="w-3.5 h-3.5" /> Saved!</>
+                                    ) : (
+                                        <><Save className="w-3.5 h-3.5" /> Save Terms</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
 
 const initialNfts = [];
+
 
 export default function NFTModeration() {
     const [nfts, setNfts] = useState([]);
@@ -99,7 +218,10 @@ export default function NFTModeration() {
                 subtitle="Verify digital assets, originality score, and collection authenticity metrics."
             />
 
-            {/* Status Tabs */}
+            {/* Terms & Conditions Manager */}
+            <NFTTermsManager />
+
+
             <div className="flex border-b border-surface overflow-x-auto hide-scrollbar whitespace-nowrap">
                 {['pending', 'approved', 'rejected', 'disabled'].map(tab => (
                     <button

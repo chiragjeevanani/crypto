@@ -252,6 +252,22 @@ const NFTDetailPage = () => {
                           <p className="text-sm text-gray-500">The original creator receives {nft.royaltyPct}% of every future resale of this digital collectible.</p>
                         </div>
                       </div>
+                      
+                      {nft.auction?.proofVideoUrl && (
+                        <div className="flex gap-3 mt-4">
+                          <ShieldCheck className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" />
+                          <div className="w-full">
+                            <h4 className="font-bold mb-1">Proof of Authenticity</h4>
+                            <p className="text-sm text-gray-500 mb-3">The creator provided a proof video to verify the authenticity of this collectible.</p>
+                            <video 
+                              src={nft.auction.proofVideoUrl} 
+                              controls 
+                              className="w-full rounded-2xl bg-black object-contain" 
+                              style={{ maxHeight: '240px' }} 
+                            />
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
 

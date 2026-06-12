@@ -54,6 +54,10 @@ const adminConfigSchema = new mongoose.Schema(
         (val) => val.length <= 4,
         "Cannot exceed 4 mobile numbers"
       ]
+    },
+    nftTermsAndConditions: {
+      type: String,
+      default: "By submitting your NFT to this platform, you confirm that:\n\n1. You are the original creator and rightful owner of this digital asset.\n2. The content does not violate any intellectual property rights.\n3. The content is not obscene, harmful, or illegal.\n4. Your submission will be reviewed by admin before going live.\n5. The platform reserves the right to reject any submission without a refund of any fees.\n6. Once approved, your NFT will be visible in the marketplace."
     }
   },
   { timestamps: true }

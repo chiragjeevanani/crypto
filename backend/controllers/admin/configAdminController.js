@@ -27,11 +27,12 @@ const updateConfig = async (req, res) => {
       "businessPostPriceINR",
       "auctionListingFeeINR",
       "auctionCommissionPct",
-      "adminNotificationMobiles"
+      "adminNotificationMobiles",
+      "nftTermsAndConditions"
     ];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
-          if (field === "adminNotificationMobiles") {
+          if (field === "adminNotificationMobiles" || field === "nftTermsAndConditions") {
               updates[field] = req.body[field];
           } else {
               updates[field] = Number(req.body[field]);

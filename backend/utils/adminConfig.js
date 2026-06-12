@@ -10,7 +10,8 @@ const DEFAULTS = {
   businessPostPriceINR: 499,
   auctionListingFeeINR: 500,
   auctionCommissionPct: 10,
-  adminNotificationMobiles: []
+  adminNotificationMobiles: [],
+  nftTermsAndConditions: "By submitting your NFT to this platform, you confirm that:\n\n1. You are the original creator and rightful owner of this digital asset.\n2. The content does not violate any intellectual property rights.\n3. The content is not obscene, harmful, or illegal.\n4. Your submission will be reviewed by admin before going live.\n5. The platform reserves the right to reject any submission without a refund of any fees.\n6. Once approved, your NFT will be visible in the marketplace."
 };
 
 const getAdminConfig = async (session = null) => {
