@@ -586,7 +586,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                             className="px-4 py-2 rounded-xl text-xs font-bold shadow-lg"
                             style={{ background: 'var(--color-primary)', color: '#fff' }}
                         >
-                            {post.nftData.status === 'listed' ? 'Buy NFT' : 'Resell NFT'}
+                            {post.nftData.isOffer ? 'Cancel Offer' : (post.nftData.status === 'listed' ? 'Buy NFT' : (post.nftData.owner?._id === profile?._id || post.nftData.buyer === profile?._id ? 'Resell NFT' : 'Make Offer'))}
                         </button>
                     </div>
                 )}

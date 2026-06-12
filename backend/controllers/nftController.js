@@ -2,12 +2,29 @@ const Auction = require("../models/Auction");
 const Post = require("../models/Post");
 const User = require("../models/User");
 const CollectibleOwnership = require("../models/CollectibleOwnership");
+const NFTOffer = require("../models/NFTOffer");
+const { emitToUser } = require("../utils/socket");
 
 // ─── Helper: Generate Platform Collectible ID ────────────────────────────────
 const generateCollectibleId = async () => {
   const year = new Date().getFullYear();
   const count = await CollectibleOwnership.countDocuments();
   return `KNQ-${year}-${String(count + 1).padStart(4, "0")}`;
+};
+
+// ─── Helper: Extract Media ─────────────────────────────────────────────────────
+const getMediaUrl = (source) => {
+  if (source?.mediaUrl) return source.mediaUrl;
+  if (Array.isArray(source?.media) && source.media.length > 0) return source.media[0].url;
+  if (source?.media && !Array.isArray(source?.media) && source.media.url) return source.media.url;
+  return source?.thumbnail || "";
+};
+
+const getMediaType = (source) => {
+  if (source?.mediaType) return source.mediaType;
+  if (Array.isArray(source?.media) && source.media.length > 0) return source.media[0].type;
+  if (source?.media && !Array.isArray(source?.media) && source.media.type) return source.media.type;
+  return "image";
 };
 
 // ─── Get My Collectible Collection ────────────────────────────────────────────
@@ -40,10 +57,12 @@ const getMyCollection = async (req, res) => {
         auctionId: o.auctionId?._id || o.postId?._id,
         title: source?.title || source?.caption || "Untitled Collectible",
         description: source?.description || source?.caption || "",
-        mediaUrl: source?.mediaUrl || source?.media?.url || source?.thumbnail || "",
-        mediaType: source?.mediaType || source?.media?.type || "image",
+        mediaUrl: getMediaUrl(source),
+        mediaType: getMediaType(source),
         salePrice: o.salePrice,
         certificateUrl: o.certificateUrl,
+        isListedForSale: o.isListedForSale,
+        resalePrice: o.resalePrice,
         acquiredAt: o.createdAt,
         creator: source?.creator || null,
         status: source?.status || source?.nftStatus || "sold"
@@ -84,9 +103,11 @@ const getUserCollection = async (req, res) => {
       return {
         collectibleId: o.collectibleId,
         title: source?.title || source?.caption || "Untitled Collectible",
-        mediaUrl: source?.mediaUrl || source?.media?.url || source?.thumbnail || "",
-        mediaType: source?.mediaType || source?.media?.type || "image",
+        mediaUrl: getMediaUrl(source),
+        mediaType: getMediaType(source),
         salePrice: o.salePrice,
+        isListedForSale: o.isListedForSale,
+        resalePrice: o.resalePrice,
         acquiredAt: o.createdAt,
       };
     });
@@ -193,6 +214,50 @@ const getMarketplace = async (req, res) => {
     res.status(200).json({ success: true, nfts });
   } catch (err) {
     console.error("[Collectible] getMarketplace error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── Get Resale Listings ───────────────────────────────────────────────────────
+
+/**
+ * GET /api/nft/resale-listings
+ * Returns all collectibles currently listed for fixed-price resale.
+ */
+const getResaleListings = async (req, res) => {
+  try {
+    const ownerships = await CollectibleOwnership.find({ isListedForSale: true })
+      .populate({
+        path: "auctionId",
+        select: "title description mediaUrl mediaType highestBid creator",
+        populate: { path: "creator", select: "name handle avatar" }
+      })
+      .populate({
+        path: "postId",
+        select: "title caption thumbnail media creator nftPriceINR status",
+        populate: { path: "creator", select: "name handle avatar" }
+      })
+      .populate("toUserId", "name handle avatar")
+      .sort({ updatedAt: -1 });
+
+    const formatted = ownerships.map((o) => {
+      const source = o.auctionId || o.postId;
+      return {
+        collectibleId: o.collectibleId,
+        title: source?.title || source?.caption || "Untitled Collectible",
+        mediaUrl: getMediaUrl(source),
+        mediaType: getMediaType(source),
+        resalePrice: o.resalePrice,
+        isListedForSale: o.isListedForSale,
+        acquiredAt: o.createdAt,
+        owner: o.toUserId,
+        creator: source?.creator || null,
+      };
+    });
+
+    res.status(200).json({ success: true, nfts: formatted });
+  } catch (err) {
+    console.error("[Collectible] getResaleListings error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -418,6 +483,237 @@ const migrateNFTOwnerships = async (req, res) => {
   }
 };
 
+// ─── Resale & Offers ────────────────────────────────────────────────────────────
+
+const relistNFT = async (req, res) => {
+  const userId = req.user.userId;
+  const { collectibleId } = req.params;
+  const { price } = req.body;
+
+  try {
+    const ownership = await CollectibleOwnership.findOne({ collectibleId }).sort({ createdAt: -1 });
+    if (!ownership) return res.status(404).json({ success: false, message: "Collectible not found." });
+    if (String(ownership.toUserId) !== String(userId)) return res.status(403).json({ success: false, message: "You do not own this collectible." });
+
+    ownership.isListedForSale = true;
+    ownership.resalePrice = Number(price);
+    await ownership.save();
+
+    res.status(200).json({ success: true, message: "NFT relisted successfully.", ownership });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const buyResaleNFT = async (req, res) => {
+  const buyerId = req.user.userId;
+  const { collectibleId } = req.params;
+
+  try {
+    const ownership = await CollectibleOwnership.findOne({ collectibleId, isListedForSale: true }).sort({ createdAt: -1 }).populate("auctionId postId");
+    if (!ownership) return res.status(404).json({ success: false, message: "Collectible is not listed for sale." });
+    if (String(ownership.toUserId) === String(buyerId)) return res.status(400).json({ success: false, message: "You already own this NFT." });
+
+    const buyer = await User.findById(buyerId);
+    const sellerId = ownership.toUserId;
+    const price = ownership.resalePrice;
+
+    if (buyer.rechargeCoins < price) return res.status(400).json({ success: false, message: "Insufficient balance." });
+
+    // Deduct from buyer
+    buyer.rechargeCoins -= price;
+    await buyer.save();
+
+    // Royalty & Commission logic
+    const auction = ownership.auctionId || {};
+    const post = ownership.postId || {};
+    const creatorId = auction.creator || post.creator;
+    const royaltyPct = auction.royaltyPct || post.royaltyPct || 10;
+    
+    // Simplification: platform takes 5% commission on resale, creator takes royalty
+    const commission = price * 0.05;
+    const royalty = price * (royaltyPct / 100);
+    const sellerEarning = price - commission - royalty;
+
+    await User.findByIdAndUpdate(sellerId, { $inc: { earningCoins: sellerEarning } });
+    if (creatorId) {
+      await User.findByIdAndUpdate(creatorId, { $inc: { earningCoins: royalty } });
+    }
+
+    // Update ownership
+    ownership.isListedForSale = false;
+    ownership.fromUserId = sellerId;
+    ownership.toUserId = buyerId;
+    ownership.salePrice = price;
+    ownership.transferType = "resale";
+    await ownership.save();
+
+    res.status(200).json({ success: true, message: "NFT purchased successfully.", ownership });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const placeOffer = async (req, res) => {
+  const bidderId = req.user.userId;
+  const { collectibleId } = req.params;
+  const { amount } = req.body;
+
+  try {
+    const ownership = await CollectibleOwnership.findOne({ collectibleId }).sort({ createdAt: -1 });
+    if (!ownership) return res.status(404).json({ success: false, message: "Collectible not found." });
+    if (String(ownership.toUserId) === String(bidderId)) return res.status(400).json({ success: false, message: "You own this NFT." });
+
+    const existingOffer = await NFTOffer.findOne({ collectibleId, bidderId, status: "pending" });
+    if (existingOffer) return res.status(400).json({ success: false, message: "You already have a pending offer on this NFT." });
+
+    const bidder = await User.findById(bidderId);
+    if (bidder.rechargeCoins < amount) return res.status(400).json({ success: false, message: "Insufficient balance to place this offer." });
+
+    // Lock coins
+    bidder.rechargeCoins -= amount;
+    await bidder.save();
+
+    const offer = await NFTOffer.create({
+      collectibleId,
+      bidderId,
+      ownerId: ownership.toUserId,
+      offerAmount: amount,
+      status: "pending"
+    });
+
+    // Notify the owner instantly via Socket.io
+    emitToUser(ownership.toUserId, "new_nft_offer", {
+      collectibleId,
+      offerAmount: amount,
+      bidderId,
+      offerId: offer._id
+    });
+
+    res.status(200).json({ success: true, message: "Offer placed successfully.", offer });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const acceptOffer = async (req, res) => {
+  const userId = req.user.userId;
+  const { collectibleId, offerId } = req.params;
+
+  try {
+    const ownership = await CollectibleOwnership.findOne({ collectibleId }).sort({ createdAt: -1 }).populate("auctionId postId");
+    if (!ownership) return res.status(404).json({ success: false, message: "Collectible not found." });
+    if (String(ownership.toUserId) !== String(userId)) return res.status(403).json({ success: false, message: "You do not own this NFT." });
+
+    const offer = await NFTOffer.findOne({ _id: offerId, collectibleId, status: "pending" });
+    if (!offer) return res.status(404).json({ success: false, message: "Offer not found or already processed." });
+
+    const price = offer.offerAmount;
+
+    // Distribute funds (already deducted from bidder)
+    const auction = ownership.auctionId || {};
+    const post = ownership.postId || {};
+    const creatorId = auction.creator || post.creator;
+    const royaltyPct = auction.royaltyPct || post.royaltyPct || 10;
+    
+    const commission = price * 0.05;
+    const royalty = price * (royaltyPct / 100);
+    const sellerEarning = price - commission - royalty;
+
+    await User.findByIdAndUpdate(userId, { $inc: { earningCoins: sellerEarning } });
+    if (creatorId) {
+      await User.findByIdAndUpdate(creatorId, { $inc: { earningCoins: royalty } });
+    }
+
+    offer.status = "accepted";
+    await offer.save();
+
+    ownership.isListedForSale = false;
+    ownership.fromUserId = userId;
+    ownership.toUserId = offer.bidderId;
+    ownership.salePrice = price;
+    ownership.transferType = "resale";
+    await ownership.save();
+
+    // Refund other pending offers
+    const otherOffers = await NFTOffer.find({ collectibleId, status: "pending" });
+    for (const other of otherOffers) {
+      await User.findByIdAndUpdate(other.bidderId, { $inc: { rechargeCoins: other.offerAmount } });
+      other.status = "rejected";
+      await other.save();
+    }
+
+    res.status(200).json({ success: true, message: "Offer accepted successfully.", ownership });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const cancelOffer = async (req, res) => {
+  const bidderId = req.user.userId;
+  const { collectibleId, offerId } = req.params;
+
+  try {
+    const offer = await NFTOffer.findOne({ _id: offerId, collectibleId, bidderId, status: "pending" });
+    if (!offer) return res.status(404).json({ success: false, message: "Pending offer not found." });
+
+    // Refund locked coins
+    await User.findByIdAndUpdate(bidderId, { $inc: { rechargeCoins: offer.offerAmount } });
+
+    offer.status = "cancelled";
+    await offer.save();
+
+    res.status(200).json({ success: true, message: "Offer cancelled. Coins refunded." });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── Get Offers ───────────────────────────────────────────────────────────────
+const getOffersForCollectible = async (req, res) => {
+  const { collectibleId } = req.params;
+  try {
+    const offers = await NFTOffer.find({ collectibleId, status: "pending" })
+      .populate("bidderId", "name handle avatar")
+      .sort({ offerAmount: -1 });
+    res.status(200).json({ success: true, offers });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const getMyOffers = async (req, res) => {
+  const userId = req.user.userId;
+  try {
+    const offers = await NFTOffer.find({ bidderId: userId, status: "pending" })
+      .populate("ownerId", "name handle avatar")
+      .sort({ createdAt: -1 });
+    
+    // Populate the collectible details to show which NFT it is
+    const populatedOffers = await Promise.all(offers.map(async (offer) => {
+      const ownership = await CollectibleOwnership.findOne({ collectibleId: offer.collectibleId })
+        .populate("auctionId", "title mediaUrl")
+        .populate("postId", "title caption media thumbnail");
+      
+      const source = ownership?.auctionId || ownership?.postId;
+      return {
+        ...offer._doc,
+        nft: {
+          title: source?.title || source?.caption || "Untitled NFT",
+          mediaUrl: getMediaUrl(source),
+          mediaType: getMediaType(source),
+          collectibleId: offer.collectibleId,
+          resalePrice: ownership?.resalePrice || source?.nftPriceINR || source?.highestBid || 0
+        }
+      };
+    }));
+
+    res.status(200).json({ success: true, offers: populatedOffers });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── processVaultSettlements (stub — no-op in Web2, kept for app.js compat) ──
 const processVaultSettlements = async () => {
   // No-op: blockchain settlement removed. Coin-based settlement is instant.
@@ -433,4 +729,12 @@ module.exports = {
   getOwnershipCertificate,
   migrateNFTOwnerships,
   processVaultSettlements,
+  relistNFT,
+  buyResaleNFT,
+  placeOffer,
+  acceptOffer,
+  cancelOffer,
+  getOffersForCollectible,
+  getMyOffers,
+  getResaleListings
 };

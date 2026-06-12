@@ -40,7 +40,7 @@ const SIDEBAR_ITEMS = [
     { label: 'Search', to: '/search', icon: Search, key: 'search' },
     { label: 'Reels', to: '/home?view=reels', icon: PlayCircle, key: 'reels' },
     { label: 'Campaigns', to: '/campaigns', icon: Megaphone, key: 'campaigns' },
-    { label: 'NFT Marketplace', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
+    { label: 'Buy/Sell', to: '/tasks?view=nft', icon: Gem, key: 'nftMarket' },
     { label: 'Auctions', to: '/auctions', icon: Gavel, key: 'auctions' },
     { label: 'Notifications', to: '/notifications', icon: Bell, key: 'notifications' },
     { label: 'Messages', to: '/messaging', icon: MessageCircle, key: 'messaging' },

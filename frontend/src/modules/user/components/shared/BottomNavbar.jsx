@@ -1,13 +1,13 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, Wallet, Plus, User, PlayCircle } from 'lucide-react'
+import { Home, Wallet, Plus, User, PlayCircle, Gem } from 'lucide-react'
 import { useFeedStore } from '../../store/useFeedStore'
 
 const navItems = [
     { to: '/home', icon: Home, label: 'Home', key: 'home' },
     { to: '/home?view=reels', icon: PlayCircle, label: 'Reels', key: 'reels' },
     { to: '/create', icon: Plus, label: 'Create', isCreate: true, key: 'create' },
-    { to: '/wallet', icon: Wallet, label: 'Wallet', key: 'wallet' },
+    { to: '/tasks?view=nft', icon: Gem, label: 'Buy/Sell', key: 'market' },
     { to: '/profile', icon: User, label: 'Profile', key: 'profile' },
 ]
 
@@ -24,6 +24,7 @@ export default function BottomNavbar() {
     const isItemActive = (item) => {
         if (item.key === 'home') return isHomeActive
         if (item.key === 'reels') return isReelsActive
+        if (item.key === 'market') return location.pathname === '/tasks' && view === 'nft'
         return location.pathname === item.to
     }
 

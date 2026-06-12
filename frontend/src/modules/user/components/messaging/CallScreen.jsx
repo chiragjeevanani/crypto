@@ -162,19 +162,27 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
     }, [appId, channelName, token, uid, callType]);
 
     // Toggle functions
-    const toggleMute = () => {
+    const toggleMute = async () => {
         const mic = localTracksRef.current.mic;
         if (mic) {
-            mic.setMuted(!isMuted);
-            setIsMuted(!isMuted);
+            try {
+                await mic.setMuted(!isMuted);
+                setIsMuted(!isMuted);
+            } catch (err) {
+                console.error('Failed to toggle mute:', err);
+            }
         }
     };
 
-    const toggleVideo = () => {
+    const toggleVideo = async () => {
         const cam = localTracksRef.current.cam;
         if (cam) {
-            cam.setMuted(!isVideoOff);
-            setIsVideoOff(!isVideoOff);
+            try {
+                await cam.setMuted(!isVideoOff);
+                setIsVideoOff(!isVideoOff);
+            } catch (err) {
+                console.error('Failed to toggle video:', err);
+            }
         }
     };
 

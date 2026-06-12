@@ -54,6 +54,16 @@ const collectibleOwnershipSchema = new mongoose.Schema(
     certificateUrl: {
       type: String,
       default: ""
+    },
+    // True if the current owner listed it for fixed-price resale
+    isListedForSale: {
+      type: Boolean,
+      default: false
+    },
+    // The fixed price if listed for sale
+    resalePrice: {
+      type: Number,
+      default: 0
     }
   },
   { timestamps: true }

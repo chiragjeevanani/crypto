@@ -117,5 +117,101 @@ export const postService = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to delete post");
     return data;
+  },
+
+  // ─── NFT Resale & Offers ────────────────────────────────────────────────
+
+  async getMarketplace() {
+    const response = await fetch(`${API_BASE}/nft/marketplace`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load marketplace");
+    return data;
+  },
+
+  async getResaleListings() {
+    const response = await fetch(`${API_BASE}/nft/resale-listings`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to load resale listings");
+    return data;
+  },
+
+  async relistNft(collectibleId, price) {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/relist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ price })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to relist NFT");
+    return data;
+  },
+
+  async buyResaleNft(collectibleId) {
+    const response = await fetch(`${API_BASE}/nft/buy-resale/${collectibleId}`, {
+      method: "POST",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to purchase NFT");
+    return data;
+  },
+
+  async placeOffer(collectibleId, amount) {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/offer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ amount })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to place offer");
+    return data;
+  },
+
+  async getOffersForCollectible(collectibleId) {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/offers`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to fetch offers");
+    return data;
+  },
+
+  async getMyOffers() {
+    const response = await fetch(`${API_BASE}/nft/my/offers`, {
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to fetch your offers");
+    return data;
+  },
+
+  async acceptOffer(collectibleId, offerId) {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/offer/${offerId}/accept`, {
+      method: "POST",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to accept offer");
+    return data;
+  },
+
+  async cancelOffer(collectibleId, offerId) {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/offer/${offerId}/cancel`, {
+      method: "POST",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to cancel offer");
+    return data;
+  },
+
+  async cancelOffer(collectibleId, offerId) {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/offer/${offerId}/cancel`, {
+      method: "POST",
+      headers: getAuthHeaders()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to cancel offer");
+    return data;
   }
 };

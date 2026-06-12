@@ -61,10 +61,24 @@ export default function SocketHandler() {
             useCallStore.getState().clearCall()
         }
 
+        const onNewNftOffer = (payload) => {
+            if (payload && payload.collectibleId) {
+                addLiveNotification({
+                    id: Date.now(),
+                    type: 'system',
+                    title: 'New NFT Offer!',
+                    subtitle: `You received a new offer on your NFT.`,
+                    createdAt: new Date().toISOString()
+                })
+                window.dispatchEvent(new CustomEvent('nft-offer-received', { detail: payload }))
+            }
+        }
+
         socket.on('connect', onReconnect)
         socket.on('reconnect', onReconnect)
         socket.on('notification', onNotification)
         socket.on('notification_broadcast', onBroadcast)
+        socket.on('new_nft_offer', onNewNftOffer)
         
         socket.on('incoming_call', onIncomingCall)
         socket.on('call_accepted', onCallAccepted)
@@ -76,6 +90,7 @@ export default function SocketHandler() {
             socket.off('reconnect', onReconnect)
             socket.off('notification', onNotification)
             socket.off('notification_broadcast', onBroadcast)
+            socket.off('new_nft_offer', onNewNftOffer)
             
             socket.off('incoming_call', onIncomingCall)
             socket.off('call_accepted', onCallAccepted)

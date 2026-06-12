@@ -16,30 +16,36 @@ import { mapCampaignToTask } from '../utils/campaignMapper'
 import { getJoinedCampaignIds, markCampaignJoined } from '../utils/campaignStorage'
 
 const FILTERS = ['All', 'Active', 'Joined']
-const NFT_TABS = ['Discover', 'My Listings', 'My Collection', 'Resale']
+const NFT_TABS = ['Discover', 'My Listings', 'My Collection', 'My Offers', 'Resale']
 
 const mapPostToNFT = (post) => {
-    const mediaType = post.media?.type || 'image'
-    const mediaUrl = post.media?.url || ''
+    const mediaType = post.mediaType || post.media?.type || 'image'
+    const mediaUrl = post.mediaUrl || post.media?.url || ''
     return {
         id: post.id || post._id,
-        title: post.caption || 'Untitled NFT',
-        thumbnail: mediaType === 'image' ? mediaUrl : (post.media?.thumbnail || ''),
-        price: post.nftPriceINR || 1000,
+        collectibleId: post.collectibleId,
+        title: post.caption || post.title || 'Untitled NFT',
+        thumbnail: post.thumbnail || (mediaType === 'image' ? mediaUrl : (post.media?.thumbnail || '')),
+        price: post.resalePrice || post.nftPriceINR || post.salePrice || post.basePrice || 1000,
         currency: 'INR',
-        status: post.status === 'approved' ? 'listed' : post.status,
+        status: post.isListedForSale ? 'listed' : (post.status === 'approved' ? 'listed' : post.status),
         postStatus: post.status,
-        buyer: null,
-        listedAt: post.createdAt,
+        buyer: post.owner?._id || post.winner?._id || null,
+        listedAt: post.createdAt || post.acquiredAt,
         soldAt: null,
         views: post.views || 0,
         bids: post.comments || 0,
-        creatorId: post.creator?.id || '',
+        creatorId: post.creator?.id || post.creator?._id || '',
         creatorName: post.creator?.name || post.creator?.username || 'Creator',
         creatorHandle: post.creator?.handle || '@creator',
         mediaType,
         mediaUrl,
         source: 'backend',
+        isListedForSale: post.isListedForSale,
+        owner: post.owner,
+        isOffer: post.isOffer,
+        offerId: post.offerId,
+        originalPrice: post.originalPrice
     }
 }
 
@@ -63,7 +69,9 @@ export default function TasksPage() {
     const [nftItems, setNftItems] = useState([])
     const [myNftItems, setMyNftItems] = useState([])
     const [myCollection, setMyCollection] = useState([])
-    const [nftLoading, setNftLoading] = useState(false)
+    const [resaleItems, setResaleItems] = useState([])
+    const [myOffers, setMyOffers] = useState([])
+    const [nftLoading, setNftLoading] = useState(true)
     const [nftMessage, setNftMessage] = useState('')
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
 
@@ -88,6 +96,10 @@ export default function TasksPage() {
             }
         }
         fetchRates()
+        
+        if (profile?.currencyCode) {
+            setDisplayCurrency(profile.currencyCode)
+        }
 
         const hydrate = async () => {
             const localItems = getUserNFTListings()
@@ -115,11 +127,46 @@ export default function TasksPage() {
                 }
 
                 // Fetch current user's purchased NFTs for My Collection tab
-                const collRes = await postService.getMyCollection()
-                if (collRes.success && collRes.posts) {
-                    setMyCollection(collRes.posts.map((post) => mapPostToNFT(post)))
+                const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
+                    headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
+                }).then(r => r.json()).catch(() => ({}));
+
+                if (collRes.success && collRes.nfts) {
+                    setMyCollection(collRes.nfts.map((nft) => mapPostToNFT({...nft, _id: nft.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
                 } else {
                     setMyCollection([])
+                }
+
+                // Fetch resale listings
+                const resaleRes = await postService.getResaleListings()
+                if (resaleRes.success && resaleRes.nfts) {
+                    setResaleItems(resaleRes.nfts.map((nft) => mapPostToNFT({...nft, _id: nft.collectibleId, status: 'listed'})))
+                } else {
+                    setResaleItems([])
+                }
+
+                // Fetch my offers
+                const offersRes = await postService.getMyOffers();
+                if (offersRes.success && offersRes.offers) {
+                    // Map offers to NFT display format
+                    setMyOffers(offersRes.offers.map((offer) => {
+                        const nftData = offer.nft || {};
+                        return mapPostToNFT({
+                            ...nftData,
+                            _id: nftData.collectibleId || offer._id,
+                            collectibleId: nftData.collectibleId,
+                            title: nftData.title,
+                            mediaUrl: nftData.mediaUrl,
+                            status: 'offered',
+                            resalePrice: offer.offerAmount, // use resalePrice so mapPostToNFT picks it up
+                            originalPrice: nftData.resalePrice,
+                            owner: offer.ownerId,
+                            offerId: offer._id,
+                            isOffer: true
+                        });
+                    }));
+                } else {
+                    setMyOffers([]);
                 }
             } catch (err) {
                 setNftItems(localItems)
@@ -135,10 +182,11 @@ export default function TasksPage() {
         }
         window.addEventListener('nft-listings-updated', onUpdate)
         window.addEventListener('storage', onStorage)
-        window.addEventListener('storage', onStorage)
+        window.addEventListener('nft-offer-received', onUpdate)
         return () => {
             window.removeEventListener('nft-listings-updated', onUpdate)
             window.removeEventListener('storage', onStorage)
+            window.removeEventListener('nft-offer-received', onUpdate)
         }
     }, [])
 
@@ -188,11 +236,10 @@ export default function TasksPage() {
     const filteredNFTs = useMemo(() => {
         if (nftTab === 'My Listings') return myNftItems
         if (nftTab === 'My Collection') return myCollection
-        if (nftTab === 'Resale') return [...nftItems, ...myNftItems, ...myCollection].filter((n, i, arr) =>
-            n.status === 'sold' && arr.findIndex(x => x.id === n.id) === i
-        )
+        if (nftTab === 'Resale') return resaleItems
+        if (nftTab === 'My Offers') return myOffers
         return nftItems
-    }, [nftItems, myNftItems, myCollection, nftTab])
+    }, [nftItems, myNftItems, myCollection, resaleItems, myOffers, nftTab])
 
     const nftFeedPosts = useMemo(() => (
         filteredNFTs.map((nft, idx) => ({
@@ -223,10 +270,52 @@ export default function TasksPage() {
     ), [filteredNFTs])
 
     const toggleBuyResell = async (nft) => {
+        if (nft.isOffer) {
+            const confirmCancel = window.confirm(`Cancel your offer of ₹${nft.price} on "${nft.title}"? Coins will be refunded.`);
+            if (confirmCancel) {
+                try {
+                    await postService.cancelOffer(nft.collectibleId, nft.offerId);
+                    setNftMessage(`Offer on "${nft.title}" cancelled successfully.`);
+                    
+                    // Re-fetch offers
+                    const offersRes = await postService.getMyOffers();
+                    if (offersRes.success && offersRes.offers) {
+                        setMyOffers(offersRes.offers.map((offer) => {
+                            const nftData = offer.nft || {};
+                            return mapPostToNFT({
+                                ...nftData,
+                                _id: nftData.collectibleId || offer._id,
+                                collectibleId: nftData.collectibleId,
+                                title: nftData.title,
+                                mediaUrl: nftData.mediaUrl,
+                                status: 'offered',
+                                resalePrice: offer.offerAmount,
+                                owner: offer.ownerId,
+                                offerId: offer._id,
+                                isOffer: true
+                            });
+                        }));
+                    } else {
+                        setMyOffers([]);
+                    }
+                } catch (err) {
+                    setNftMessage(err.message || 'Unable to cancel offer.');
+                }
+            }
+            return;
+        }
+
         if (nft.status === 'listed') {
             const isLocal = displayCurrency === 'INR';
             const rateINR = exchangeRates?.['INR'] || 83;
             const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+            
+            // if we are the owner, we can't buy our own listing
+            if (nft.owner?._id === profile?._id || nft.buyer === profile?._id) {
+                setNftMessage("You already own this NFT.");
+                return;
+            }
+
             const converted = isLocal ? nft.price : (nft.price * 1.05 * (rateTarget / rateINR));
             const valueStr = converted.toFixed(isLocal ? 0 : 2);
             const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
@@ -238,46 +327,114 @@ export default function TasksPage() {
                 message: `Confirm purchase of "${nft.title}" for ${displayPriceStr} from your wallet balance?`,
                 onConfirm: async () => {
                     setModalConfig(null);
-                    const purchase = await buyNft(nft.id, nft.price, nft.title)
-                    if (!purchase?.ok) {
-                        setNftMessage(purchase?.message || 'Unable to buy NFT.')
-                        return
-                    }
-                    
-                    setNftMessage(`NFT bought successfully for ${displayPriceStr}.`)
-                    setNftItems((state) => state.map((item) => 
-                        item.id === nft.id 
-                            ? { ...item, status: 'sold', buyer: '@globalcollector', soldAt: new Date().toISOString() } 
-                            : item
-                    ))
-                    
-                    // Re-fetch my collection so the new purchase shows up
-                    const myCollRes = await postService.getMyCollection()
-                    if (myCollRes.success && myCollRes.posts) {
-                        setMyCollection(myCollRes.posts.map(post => mapPostToNFT(post)))
+                    try {
+                        const purchase = await postService.buyResaleNft(nft.collectibleId);
+                        setNftMessage(`NFT bought successfully for ${displayPriceStr}.`)
+                        
+                        // Refetch collection and resale listings
+                        const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
+                            headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
+                        }).then(r => r.json()).catch(() => ({}));
+                        if (collRes.success && collRes.nfts) {
+                            setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
+                        }
+
+                        const resaleRes = await postService.getResaleListings()
+                        if (resaleRes.success && resaleRes.nfts) {
+                            setResaleItems(resaleRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'listed'})))
+                        }
+                    } catch (err) {
+                        setNftMessage(err.message || 'Unable to buy NFT.');
                     }
                 },
                 onCancel: () => setModalConfig(null)
             })
         } else if (nft.status === 'sold') {
-            setModalConfig({
-                type: 'prompt',
-                title: 'Relist NFT',
-                message: 'Enter your resale price:',
-                defaultValue: nft.price * 1.2,
-                onConfirm: (newPrice) => {
-                    setModalConfig(null);
-                    if (!newPrice) return;
+            // We own it and it's not listed for sale
+            if (nft.owner?._id === profile?._id || nft.buyer === profile?._id) {
+                try {
+                    const offersRes = await postService.getOffersForCollectible(nft.collectibleId);
+                    const offers = offersRes.success ? offersRes.offers : [];
                     
-                    setNftMessage(`NFT "${nft.title}" successfully relisted for ${displayCurrency === 'USD' ? '$' + +(newPrice * 1.05 * (exchangeRates?.['INR'] ? (1 / exchangeRates['INR']) : (1 / 83))).toFixed(2) : '₹' + newPrice}.`)
-                    setMyCollection((state) => state.map((item) =>
-                        item.id === nft.id
-                            ? { ...item, status: 'listed', price: Number(newPrice), listedAt: new Date().toISOString() }
-                            : item
-                    ))
-                },
-                onCancel: () => setModalConfig(null)
-            })
+                    setModalConfig({
+                        type: 'manage_nft',
+                        title: 'Manage NFT',
+                        nft,
+                        offers,
+                        onRelist: async (newPrice) => {
+                            setModalConfig(null);
+                            if (!newPrice) return;
+                            
+                            try {
+                                await postService.relistNft(nft.collectibleId, Number(newPrice));
+                                setNftMessage(`NFT "${nft.title}" successfully relisted.`);
+                                
+                                // Re-fetch my collection
+                                const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
+                                    headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
+                                }).then(r => r.json()).catch(() => ({}));
+                                if (collRes.success && collRes.nfts) {
+                                    setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
+                                }
+
+                                const resaleRes = await postService.getResaleListings()
+                                if (resaleRes.success && resaleRes.nfts) {
+                                    setResaleItems(resaleRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'listed'})))
+                                }
+                            } catch (err) {
+                                setNftMessage(err.message || 'Unable to relist NFT.');
+                            }
+                        },
+                        onAcceptOffer: async (offerId) => {
+                            setModalConfig(null);
+                            try {
+                                await postService.acceptOffer(nft.collectibleId, offerId);
+                                setNftMessage(`Offer accepted successfully!`);
+                                
+                                // Re-fetch my collection
+                                const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
+                                    headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
+                                }).then(r => r.json()).catch(() => ({}));
+                                if (collRes.success && collRes.nfts) {
+                                    setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
+                                }
+                            } catch (err) {
+                                setNftMessage(err.message || 'Unable to accept offer.');
+                            }
+                        },
+                        onCancel: () => setModalConfig(null)
+                    });
+                } catch (err) {
+                    setNftMessage('Unable to load offers.');
+                }
+            } else {
+                // Someone else owns it, and it's not listed. We can make an offer.
+                const isLocal = displayCurrency === 'INR';
+                const rateINR = exchangeRates?.['INR'] || 83;
+                const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                const localDefault = isLocal ? nft.price : (nft.price * 1.05 * (rateTarget / rateINR));
+
+                setModalConfig({
+                    type: 'prompt',
+                    title: 'Make an Offer',
+                    message: `Enter your offer price in ${displayCurrency} (coins will be held in escrow):`,
+                    defaultValue: localDefault.toFixed(isLocal ? 0 : 2),
+                    onConfirm: async (offerPrice) => {
+                        setModalConfig(null);
+                        if (!offerPrice) return;
+                        
+                        const basePrice = isLocal ? Number(offerPrice) : (Number(offerPrice) / (1.05 * (rateTarget / rateINR)));
+
+                        try {
+                            await postService.placeOffer(nft.collectibleId, basePrice);
+                            setNftMessage(`Offer placed for "${nft.title}".`);
+                        } catch (err) {
+                            setNftMessage(err.message || 'Unable to place offer.');
+                        }
+                    },
+                    onCancel: () => setModalConfig(null)
+                })
+            }
         }
     }
 
@@ -329,7 +486,7 @@ export default function TasksPage() {
     return (
         <div className="px-4 pt-4">
             <div className="mb-4">
-                <h1 className="text-xl font-extrabold" style={{ color: 'var(--color-text)' }}>{isNFTView ? 'NFT Marketplace' : 'Earn'}</h1>
+                <h1 className="text-xl font-extrabold" style={{ color: 'var(--color-text)' }}>{isNFTView ? 'Buy/Sell' : 'Earn'}</h1>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
                     {isNFTView ? 'Discover, buy, and relist creator collectibles globally' : 'Complete tasks, join voting, get paid'}
                 </p>
@@ -388,30 +545,21 @@ export default function TasksPage() {
                 </>
             ) : (
                 <>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex gap-2">
-                            {NFT_TABS.map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setNftTab(tab)}
-                                    className="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer"
-                                    style={{
-                                        background: nftTab === tab ? 'var(--color-primary)' : 'var(--color-surface)',
-                                        color: nftTab === tab ? '#fff' : 'var(--color-muted)',
-                                        border: `1px solid ${nftTab === tab ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                    }}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            onClick={() => setDisplayCurrency((v) => (v === 'INR' ? (profile?.currencyCode && profile.currencyCode !== 'INR' ? profile.currencyCode : 'USD') : 'INR'))}
-                            className="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer"
-                            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}
-                        >
-                            {displayCurrency}
-                        </button>
+                    <div className="flex items-center gap-2 mb-3 overflow-x-auto hide-scrollbar pb-1 w-full">
+                        {NFT_TABS.map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setNftTab(tab)}
+                                className="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap flex-shrink-0"
+                                style={{
+                                    background: nftTab === tab ? 'var(--color-primary)' : 'var(--color-surface)',
+                                    color: nftTab === tab ? '#fff' : 'var(--color-muted)',
+                                    border: `1px solid ${nftTab === tab ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                }}
+                            >
+                                {tab}
+                            </button>
+                        ))}
                     </div>
 
 
@@ -471,14 +619,9 @@ export default function TasksPage() {
                                                 className="w-full h-full object-cover"
                                                 muted
                                                 playsInline
+                                                autoPlay
                                                 loop
-                                                preload="none"
-                                                poster={nft.thumbnail}
-                                                onMouseEnter={(e) => e.target.play().catch(() => {})}
-                                                onMouseLeave={(e) => {
-                                                    e.target.pause();
-                                                    e.target.currentTime = 0;
-                                                }}
+                                                poster={nft.thumbnail || undefined}
                                             />
                                         ) : (
                                             <img 
@@ -506,10 +649,19 @@ export default function TasksPage() {
                                     </div>
                                     <div className="p-3">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
-                                            <div className="mt-1 flex items-center justify-between">
+                                            <div className="mt-1 flex flex-col gap-0.5">
                                                 <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
-                                                    {displayPriceStr}
+                                                    {nft.isOffer ? `Your Offer: ${displayPriceStr}` : displayPriceStr}
                                                 </p>
+                                                {nft.isOffer && nft.originalPrice > 0 && (
+                                                    <p className="text-[10px] font-medium" style={{ color: 'var(--color-muted)' }}>
+                                                        Listed at: {(() => {
+                                                            const convertedOrig = isLocal ? nft.originalPrice : (nft.originalPrice * 1.05 * (rateTarget / rateINR));
+                                                            const valueStrOrig = convertedOrig.toFixed(isLocal ? 0 : 2);
+                                                            return `${symbol}${valueStrOrig}`;
+                                                        })()}
+                                                    </p>
+                                                )}
                                             </div>
 
                                         <button
@@ -520,7 +672,7 @@ export default function TasksPage() {
                                             className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
                                             style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--color-primary)' }}
                                         >
-                                            {nft.status === 'listed' ? 'Buy (Global)' : 'Resell'}
+                                            {nft.isOffer ? 'Cancel Offer' : (nft.status === 'listed' ? 'Buy (Global)' : (nft.owner?._id === profile?._id || nft.buyer === profile?._id ? 'Relist / View Offers' : 'Make Offer'))}
                                         </button>
                                     </div>
                                 </div>
@@ -564,28 +716,109 @@ export default function TasksPage() {
                                     />
                                 )}
 
+                                {modalConfig.type === 'manage_nft' && (
+                                    <div className="space-y-4">
+                                        <div className="flex flex-col gap-2">
+                                            <p className="text-xs font-semibold mb-1" style={{ color: 'var(--color-muted)' }}>
+                                                Current Price:{' '}
+                                                <span style={{ color: 'var(--color-text)' }}>
+                                                    {(() => {
+                                                        const isLocal = displayCurrency === 'INR';
+                                                        const rateINR = exchangeRates?.['INR'] || 83;
+                                                        const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                                                        const converted = isLocal ? modalConfig.nft.price : (modalConfig.nft.price * 1.05 * (rateTarget / rateINR));
+                                                        const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
+                                                        return `${symbol}${converted.toFixed(isLocal ? 0 : 2)}`;
+                                                    })()}
+                                                </span>
+                                            </p>
+                                            <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>Relist NFT</p>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number"
+                                                    id="relist-input"
+                                                    placeholder={`Price in ${displayCurrency}`}
+                                                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                                                    style={{ background: 'var(--color-background)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const rawVal = Number(document.getElementById('relist-input')?.value);
+                                                        if (!rawVal) return;
+                                                        const isLocal = displayCurrency === 'INR';
+                                                        const rateINR = exchangeRates?.['INR'] || 83;
+                                                        const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                                                        const basePrice = isLocal ? rawVal : (rawVal / (1.05 * (rateTarget / rateINR)));
+                                                        modalConfig.onRelist(basePrice);
+                                                    }}
+                                                    className="px-4 py-2 rounded-xl text-xs font-semibold shrink-0"
+                                                    style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                                >
+                                                    Relist
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>Offers ({modalConfig.offers?.length || 0})</p>
+                                            {modalConfig.offers?.length === 0 ? (
+                                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No offers yet.</p>
+                                            ) : (
+                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                                    {modalConfig.offers.map((offer) => (
+                                                        <div key={offer._id} className="flex justify-between items-center p-2 rounded border" style={{ borderColor: 'var(--color-border)' }}>
+                                                            <div>
+                                                                <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+                                                                    {(() => {
+                                                                        const isLocal = displayCurrency === 'INR';
+                                                                        const rateINR = exchangeRates?.['INR'] || 83;
+                                                                        const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                                                                        const amount = offer.offerAmount || offer.offerPrice || 0;
+                                                                        const converted = isLocal ? amount : (amount * 1.05 * (rateTarget / rateINR));
+                                                                        const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
+                                                                        return `${symbol}${converted.toFixed(isLocal ? 0 : 2)}`;
+                                                                    })()}
+                                                                </p>
+                                                                <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>by {offer.buyer?.handle || '@user'}</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => modalConfig.onAcceptOffer(offer._id)}
+                                                                className="px-2 py-1 rounded text-[10px] font-bold"
+                                                                style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                                            >
+                                                                Accept
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex justify-end gap-2 mt-4">
                                     <button
                                         onClick={modalConfig.onCancel}
                                         className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
                                         style={{ color: 'var(--color-text)', background: 'var(--color-background)', border: '1px solid var(--color-border)' }}
                                     >
-                                        Cancel
+                                        {modalConfig.type === 'manage_nft' ? 'Close' : 'Cancel'}
                                     </button>
-                                    <button
-                                        onClick={() => {
-                                            if (modalConfig.type === 'prompt') {
-                                                const val = document.getElementById('prompt-input')?.value;
-                                                modalConfig.onConfirm(val);
-                                            } else {
-                                                modalConfig.onConfirm();
-                                            }
-                                        }}
-                                        className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-                                        style={{ background: 'var(--color-primary)', color: '#fff' }}
-                                    >
-                                        Confirm
-                                    </button>
+                                    {modalConfig.type !== 'manage_nft' && (
+                                        <button
+                                            onClick={() => {
+                                                if (modalConfig.type === 'prompt') {
+                                                    const val = document.getElementById('prompt-input')?.value;
+                                                    modalConfig.onConfirm(val);
+                                                } else {
+                                                    modalConfig.onConfirm();
+                                                }
+                                            }}
+                                            className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                        >
+                                            Confirm
+                                        </button>
+                                    )}
                                 </div>
                             </motion.div>
                         </div>

@@ -553,7 +553,21 @@ exports.recordView = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
     
-    const post = await Post.findById(req.params.id).select("viewedBy views");
+    let postId = req.params.id;
+    const mongoose = require('mongoose');
+    
+    // Check if the id is a collectible ID (starts with KNQ-)
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+        const CollectibleOwnership = require("../../../models/CollectibleOwnership");
+        const ownership = await CollectibleOwnership.findOne({ collectibleId: postId });
+        if (ownership && ownership.postId) {
+            postId = ownership.postId.toString();
+        } else {
+            return res.status(200).json({ success: false, message: "Post or Collectible not found" });
+        }
+    }
+
+    const post = await Post.findById(postId).select("viewedBy views");
     if (!post) return res.status(200).json({ success: false, message: "Post not found" });
 
     const hasViewed = (post.viewedBy || []).some(v => v && v.toString() === userId.toString());
@@ -561,7 +575,7 @@ exports.recordView = async (req, res) => {
     let updatedPost = post;
     if (!hasViewed) {
       updatedPost = await Post.findByIdAndUpdate(
-        req.params.id,
+        postId,
         { $addToSet: { viewedBy: userId }, $inc: { views: 1 } },
         { new: true }
       );
@@ -573,6 +587,9 @@ exports.recordView = async (req, res) => {
       alreadyViewed: hasViewed
     });
   } catch (error) {
+    if (error.name === "CastError" && error.path === "_id") {
+      return res.status(200).json({ success: false, message: "Invalid post id" });
+    }
     return res.status(500).json({ success: false, message: error.message });
   }
 };

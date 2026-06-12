@@ -9,6 +9,7 @@ import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { followService } from '../services/followService'
 import { searchService } from '../services/searchService'
+import { postService } from '../services/postService'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import Avatar from '../components/shared/Avatar'
@@ -68,6 +69,7 @@ export default function UserProfilePage() {
                 const createdPosts = nRes.posts || [];
                 const ownedNfts = (cRes.nfts || []).map(o => ({
                     id: o.auctionId || o.collectibleId || Math.random().toString(),
+                    collectibleId: o.collectibleId,
                     creator: {
                         id: profileUser?.id || id,
                         username: profileUser?.fullName || profileUser?.username || 'User',
@@ -77,9 +79,11 @@ export default function UserProfilePage() {
                     media: { url: o.mediaUrl, type: o.mediaType },
                     caption: o.description || o.title || 'Owned NFT',
                     title: o.title || 'Owned NFT',
-                    status: o.status || 'sold',
-                    price: o.salePrice || 0,
-                    nftPriceINR: o.salePrice || 0,
+                    status: o.isListedForSale ? 'listed' : (o.status || 'sold'),
+                    price: o.isListedForSale ? o.resalePrice : (o.salePrice || 0),
+                    nftPriceINR: o.isListedForSale ? o.resalePrice : (o.salePrice || 0),
+                    isListedForSale: o.isListedForSale,
+                    resalePrice: o.resalePrice,
                     views: 0,
                     bids: 0,
                     thumbnail: o.mediaUrl,
@@ -163,6 +167,34 @@ export default function UserProfilePage() {
             // error handling not critical for UI here; state already optimistically toggled
         }
     }
+
+    const handleNftClick = async (nft) => {
+        if (!nft.collectibleId) return;
+
+        if (nft.isListedForSale) {
+            const confirmBuy = window.confirm(`Buy this NFT for ₹${nft.resalePrice}?`);
+            if (confirmBuy) {
+                try {
+                    await postService.buyResaleNft(nft.collectibleId);
+                    alert("NFT bought successfully!");
+                    // Optimistic update
+                    setNfts(prev => prev.map(n => n.collectibleId === nft.collectibleId ? { ...n, status: 'sold', isListedForSale: false } : n));
+                } catch (err) {
+                    alert(err.message || 'Unable to buy NFT.');
+                }
+            }
+        } else {
+            const offerPrice = window.prompt("Enter your offer price in INR:");
+            if (offerPrice && !isNaN(offerPrice)) {
+                try {
+                    await postService.placeOffer(nft.collectibleId, Number(offerPrice));
+                    alert("Offer placed successfully!");
+                } catch (err) {
+                    alert(err.message || 'Unable to place offer.');
+                }
+            }
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-inherit">
@@ -373,7 +405,8 @@ export default function UserProfilePage() {
                             {nfts.map((nft) => (
                                 <div
                                     key={nft.id}
-                                    className="flex items-center gap-3 p-3 rounded-2xl"
+                                    onClick={() => handleNftClick(nft)}
+                                    className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer"
                                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                                 >
                                     <img
@@ -386,6 +419,18 @@ export default function UserProfilePage() {
                                             {nft.caption || 'Untitled NFT'}
                                         </p>
                                         <NFTBadge status={nft.status === 'approved' ? 'listed' : 'sold'} price={nft.nftPriceINR || 0} className="mt-1" />
+                                    </div>
+                                    <div className="shrink-0">
+                                        <button 
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold transition-transform active:scale-95"
+                                            style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--color-primary)' }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleNftClick(nft);
+                                            }}
+                                        >
+                                            {nft.isListedForSale ? 'Buy' : 'Offer'}
+                                        </button>
                                     </div>
                                 </div>
                             ))}
