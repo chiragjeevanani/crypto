@@ -486,13 +486,15 @@ export default function TasksPage() {
     }
 
     return (
-        <div className="px-4 pt-4">
-            <div className="mb-4">
-                <h1 className="text-xl font-extrabold" style={{ color: 'var(--color-text)' }}>{isNFTView ? 'Buy/Sell' : 'Earn'}</h1>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                    {isNFTView ? 'Discover, buy, and relist creator collectibles globally' : 'Complete tasks, join voting, get paid'}
-                </p>
-            </div>
+        <div className={isNFTView ? "pb-24 min-h-screen bg-[var(--color-background)]" : "px-4 pt-4 pb-24"}>
+            {!isNFTView && (
+                <div className="mb-4">
+                    <h1 className="text-xl font-extrabold" style={{ color: 'var(--color-text)' }}>Earn</h1>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                        Complete tasks, join voting, get paid
+                    </p>
+                </div>
+            )}
 
             {!isNFTView ? (
                 <>
@@ -546,69 +548,218 @@ export default function TasksPage() {
 
                 </>
             ) : (
-                <>
-                    <div className="flex items-center gap-2 mb-3 overflow-x-auto hide-scrollbar pb-1 w-full">
-                        {NFT_TABS.map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setNftTab(tab)}
-                                className="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap flex-shrink-0"
-                                style={{
-                                    background: nftTab === tab ? 'var(--color-primary)' : 'var(--color-surface)',
-                                    color: nftTab === tab ? '#fff' : 'var(--color-muted)',
-                                    border: `1px solid ${nftTab === tab ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                }}
-                            >
-                                {tab}
+                <div className="w-full">
+                    {/* ── Flipkart Style Header ── */}
+                    <div 
+                        className="w-full px-4 pt-5 pb-3 sticky top-0 z-20 shadow-md"
+                        style={{ background: 'linear-gradient(180deg, #047BD5 0%, #0060A8 100%)' }}
+                    >
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-extrabold italic text-white drop-shadow-md">Marketplace</h1>
+                                <div className="px-1.5 py-0.5 bg-yellow-400 rounded text-[9px] font-bold text-black uppercase tracking-wider">Plus</div>
+                            </div>
+                            <button onClick={() => navigate('/create')} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white">
+                                +
                             </button>
-                        ))}
-                        {/* Create button — redirects to /create instead of opening modal */}
-                        <button
-                            onClick={() => navigate('/create')}
-                            className="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer whitespace-nowrap flex-shrink-0 flex items-center gap-1"
-                            style={{
-                                background: 'var(--color-background)',
-                                color: 'var(--color-primary)',
-                                border: '1px solid var(--color-primary)',
-                            }}
-                        >
-                            + Create
-                        </button>
+                        </div>
+                        
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50 text-gray-500">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            </div>
+                            <input 
+                                type="text" 
+                                placeholder="Search for Collectibles, Users..." 
+                                className="w-full pl-10 pr-10 py-2.5 rounded-xl text-[13px] font-medium outline-none bg-white text-black shadow-inner"
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#047BD5]">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                            </div>
+                        </div>
                     </div>
 
+                    {/* ── Category Navigation Row ── */}
+                    <div className="bg-[var(--color-surface)] shadow-sm overflow-x-auto hide-scrollbar border-b border-[var(--color-border)]">
+                        <div className="flex px-3 py-4 gap-6 min-w-max">
+                            {[
+                                { name: 'Discover', icon: '🏠', id: 'Discover' },
+                                { name: 'My Listings', icon: '📝', id: 'My Listings' },
+                                { name: 'Collection', icon: '🎒', id: 'My Collection' },
+                                { name: 'Offers', icon: '🤝', id: 'My Offers' },
+                                { name: 'Resale', icon: '🔄', id: 'Resale' }
+                            ].map((tab) => {
+                                const active = nftTab === tab.id;
+                                return (
+                                    <motion.button
+                                        key={tab.id}
+                                        whileTap={{ scale: 0.9 }}
+                                        onClick={() => setNftTab(tab.id)}
+                                        className="flex flex-col items-center gap-1.5 cursor-pointer relative"
+                                    >
+                                        <div 
+                                            className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ${active ? 'bg-blue-50 border-2 border-[#047BD5]' : 'bg-[var(--color-background)] border border-[var(--color-border)]'}`}
+                                            style={{ boxShadow: active ? '0 4px 10px rgba(4,123,213,0.15)' : 'none' }}
+                                        >
+                                            {tab.icon}
+                                        </div>
+                                        <span 
+                                            className="text-[11px] whitespace-nowrap"
+                                            style={{ 
+                                                fontWeight: active ? '800' : '600',
+                                                color: active ? '#047BD5' : 'var(--color-muted)'
+                                            }}
+                                        >
+                                            {tab.name}
+                                        </span>
+                                        {active && (
+                                            <motion.div layoutId="category-indicator" className="absolute -bottom-4 w-1/2 h-1 bg-[#047BD5] rounded-t-full" />
+                                        )}
+                                    </motion.button>
+                                );
+                            })}
+                        </div>
+                    </div>
 
-                    {nftMessage && (
-                        <p className="text-[11px] mb-3 font-medium" style={{ color: 'var(--color-text)' }}>
-                            {nftMessage}
-                        </p>
+                    {/* ── Toast Message ── */}
+                    <div className="px-4 mt-3">
+                        <AnimatePresence>
+                            {nftMessage && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                                    animate={{ opacity: 1, height: 'auto', marginBottom: 12 }}
+                                    exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-green-50 text-green-700 border border-green-200 shadow-sm flex items-center justify-between">
+                                        <span>{nftMessage}</span>
+                                        <button onClick={() => setNftMessage('')} className="opacity-50 hover:opacity-100 text-lg">&times;</button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* ── Banners Section (Only on Discover) ── */}
+                    {nftTab === 'Discover' && !nftLoading && filteredNFTs.length > 2 && (
+                        <div className="mt-2 mb-4 bg-yellow-400 py-4 shadow-sm relative overflow-hidden">
+                            {/* Decorative background elements */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-300 rounded-full mix-blend-multiply opacity-50 blur-xl translate-x-10 -translate-y-10" />
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-yellow-500 rounded-full mix-blend-multiply opacity-20 blur-lg -translate-x-5 translate-y-5" />
+                            
+                            <div className="px-4 flex items-center justify-between mb-3 relative z-10">
+                                <h2 className="text-lg font-black text-black uppercase tracking-tight flex items-center gap-1.5">
+                                    <span>🔥</span> Trending Deals
+                                </h2>
+                                <span className="text-[10px] font-bold bg-black text-white px-2 py-1 rounded-full">LIVE</span>
+                            </div>
+                            
+                            <div className="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 relative z-10">
+                                {filteredNFTs.slice(0, 4).map((nft, i) => {
+                                    const isLocal = displayCurrency === 'INR';
+                                    const rateINR = exchangeRates?.['INR'] || 83;
+                                    const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                                    const converted = isLocal ? nft.price : (nft.price * 1.05 * (rateTarget / rateINR));
+                                    const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
+                                    const displayPriceStr = `${symbol}${converted.toFixed(isLocal ? 0 : 2)}`;
+                                    
+                                    return (
+                                        <motion.div 
+                                            key={`deal-${nft.id}`}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => {
+                                                const idx = filteredNFTs.findIndex((item) => item.id === nft.id);
+                                                if (idx >= 0) setActiveNftPostIndex(idx);
+                                            }}
+                                            className="min-w-[140px] w-[140px] bg-white rounded-xl overflow-hidden shadow-md border border-yellow-200 flex-shrink-0 cursor-pointer"
+                                        >
+                                            <div className="w-full aspect-square bg-gray-100 relative">
+                                                {nft.mediaType === 'video' && nft.mediaUrl ? (
+                                                    <video src={nft.mediaUrl} className="w-full h-full object-cover" muted playsInline autoPlay loop />
+                                                ) : (
+                                                    <img src={nft.thumbnail || nft.mediaUrl || '/person.png'} className="w-full h-full object-cover" />
+                                                )}
+                                            </div>
+                                            <div className="p-2 text-center">
+                                                <p className="text-[11px] text-gray-500 font-medium truncate mb-0.5">{nft.title}</p>
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <span className="text-[13px] font-black text-black">{displayPriceStr}</span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3 pb-4">
+                    <div className="px-4 mb-2 mt-4 flex items-center justify-between">
+                        <h2 className="text-sm font-extrabold" style={{ color: 'var(--color-text)' }}>
+                            {nftTab === 'Discover' ? 'All Collectibles' : nftTab}
+                        </h2>
+                        {nftTab === 'Discover' && <span className="text-[11px] font-bold text-[#047BD5]">View All</span>}
+                    </div>
+
+                    {/* ── NFT Grid ── */}
+                    <div className="grid grid-cols-2 gap-3 pb-24 px-4">
                         {nftLoading ? (
                             [1, 2, 3, 4].map((n) => (
-                                <div key={n} className="overflow-hidden rounded-2xl animate-pulse"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                <div
+                                    key={n}
+                                    className="overflow-hidden rounded-2xl animate-pulse"
+                                    style={{
+                                        background: 'var(--color-surface)',
+                                        border: '1px solid var(--color-border)',
+                                    }}
+                                >
                                     <div className="w-full aspect-square" style={{ background: 'var(--color-border)' }} />
                                     <div className="p-3 space-y-2">
-                                        <div className="h-3 rounded" style={{ background: 'var(--color-border)', width: '70%' }} />
-                                        <div className="h-3 rounded" style={{ background: 'var(--color-border)', width: '40%' }} />
+                                        <div className="h-3 rounded-full" style={{ background: 'var(--color-border)', width: '70%' }} />
+                                        <div className="h-3 rounded-full" style={{ background: 'var(--color-border)', width: '45%' }} />
+                                        <div className="h-7 rounded-full mt-2" style={{ background: 'var(--color-border)' }} />
                                     </div>
                                 </div>
                             ))
                         ) : filteredNFTs.length === 0 ? (
-                            <div className="col-span-2 py-12 text-center">
-                                <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="col-span-2 py-16 text-center flex flex-col items-center gap-3"
+                            >
+                                <div
+                                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
+                                    style={{ background: 'rgba(245,158,11,0.08)', border: '1.5px dashed rgba(245,158,11,0.3)' }}
+                                >
+                                    💎
+                                </div>
+                                <p className="text-sm font-medium" style={{ color: 'var(--color-muted)' }}>
                                     {nftTab === 'My Listings'
-                                        ? 'You haven\'t minted any NFTs yet. Create a post and enable "Mint as NFT".'
+                                        ? "You haven't minted any NFTs yet"
                                         : nftTab === 'My Collection'
-                                        ? 'Your collection is empty. Buy an NFT from Discover to start collecting.'
+                                        ? 'Your collection is empty'
                                         : nftTab === 'Resale'
-                                        ? 'No resale NFTs available yet.'
-                                        : 'No NFTs found in the marketplace yet.'}
+                                        ? 'No resale NFTs available yet'
+                                        : nftTab === 'My Offers'
+                                        ? "You haven't made any offers yet"
+                                        : 'No collectibles in the marketplace yet'}
                                 </p>
-                            </div>
+                                {nftTab === 'Discover' && (
+                                    <button
+                                        onClick={() => navigate('/create')}
+                                        className="px-5 py-2 rounded-full text-xs font-bold cursor-pointer transition-all"
+                                        style={{
+                                            background: 'var(--color-primary)',
+                                            color: '#000',
+                                        }}
+                                    >
+                                        + Submit Your NFT
+                                    </button>
+                                )}
+                            </motion.div>
                         ) : null}
-                        {!nftLoading && filteredNFTs.map((nft) => {
+
+                        {!nftLoading && filteredNFTs.map((nft, idx) => {
                             const isLocal = displayCurrency === 'INR';
                             const rateINR = exchangeRates?.['INR'] || 83;
                             const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
@@ -616,21 +767,42 @@ export default function TasksPage() {
                             const valueStr = converted.toFixed(isLocal ? 0 : 2);
                             const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
                             const displayPriceStr = `${symbol}${valueStr}`;
+
+                            const btnLabel = nft.isOffer
+                                ? 'Cancel Offer'
+                                : nft.status === 'listed'
+                                ? 'Buy (Global)'
+                                : (nft.owner?._id === profile?._id || nft.buyer === profile?._id)
+                                ? 'Relist / View Offers'
+                                : 'Make Offer';
+
                             return (
-                                <div
+                                <motion.div
                                     key={nft.id}
-                                    className="overflow-hidden rounded-2xl"
-                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.35, delay: idx * 0.06, ease: [0.25, 0.1, 0.25, 1] }}
+                                    whileHover={{ y: -4, boxShadow: '0 12px 24px rgba(0,0,0,0.1), 0 4px 8px rgba(245,158,11,0.05)' }}
+                                    whileTap={{ scale: 0.97 }}
+                                    className="overflow-hidden cursor-pointer group"
+                                    style={{
+                                        borderRadius: '20px',
+                                        background: 'var(--color-surface)',
+                                        border: '1px solid var(--color-border)',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                                        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
+                                    }}
                                     onClick={() => {
-                                        const idx = filteredNFTs.findIndex((item) => item.id === nft.id)
-                                        if (idx >= 0) setActiveNftPostIndex(idx)
+                                        const i = filteredNFTs.findIndex((item) => item.id === nft.id);
+                                        if (i >= 0) setActiveNftPostIndex(i);
                                     }}
                                 >
-                                    <div className="w-full aspect-square bg-surface2 flex items-center justify-center overflow-hidden relative">
+                                    {/* ── Card Image ── */}
+                                    <div className="w-full aspect-square overflow-hidden relative" style={{ background: 'var(--color-surface2)' }}>
                                         {nft.mediaType === 'video' && nft.mediaUrl ? (
                                             <video
                                                 src={nft.mediaUrl}
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                                                 muted
                                                 playsInline
                                                 autoPlay
@@ -638,59 +810,89 @@ export default function TasksPage() {
                                                 poster={nft.thumbnail || undefined}
                                             />
                                         ) : (
-                                            <img 
-                                                src={nft.thumbnail || nft.mediaUrl || '/person.png'} 
-                                                alt={nft.title} 
-                                                className="w-full h-full object-cover" 
-                                                onError={(e) => {
-                                                    e.target.onerror = null;
-                                                    e.target.src = '/person.png';
-                                                }}
+                                            <img
+                                                src={nft.thumbnail || nft.mediaUrl || '/person.png'}
+                                                alt={nft.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                                                onError={(e) => { e.target.onerror = null; e.target.src = '/person.png'; }}
                                             />
                                         )}
+                                        {/* Subtle overlay on hover */}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
+                                        {/* Status badge */}
                                         {nft.postStatus === 'pending' && (
-                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold"
-                                                style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>
-                                                PENDING REVIEW
+                                            <div
+                                                className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide"
+                                                style={{ background: 'rgba(245,158,11,0.92)', color: '#000' }}
+                                            >
+                                                PENDING
                                             </div>
                                         )}
                                         {nft.postStatus === 'rejected' && (
-                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold"
-                                                style={{ background: 'rgba(239,68,68,0.9)', color: '#fff' }}>
+                                            <div
+                                                className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide"
+                                                style={{ background: 'rgba(239,68,68,0.92)', color: '#fff' }}
+                                            >
                                                 REJECTED
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-3">
-                                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{nft.title}</p>
-                                            <div className="mt-1 flex flex-col gap-0.5">
-                                                <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
-                                                    {nft.isOffer ? `Your Offer: ${displayPriceStr}` : displayPriceStr}
-                                                </p>
-                                                {nft.isOffer && nft.originalPrice > 0 && (
-                                                    <p className="text-[10px] font-medium" style={{ color: 'var(--color-muted)' }}>
-                                                        Listed at: {(() => {
-                                                            const convertedOrig = isLocal ? nft.originalPrice : (nft.originalPrice * 1.05 * (rateTarget / rateINR));
-                                                            const valueStrOrig = convertedOrig.toFixed(isLocal ? 0 : 2);
-                                                            return `${symbol}${valueStrOrig}`;
-                                                        })()}
-                                                    </p>
-                                                )}
-                                            </div>
 
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                toggleBuyResell(nft)
-                                            }}
-                                            className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
-                                            style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--color-primary)' }}
+                                    {/* ── Card Body ── */}
+                                    <div className="p-3.5 flex flex-col gap-1.5">
+                                        <p
+                                            className="text-[14px] font-bold truncate leading-tight group-hover:text-[var(--color-primary)] transition-colors duration-300"
+                                            style={{ color: 'var(--color-text)' }}
                                         >
-                                            {nft.isOffer ? 'Cancel Offer' : (nft.status === 'listed' ? 'Buy (Global)' : (nft.owner?._id === profile?._id || nft.buyer === profile?._id ? 'Relist / View Offers' : 'Make Offer'))}
-                                        </button>
+                                            {nft.title}
+                                        </p>
+
+                                        {/* Price */}
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-[rgba(245,158,11,0.15)] text-[var(--color-primary)] text-[10px]">
+                                                💎
+                                            </div>
+                                            <p
+                                                className="text-[14px] font-extrabold"
+                                                style={{ 
+                                                    background: 'linear-gradient(135deg, var(--color-primary), #D97706)',
+                                                    WebkitBackgroundClip: 'text',
+                                                    WebkitTextFillColor: 'transparent',
+                                                }}
+                                            >
+                                                {nft.isOffer ? `Offer: ${displayPriceStr}` : displayPriceStr}
+                                            </p>
+                                        </div>
+                                        {nft.isOffer && nft.originalPrice > 0 && (
+                                            <p className="text-[10px] ml-6 font-medium" style={{ color: 'var(--color-muted)' }}>
+                                                Listed: {(() => {
+                                                    const o = isLocal ? nft.originalPrice : (nft.originalPrice * 1.05 * (rateTarget / rateINR));
+                                                    return `${symbol}${o.toFixed(isLocal ? 0 : 2)}`;
+                                                })()}
+                                            </p>
+                                        )}
+
+                                        {/* Buy Button */}
+                                        <motion.button
+                                            whileHover={{ scale: 1.02, backgroundColor: 'var(--color-primary)', color: '#000' }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleBuyResell(nft);
+                                            }}
+                                            className="mt-2.5 w-full py-2.5 text-[12px] font-bold cursor-pointer transition-all duration-300"
+                                            style={{
+                                                borderRadius: '9999px',
+                                                background: 'rgba(245,158,11,0.08)',
+                                                color: 'var(--color-primary)',
+                                                border: '1.5px solid rgba(245,158,11,0.5)',
+                                            }}
+                                        >
+                                            {btnLabel}
+                                        </motion.button>
                                     </div>
-                                </div>
-                            )
+                                </motion.div>
+                            );
                         })}
                     </div>
                     <PostFeedModal
@@ -838,7 +1040,7 @@ export default function TasksPage() {
                         </div>
                     )}
 
-                </>
+                </div>
             )}
         </div>
     )
