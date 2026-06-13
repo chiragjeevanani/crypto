@@ -101,8 +101,9 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
 
-    // Reporting state
+    // Reporting & Share state
     const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
+    const [isShareMenuOpen, setIsShareMenuOpen] = useState(false)
     const [isReportModalOpen, setIsReportModalOpen] = useState(false)
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
@@ -273,14 +274,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                     )}
                 </AnimatePresence>
 
-                {/* Persistent Volume Toggle */}
-                <button
-                    onClick={toggleMute}
-                    className="absolute right-3 z-30 p-2.5 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
-                    style={{ bottom: 'calc(8px + var(--reels-bottom-offset, 64px))' }}
-                >
-                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
+
 
                 <AnimatePresence>
                     {splat && (
@@ -362,18 +356,58 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                             {isSaved ? 'Saved' : 'Save'}
                         </span>
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/messaging')}
-                        className="flex flex-col items-center gap-1 cursor-pointer"
-                    >
-                        <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
-                            <Share2 size={22} />
-                        </div>
-                        <span className="text-[11px] font-semibold">
-                            {post.shares ?? 0}
-                        </span>
-                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setIsShareMenuOpen(!isShareMenuOpen)
+                                setIsReportMenuOpen(false)
+                            }}
+                            className="flex flex-col items-center gap-1 cursor-pointer"
+                        >
+                            <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
+                                <Share2 size={22} />
+                            </div>
+                            <span className="text-[11px] font-semibold">
+                                {post.shares ?? 0}
+                            </span>
+                        </button>
+                        <AnimatePresence>
+                            {isShareMenuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, x: -20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, x: -20 }}
+                                    className="absolute right-full mr-2 bottom-0 w-40 rounded-xl shadow-xl z-[40] border overflow-hidden"
+                                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                >
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setIsShareMenuOpen(false)
+                                            window.open(`https://wa.me/?text=${encodeURIComponent(`Check out this reel: ${window.location.origin}/home?view=reels&post=${post.id}`)}`, '_blank')
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-zinc-800/10 transition-colors flex items-center gap-2 text-[var(--color-text)]"
+                                    >
+                                        <MessageCircle size={14} />
+                                        WhatsApp
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setIsShareMenuOpen(false)
+                                            navigate('/messaging')
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-zinc-800/10 transition-colors flex items-center gap-2 text-[var(--color-text)]"
+                                    >
+                                        <Share2 size={14} />
+                                        Our Chat
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
                     <div className="relative">
                         <button
@@ -427,6 +461,18 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                             )}
                         </AnimatePresence>
                     </div>
+
+                    <button
+                        onClick={toggleMute}
+                        className="flex flex-col items-center gap-1 cursor-pointer mt-1"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
+                            {isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+                        </div>
+                        <span className="text-[11px] font-semibold">
+                            {isMuted ? 'Unmute' : 'Mute'}
+                        </span>
+                    </button>
                 </div>
 
                 <AnimatePresence>
@@ -513,9 +559,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                 >
                     {/* Profile circle + username + caption */}
                     <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center">
-                            <Avatar src={post.creator?.avatar} alt={post.creator?.username} size="w-full h-full" isPremium={post.creator?.isPremium} />
-                        </div>
+                        <Avatar src={post.creator?.avatar} alt={post.creator?.username} size="w-9 h-9" isPremium={post.creator?.isPremium} />
                         <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-1">
                                 <span className="text-sm font-semibold text-white">
@@ -551,8 +595,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         </div>
                     </div>
                     <div
-                        className="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
-                        style={{ background: 'rgba(245,158,11,0.18)', color: 'var(--color-primary)' }}
+                        className="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold shadow-md backdrop-blur-md"
+                        style={{ background: 'rgba(245, 158, 11, 0.95)', color: '#ffffff' }}
                     >
                         <TrendingUp size={12} />
                         {formatCurrency(earnings, profile?.currencySymbol || '₹')}

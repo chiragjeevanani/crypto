@@ -3,7 +3,7 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { useCallStore } from '../../store/useCallStore';
 import { agoraService } from '../../services/agoraService';
 import { getSocket } from '../../../../socket';
-import { Phone, Video, PhoneOff, Mic, MicOff, VideoOff, Camera } from 'lucide-react';
+import { Phone, Video, PhoneOff, Mic, MicOff, VideoOff, Camera, Volume2, Volume1 } from 'lucide-react';
 
 // ─── MEDIA PLAYER COMPONENT ───────────────────────────────────────────────────
 // Properly handles playing Agora tracks without re-calling play() on every render
@@ -44,6 +44,7 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
     const [connected, setConnected] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isSpeaker, setIsSpeaker] = useState(true);
     const [error, setError] = useState(null);
 
     // Map of uid -> { videoTrack, audioTrack }
@@ -186,6 +187,15 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
         }
     };
 
+    const toggleSpeaker = () => {
+        setIsSpeaker(!isSpeaker);
+        remoteUsers.forEach(user => {
+            if (user.audioTrack) {
+                user.audioTrack.setVolume(!isSpeaker ? 100 : 30);
+            }
+        });
+    };
+
     if (error) {
         return (
             <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col items-center justify-center gap-4">
@@ -266,6 +276,14 @@ function ActiveCallEngine({ appId, channelName, token, uid, callType, onEndCall 
                     {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
                 </button>
 
+                <button
+                    onClick={toggleSpeaker}
+                    title={isSpeaker ? 'Speaker Off' : 'Speaker On'}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${!isSpeaker ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500'}`}
+                >
+                    {isSpeaker ? <Volume2 size={22} /> : <Volume1 size={22} />}
+                </button>
+
                 {callType === 'video' && (
                     <button
                         onClick={toggleVideo}
@@ -304,11 +322,11 @@ function useRingtone(isRinging) {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
                 gain.gain.setValueAtTime(0, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.08, audioCtx.currentTime + 1.5);
+                gain.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.8, audioCtx.currentTime + 1.5);
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
@@ -317,7 +335,7 @@ function useRingtone(isRinging) {
             };
 
             playBeep();
-            interval = setInterval(playBeep, 3000);
+            interval = setInterval(playBeep, 2000);
         } catch (e) {
             console.log('[Ringtone] AudioContext not supported');
         }
