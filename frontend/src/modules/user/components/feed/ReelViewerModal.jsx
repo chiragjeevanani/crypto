@@ -198,7 +198,10 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
 
                         <div className="absolute left-0 right-0 bottom-0 p-5 pb-8 pr-16 text-white z-20">
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="flex items-center gap-1 text-sm font-bold bg-white/10 px-2 py-0.5 rounded-lg backdrop-blur-md">
+                                <span 
+                                    className="flex items-center gap-1 text-sm font-bold bg-white/10 px-2 py-0.5 rounded-lg backdrop-blur-md cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/user/${post.creator?.id || post.creator?._id}`) }}
+                                >
                                     @{post.creator.username}
                                     {post.creator?.isPremium && (
                                         <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5">

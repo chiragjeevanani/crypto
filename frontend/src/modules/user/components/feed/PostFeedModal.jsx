@@ -559,9 +559,14 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                 >
                     {/* Profile circle + username + caption */}
                     <div className="flex items-center gap-3 min-w-0">
-                        <Avatar src={post.creator?.avatar} alt={post.creator?.username} size="w-9 h-9" isPremium={post.creator?.isPremium} />
+                        <div onClick={(e) => { e.stopPropagation(); navigate(`/user/${post.creator?.id || post.creator?._id}`) }} className="cursor-pointer shrink-0">
+                            <Avatar src={post.creator?.avatar} alt={post.creator?.username} size="w-9 h-9" isPremium={post.creator?.isPremium} />
+                        </div>
                         <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-1">
+                            <div 
+                                className="flex items-center gap-1 cursor-pointer w-fit" 
+                                onClick={(e) => { e.stopPropagation(); navigate(`/user/${post.creator?.id || post.creator?._id}`) }}
+                            >
                                 <span className="text-sm font-semibold text-white">
                                     {post.creator?.username || 'User'}
                                 </span>
@@ -592,14 +597,46 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                             <div className="mt-2 max-w-[240px]">
                                 <GiftBar postId={post.id} onGift={handleGift} compact showCounts={false} />
                             </div>
+                            {(post.postType === 'nft' || post.isNFT === true) && !isSelfPost && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onClose) onClose();
+                                        navigate(`/tasks?view=nft&action=buy&id=${post.collectibleId || post.id}`);
+                                    }}
+                                    className="mt-3 px-6 py-2 rounded-full text-[12px] font-bold w-fit shadow-md active:scale-95 transition-transform"
+                                    style={{
+                                        background: post.isListedForSale || post.status === 'listed' ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)',
+                                        color: '#fff',
+                                        backdropFilter: 'blur(10px)',
+                                        border: post.isListedForSale || post.status === 'listed' ? 'none' : '1px solid rgba(255,255,255,0.3)'
+                                    }}
+                                >
+                                    {post.isListedForSale || post.status === 'listed' ? 'Buy NFT' : 'Make Offer'}
+                                </button>
+                            )}
                         </div>
                     </div>
-                    <div
-                        className="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold shadow-md backdrop-blur-md"
-                        style={{ background: 'rgba(245, 158, 11, 0.95)', color: '#ffffff' }}
-                    >
-                        <TrendingUp size={12} />
-                        {formatCurrency(earnings, profile?.currencySymbol || '₹')}
+                    <div className="ml-auto flex flex-col items-end gap-1.5 shrink-0 z-40">
+                        <div
+                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold shadow-md backdrop-blur-md"
+                            style={{ background: 'rgba(245, 158, 11, 0.95)', color: '#ffffff' }}
+                        >
+                            <TrendingUp size={12} />
+                            {formatCurrency(earnings, profile?.currencySymbol || '₹')}
+                        </div>
+                        {post.nftData && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onNftAction?.(post.nftData)
+                                }}
+                                className="px-4 py-1.5 rounded-xl text-[11px] font-bold shadow-lg whitespace-nowrap"
+                                style={{ background: 'var(--color-primary)', color: '#fff' }}
+                            >
+                                {post.nftData.isOffer ? 'Cancel Offer' : (post.nftData.status === 'listed' ? 'Buy NFT' : (post.nftData.owner?._id === profile?._id || post.nftData.buyer === profile?._id ? 'Resell NFT' : 'Make Offer'))}
+                            </button>
+                        )}
                     </div>
 
                     {post.musicData && (
@@ -618,22 +655,6 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         </div>
                     )}
                 </div>
-
-                {/* NFT Action Button */}
-                {post.nftData && (
-                    <div className="absolute right-4 z-40" style={{ bottom: 'calc(16px + var(--reels-bottom-offset, 0px))' }}>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onNftAction?.(post.nftData)
-                            }}
-                            className="px-4 py-2 rounded-xl text-xs font-bold shadow-lg"
-                            style={{ background: 'var(--color-primary)', color: '#fff' }}
-                        >
-                            {post.nftData.isOffer ? 'Cancel Offer' : (post.nftData.status === 'listed' ? 'Buy NFT' : (post.nftData.owner?._id === profile?._id || post.nftData.buyer === profile?._id ? 'Resell NFT' : 'Make Offer'))}
-                        </button>
-                    </div>
-                )}
                 
                 {typeof document !== 'undefined' && createPortal(
                     <AnimatePresence>

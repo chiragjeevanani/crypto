@@ -40,7 +40,7 @@ export default function SuggestedUserCard({ user, onRemove }) {
     return (
         <div 
             className="group relative flex flex-col items-center p-2 rounded-2xl shrink-0 w-32 cursor-pointer transition-all active:scale-95"
-            onClick={() => navigate(`/user/${user.id}`)}
+            onClick={() => navigate(`/user/${user.id || user._id}`)}
         >
             {/* Remove Button */}
             <button

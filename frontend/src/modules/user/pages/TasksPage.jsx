@@ -38,9 +38,10 @@ const mapPostToNFT = (post) => {
         soldAt: null,
         views: post.views || 0,
         bids: post.comments || 0,
-        creatorId: post.creator?.id || post.creator?._id || '',
-        creatorName: post.creator?.name || post.creator?.username || 'Creator',
-        creatorHandle: post.creator?.handle || '@creator',
+        creatorId: post.owner?._id || post.owner?.id || post.creator?.id || post.creator?._id || '',
+        creatorName: post.owner?.name || post.owner?.username || post.creator?.name || post.creator?.username || 'Creator',
+        creatorHandle: post.owner?.handle || post.creator?.handle || '@creator',
+        creatorAvatar: post.owner?.avatar || post.creator?.avatar || null,
         mediaType,
         mediaUrl,
         source: 'backend',
@@ -199,6 +200,7 @@ export default function TasksPage() {
         }
     }, [profile?.currencyCode])
 
+
     useEffect(() => {
         let mounted = true
         const load = async () => {
@@ -251,12 +253,12 @@ export default function TasksPage() {
                 id: nft.creatorId || `nft-creator-${idx + 1}`,
                 username: nft.creatorName || 'NFT Creator',
                 handle: nft.creatorHandle || '@nftcreator',
-                avatar: null,
+                avatar: nft.creatorAvatar || null,
                 isFollowing: false,
             },
             media: {
-                type: nft.mediaType || 'image',
-                url: nft.mediaUrl || nft.thumbnail,
+                type: nft.media?.type || 'image',
+                url: nft.media?.url || nft.mediaUrl || nft.thumbnail,
                 aspectRatio: '1/1',
             },
             caption: `${nft.title} · ${nft.status === 'listed' ? 'Listed for sale' : `Owned by ${nft.buyer || 'collector'}`}`,
@@ -271,6 +273,19 @@ export default function TasksPage() {
             nftData: nft, // Add nftData for the modal
         }))
     ), [filteredNFTs])
+
+    useEffect(() => {
+        const action = searchParams.get('action');
+        const id = searchParams.get('id');
+        if (action === 'buy' && id && !modalConfig) {
+            const allNfts = [...nftItems, ...resaleItems, ...myNftItems, ...myCollection];
+            const nftToBuy = allNfts.find(n => String(n.id) === String(id) || String(n.collectibleId) === String(id));
+            if (nftToBuy) {
+                setTimeout(() => toggleBuyResell(nftToBuy), 100);
+                navigate('/tasks?view=nft', { replace: true });
+            }
+        }
+    }, [searchParams, nftItems, resaleItems, myNftItems, myCollection]);
 
     const toggleBuyResell = async (nft) => {
         if (nft.isOffer) {
@@ -580,7 +595,7 @@ export default function TasksPage() {
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <h1 className="text-xl font-extrabold italic text-white drop-shadow-md">Marketplace</h1>
+                                <h1 className="text-xl font-extrabold italic text-white drop-shadow-md">e Digital Marketplace</h1>
                                 <div className="px-1.5 py-0.5 bg-yellow-400 rounded text-[9px] font-bold text-black uppercase tracking-wider">Plus</div>
                             </div>
                             <button onClick={() => navigate('/create')} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white">
@@ -832,9 +847,9 @@ export default function TasksPage() {
                                 >
                                     {/* ── Card Image ── */}
                                     <div className="w-full aspect-square overflow-hidden relative" style={{ background: 'var(--color-surface2)' }}>
-                                        {nft.mediaType === 'video' && nft.mediaUrl ? (
+                                        {nft.media?.type === 'video' || nft.mediaType === 'video' ? (
                                             <video
-                                                src={nft.mediaUrl}
+                                                src={nft.media?.url || nft.mediaUrl}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                                                 muted
                                                 playsInline

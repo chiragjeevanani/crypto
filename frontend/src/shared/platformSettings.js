@@ -58,13 +58,14 @@ export function fetchPlatformSettings() {
         return fetchPromise;
     }
 
+    lastFetchTime = now; // Set immediately to prevent rapid-fire duplicate calls
+
     fetchPromise = (async () => {
         try {
             const url = `${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/config`;
             const res = await fetch(url);
             const data = await res.json();
             if (data.success && data.config) {
-                lastFetchTime = Date.now();
                 return savePlatformSettingsToCookie({
                     commission: data.config.platformFeePct,
                     minWithdrawal: data.config.minWithdrawalCoins,

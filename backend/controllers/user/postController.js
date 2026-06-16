@@ -304,7 +304,7 @@ exports.getPosts = async (req, res) => {
 
       interleaved = injectCampaignCards(list, activeCampaigns, 5);
 
-      if (!interleaved.length) {
+      if (!interleaved.length && !req.query.creator) {
         const demoPost = {
           id: "demo-post-1",
           creator: {
@@ -336,7 +336,7 @@ exports.getPosts = async (req, res) => {
       }
     } else {
       // If it's the NFT feed and there are no NFTs, provide a demo NFT
-      if (!list.length) {
+      if (!list.length && !req.query.creator) {
         const demoNFT = {
           id: "demo-nft-1",
           creator: {

@@ -20,7 +20,7 @@ exports.search = async (req, res) => {
       role: "User",
       $or: [{ name: regex }, { handle: regex }]
     })
-      .select("name handle avatar bio followers")
+      .select("name handle email avatar bio followers")
       .limit(10)
       .lean();
 
@@ -52,6 +52,7 @@ exports.search = async (req, res) => {
         handle,
         avatar: avatarUrlFromUser(u, baseUrl),
         bio: u.bio || "",
+        email: u.email || "",
         followers: Array.isArray(u.followers) ? u.followers.length : 0
       };
     });

@@ -228,14 +228,14 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         socket.emit('stop_typing', { roomId, userId: profile.id })
 
         if (sharingPost) {
-            const type = (sharingPost.media?.type || sharingPost.type) === 'video' ? 'reel' : 'post'
+            const type = sharingPost.type === 'profile' ? 'profile' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'reel' : 'post')
             const payload = {
                 id: sharingPost.id || sharingPost._id,
-                caption: sharingPost.caption,
-                thumbnail: sharingPost.media?.thumbnail || sharingPost.media?.url || sharingPost.thumbnail,
+                caption: sharingPost.caption || sharingPost.bio || 'Check out this profile!',
+                thumbnail: sharingPost.media?.thumbnail || sharingPost.media?.url || sharingPost.thumbnail || sharingPost.avatar || '/person.png',
                 creator: {
-                    username: sharingPost.creator?.username,
-                    avatar: sharingPost.creator?.avatar
+                    username: sharingPost.creator?.username || sharingPost.username || 'User',
+                    avatar: sharingPost.creator?.avatar || sharingPost.avatar
                 }
             }
 
@@ -429,8 +429,12 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             )
         }
 
-        if (msg.type === 'post' || msg.type === 'reel') {
+        if (msg.type === 'post' || msg.type === 'reel' || msg.type === 'profile') {
             const isMe = msg.sender === 'me'
+            const routePath = msg.type === 'profile' 
+                ? `/user/${msg.payload.id}` 
+                : `/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`
+                
             return (
                 <div 
                     className={`max-w-[75%] rounded-2xl overflow-hidden shadow-sm border ${isMe ? 'self-end' : 'self-start'}`}
@@ -453,7 +457,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     {/* Content thumbnail */}
                     <div 
                         className="relative aspect-square w-full bg-black/5 cursor-pointer"
-                        onClick={() => msg.payload?.id && navigate(`/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`)}
+                        onClick={() => msg.payload?.id && navigate(routePath)}
                     >
                         {msg.type === 'reel' ? (
                             <video 
@@ -492,11 +496,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
 
                     {/* Footer button */}
                     <button 
-                        onClick={() => msg.payload?.id && navigate(`/home?view=${msg.type === 'reel' ? 'reels' : 'explore'}&post=${msg.payload.id}`)}
+                        onClick={() => msg.payload?.id && navigate(routePath)}
                         className="w-full py-2 text-center text-xs font-semibold border-t transition-colors hover:bg-[var(--color-surface2)]"
                         style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                     >
-                        View {msg.type === 'reel' ? 'Reel' : 'Post'}
+                        View {msg.type === 'profile' ? 'Profile' : (msg.type === 'reel' ? 'Reel' : 'Post')}
                     </button>
                 </div>
             )
@@ -846,10 +850,10 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         >
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                                    <img src={sharingPost.media?.url || sharingPost.thumbnail} alt="shared post" className="w-full h-full object-cover" />
+                                    <img src={sharingPost.media?.url || sharingPost.thumbnail || sharingPost.avatar || '/person.png'} alt="shared content" className="w-full h-full object-cover" />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>Share this {(sharingPost.media?.type || sharingPost.type) === 'video' ? 'Reel' : 'Post'}?</p>
+                                    <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>Share this {sharingPost.type === 'profile' ? 'Profile' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'Reel' : 'Post')}?</p>
                                     <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>To: {chat.user.username}</p>
                                 </div>
                             </div>

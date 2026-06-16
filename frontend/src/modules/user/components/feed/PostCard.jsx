@@ -195,7 +195,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     }
 
     const avatarColor = getColor(post.creator?.id || '0')
-    const isNFTPost = post.postType === 'nft'
+    const isNFTPost = post.postType === 'nft' || post.isNFT === true;
     const isBrandPost = post.postType === 'brand'
 
     const handleAddComment = async () => {
@@ -737,6 +737,26 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                     </div>
                 )}
             </div>
+
+            {/* NFT Actions */}
+            {isNFTPost && !isSelfPost && (
+                <div className="px-4 lg:px-5 pb-4 lg:pb-5">
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/tasks?view=nft&action=buy&id=${post.collectibleId || post.id}`);
+                        }}
+                        className="w-full py-3 rounded-full font-bold text-[13px] shadow-sm active:scale-95 transition-all"
+                        style={{
+                            background: post.isListedForSale || post.status === 'listed' ? 'var(--color-primary)' : 'var(--color-surface2)',
+                            color: post.isListedForSale || post.status === 'listed' ? '#fff' : 'var(--color-text)',
+                            border: post.isListedForSale || post.status === 'listed' ? 'none' : '1px solid var(--color-border)'
+                        }}
+                    >
+                        {post.isListedForSale || post.status === 'listed' ? 'Buy NFT' : 'Make Offer'}
+                    </button>
+                </div>
+            )}
 
             {/* Gift interaction area */}
             <div className="px-4 lg:px-5 pt-2 lg:pt-3 pb-5 lg:pb-5 border-t" style={{ borderColor: 'var(--color-border)' }}>

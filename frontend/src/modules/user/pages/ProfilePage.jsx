@@ -96,6 +96,7 @@ export default function ProfilePage() {
             thumbnail: o.mediaUrl,
             isOwned: true,
             isNFT: true,
+            postType: 'nft',
             createdAt: o.acquiredAt || new Date().toISOString(),
             likes: [],
             comments: 0,
@@ -350,6 +351,7 @@ export default function ProfilePage() {
                 profile={{ 
                     ...profile, 
                     posts: profilePosts.length, 
+                    nfts: nftListings.length,
                     followers: followers.length, 
                     following: following.length,
                     totalEarnings: earningsWallet,
@@ -461,12 +463,12 @@ export default function ProfilePage() {
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
                                         {nft.media?.type === 'video' || nft.mediaType === 'video' ? (
                                             <video
-                                                src={nft.thumbnail || nft.media?.thumbnail || nft.media?.url || nft.mediaUrl}
+                                                src={nft.media?.url || nft.mediaUrl}
+                                                poster={nft.thumbnail || nft.media?.thumbnail || undefined}
                                                 muted
+                                                autoPlay
                                                 loop
                                                 playsInline
-                                                preload="none"
-                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : nft.media?.type === 'audio' || nft.mediaType === 'audio' ? (

@@ -150,10 +150,11 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                             id: user.id || user._id,
                             username: user.username || user.name,
                             handle: user.handle,
+                            email: user.email,
                             avatar: user.avatar,
                             isPremium: user.isPremium
                         },
-                        lastMessage: { text: 'New contact...', timestamp: '' },
+                        lastMessage: { text: user.email || user.handle || 'New contact...', timestamp: '' },
                         isOnline: false
                     }))
                 setSearchResults(mappedResults)

@@ -117,6 +117,7 @@ const getUserCollection = async (req, res) => {
         isListedForSale: o.isListedForSale,
         resalePrice: o.resalePrice,
         acquiredAt: o.createdAt,
+        creator: source?.creator || null,
       };
     });
 

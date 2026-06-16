@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play, Eye } from 'lucide-react'
+import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play, Eye, MessageCircle } from 'lucide-react'
 import { formatCount } from '../utils/formatCurrency'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
@@ -14,6 +14,7 @@ import { walletService } from '../services/walletService'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import Avatar from '../components/shared/Avatar'
+import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
 const TABS = ['Posts', 'NFTs']
 
@@ -37,6 +38,7 @@ export default function UserProfilePage() {
     const [profileUser, setProfileUser] = useState(null)
     const [profileLoading, setProfileLoading] = useState(true)
     const [nfts, setNfts] = useState([])
+    const [showShareMenu, setShowShareMenu] = useState(false)
 
     useEffect(() => { loadPosts() }, [loadPosts])
 
@@ -68,14 +70,24 @@ export default function UserProfilePage() {
                 
                 // Combine created NFTs and owned NFTs
                 const createdPosts = nRes.posts || [];
+                const createdNfts = createdPosts.filter(p => p.postType === 'nft').map(p => ({
+                    ...p,
+                    status: p.status === 'approved' ? 'listed' : p.status,
+                    isOwned: false,
+                    isNFT: true,
+                    collectibleId: p.id, // Fallback for collectibleId for created NFTs
+                    thumbnail: p.media?.url || p.thumbnail,
+                    title: p.caption || 'Created NFT',
+                    nftPriceINR: p.nftPriceINR || 0
+                }));
                 const ownedNfts = (cRes.nfts || []).map(o => ({
                     id: o.auctionId || o.collectibleId || Math.random().toString(),
                     collectibleId: o.collectibleId,
                     creator: {
-                        id: profileUser?.id || id,
-                        username: profileUser?.fullName || profileUser?.username || 'User',
-                        handle: profileUser?.handle,
-                        avatar: profileUser?.avatar
+                        id: o.creator?._id || o.creator?.id || uRes.user?.id || id,
+                        username: o.creator?.name || uRes.user?.fullName || uRes.user?.username || 'User',
+                        handle: o.creator?.handle || uRes.user?.handle,
+                        avatar: o.creator?.avatar || uRes.user?.avatar
                     },
                     media: { url: o.mediaUrl, type: o.mediaType },
                     caption: o.description || o.title || 'Owned NFT',
@@ -90,13 +102,14 @@ export default function UserProfilePage() {
                     thumbnail: o.mediaUrl,
                     isOwned: true,
                     isNFT: true,
+                    postType: 'nft',
                     createdAt: o.acquiredAt || new Date().toISOString(),
                     likes: [],
                     comments: 0,
                     shares: 0
                 }));
                 
-                const combined = [...createdPosts];
+                const combined = [...createdNfts];
                 for (const owned of ownedNfts) {
                     if (!combined.find(p => p.id === owned.id)) {
                         combined.push(owned);
@@ -213,9 +226,51 @@ export default function UserProfilePage() {
                     <p className="text-base font-bold truncate">{user.username}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button className="p-2 rounded-full cursor-pointer hover:bg-zinc-800/50">
-                        <Share2 size={20} />
-                    </button>
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowShareMenu(!showShareMenu)}
+                            className="p-2 rounded-full cursor-pointer hover:bg-zinc-800/50"
+                        >
+                            <Share2 size={20} />
+                        </button>
+                        <AnimatePresence>
+                            {showShareMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setShowShareMenu(false)} />
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        className="absolute right-0 top-full mt-2 w-48 rounded-xl shadow-xl border overflow-hidden z-40"
+                                        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                    >
+                                        <button 
+                                            onClick={() => {
+                                                setShowShareMenu(false)
+                                                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Check out ${user.username}'s profile on CryptoApp! ${window.location.href}`)}`, '_blank')
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-[var(--color-surface2)] transition-colors"
+                                            style={{ color: 'var(--color-text)' }}
+                                        >
+                                            <MessageCircle size={18} className="text-green-500" />
+                                            WhatsApp
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setShowShareMenu(false)
+                                                navigate('/messaging', { state: { sharePost: { ...user, type: 'profile' } } })
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-[var(--color-surface2)] transition-colors"
+                                            style={{ color: 'var(--color-text)' }}
+                                        >
+                                            <Share2 size={18} />
+                                            Our Chat
+                                        </button>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
                     <button className="p-2 rounded-full cursor-pointer hover:bg-zinc-800/50">
                         <MoreHorizontal size={20} />
                     </button>
@@ -242,9 +297,10 @@ export default function UserProfilePage() {
                         </div>
 
                         {/* Stats */}
-                        <div className="flex-1 grid grid-cols-3 gap-2 pt-4">
+                        <div className="flex-1 grid grid-cols-4 gap-1 pt-4">
                             {[
                                 { label: 'Posts', value: String(userPosts.length), onClick: null },
+                                { label: 'NFTs', value: String(nfts.length), onClick: null },
                                 { label: 'Followers', value: String(user.followersCount !== undefined ? user.followersCount : followers.length), onClick: () => setConnectionsOpen('followers') },
                                 { label: 'Following', value: String(user.followingCount !== undefined ? user.followingCount : following.length), onClick: () => setConnectionsOpen('following') },
                             ].map((stat) => (
@@ -410,15 +466,33 @@ export default function UserProfilePage() {
                             {nfts.map((nft) => (
                                 <div
                                     key={nft.id}
-                                    onClick={() => handleNftClick(nft)}
+                                    onClick={() => setActivePostIndex(nfts.findIndex((item) => String(item.id) === String(nft.id)))}
                                     className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer"
                                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                                 >
-                                    <img
-                                        src={nft.media?.url || nft.thumbnail}
-                                        alt={nft.caption || 'NFT'}
-                                        className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
-                                    />
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--color-surface2)' }}>
+                                        {nft.media?.type === 'video' || nft.mediaType === 'video' ? (
+                                            <video
+                                                src={nft.media?.url || nft.mediaUrl}
+                                                poster={nft.thumbnail || nft.media?.thumbnail || undefined}
+                                                muted
+                                                autoPlay
+                                                loop
+                                                playsInline
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : nft.media?.type === 'audio' || nft.mediaType === 'audio' ? (
+                                            <div className="w-full h-full flex items-center justify-center text-[var(--color-primary)]">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                                            </div>
+                                        ) : (
+                                            <img
+                                                src={nft.thumbnail || nft.media?.thumbnail || nft.media?.url || nft.mediaUrl}
+                                                alt={nft.caption || 'NFT'}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        )}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
                                             {nft.caption || 'Untitled NFT'}
@@ -434,7 +508,7 @@ export default function UserProfilePage() {
                                                 handleNftClick(nft);
                                             }}
                                         >
-                                            {nft.isListedForSale ? 'Buy' : 'Offer'}
+                                            {nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed')) ? 'Buy NFT' : 'Make Offer'}
                                         </button>
                                     </div>
                                 </div>
@@ -446,7 +520,13 @@ export default function UserProfilePage() {
                     )}
                 </div>
             </div>
-            <PostFeedModal posts={userPosts} startIndex={activePostIndex} onClose={() => setActivePostIndex(null)} />
+            {activePostIndex !== null && (
+                <PostFeedModal 
+                    posts={activeTab === 'NFTs' ? nfts : userPosts} 
+                    startIndex={activePostIndex} 
+                    onClose={() => setActivePostIndex(null)} 
+                />
+            )}
 
             <AnimatePresence>
                 {connectionsOpen && (
