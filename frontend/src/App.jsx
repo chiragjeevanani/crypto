@@ -8,6 +8,7 @@ import ProfilePage from './modules/user/pages/ProfilePage'
 import UserProfilePage from './modules/user/pages/UserProfilePage'
 import TermsConditionsPage from './modules/user/pages/TermsConditionsPage'
 import PrivacyPolicyPage from './modules/user/pages/PrivacyPolicyPage'
+import SupportPage from './modules/user/pages/SupportPage'
 import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPage'
 import { useUserStore } from './modules/user/store/useUserStore'
 import { useWalletStore } from './modules/user/store/useWalletStore'
@@ -34,6 +35,7 @@ import PlatformSettings from './modules/admin/pages/PlatformSettings'
 import FinancialRules from './modules/admin/pages/FinancialRules'
 import SecurityAccess from './modules/admin/pages/SecurityAccess'
 import NetworkConfig from './modules/admin/pages/NetworkConfig'
+import LegalSupportSettings from './modules/admin/pages/LegalSupportSettings'
 import WalletOverview from './modules/admin/pages/WalletOverview'
 import EditUser from './modules/admin/pages/EditUser'
 import UserDetailPage from './modules/admin/pages/UserDetailPage'
@@ -131,6 +133,9 @@ export default function App() {
           <Route path="/" element={<RootRoute />} />
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/terms-conditions" element={<TermsConditionsPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/support" element={<SupportPage />} />
           <Route path="/logout" element={<LogoutPage />} />
           {/* redirect legacy login to admin login */}
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />
@@ -150,8 +155,6 @@ export default function App() {
               <Route path="messaging" element={<MessagingPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="user/:userId" element={<UserProfilePage />} />
-              <Route path="terms" element={<TermsConditionsPage />} />
-              <Route path="privacy" element={<PrivacyPolicyPage />} />
               <Route path="guidelines" element={<CommunityGuidelinesPage />} />
               <Route path="auctions" element={<AuctionListingPage />} />
               <Route path="auctions/:id" element={<AuctionDetailPage />} />
@@ -204,8 +207,8 @@ export default function App() {
               <Route path="settings/financial" element={<FinancialRules />} />
               <Route path="settings/security" element={<SecurityAccess />} />
               <Route path="settings/promotion" element={<PromotionSettingsPage />} />
-
               <Route path="settings/network" element={<NetworkConfig />} />
+              <Route path="settings/legal" element={<LegalSupportSettings />} />
               <Route path="transparency" element={<AuditLogs />} />
               <Route path="profile" element={<AdminProfilePage />} />
               <Route path="music" element={<MusicManagement />} />

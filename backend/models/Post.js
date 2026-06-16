@@ -28,6 +28,8 @@ const postSchema = new mongoose.Schema(
     musicTrackId: { type: String, trim: true, default: "none" },
     isNFT: { type: Boolean, default: false },
     nftPriceINR: { type: Number, default: 0 },
+    totalCopies: { type: Number, default: 1 },
+    copiesSold: { type: Number, default: 0 },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "flagged", "sold"],

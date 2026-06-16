@@ -58,6 +58,31 @@ const adminConfigSchema = new mongoose.Schema(
     nftTermsAndConditions: {
       type: String,
       default: "By submitting your NFT to this platform, you confirm that:\n\n1. You are the original creator and rightful owner of this digital asset.\n2. The content does not violate any intellectual property rights.\n3. The content is not obscene, harmful, or illegal.\n4. Your submission will be reviewed by admin before going live.\n5. The platform reserves the right to reject any submission without a refund of any fees.\n6. Once approved, your NFT will be visible in the marketplace."
+    },
+    termsAndConditions: {
+      type: String,
+      default: "These are the default terms and conditions. Please update them in the admin panel."
+    },
+    privacyPolicy: {
+      type: String,
+      default: "This is the default privacy policy. Please update it in the admin panel."
+    },
+    supportEmail: {
+      type: String,
+      default: "support@example.com"
+    },
+    supportMobile: {
+      type: String,
+      default: ""
+    },
+    faqs: {
+      type: [
+        {
+          question: { type: String, required: true },
+          answer: { type: String, required: true }
+        }
+      ],
+      default: []
     }
   },
   { timestamps: true }

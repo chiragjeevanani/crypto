@@ -70,6 +70,7 @@ exports.createPost = async (req, res) => {
     const musicId = (body.musicId && body.musicId !== "undefined" && body.musicId !== "") ? body.musicId : null;
     const isNFT = body.isNFT === true || body.isNFT === "true";
     const nftPriceINR = Math.max(0, Number(body.nftPriceINR) || 0);
+    const totalCopies = isNFT ? Math.max(1, Number(body.totalCopies) || 1) : 1;
 
     if (!mediaUrl) {
       return res.status(400).json({ success: false, message: "Media file is required" });
@@ -106,6 +107,8 @@ exports.createPost = async (req, res) => {
       musicTrackId,
       isNFT,
       nftPriceINR,
+      totalCopies,
+      copiesSold: 0,
       status: (isNFT || isBusiness) ? "pending" : "approved", 
       isBusiness,
       ctaType,

@@ -8,7 +8,7 @@ import { useUserStore, getStoredToken } from '../store/useUserStore'
 import { usePlatformSettings } from '../hooks/usePlatformSettings'
 import WalletStatCard from '../components/wallet/WalletStatCard'
 import TransactionItem from '../components/wallet/TransactionItem'
-
+import { loadRazorpayScript } from '../../../utils/razorpayLoader'
 const TABS = ['Transactions', 'Withdraw', 'Linked']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
@@ -208,6 +208,13 @@ export default function WalletPage() {
 
         // ── Razorpay (INR users — unchanged) ─────────────────────────────
         if (result.gateway === 'razorpay' && result.orderId && result.keyId) {
+            const isLoaded = await loadRazorpayScript()
+            if (!isLoaded) {
+                setWalletActionMessage('Failed to load Razorpay SDK. Please check your connection.')
+                setIsProcessingPayment(false)
+                return
+            }
+            
             const options = {
                 key: result.keyId,
                 amount: result.amount,

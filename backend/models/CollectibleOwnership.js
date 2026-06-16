@@ -44,6 +44,20 @@ const collectibleOwnershipSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // Sale price in platform coins
+    salePriceUSD: {
+      type: Number,
+      default: 0     // USD equivalent at time of sale
+    },
+    // Multi-copy support
+    copyNumber: {
+      type: Number,
+      default: 1
+    },
+    totalCopies: {
+      type: Number,
+      default: 1
+    },
     // Transfer type
     transferType: {
       type: String,

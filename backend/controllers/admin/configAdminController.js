@@ -28,11 +28,16 @@ const updateConfig = async (req, res) => {
       "auctionListingFeeINR",
       "auctionCommissionPct",
       "adminNotificationMobiles",
-      "nftTermsAndConditions"
+      "nftTermsAndConditions",
+      "termsAndConditions",
+      "privacyPolicy",
+      "supportEmail",
+      "supportMobile",
+      "faqs"
     ];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
-          if (field === "adminNotificationMobiles" || field === "nftTermsAndConditions") {
+          if (["adminNotificationMobiles", "nftTermsAndConditions", "termsAndConditions", "privacyPolicy", "supportEmail", "supportMobile", "faqs"].includes(field)) {
               updates[field] = req.body[field];
           } else {
               updates[field] = Number(req.body[field]);

@@ -5,6 +5,7 @@ import { auctionService } from '../services/auctionService';
 import axios from 'axios';
 import { useFeedStore } from '../../user/store/useFeedStore';
 import { useUserStore } from '../../user/store/useUserStore';
+import { loadRazorpayScript } from '../../../utils/razorpayLoader';
 
 export default function CreateAuctionPage() {
     const navigate = useNavigate();
@@ -117,6 +118,13 @@ export default function CreateAuctionPage() {
 
             if (initRes.isFree) {
                 await submitAuction();
+                return;
+            }
+
+            const isLoaded = await loadRazorpayScript();
+            if (!isLoaded) {
+                pushNotification({ type: 'error', title: 'Error', subtitle: 'Failed to load Razorpay SDK. Please check your connection.' });
+                setLoading(false);
                 return;
             }
 

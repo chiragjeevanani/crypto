@@ -10,6 +10,7 @@ import PostFeedModal from '../components/feed/PostFeedModal'
 import { followService } from '../services/followService'
 import { searchService } from '../services/searchService'
 import { postService } from '../services/postService'
+import { walletService } from '../services/walletService'
 import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import Avatar from '../components/shared/Avatar'
@@ -169,21 +170,25 @@ export default function UserProfilePage() {
     }
 
     const handleNftClick = async (nft) => {
-        if (!nft.collectibleId) return;
-
-        if (nft.isListedForSale) {
-            const confirmBuy = window.confirm(`Buy this NFT for ₹${nft.resalePrice}?`);
+        if (nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed'))) {
+            const priceToPay = nft.isListedForSale ? nft.resalePrice : (nft.nftPriceINR || nft.price);
+            const confirmBuy = window.confirm(`Buy this NFT for ₹${priceToPay}?`);
             if (confirmBuy) {
                 try {
-                    await postService.buyResaleNft(nft.collectibleId);
+                    if (nft.collectibleId) {
+                        await postService.buyResaleNft(nft.collectibleId);
+                    } else {
+                        await walletService.buyPostNFT(nft.id);
+                    }
                     alert("NFT bought successfully!");
                     // Optimistic update
-                    setNfts(prev => prev.map(n => n.collectibleId === nft.collectibleId ? { ...n, status: 'sold', isListedForSale: false } : n));
+                    setNfts(prev => prev.map(n => (n.collectibleId === nft.collectibleId || n.id === nft.id) ? { ...n, status: 'sold', isListedForSale: false } : n));
                 } catch (err) {
                     alert(err.message || 'Unable to buy NFT.');
                 }
             }
         } else {
+            if (!nft.collectibleId) return;
             const offerPrice = window.prompt("Enter your offer price in INR:");
             if (offerPrice && !isNaN(offerPrice)) {
                 try {

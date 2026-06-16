@@ -290,10 +290,10 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
-    registerUser: async ({ name, email, password, phone, countryCode, state, language, referralCode }) => {
+    registerUser: async ({ name, email, password, phone, countryCode, state, language, referralCode, agreedToTerms }) => {
         set({ authLoading: true, authError: '' })
         try {
-            const response = await authService.register({ name, email, password, phone, countryCode, state, language, referralCode })
+            const response = await authService.register({ name, email, password, phone, countryCode, state, language, referralCode, agreedToTerms })
             const { token, refreshToken, user } = response
             saveAuthToStorage({ token, refreshToken, user })
             set({

@@ -15,6 +15,7 @@ import { postService } from '../services/postService'
 import { mapCampaignToTask } from '../utils/campaignMapper'
 import { getJoinedCampaignIds, markCampaignJoined } from '../utils/campaignStorage'
 import axios from 'axios'
+import { walletService } from '../services/walletService'
 
 const FILTERS = ['All', 'Active', 'Joined']
 const NFT_TABS = ['Discover', 'My Listings', 'My Collection', 'My Offers', 'Resale']
@@ -134,7 +135,7 @@ export default function TasksPage() {
                 }).then(r => r.json()).catch(() => ({}));
 
                 if (collRes.success && collRes.nfts) {
-                    setMyCollection(collRes.nfts.map((nft) => mapPostToNFT({...nft, _id: nft.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
+                    setMyCollection(collRes.nfts.map((nft) => mapPostToNFT({...nft, _id: nft.collectibleId, status: 'sold', owner: {_id: profile?._id || profile?.id}})))
                 } else {
                     setMyCollection([])
                 }
@@ -307,16 +308,90 @@ export default function TasksPage() {
             return;
         }
 
+        const currentUserId = profile?._id || profile?.id;
+        const isCurrentOwner = 
+            (nftTab === 'My Collection') || 
+            (nftTab === 'My Listings') ||
+            (nft.owner?._id && nft.owner?._id === currentUserId) || 
+            (nft.owner?.id && nft.owner?.id === currentUserId) || 
+            (nft.owner === currentUserId) ||
+            (nft.buyer && nft.buyer === currentUserId) || 
+            (nft.creatorId && nft.creatorId === currentUserId && nft.status !== 'sold');
+
+        if (isCurrentOwner) {
+            try {
+                const collectibleId = nft.collectibleId || nft.id;
+                const offersRes = collectibleId ? await postService.getOffersForCollectible(collectibleId).catch(() => ({ success: false })) : { success: false };
+                const offers = offersRes.success ? offersRes.offers : [];
+                
+                setModalConfig({
+                    type: 'manage_nft',
+                    title: 'Manage NFT',
+                    nft,
+                    offers,
+                    onRelist: async (newPrice) => {
+                        setModalConfig(null);
+                        if (!newPrice) return;
+                        
+                        try {
+                            if (nft.collectibleId) {
+                                await postService.relistNft(nft.collectibleId, Number(newPrice));
+                            } else {
+                                // Fallback if it's not a true collectible yet but just a post
+                                setNftMessage(`Relisting functionality requires a minted collectible.`);
+                                return;
+                            }
+                            setNftMessage(`NFT "${nft.title}" successfully relisted.`);
+                            
+                            // Re-fetch my collection
+                            const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
+                                headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
+                            }).then(r => r.json()).catch(() => ({}));
+                            if (collRes.success && collRes.nfts) {
+                                setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id || profile?.id}})))
+                            }
+
+                            const resaleRes = await postService.getResaleListings()
+                            if (resaleRes.success && resaleRes.nfts) {
+                                setResaleItems(resaleRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'listed'})))
+                            }
+                        } catch (err) {
+                            setNftMessage(err.message || 'Unable to relist NFT.');
+                        }
+                    },
+                    onAcceptOffer: async (offerId) => {
+                        setModalConfig(null);
+                        try {
+                            if (!nft.collectibleId) {
+                                setNftMessage(`Cannot accept offer on unminted collectible.`);
+                                return;
+                            }
+                            await postService.acceptOffer(nft.collectibleId, offerId);
+                            setNftMessage(`Offer accepted successfully!`);
+                            
+                            // Re-fetch my collection
+                            const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
+                                headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
+                            }).then(r => r.json()).catch(() => ({}));
+                            if (collRes.success && collRes.nfts) {
+                                setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id || profile?.id}})))
+                            }
+                        } catch (err) {
+                            setNftMessage(err.message || 'Unable to accept offer.');
+                        }
+                    },
+                    onCancel: () => setModalConfig(null)
+                });
+            } catch (err) {
+                setNftMessage('Unable to load offers.');
+            }
+            return;
+        }
+
         if (nft.status === 'listed') {
             const isLocal = displayCurrency === 'INR';
             const rateINR = exchangeRates?.['INR'] || 83;
             const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
-            
-            // if we are the owner, we can't buy our own listing
-            if (nft.owner?._id === profile?._id || nft.buyer === profile?._id) {
-                setNftMessage("You already own this NFT.");
-                return;
-            }
 
             const converted = isLocal ? nft.price : (nft.price * 1.05 * (rateTarget / rateINR));
             const valueStr = converted.toFixed(isLocal ? 0 : 2);
@@ -330,15 +405,23 @@ export default function TasksPage() {
                 onConfirm: async () => {
                     setModalConfig(null);
                     try {
-                        const purchase = await postService.buyResaleNft(nft.collectibleId);
+                        if (nft.collectibleId) {
+                            await postService.buyResaleNft(nft.collectibleId);
+                        } else {
+                            await walletService.buyPostNFT(nft.id);
+                        }
                         setNftMessage(`NFT bought successfully for ${displayPriceStr}.`)
+                        
+                        // Immediately remove the bought NFT from the discover feed and resale items
+                        setNftItems(prev => prev.filter(item => item.id !== nft.id));
+                        setResaleItems(prev => prev.filter(item => item.id !== nft.id && item.collectibleId !== nft.collectibleId));
                         
                         // Refetch collection and resale listings
                         const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
                             headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
                         }).then(r => r.json()).catch(() => ({}));
                         if (collRes.success && collRes.nfts) {
-                            setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
+                            setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id || profile?.id}})))
                         }
 
                         const resaleRes = await postService.getResaleListings()
@@ -351,66 +434,8 @@ export default function TasksPage() {
                 },
                 onCancel: () => setModalConfig(null)
             })
-        } else if (nft.status === 'sold') {
-            // We own it and it's not listed for sale
-            if (nft.owner?._id === profile?._id || nft.buyer === profile?._id) {
-                try {
-                    const offersRes = await postService.getOffersForCollectible(nft.collectibleId);
-                    const offers = offersRes.success ? offersRes.offers : [];
-                    
-                    setModalConfig({
-                        type: 'manage_nft',
-                        title: 'Manage NFT',
-                        nft,
-                        offers,
-                        onRelist: async (newPrice) => {
-                            setModalConfig(null);
-                            if (!newPrice) return;
-                            
-                            try {
-                                await postService.relistNft(nft.collectibleId, Number(newPrice));
-                                setNftMessage(`NFT "${nft.title}" successfully relisted.`);
-                                
-                                // Re-fetch my collection
-                                const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
-                                    headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
-                                }).then(r => r.json()).catch(() => ({}));
-                                if (collRes.success && collRes.nfts) {
-                                    setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
-                                }
-
-                                const resaleRes = await postService.getResaleListings()
-                                if (resaleRes.success && resaleRes.nfts) {
-                                    setResaleItems(resaleRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'listed'})))
-                                }
-                            } catch (err) {
-                                setNftMessage(err.message || 'Unable to relist NFT.');
-                            }
-                        },
-                        onAcceptOffer: async (offerId) => {
-                            setModalConfig(null);
-                            try {
-                                await postService.acceptOffer(nft.collectibleId, offerId);
-                                setNftMessage(`Offer accepted successfully!`);
-                                
-                                // Re-fetch my collection
-                                const collRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/nft/my/collection`, {
-                                    headers: { Authorization: `Bearer ${useUserStore.getState().token || ''}` }
-                                }).then(r => r.json()).catch(() => ({}));
-                                if (collRes.success && collRes.nfts) {
-                                    setMyCollection(collRes.nfts.map((n) => mapPostToNFT({...n, _id: n.collectibleId, status: 'sold', owner: {_id: profile?._id}})))
-                                }
-                            } catch (err) {
-                                setNftMessage(err.message || 'Unable to accept offer.');
-                            }
-                        },
-                        onCancel: () => setModalConfig(null)
-                    });
-                } catch (err) {
-                    setNftMessage('Unable to load offers.');
-                }
-            } else {
-                // Someone else owns it, and it's not listed. We can make an offer.
+        } else {
+            // Someone else owns it, and it's not listed. We can make an offer.
                 const isLocal = displayCurrency === 'INR';
                 const rateINR = exchangeRates?.['INR'] || 83;
                 const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
@@ -437,8 +462,7 @@ export default function TasksPage() {
                     onCancel: () => setModalConfig(null)
                 })
             }
-        }
-    }
+        };
 
     useEffect(() => {
         if (isNFTView || !routeTaskId) return
@@ -768,12 +792,21 @@ export default function TasksPage() {
                             const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
                             const displayPriceStr = `${symbol}${valueStr}`;
 
+                            const currentUserId = profile?._id || profile?.id;
+                            const isOwnerOrCreator = 
+                                (nft.owner?._id && nft.owner?._id === currentUserId) || 
+                                (nft.owner?.id && nft.owner?.id === currentUserId) || 
+                                (nft.owner === currentUserId) ||
+                                (nft.buyer && nft.buyer === currentUserId) || 
+                                (nft.creatorId && nft.creatorId === currentUserId) ||
+                                (nftTab === 'My Collection') || (nftTab === 'My Listings');
+
                             const btnLabel = nft.isOffer
                                 ? 'Cancel Offer'
+                                : isOwnerOrCreator
+                                ? 'Relist / View Offers'
                                 : nft.status === 'listed'
                                 ? 'Buy (Global)'
-                                : (nft.owner?._id === profile?._id || nft.buyer === profile?._id)
-                                ? 'Relist / View Offers'
                                 : 'Make Offer';
 
                             return (
@@ -834,6 +867,14 @@ export default function TasksPage() {
                                                 style={{ background: 'rgba(239,68,68,0.92)', color: '#fff' }}
                                             >
                                                 REJECTED
+                                            </div>
+                                        )}
+                                        {nft.isListedForSale && (
+                                            <div
+                                                className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide shadow-sm backdrop-blur-sm"
+                                                style={{ background: 'rgba(245, 158, 11, 0.95)', color: '#000' }}
+                                            >
+                                                RELISTED
                                             </div>
                                         )}
                                     </div>

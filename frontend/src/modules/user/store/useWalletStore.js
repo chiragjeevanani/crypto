@@ -35,6 +35,7 @@ export const useWalletStore = create((set, get) => ({
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     loadWallet: async () => {
+        if (get().walletLoading) return;
         set({ walletLoading: true, walletError: '' })
         try {
             const data = await walletService.getBalance()
@@ -74,6 +75,7 @@ export const useWalletStore = create((set, get) => ({
     },
 
     loadGifts: async () => {
+        if (get().giftsLoading) return;
         set({ giftsLoading: true })
         try {
             const data = await walletService.getGifts()
@@ -115,6 +117,7 @@ export const useWalletStore = create((set, get) => ({
     },
 
     loadTransactions: async (params) => {
+        if (get().transactionsLoading) return;
         set({ transactionsLoading: true, walletError: '' })
         try {
             const data = await walletService.getTransactions(params || {})

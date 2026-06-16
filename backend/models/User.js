@@ -123,6 +123,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    agreedToTerms: {
+      type: Boolean,
+      default: false
+    },
     // ─── Payout Methods ───────────────────────────────────────────────────
     payoutMethods: [{
       type: { type: String, enum: ['bank', 'upi'] },

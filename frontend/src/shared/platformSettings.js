@@ -48,23 +48,37 @@ export function savePlatformSettingsToCookie(settings) {
     return payload;
 }
 
-export async function fetchPlatformSettings() {
-    try {
-        const url = `${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/config`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.success && data.config) {
-            return savePlatformSettingsToCookie({
-                commission: data.config.platformFeePct,
-                minWithdrawal: data.config.minWithdrawalCoins,
-                minReferralsForWithdrawal: data.config.minReferralsForWithdrawal,
-                premiumThreshold: data.config.premiumThreshold,
-                coinRate: data.config.coinRate
-            });
-        }
-    } catch (error) {
-        console.error('Failed to fetch platform settings:', error);
+let fetchPromise = null;
+let lastFetchTime = 0;
+
+export function fetchPlatformSettings() {
+    const now = Date.now();
+    // Cache the promise for 1 minute to prevent multiple components from making duplicate calls
+    if (fetchPromise && now - lastFetchTime < 60000) {
+        return fetchPromise;
     }
-    return getPlatformSettingsFromCookie();
+
+    fetchPromise = (async () => {
+        try {
+            const url = `${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/config`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success && data.config) {
+                lastFetchTime = Date.now();
+                return savePlatformSettingsToCookie({
+                    commission: data.config.platformFeePct,
+                    minWithdrawal: data.config.minWithdrawalCoins,
+                    minReferralsForWithdrawal: data.config.minReferralsForWithdrawal,
+                    premiumThreshold: data.config.premiumThreshold,
+                    coinRate: data.config.coinRate
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch platform settings:', error);
+        }
+        return getPlatformSettingsFromCookie();
+    })();
+
+    return fetchPromise;
 }
 

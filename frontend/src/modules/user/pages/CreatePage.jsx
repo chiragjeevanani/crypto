@@ -66,6 +66,7 @@ const createInitialPostState = () => ({
   captionLanguage: 'English',
   isNFT: false,
   nftPrice: '',
+  totalCopies: 1,
   isBusiness: false,
   dailyBudget: 99,
   durationDays: 10,
@@ -746,6 +747,8 @@ const CreatePage = () => {
     return saved ? JSON.parse(saved) : createInitialPostState();
   });
   const [tagInfoSeen, setTagInfoSeen] = useState(false);
+  const [nftTermsText, setNftTermsText] = useState('');
+  const [nftTermsAccepted, setNftTermsAccepted] = useState(false);
   const [selectedLocationQuery, setSelectedLocationQuery] = useState('');
   const [storyAllowComments, setStoryAllowComments] = useState(true);
   const [syncingSound, setSyncingSound] = useState(false);
@@ -2132,6 +2135,20 @@ const CreatePage = () => {
         return;
     }
 
+    if (postState.isNFT && !nftTermsAccepted) {
+        showToast('Fetching terms and conditions...');
+        try {
+            const res = await axios.get('/api/nft/terms');
+            if (res.data.success) {
+                setNftTermsText(res.data.terms);
+            }
+        } catch {
+            setNftTermsText('Terms and conditions could not be loaded. Please ensure this is your original work.');
+        }
+        setActiveSheet('nft-terms');
+        return;
+    }
+
     setUploading(true);
     showToast('Getting upload URL...');
 
@@ -2199,7 +2216,8 @@ const CreatePage = () => {
         // Add NFT and Advertisement options
         if (postState.isNFT) {
             formData.append('isNFT', 'true');
-            formData.append('nftPriceINR', (Number(postState.nftPrice) * 83).toString());
+            formData.append('nftPriceINR', postState.nftPrice || '0');
+            formData.append('totalCopies', postState.totalCopies || '1');
         }
         if (postState.isBusiness) {
             formData.append('isBusiness', 'true');
@@ -2212,7 +2230,11 @@ const CreatePage = () => {
         const response = await reelService.uploadReel(formData);
         
         if (response) {
-            showToast('Reel published successfully!');
+            if (postState.isNFT) {
+                showToast('Your NFT has been submitted for review. It will show to other users after approval.');
+            } else {
+                showToast('Reel published successfully!');
+            }
             
             // Clear persistence cache
             clearVideoCache();
@@ -4215,20 +4237,47 @@ const CreatePage = () => {
                 />
               </div>
               {postState.isNFT && (
-                <div className="mt-4 px-2">
-                  <label className="text-[13px] text-black/60 mb-1 block">NFT Price (USD)</label>
-                  <input
-                    type="number"
-                    value={postState.nftPrice}
-                    onChange={(e) =>
-                      setPostState((currentState) => ({
-                        ...currentState,
-                        nftPrice: e.target.value,
-                      }))
-                    }
-                    placeholder="e.g. 10"
-                    className="w-full bg-[#f4f5f7] border border-black/10 rounded-[8px] px-3 py-2 text-[14px] outline-none"
-                  />
+                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                  <div className={`rounded-2xl p-4 ${isDarkMode ? 'bg-[#17181c] border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
+                        <span className="text-[18px]">₹</span>
+                      </div>
+                      <div className="flex-1">
+                        <label className={`block text-[13px] font-medium mb-1 ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>
+                          Price (INR)
+                        </label>
+                        <input
+                          type="number"
+                          value={postState.nftPrice}
+                          onChange={(e) => setPostState(s => ({ ...s, nftPrice: e.target.value }))}
+                          placeholder="e.g. 500"
+                          className={`w-full bg-transparent text-[16px] font-semibold focus:outline-none ${isDarkMode ? 'text-white placeholder:text-white/20' : 'text-black placeholder:text-gray-300'}`}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 border-t border-dashed pt-3 border-gray-200 dark:border-white/10">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isDarkMode ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
+                        <BiSolidBookmark size={18} className={isDarkMode ? 'text-white/60' : 'text-gray-500'} />
+                      </div>
+                      <div className="flex-1">
+                        <label className={`block text-[13px] font-medium mb-1 ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>
+                          Total Copies
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={postState.totalCopies}
+                          onChange={(e) => setPostState(s => ({ ...s, totalCopies: Math.max(1, parseInt(e.target.value) || 1) }))}
+                          placeholder="e.g. 1"
+                          className={`w-full bg-transparent text-[16px] font-semibold focus:outline-none ${isDarkMode ? 'text-white placeholder:text-white/20' : 'text-black placeholder:text-gray-300'}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <p className={`mt-3 text-[12px] leading-relaxed ${isDarkMode ? 'text-white/40' : 'text-gray-500'}`}>
+                    When sold, buyers receive a digital ownership certificate. Platform fee applies.
+                  </p>
                 </div>
               )}
             </div>
@@ -5171,6 +5220,47 @@ const CreatePage = () => {
       {activeSheet === 'music-library' && renderMusicLibrarySheet()}
       {activeSheet === 'choose-duration' && renderDurationSheet()}
       {activeSheet === 'exit-flow-confirmation' && renderExitFlowConfirmation()}
+      {activeSheet === 'nft-terms' && (
+        <div className={sheetOverlayClass} onClick={() => setActiveSheet(null)}>
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#1c1c1e] rounded-t-[24px] text-black dark:text-white flex flex-col shadow-2xl pb-[max(2rem,env(safe-area-inset-bottom))] max-h-[80vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1.5 bg-black/20 dark:bg-white/20 rounded-full my-4 mx-auto" />
+            <h3 className="text-[17px] font-bold mb-2 text-center">NFT Terms & Conditions</h3>
+            
+            <div className="px-6 py-4 overflow-y-auto flex-1">
+              <div className="bg-black/5 dark:bg-white/5 p-4 rounded-xl text-[13px] leading-relaxed whitespace-pre-wrap">
+                {nftTermsText}
+              </div>
+            </div>
+
+            <div className="px-6 pt-2 pb-4">
+              <p className="text-[12px] text-black/60 dark:text-white/60 mb-4 text-center">
+                I have read, understood, and agree to the terms and conditions above. I confirm that this NFT is my original creation.
+              </p>
+              <div className="flex gap-3">
+                 <button
+                   onClick={() => setActiveSheet(null)}
+                   className="flex-1 py-3.5 rounded-xl font-semibold text-[15px] border border-black/10 dark:border-white/10"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   onClick={() => {
+                     setNftTermsAccepted(true);
+                     setActiveSheet(null);
+                     setTimeout(handlePublishUi, 300);
+                   }}
+                   className="flex-1 py-3.5 bg-[#fe2c55] text-white font-bold rounded-xl"
+                 >
+                   Agree & Post
+                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <input 
         type="file" 

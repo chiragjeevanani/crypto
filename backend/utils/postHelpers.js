@@ -131,7 +131,9 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
       duration: post.musicId.duration,
       thumbnail: resolveUrl(post.musicId.thumbnail, baseUrl)
     } : null,
-    musicStartTime: post.musicStartTime || 0
+    musicStartTime: post.musicStartTime || 0,
+    totalCopies: post.totalCopies || 1,
+    copiesSold: post.copiesSold || 0
   };
 }
 

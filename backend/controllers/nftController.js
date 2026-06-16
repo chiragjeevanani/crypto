@@ -10,6 +10,8 @@ const { DEFAULTS } = require("../utils/adminConfig");
 const fs = require("fs");
 const path = require("path");
 const { UPLOAD_DIR } = require("../utils/upload");
+const { generateCertificate } = require("../utils/pdfGenerator");
+const { sendCertificateEmail } = require("../utils/mailer");
 
 // ─── Helper: Generate Platform Collectible ID ────────────────────────────────
 const generateCollectibleId = async () => {
@@ -321,7 +323,25 @@ const buyCollectible = async (req, res) => {
       toUserId: buyerId,
       salePrice: price,
       transferType: "initial_sale",
+      copyNumber: 1,
+      totalCopies: 1,
     });
+
+    try {
+      const pdfBuffer = await generateCertificate({
+        ownerName: buyer.name,
+        sellerName: auction.creator?.name || 'Unknown Seller',
+        title: auction.title,
+        copyNumber: 1,
+        totalCopies: 1,
+        date: new Date()
+      });
+      if (buyer.email) {
+        await sendCertificateEmail(buyer.email, pdfBuffer, auction.title);
+      }
+    } catch (certErr) {
+      console.error("Certificate Generation/Email Failed:", certErr);
+    }
 
     // Mark auction as settled
     auction.nftStatus = "settled";
@@ -371,9 +391,16 @@ const buyPostNFT = async (req, res) => {
       return res.status(400).json({ success: false, message: "Insufficient coin balance to purchase this NFT." });
     }
 
+    if (post.copiesSold >= post.totalCopies) {
+      return res.status(400).json({ success: false, message: "All copies of this NFT have been sold." });
+    }
+
     // Deduct coins from buyer
     buyer.rechargeCoins -= price;
     await buyer.save();
+
+    post.copiesSold += 1;
+    const currentCopy = post.copiesSold;
 
     // Credit coins to creator (minus platform commission)
     const commissionPct = 5; // Standard 5% commission, adjustable via PlatformSettings if needed
@@ -389,10 +416,32 @@ const buyPostNFT = async (req, res) => {
       toUserId: buyerId,
       salePrice: price,
       transferType: "initial_sale",
+      copyNumber: currentCopy,
+      totalCopies: post.totalCopies,
     });
 
-    // Mark post as sold and update owner
-    post.status = "sold";
+    try {
+      const pdfBuffer = await generateCertificate({
+        ownerName: buyer.name,
+        sellerName: post.creator?.name || 'Unknown Creator',
+        title: post.caption || post.title || "NFT Post",
+        copyNumber: currentCopy,
+        totalCopies: post.totalCopies,
+        date: new Date()
+      });
+      if (buyer.email) {
+        await sendCertificateEmail(buyer.email, pdfBuffer, post.caption || post.title || "NFT Post");
+      }
+    } catch (certErr) {
+      console.error("Certificate Generation/Email Failed:", certErr);
+    }
+
+    // Mark post as sold and update owner only if all copies are sold
+    if (post.copiesSold >= post.totalCopies) {
+      post.status = "sold";
+    }
+    // Note: We don't change post.owner directly if it's a multi-copy NFT, but for backward compatibility,
+    // if there's only 1 copy or all copies are sold, we might set the last buyer as owner. Let's just set it.
     post.owner = buyerId;
     await post.save();
 
@@ -671,6 +720,23 @@ const buyResaleNFT = async (req, res) => {
     ownership.salePrice = price;
     ownership.transferType = "resale";
     await ownership.save();
+
+    try {
+      const seller = await User.findById(sellerId);
+      const pdfBuffer = await generateCertificate({
+        ownerName: buyer.name,
+        sellerName: seller?.name || 'Unknown Seller',
+        title: auction.title || post.title || post.caption || "NFT Post",
+        copyNumber: ownership.copyNumber || 1,
+        totalCopies: ownership.totalCopies || 1,
+        date: new Date()
+      });
+      if (buyer.email) {
+        await sendCertificateEmail(buyer.email, pdfBuffer, auction.title || post.title || post.caption || "NFT Post");
+      }
+    } catch (certErr) {
+      console.error("Certificate Generation/Email Failed:", certErr);
+    }
 
     res.status(200).json({ success: true, message: "NFT purchased successfully.", ownership });
   } catch (err) {

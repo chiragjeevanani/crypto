@@ -1,9 +1,25 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Shield } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
 
 export default function PrivacyPolicyPage() {
     const location = useLocation()
     const navigate = useNavigate()
+    const [policy, setPolicy] = useState('')
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/config`)
+            .then(res => {
+                if (res.data.success) {
+                    setPolicy(res.data.config.privacyPolicy || 'Privacy Policy will be updated soon.')
+                }
+            })
+            .catch(() => setPolicy('Failed to load Privacy Policy.'))
+            .finally(() => setLoading(false))
+    }, [])
+
     const handleBack = () => {
         if (location.state?.openSettingsOnBack) {
             navigate('/profile', { state: location.state.openSettingsOnBack })
@@ -11,6 +27,7 @@ export default function PrivacyPolicyPage() {
         }
         navigate(-1)
     }
+
     return (
         <div className="px-4 pt-4 pb-24">
             <div className="flex items-center gap-3 mb-4">
@@ -24,10 +41,11 @@ export default function PrivacyPolicyPage() {
                     <Shield size={16} style={{ color: 'var(--color-primary)' }} />
                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Data & Privacy</p>
                 </div>
-                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>We collect basic profile data, wallet activity, and KYC documents only for account operations, security, and payout compliance.</p>
-                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>Sensitive data is access-controlled and used only by authorized teams for verification, moderation, and fraud prevention.</p>
-                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>We do not sell personal identity data. Operational analytics may be used to improve platform performance and trust systems.</p>
-                <p className="text-sm" style={{ color: 'var(--color-sub)' }}>Users can request updates to personal profile information through account settings and support channels.</p>
+                {loading ? (
+                    <p className="text-sm animate-pulse" style={{ color: 'var(--color-sub)' }}>Loading...</p>
+                ) : (
+                    <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--color-sub)' }}>{policy}</p>
+                )}
             </div>
         </div>
     )

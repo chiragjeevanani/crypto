@@ -325,12 +325,17 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         {post.creator?.handle || '@user'} · {timeAgo(post.createdAt)}
                     </p>
                     {isNFTPost && (
-                        <div className="mt-1.5">
+                        <div className="mt-1.5 flex flex-col gap-1 items-start">
                             <NFTBadge
                                 status={post.isLiked ? 'sold' : 'listed'}
                                 price={post.earnings}
                                 className="hidden lg:inline-flex nft-badge-glow"
                             />
+                            {post.totalCopies && post.totalCopies > 1 && (
+                                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                                    Available: {post.totalCopies - (post.copiesSold || 0)} / {post.totalCopies}
+                                </span>
+                            )}
                         </div>
                     )}
                     {isBrandPost && (

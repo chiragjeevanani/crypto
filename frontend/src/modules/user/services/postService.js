@@ -147,7 +147,7 @@ export const postService = {
   },
 
   async buyResaleNft(collectibleId) {
-    const response = await fetch(`${API_BASE}/nft/buy-resale/${collectibleId}`, {
+    const response = await fetch(`${API_BASE}/nft/${collectibleId}/buy-resale`, {
       method: "POST",
       headers: getAuthHeaders()
     });

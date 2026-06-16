@@ -135,12 +135,18 @@ const safeUser = (user, kyc = null) => {
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, phone, countryCode, state, language, referralCode: signupReferralCode } = req.body;
+    const { name, email, password, phone, countryCode, state, language, referralCode: signupReferralCode, agreedToTerms } = req.body;
 
     if (!name || !email || !password) {
       return res
         .status(400)
         .json({ success: false, message: "Name, email and password are required" });
+    }
+
+    if (!agreedToTerms) {
+      return res
+        .status(400)
+        .json({ success: false, message: "You must agree to the Terms and Conditions and Privacy Policy" });
     }
 
     const phoneStr = typeof phone === "string" ? phone.replace(/\D/g, "") : "";
@@ -182,7 +188,8 @@ const registerUser = async (req, res) => {
       referralCode,
       referredBy: referrerId,
       state: state || "",
-      language: language || "English"
+      language: language || "English",
+      agreedToTerms
     });
 
     // If referred, increment referrer count

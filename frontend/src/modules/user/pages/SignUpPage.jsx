@@ -4,6 +4,8 @@ import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronD
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { authService } from '../../auth/services/authService';
+import axios from 'axios';
+import { X } from 'lucide-react';
 
 // Correct mobile number digit counts per country (excluding dial code prefix)
 const PHONE_DIGITS = {
@@ -112,6 +114,22 @@ export default function SignUpPage() {
     const [phoneDialSearch, setPhoneDialSearch] = useState('');
     const phoneDialRef = useRef(null);
 
+    // Modal state for terms and privacy
+    const [modalConfig, setModalConfig] = useState({ open: false, type: '', content: '', loading: false });
+
+    const openModal = async (type) => {
+        setModalConfig({ open: true, type, content: '', loading: true });
+        try {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/config`);
+            if (res.data.success) {
+                const content = type === 'terms' ? res.data.config.termsAndConditions : res.data.config.privacyPolicy;
+                setModalConfig({ open: true, type, content: content || `No ${type} available.`, loading: false });
+            }
+        } catch (err) {
+            setModalConfig({ open: true, type, content: 'Failed to load content.', loading: false });
+        }
+    };
+
     // Handle click outside to close dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -154,6 +172,7 @@ export default function SignUpPage() {
         language: draft?.language || 'English',
         // URL referral code takes priority over draft
         referralCode: refCode || draft?.referralCode || '',
+        agreedToTerms: draft?.agreedToTerms || false,
     });
 
     const [fieldErrors, setFieldErrors] = useState({
@@ -163,6 +182,7 @@ export default function SignUpPage() {
         phone: '',
         country: '',
         state: '',
+        agreedToTerms: '',
     });
 
     // Fetch countries on mount
@@ -266,6 +286,7 @@ export default function SignUpPage() {
         // Only require state if there are states available for this country
         const stateRequired = states.length > 0;
         const stateErr = (stateRequired && !formData.state) ? 'State is required' : '';
+        const agreedErr = !formData.agreedToTerms ? 'You must agree to the Terms and Privacy Policy' : '';
 
         setFieldErrors({
             name: nameErr,
@@ -274,9 +295,10 @@ export default function SignUpPage() {
             phone: phoneErr,
             country: countryErr,
             state: stateErr,
+            agreedToTerms: agreedErr,
         });
 
-        if (nameErr || emailErr || passwordErr || phoneErr || countryErr || stateErr) return;
+        if (nameErr || emailErr || passwordErr || phoneErr || countryErr || stateErr || agreedErr) return;
 
         try {
             await registerUser({
@@ -288,6 +310,7 @@ export default function SignUpPage() {
                 state: formData.state || "Default", // Provide fallback if no state selected
                 language: formData.language,
                 referralCode: formData.referralCode.trim().toUpperCase(),
+                agreedToTerms: formData.agreedToTerms,
             });
             // Clear draft on successful registration so next user starts fresh
             sessionStorage.removeItem(FORM_STORAGE_KEY);
@@ -658,6 +681,23 @@ export default function SignUpPage() {
                                 />
                             </div>
                         </div>
+
+                        <div className="space-y-1">
+                            <label className="flex items-start gap-2 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    checked={formData.agreedToTerms}
+                                    onChange={(e) => handleChange('agreedToTerms', e.target.checked)}
+                                    className="w-4 h-4 mt-0.5 rounded border-surface text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                                />
+                                <span className="text-[11px] text-muted font-medium group-hover:text-text transition-colors">
+                                    I agree to the <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('terms'); }}>Terms & Conditions</button> and <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('privacy'); }}>Privacy Policy</button>
+                                </span>
+                            </label>
+                            {fieldErrors.agreedToTerms && (
+                                <p className="text-[10px] text-red-500 ml-6 font-bold">{fieldErrors.agreedToTerms}</p>
+                            )}
+                        </div>
                         <button
                             type="submit"
                             disabled={authLoading}
@@ -676,8 +716,57 @@ export default function SignUpPage() {
                     <p className="mt-6 text-center text-[10px] text-muted">
                         Already registered? <Link to="/signin" className="text-primary underline">Sign in</Link>
                     </p>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[10px] text-muted font-medium">
+                        <Link to="/terms-conditions" className="hover:text-primary transition-colors">Terms & Conditions</Link>
+                        <span>•</span>
+                        <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+                        <span>•</span>
+                        <Link to="/support" className="hover:text-primary transition-colors">Support Center</Link>
+                    </div>
                 </div>
             </motion.div>
+
+            <AnimatePresence>
+                {modalConfig.open && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" 
+                        onClick={() => setModalConfig({ ...modalConfig, open: false })}
+                    >
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full max-w-2xl max-h-[80vh] bg-surface border border-border rounded-2xl overflow-hidden flex flex-col shadow-2xl"
+                        >
+                            <div className="p-4 border-b border-border flex justify-between items-center bg-bg">
+                                <h2 className="text-lg font-bold text-text">
+                                    {modalConfig.type === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}
+                                </h2>
+                                <button 
+                                    onClick={() => setModalConfig({ ...modalConfig, open: false })} 
+                                    className="p-2 hover:bg-surface rounded-full transition-colors text-muted hover:text-text"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto whitespace-pre-wrap text-sm text-sub custom-scrollbar bg-surface" style={{ maxHeight: 'calc(80vh - 70px)' }}>
+                                {modalConfig.loading ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-muted">
+                                        <Zap className="w-8 h-8 animate-spin mb-4 text-primary" />
+                                        <p>Loading document...</p>
+                                    </div>
+                                ) : (
+                                    modalConfig.content
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
