@@ -54,7 +54,7 @@ const generateCertificate = (data) => {
       doc.font('Helvetica-Bold')
          .fontSize(36)
          .fillColor('#2c3e50')
-         .text('Certificate of Ownership', { align: 'center' });
+         .text('Certificate of Digital OwnerShip', { align: 'center' });
 
       doc.moveDown(0.5);
 

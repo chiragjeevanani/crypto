@@ -43,7 +43,7 @@ exports.createPost = async (req, res) => {
           ? "video" // Cloudinary treats long audio via video resource_type
           : "image";
         const uploadResult = await cloudinary.uploader.upload(localPath, {
-          resource_type: "auto",
+          resource_type: resourceType,
           folder: "crypto-app/posts",
           type: "upload",
           access_mode: "public"
@@ -171,7 +171,8 @@ exports.createPost = async (req, res) => {
     return res.status(201).json({ success: true, post: forFeed });
   } catch (error) {
     console.error("Create Post Error:", error);
-    return res.status(500).json({ success: false, message: error.message || "An internal error occurred during post creation." });
+    const errorMessage = error?.message || error?.error?.message || error?.toString() || "An internal error occurred during post creation.";
+    return res.status(500).json({ success: false, message: errorMessage, stack: error?.stack });
   }
 };
 

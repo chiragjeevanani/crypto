@@ -712,7 +712,7 @@ const CreatePage = () => {
   const [selectedCountdown, setSelectedCountdown] = useState('3s');
   const [countdownLength, setCountdownLength] = useState(8.9);
   const [captureMode, setCaptureMode] = useState('camera');
-  const [facingMode, setFacingMode] = useState('environment');
+  const [facingMode, setFacingMode] = useState('user');
   const [activeFilterGroup, setActiveFilterGroup] = useState('instacam');
   const [selectedFilter, setSelectedFilter] = useState('Normal');
   const [selectedSounds, setSelectedSounds] = useState(() => {
@@ -1389,7 +1389,6 @@ const CreatePage = () => {
         height: streamHeight,
         ratio: streamRatio,
         mode: isUser ? 'front' : 'back',
-        mirror: isUser,
         autostart: true,
         done: async () => {
           console.log('Instacam ready');
@@ -2138,11 +2137,16 @@ const CreatePage = () => {
     if (postState.isNFT && !nftTermsAccepted) {
         showToast('Fetching terms and conditions...');
         try {
-            const res = await axios.get('/api/nft/terms');
-            if (res.data.success) {
-                setNftTermsText(res.data.terms);
+            const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+            const response = await fetch(`${API_BASE}/nft/terms`);
+            const data = await response.json();
+            if (data.success) {
+                setNftTermsText(data.terms || 'Terms and conditions are empty. Please contact the platform admin.');
+            } else {
+                setNftTermsText('Terms and conditions could not be loaded. Please ensure this is your original work.');
             }
-        } catch {
+        } catch (err) {
+            console.error('Failed to fetch NFT terms:', err);
             setNftTermsText('Terms and conditions could not be loaded. Please ensure this is your original work.');
         }
         setActiveSheet('nft-terms');
@@ -2895,6 +2899,7 @@ const CreatePage = () => {
               width: 100% !important;
               height: 100% !important;
               object-fit: cover !important;
+              ${facingMode === 'user' ? 'transform: scaleX(-1) !important;' : ''}
             }
           `}
         </style>
@@ -2902,6 +2907,7 @@ const CreatePage = () => {
           <canvas 
             ref={canvasRef} 
             className="h-full w-full object-cover transition-all duration-300"
+            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
           />
           <video 
             ref={videoRef} 
@@ -3669,7 +3675,7 @@ const CreatePage = () => {
       </div>
 
       {/* Bottom Toolbar */}
-      <div className="bg-black border-t border-white/5 pt-4 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))]">
+      <div className="bg-black border-t border-white/5 pt-4 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+6.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))]">
         <div className="flex gap-6 overflow-x-auto px-6 no-scrollbar">
           {[
             { id: 'text', label: 'Text', icon: <IoTextOutline size={26} /> },
@@ -3947,7 +3953,7 @@ const CreatePage = () => {
 
       {/* Bottom Tools & Buttons */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-20 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))] pt-32 ${
+        className={`absolute inset-x-0 bottom-0 z-20 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+6.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))] pt-32 ${
           isDarkMode ? 'bg-gradient-to-t from-black via-black/60 to-transparent' : 'bg-gradient-to-t from-black/80 via-black/40 to-transparent'
         }`}
       >
@@ -4297,7 +4303,7 @@ const CreatePage = () => {
         </div>
       </div>
 
-      <div className="border-t border-black/5 bg-white px-4 pt-4 pb-[calc(1rem+4.5rem)] md:pb-4">
+      <div className="border-t border-black/5 bg-white px-4 pt-4 pb-[calc(1rem+6.5rem)] md:pb-4">
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"

@@ -30,12 +30,12 @@ const sendCertificateEmail = async (toEmail, pdfBuffer, title) => {
     const mailOptions = {
       from: process.env.FROM_EMAIL || '"KnQ Marketplace" <noreply@knq.com>',
       to: toEmail,
-      subject: `Your Certificate of Ownership for: ${title}`,
-      text: `Congratulations on acquiring ${title}! Please find your official Certificate of Ownership attached to this email.`,
+      subject: `Your Certificate of Digital OwnerShip for: ${title}`,
+      text: `Congratulations on acquiring ${title}! Please find your official Certificate of Digital OwnerShip attached to this email.`,
       html: `
         <h3>Congratulations!</h3>
         <p>You are now the official owner of the digital collectible: <strong>${title}</strong>.</p>
-        <p>Please find your official Certificate of Ownership attached to this email as a PDF.</p>
+        <p>Please find your official Certificate of Digital OwnerShip attached to this email as a PDF.</p>
         <br/>
         <p>Best regards,</p>
         <p>The KnQ Marketplace Team</p>

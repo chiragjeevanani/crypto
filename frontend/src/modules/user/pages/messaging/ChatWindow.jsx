@@ -893,11 +893,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         className="flex-1 bg-transparent outline-none text-sm"
                         style={{ color: 'var(--color-text)' }}
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         {inputValue ? (
                             <button 
                                 type="submit" 
-                                className="font-bold text-sm" 
+                                className="font-bold text-sm shrink-0" 
                                 style={{ color: 'var(--color-primary)' }}
                             >
                                 Send
@@ -906,7 +906,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                             <>
                                 <button 
                                     type="button" 
-                                    className={`p-1 rounded-full hover:bg-[var(--color-surface2)] ${isUploading ? 'animate-pulse opacity-50' : ''}`}
+                                    className={`p-1 rounded-full hover:bg-[var(--color-surface2)] shrink-0 ${isUploading ? 'animate-pulse opacity-50' : ''}`}
                                     onClick={() => !isUploading && fileInputRef.current?.click()}
                                     disabled={isUploading}
                                 >
@@ -921,7 +921,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                 />
                                 <button 
                                     type="button" 
-                                    className={`p-1 rounded-full hover:bg-[var(--color-surface2)] ${isUploading ? 'animate-pulse opacity-50' : ''}`}
+                                    className={`p-1 rounded-full hover:bg-[var(--color-surface2)] shrink-0 ${isUploading ? 'animate-pulse opacity-50' : ''}`}
                                     onClick={() => !isUploading && fileInputRef.current?.click()}
                                     disabled={isUploading}
                                 >
