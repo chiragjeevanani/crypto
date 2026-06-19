@@ -182,6 +182,31 @@ export default function UserProfilePage() {
         }
     }
 
+    const handleFollowInList = async (targetId, listType) => {
+        try {
+            await toggleFollow(targetId)
+            const updateList = (list) => list.map(item => 
+                item.id === targetId ? { ...item, isFollowing: !item.isFollowing } : item
+            );
+            if (listType === 'followers') setFollowers(updateList(followers));
+            else setFollowing(updateList(following));
+            
+            // If the user we just toggled is the profile we're looking at, re-fetch profile data
+            if (targetId === user.id) {
+                const [fRes, gRes, uRes] = await Promise.all([
+                    followService.getFollowers(user.id),
+                    followService.getFollowing(user.id),
+                    searchService.getUserById(user.id),
+                ])
+                setFollowers(Array.isArray(fRes.followers) ? fRes.followers : [])
+                setFollowing(Array.isArray(gRes.following) ? gRes.following : [])
+                if (uRes.success) setProfileUser(uRes.user)
+            }
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
     const handleNftClick = async (nft) => {
         if (nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed'))) {
             const priceToPay = nft.isListedForSale ? nft.resalePrice : (nft.nftPriceINR || nft.price);
@@ -271,9 +296,6 @@ export default function UserProfilePage() {
                             )}
                         </AnimatePresence>
                     </div>
-                    <button className="p-2 rounded-full cursor-pointer hover:bg-zinc-800/50">
-                        <MoreHorizontal size={20} />
-                    </button>
                 </div>
             </div>
 
@@ -284,15 +306,21 @@ export default function UserProfilePage() {
                         {/* Avatar */}
                         <div className="flex-shrink-0">
                             <div
-                                className="w-20 h-20 rounded-full shadow-xl overflow-hidden"
-                                style={{ background: avatarColor }}
+                                onClick={() => {
+                                    if (user.hasStory) {
+                                        navigate(`/home?openStory=${user.id}`);
+                                    }
+                                }}
+                                className={`rounded-full ${user.hasStory ? 'p-[3px] bg-gradient-to-tr from-yellow-400 via-orange-500 to-purple-600 cursor-pointer shadow-xl scale-105 transition-transform active:scale-95' : ''}`}
                             >
-                                <Avatar 
-                                    src={!user.avatar || user.avatar === 'null' || user.avatar === 'undefined' ? null : user.avatar} 
-                                    alt={user.username} 
-                                    className="w-full h-full"
-                                    size="w-full h-full" 
-                                />
+                                <div className="w-20 h-20 rounded-full overflow-hidden border-[3px] border-surface bg-surface2">
+                                    <Avatar 
+                                        src={!user.avatar || user.avatar === 'null' || user.avatar === 'undefined' ? null : user.avatar} 
+                                        alt={user.username} 
+                                        className="w-full h-full"
+                                        size="w-full h-full" 
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -562,20 +590,51 @@ export default function UserProfilePage() {
                                 {(connectionsOpen === 'followers' ? followers : following).map((item) => (
                                     <div
                                         key={item.id}
-                                        className="flex items-center gap-3 p-3 rounded-xl"
+                                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-[var(--color-surface)] transition-colors"
                                         style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
+                                        onClick={() => {
+                                            setConnectionsOpen(null);
+                                            // Handle current user specifically to go to /profile vs /user/:id
+                                            if (String(item.id) === String(profile?.id)) {
+                                                navigate('/profile');
+                                            } else {
+                                                navigate(`/user/${item.id}`);
+                                            }
+                                        }}
                                     >
-                                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: 'var(--color-primary)' }}>
-                                            {item.name.charAt(0)}
+                                        {/* Avatar */}
+                                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--color-primary)' }}>
+                                            {item.avatar ? (
+                                                <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                item.name.charAt(0).toUpperCase()
+                                            )}
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
                                                 {item.name}
                                             </p>
-                                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                                                {item.handle}
+                                            <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>
+                                                {item.email || item.handle}
                                             </p>
                                         </div>
+                                        {/* Follow Button */}
+                                        {profile?.id && String(profile.id) !== String(item.id) && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleFollowInList(item.id, connectionsOpen);
+                                                }}
+                                                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-transform active:scale-95 shrink-0"
+                                                style={item.isFollowing 
+                                                    ? { background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }
+                                                    : { background: 'var(--color-primary)', color: '#fff' }
+                                                }
+                                            >
+                                                {item.isFollowing ? 'Following' : 'Follow'}
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>

@@ -60,8 +60,10 @@ const groupByDate = (notifications) => {
 function SuggestionCard({ user }) {
     const [followed, setFollowed] = useState(false)
     const [loading, setLoading] = useState(false)
+    const navigate = useNavigate()
 
-    const handleFollow = async () => {
+    const handleFollow = async (e) => {
+        e.stopPropagation()
         if (loading || followed) return
         setLoading(true)
         try {
@@ -78,7 +80,8 @@ function SuggestionCard({ user }) {
         <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+            onClick={() => navigate(`/user/${user.id}`)}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer hover:bg-surface2 transition-all active:scale-[0.98]"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
         >
             <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
@@ -179,6 +182,8 @@ export default function NotificationsPage() {
             navigate(`/user/${notification.meta.followerId}`)
         } else if (notification.meta?.postId) {
             navigate(`/home?post=${notification.meta.postId}`)
+        } else if (notification.sender?.id) {
+            navigate(`/user/${notification.sender.id}`)
         } else {
             setSelectedNotification(notification)
         }

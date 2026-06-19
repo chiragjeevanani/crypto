@@ -192,8 +192,20 @@ const getAuctions = async (req, res) => {
         const { status, creatorId } = req.query;
         let query = {};
         
-        if (status) query.status = status;
-        else query.status = { $in: ["live", "ended"] }; // Public default
+        const fiveDaysAgo = new Date();
+        fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+        if (status === 'ended') {
+            query.status = "ended";
+            query.endDate = { $gte: fiveDaysAgo };
+        } else if (status) {
+            query.status = status;
+        } else {
+            query.$or = [
+                { status: "live" },
+                { status: "ended", endDate: { $gte: fiveDaysAgo } }
+            ];
+        }
 
         if (creatorId) query.creator = creatorId;
 
@@ -201,7 +213,6 @@ const getAuctions = async (req, res) => {
             .populate("creator", "name handle avatar")
             .populate("winner", "name handle avatar")
             .sort({ createdAt: -1 });
-
 
         res.status(200).json({ success: true, auctions });
     } catch (error) {

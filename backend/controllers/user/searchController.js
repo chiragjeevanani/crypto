@@ -1,5 +1,6 @@
 const User = require("../../models/User");
 const Post = require("../../models/Post");
+const Story = require("../../models/Story");
 const { getBaseUrl, formatPostForUserFeed, avatarUrlFromUser, formatUser } = require("../../utils/postHelpers");
 const { getAdminConfig } = require("../../utils/adminConfig");
 
@@ -187,10 +188,14 @@ exports.getUserProfile = async (req, res) => {
     }
 
     const currentUserId = req.user?.userId;
-    const [followersCount, followingCount, isFollowing] = await Promise.all([
+    const now = new Date();
+    const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [followersCount, followingCount, isFollowing, hasStory] = await Promise.all([
       User.countDocuments({ following: id }),
       User.countDocuments({ followers: id }),
-      currentUserId ? User.exists({ _id: id, followers: currentUserId }) : Promise.resolve(false)
+      currentUserId ? User.exists({ _id: id, followers: currentUserId }) : Promise.resolve(false),
+      Story.exists({ user: id, createdAt: { $gte: threshold }, deletedAt: null })
     ]);
 
     const formatted = formatUser(user, baseUrl, config.premiumThreshold);
@@ -198,7 +203,8 @@ exports.getUserProfile = async (req, res) => {
       ...formatted,
       followersCount,
       followingCount,
-      isFollowing: !!isFollowing
+      isFollowing: !!isFollowing,
+      hasStory: !!hasStory
     };
 
     return res.status(200).json({ success: true, user: mappedUser });

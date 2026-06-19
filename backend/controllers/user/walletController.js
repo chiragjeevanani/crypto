@@ -40,12 +40,40 @@ const getBalance = async (req, res) => {
       }
     }
 
+    const giftStats = await WalletTransaction.aggregate([
+      { $match: { userId: user._id, type: "gift_received", status: "success" } },
+      { $group: { _id: null, total: { $sum: "$coins" }, count: { $sum: 1 } } }
+    ]);
+    const giftEarningsVal = giftStats[0]?.total || 0;
+    const giftCountVal = giftStats[0]?.count || 0;
+
+    const nftStats = await WalletTransaction.aggregate([
+      { $match: { userId: user._id, referenceType: "auction_sale", status: "success" } },
+      { $group: { _id: null, total: { $sum: "$coins" }, count: { $sum: 1 } } }
+    ]);
+    const nftEarningsVal = nftStats[0]?.total || 0;
+    const nftCountVal = nftStats[0]?.count || 0;
+
+    // For tasks, check if CampaignSubmission exists
+    const CampaignSubmission = require("../../models/CampaignSubmission");
+    const taskStats = await CampaignSubmission.countDocuments({ user: user._id, isVerified: true });
+    // Assuming a verified task gives some coins, we can either return the count or derive earnings
+    // If no explicit task transaction exists, we just send the count and let frontend handle it or send 0 earnings
+    const taskCountVal = taskStats || 0;
+    const taskEarningsVal = 0; // Requires proper transaction logic to get exact earnings
+
     return res.status(200).json({
       success: true,
       rechargeCoins,
       earningCoins,
       totalCoins: rechargeCoins + earningCoins,
-      localRate
+      localRate,
+      giftEarnings: giftEarningsVal,
+      taskEarnings: taskEarningsVal,
+      nftEarnings: nftEarningsVal,
+      giftCount: giftCountVal,
+      taskCount: taskCountVal,
+      nftCount: nftCountVal
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

@@ -590,10 +590,26 @@ export default function ProfilePage() {
                             </div>
                             <div className="space-y-2">
                                 {(connectionsOpen === 'followers' ? followers : following).map((item) => (
-                                    <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                                    <div 
+                                        key={item.id} 
+                                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-[var(--color-surface)] transition-colors" 
+                                        style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
+                                        onClick={() => {
+                                            setConnectionsOpen(null);
+                                            navigate(`/user/${item.id}`);
+                                        }}
+                                    >
+                                        {/* Avatar */}
+                                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--color-primary)' }}>
+                                            {item.avatar ? (
+                                                <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                item.name.charAt(0).toUpperCase()
+                                            )}
+                                        </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{item.name}</p>
-                                            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{item.handle}</p>
+                                            <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{item.name}</p>
+                                            <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{item.email || item.handle}</p>
                                         </div>
                                         <button 
                                             onClick={(e) => {
@@ -601,7 +617,7 @@ export default function ProfilePage() {
                                                 setConnectionsOpen(null);
                                                 navigate('/messaging', { state: { openChat: { id: item.id, username: item.name, handle: item.handle, avatar: item.avatar } } });
                                             }}
-                                            className="p-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+                                            className="p-2 rounded-lg hover:bg-[var(--color-surface2)] transition-colors shrink-0"
                                             style={{ color: 'var(--color-primary)' }}
                                         >
                                             <Send size={16} />

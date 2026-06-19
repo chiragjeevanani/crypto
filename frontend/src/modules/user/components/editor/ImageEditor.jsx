@@ -153,7 +153,34 @@ const ImageEditor = ({ file, onClose, onSave }) => {
     };
 
     const handleApply = async () => {
-        const editedFile = await getCroppedImg(imageSrc, croppedAreaPixels, rotation, selectedFilter, texts);
+        // If user never moved/zoomed the cropper, croppedAreaPixels is null.
+        // Compute a default crop covering the entire image at the selected aspect ratio.
+        let pixelCrop = croppedAreaPixels;
+        if (!pixelCrop) {
+            const img = await new Promise((res, rej) => {
+                const i = new Image();
+                i.onload = () => res(i);
+                i.onerror = rej;
+                i.src = imageSrc;
+            });
+            const imgAspect = img.width / img.height;
+            let w, h, x, y;
+            if (imgAspect > aspect) {
+                // Image wider than target: fit by height
+                h = img.height;
+                w = h * aspect;
+                x = (img.width - w) / 2;
+                y = 0;
+            } else {
+                // Image taller than target: fit by width
+                w = img.width;
+                h = w / aspect;
+                x = 0;
+                y = (img.height - h) / 2;
+            }
+            pixelCrop = { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
+        }
+        const editedFile = await getCroppedImg(imageSrc, pixelCrop, rotation, selectedFilter, texts);
         onSave(editedFile);
     };
 
@@ -194,6 +221,41 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                 onClearDrawing={() => drawingCanvasRef.current?.clear()}
             />
 
+            {/* Aspect Ratio Controls */}
+            {!activeTool && (
+                <div className="absolute top-24 left-0 right-0 flex justify-center gap-2 z-40">
+                    {[
+                        { label: '9:16', value: 9/16 },
+                        { label: '1:1', value: 1 },
+                        { label: '4:5', value: 4/5 },
+                        { label: '16:9', value: 16/9 }
+                    ].map((ratio) => (
+                        <button
+                            key={ratio.label}
+                            onPointerDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setAspect(ratio.value);
+                                setCrop({ x: 0, y: 0 });
+                                setZoom(1);
+                                setCroppedAreaPixels(null);
+                            }}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setAspect(ratio.value);
+                                setCrop({ x: 0, y: 0 });
+                                setZoom(1);
+                                setCroppedAreaPixels(null);
+                            }}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-lg backdrop-blur-md ${aspect === ratio.value ? 'bg-white text-black scale-105' : 'bg-black/60 text-white border border-white/20 hover:bg-black/80'}`}
+                        >
+                            {ratio.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Immersive Preview */}
             <div className="flex-1 relative bg-black flex items-center justify-center p-4">
                 <div className="w-full h-full max-w-[450px] aspect-[9/16] relative rounded-[40px] overflow-hidden shadow-2xl border border-white/5 bg-zinc-900">
@@ -208,6 +270,7 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                             onCropComplete={onCropComplete}
                             onZoomChange={setZoom}
                             showGrid={false}
+                            restrictPosition={false}
                             style={{ containerStyle: { background: '#111' } }}
                         />
                     </div>

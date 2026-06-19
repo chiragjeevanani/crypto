@@ -1,6 +1,6 @@
 import { cn } from '../../utils/cn'
 
-export default function WalletStatCard({ label, amount, icon: Icon, color, small }) {
+export default function WalletStatCard({ label, amount, icon: Icon, color, small, currencySymbol = '₹' }) {
     return (
         <div
             className={cn(
@@ -25,7 +25,7 @@ export default function WalletStatCard({ label, amount, icon: Icon, color, small
                 </span>
             </div>
             <p className="text-lg font-black tracking-tight" style={{ color: 'var(--color-text)' }}>
-                ₹{amount.toLocaleString()}
+                {currencySymbol}{amount.toLocaleString()}
             </p>
         </div>
     )

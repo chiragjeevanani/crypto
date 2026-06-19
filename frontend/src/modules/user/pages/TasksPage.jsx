@@ -78,6 +78,7 @@ export default function TasksPage() {
     const [nftLoading, setNftLoading] = useState(true)
     const [nftMessage, setNftMessage] = useState('')
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
+    const [activePreviewNft, setActivePreviewNft] = useState(null)
     const [searchQuery, setSearchQuery] = useState('')
 
     const { buyNft, addNftEarning } = useWalletStore()
@@ -719,8 +720,7 @@ export default function TasksPage() {
                                             key={`deal-${nft.id}`}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => {
-                                                const idx = filteredNFTs.findIndex((item) => item.id === nft.id);
-                                                if (idx >= 0) setActiveNftPostIndex(idx);
+                                                setActivePreviewNft(nft);
                                             }}
                                             className="min-w-[140px] w-[140px] bg-white rounded-xl overflow-hidden shadow-md border border-yellow-200 flex-shrink-0 cursor-pointer"
                                         >
@@ -852,8 +852,7 @@ export default function TasksPage() {
                                         transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'
                                     }}
                                     onClick={() => {
-                                        const i = filteredNFTs.findIndex((item) => item.id === nft.id);
-                                        if (i >= 0) setActiveNftPostIndex(i);
+                                        setActivePreviewNft(nft);
                                     }}
                                 >
                                     {/* ── Card Image ── */}
@@ -962,16 +961,76 @@ export default function TasksPage() {
                             );
                         })}
                     </div>
-                    <PostFeedModal
-                        posts={nftFeedPosts}
-                        startIndex={activeNftPostIndex}
-                        onClose={() => setActiveNftPostIndex(null)}
-                        forceReels={true}
-                        onNftAction={(nft) => {
-                            setActiveNftPostIndex(null); // Optional: close modal on action
-                            toggleBuyResell(nft);
-                        }}
-                    />
+                    {/* ── NFT Preview Modal ── */}
+                    <AnimatePresence>
+                        {activePreviewNft && (
+                            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setActivePreviewNft(null)}>
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full max-w-[320px] rounded-[24px] overflow-hidden shadow-2xl relative"
+                                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                >
+                                    <button onClick={() => setActivePreviewNft(null)} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-md">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                    
+                                    <div className="w-full aspect-square bg-black relative">
+                                        {activePreviewNft.mediaType === 'video' || activePreviewNft.media?.type === 'video' ? (
+                                            <video src={activePreviewNft.mediaUrl || activePreviewNft.media?.url} className="w-full h-full object-contain" autoPlay loop muted playsInline />
+                                        ) : (
+                                            <img src={activePreviewNft.mediaUrl || activePreviewNft.media?.url || activePreviewNft.thumbnail || '/person.png'} className="w-full h-full object-contain" />
+                                        )}
+                                    </div>
+                                    
+                                    <div className="p-4">
+                                        <h3 className="text-lg font-black leading-tight mb-2" style={{ color: 'var(--color-text)' }}>{activePreviewNft.title}</h3>
+                                        
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-[rgba(245,158,11,0.15)] text-[var(--color-primary)] text-sm">
+                                                💎
+                                            </div>
+                                            <span className="text-xl font-extrabold" style={{ 
+                                                background: 'linear-gradient(135deg, var(--color-primary), #D97706)',
+                                                WebkitBackgroundClip: 'text',
+                                                WebkitTextFillColor: 'transparent',
+                                            }}>
+                                                {(() => {
+                                                    const isLocal = displayCurrency === 'INR';
+                                                    const rateINR = exchangeRates?.['INR'] || 83;
+                                                    const rateTarget = displayCurrency === 'USD' ? 1 : (exchangeRates?.[displayCurrency] || 1);
+                                                    const converted = isLocal ? activePreviewNft.price : (activePreviewNft.price * 1.05 * (rateTarget / rateINR));
+                                                    const symbol = isLocal ? '₹' : (displayCurrency === 'USD' ? '$' : (profile?.currencySymbol || displayCurrency));
+                                                    return `${symbol}${converted.toFixed(isLocal ? 0 : 2)}`;
+                                                })()}
+                                            </span>
+                                        </div>
+                                        
+                                        <button
+                                            onClick={() => {
+                                                const nft = activePreviewNft;
+                                                setActivePreviewNft(null);
+                                                toggleBuyResell(nft);
+                                            }}
+                                            className="w-full py-3 rounded-xl font-black text-sm active:scale-95 transition-transform"
+                                            style={{ background: 'var(--color-primary)', color: '#000' }}
+                                        >
+                                            {activePreviewNft.isOffer ? 'Cancel Offer' :
+                                            ((activePreviewNft.owner?._id && activePreviewNft.owner?._id === (profile?._id || profile?.id)) || 
+                                            (activePreviewNft.owner === (profile?._id || profile?.id)) ||
+                                            (activePreviewNft.buyer === (profile?._id || profile?.id)) || 
+                                            nftTab === 'My Collection' || nftTab === 'My Listings' ||
+                                            (activePreviewNft.creatorId && activePreviewNft.creatorId === (profile?._id || profile?.id) && activePreviewNft.status !== 'sold'))
+                                            ? 'Relist / View Offers'
+                                            : activePreviewNft.status === 'listed' ? 'Buy (Global)' : 'Make Offer'}
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
 
                     {modalConfig && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

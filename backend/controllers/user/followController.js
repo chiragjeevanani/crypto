@@ -121,12 +121,13 @@ exports.toggleFollowUser = async (req, res) => {
 exports.getFollowers = async (req, res) => {
   try {
     const userId = req.params.id;
+    const currentUserId = req.user?.userId?.toString();
     if (!userId) {
       return res.status(400).json({ success: false, message: "User id is required" });
     }
 
     const user = await User.findById(userId)
-      .populate("followers", "name handle avatar")
+      .populate("followers", "name handle email avatar followers")
       .select("followers");
 
     if (!user) {
@@ -137,7 +138,9 @@ exports.getFollowers = async (req, res) => {
       id: f._id.toString(),
       name: f.name || "User",
       handle: f.handle || "",
-      avatar: f.avatar || null
+      email: f.email || "",
+      avatar: f.avatar || null,
+      isFollowing: currentUserId ? (f.followers || []).some(id => id && id.toString() === currentUserId) : false
     }));
 
     return res.status(200).json({
@@ -156,12 +159,13 @@ exports.getFollowers = async (req, res) => {
 exports.getFollowing = async (req, res) => {
   try {
     const userId = req.params.id;
+    const currentUserId = req.user?.userId?.toString();
     if (!userId) {
       return res.status(400).json({ success: false, message: "User id is required" });
     }
 
     const user = await User.findById(userId)
-      .populate("following", "name handle avatar")
+      .populate("following", "name handle email avatar followers")
       .select("following");
 
     if (!user) {
@@ -172,7 +176,9 @@ exports.getFollowing = async (req, res) => {
       id: f._id.toString(),
       name: f.name || "User",
       handle: f.handle || "",
-      avatar: f.avatar || null
+      email: f.email || "",
+      avatar: f.avatar || null,
+      isFollowing: currentUserId ? (f.followers || []).some(id => id && id.toString() === currentUserId) : false
     }));
 
     return res.status(200).json({

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuctionStore } from '../store/useAuctionStore';
 import { useNavigate } from 'react-router-dom';
 import { Gavel, Clock, Trophy, ChevronRight } from 'lucide-react';
@@ -20,10 +20,11 @@ const getAssetUrl = (path) => {
 export default function AuctionListingPage() {
     const { auctions, fetchAuctions, loading } = useAuctionStore();
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState('live');
 
     useEffect(() => {
-        fetchAuctions();
-    }, [fetchAuctions]);
+        fetchAuctions(activeTab);
+    }, [fetchAuctions, activeTab]);
 
     if (loading && auctions.length === 0) {
         return (
@@ -35,21 +36,53 @@ export default function AuctionListingPage() {
 
     return (
         <div className="flex-1 space-y-6 pt-4 pb-20 px-4">
-            <header className="flex items-center justify-between">
+            <header className="flex items-center justify-between mb-2">
                 <div>
                     <h1 className="text-2xl font-extrabold" style={{ color: 'var(--color-text)' }}>Auctions</h1>
-                    <p className="text-sm text-muted">Join live auctions and place your bids</p>
+                    <p className="text-sm opacity-50 font-medium">Join live auctions and place your bids</p>
                 </div>
                 <button 
                     onClick={() => navigate('/auctions/create')}
-                    className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                    className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 shadow-md whitespace-nowrap"
                     style={{ background: 'var(--color-primary)', color: '#fff' }}
                 >
                     Create Auction
                 </button>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Segmented Control Tabs */}
+            <div 
+                className="flex items-center p-1.5 rounded-2xl w-full mb-6 relative overflow-hidden"
+                style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+            >
+                <button
+                    onClick={() => setActiveTab('live')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all duration-300 z-10 ${activeTab === 'live' ? 'shadow-md scale-100' : 'opacity-50 hover:opacity-100 scale-[0.98]'}`}
+                    style={{ 
+                        background: activeTab === 'live' ? 'var(--color-primary)' : 'transparent',
+                        color: activeTab === 'live' ? '#000' : 'var(--color-text)'
+                    }}
+                >
+                    Live Auctions
+                </button>
+                <button
+                    onClick={() => setActiveTab('ended')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all duration-300 z-10 ${activeTab === 'ended' ? 'shadow-md scale-100' : 'opacity-50 hover:opacity-100 scale-[0.98]'}`}
+                    style={{ 
+                        background: activeTab === 'ended' ? 'var(--color-primary)' : 'transparent',
+                        color: activeTab === 'ended' ? '#000' : 'var(--color-text)'
+                    }}
+                >
+                    Ended Auctions
+                </button>
+            </div>
+
+            {loading ? (
+                <div className="flex-1 flex items-center justify-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {auctions.map((auction) => (
                     <div 
                         key={auction._id}
@@ -126,13 +159,14 @@ export default function AuctionListingPage() {
                     </div>
                 ))}
             </div>
+            )}
 
-            {auctions.length === 0 && (
+            {!loading && auctions.length === 0 && (
                 <div className="py-20 text-center space-y-4">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-surface2 text-muted">
                         <Gavel size={32} />
                     </div>
-                    <p className="text-muted font-medium">No auctions found</p>
+                    <p className="text-muted font-medium">No {activeTab} auctions found</p>
                 </div>
             )}
         </div>

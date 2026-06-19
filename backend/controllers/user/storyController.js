@@ -177,6 +177,31 @@ exports.getFeedStories = async (req, res) => {
   }
 };
 
+exports.getUserStories = async (req, res) => {
+  try {
+    const currentUserId = req.user?.userId;
+    const { userId } = req.params;
+
+    const threshold = getExpiryThreshold();
+
+    const stories = await Story.find({
+      user: userId,
+      createdAt: { $gte: threshold },
+      deletedAt: null
+    })
+      .populate("user", "name handle avatar")
+      .populate("musicId", "title artist audioUrl duration thumbnail")
+      .sort({ createdAt: -1 })
+      .exec();
+
+    const baseUrl = getBaseUrl(req);
+    const list = stories.map((s) => formatStoryForClient(s, currentUserId, baseUrl));
+    return res.status(200).json({ success: true, stories: list });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.deleteStory = async (req, res) => {
   try {
     const currentUserId = req.user?.userId;

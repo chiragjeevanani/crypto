@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, X, Music, Check, Camera, Image as ImageIcon, Type, Sparkles, Volume2, VolumeX, Play, Pause, ArrowRight, MoreVertical, Download, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { storyService } from '../../services/storyService';
@@ -36,6 +37,8 @@ export default function Stories() {
     const [stories, setStories] = useState([]);
     const [myStory, setMyStory] = useState(null);
     const [feedStories, setFeedStories] = useState([]);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const openStoryId = searchParams.get('openStory');
     const [selectedStory, setSelectedStory] = useState(null);
     const [activeStoryIndex, setActiveStoryIndex] = useState(0);
 
@@ -66,6 +69,7 @@ export default function Stories() {
     const [uploadError, setUploadError] = useState('');
     const [imageScale, setImageScale] = useState(1);
     const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+    const [storyAspect, setStoryAspect] = useState('9/16');
     const [musicPos, setMusicPos] = useState({ x: 0.5, y: 0.25 });
     const [showFilters, setShowFilters] = useState(false);
     const captionRef = useRef(null);
@@ -315,6 +319,42 @@ export default function Stories() {
         loadMusic();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile?.id, profile?.avatar]);
+
+    useEffect(() => {
+        if (openStoryId) {
+            storyService.getUserStories(openStoryId).then(userStories => {
+                if (userStories.length > 0) {
+                    const first = userStories[0];
+                    setSelectedStory({
+                        user: {
+                            id: first.user?.id || first.userId,
+                            username: first.user?.username || first.user?.handle || 'User',
+                            avatar: first.user?.avatar || first.avatar || NO_IMAGE_AVATAR,
+                            isPremium: first.user?.isPremium || first.isPremium,
+                            isMe: first.isMe
+                        },
+                        stories: userStories.map((s) => ({
+                            id: s.id,
+                            mediaUrl: s.media?.url || s.mediaUrl,
+                            mediaType: s.media?.type || s.mediaType || 'image',
+                            caption: s.caption || '',
+                            captionStyle: s.captionStyle || null,
+                            musicData: s.musicData || null,
+                            musicStartTime: s.musicStartTime || 0,
+                            filter: s.filter || 'none',
+                            mediaScale: s.mediaScale || 1,
+                            mediaPosition: s.mediaPosition || { x: 0, y: 0 },
+                            musicPosition: s.musicPosition || { x: 0.5, y: 0.25 },
+                            createdAt: s.createdAt,
+                        })),
+                    });
+                    setActiveStoryIndex(0);
+                }
+                searchParams.delete('openStory');
+                setSearchParams(searchParams, { replace: true });
+            }).catch(console.error);
+        }
+    }, [openStoryId]);
 
     const handleStoryClick = (story) => {
         // Find ALL stories for this user
@@ -851,6 +891,10 @@ export default function Stories() {
                         <div
                             ref={storyCanvasRef}
                             className="flex-1 relative rounded-b-3xl overflow-hidden bg-zinc-900 mt-16 mx-2 mb-2"
+                            style={{
+                                aspectRatio: storyAspect === '9/16' ? undefined : storyAspect,
+                                maxHeight: storyAspect === '1/1' ? '70vw' : storyAspect === '16/9' ? '56.25vw' : undefined,
+                            }}
                         >
                             {storyMedia ? (
                                 <div className="absolute inset-0 overflow-hidden">
@@ -1098,6 +1142,35 @@ export default function Stories() {
                                                 className="flex-1 h-1 rounded-full bg-white/20 accent-white appearance-none"
                                             />
                                             <span className="text-white/70 text-[10px] font-mono w-8 text-right">{Math.round(imageScale * 100)}%</span>
+                                        </div>
+                                        {/* Aspect Ratio Selector */}
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-white/60 text-[10px] uppercase tracking-wider font-bold shrink-0">Ratio</span>
+                                            <div className="flex gap-1.5">
+                                                {[
+                                                    { label: '9:16', value: '9/16' },
+                                                    { label: '1:1', value: '1/1' },
+                                                    { label: '4:5', value: '4/5' },
+                                                    { label: '16:9', value: '16/9' },
+                                                ].map((ratio) => (
+                                                    <button
+                                                        key={ratio.label}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setStoryAspect(ratio.value);
+                                                            setImageScale(1);
+                                                            setImagePosition({ x: 0, y: 0 });
+                                                        }}
+                                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                                                            storyAspect === ratio.value
+                                                                ? 'bg-white text-black scale-105'
+                                                                : 'bg-black/50 text-white border border-white/20'
+                                                        }`}
+                                                    >
+                                                        {ratio.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                         <p className="text-[9px] text-white/40 italic">Touch image to move position</p>
                                     </div>

@@ -17,9 +17,9 @@ export default function WalletPage() {
         inrWallet,
         earningsWallet,
         walletRates,
-        giftEarnings,
-        taskEarnings,
-        nftEarnings,
+        giftCount,
+        taskCount,
+        nftCount,
         transactions,
         payoutMethods,
         loadWallet,
@@ -496,7 +496,7 @@ export default function WalletPage() {
                                     value={addInrAmount}
                                     onChange={(e) => setAddInrAmount(e.target.value)}
                                     placeholder="Enter custom amount"
-                                    className="w-full h-14 pl-10 pr-4 rounded-xl border-2 bg-primary/10 text-sm font-black outline-none border-primary/30 focus:border-primary focus:bg-primary/20 transition-all placeholder:text-primary/60"
+                                    className={`w-full h-14 ${currencySymbol.length > 2 ? 'pl-[4.5rem]' : currencySymbol.length > 1 ? 'pl-14' : 'pl-10'} pr-4 rounded-xl border-2 bg-primary/10 text-sm font-black outline-none border-primary/30 focus:border-primary focus:bg-primary/20 transition-all placeholder:text-primary/60`}
                                     style={{ color: 'var(--color-text)' }}
                                 />
                             </div>
@@ -526,9 +526,9 @@ export default function WalletPage() {
 
             {/* Earnings breakdown */}
             <div className="flex gap-2 mb-4">
-                <WalletStatCard label="Gifts" amount={giftEarnings} icon={Gift} color="var(--color-danger)" small />
-                <WalletStatCard label="Tasks" amount={taskEarnings} icon={CheckSquare} color="var(--color-primary)" small />
-                <WalletStatCard label="NFTs" amount={nftEarnings} icon={Gem} color="var(--color-purple)" small />
+                <WalletStatCard label="Gifts" amount={giftCount || 0} currencySymbol="" icon={Gift} color="var(--color-danger)" small />
+                <WalletStatCard label="Tasks" amount={taskCount || 0} currencySymbol="" icon={CheckSquare} color="var(--color-primary)" small />
+                <WalletStatCard label="NFTs" amount={nftCount || 0} currencySymbol="" icon={Gem} color="var(--color-purple)" small />
             </div>
 
             <div

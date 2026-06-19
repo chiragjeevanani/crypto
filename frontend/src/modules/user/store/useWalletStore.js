@@ -12,11 +12,14 @@ export const useWalletStore = create((set, get) => ({
     inrWallet: 0,
     earningsWallet: 0,
     balance: 0, 
-    walletRates: { inrPerCrypto: INR_PER_CRYPTO },
+    walletRates: { localRate: 1 },
 
     giftEarnings: 0,
     taskEarnings: 0,
     nftEarnings: 0,
+    giftCount: 0,
+    taskCount: 0,
+    nftCount: 0,
     gifts: [],
     transactions: [],
     activeTab: 'transactions',
@@ -48,6 +51,12 @@ export const useWalletStore = create((set, get) => ({
                 earningsWallet: earningCoins,
                 balance: rechargeCoins + earningCoins,
                 walletRates: { ...state.walletRates, localRate },
+                giftEarnings: Number(data?.giftEarnings || 0),
+                taskEarnings: Number(data?.taskEarnings || 0),
+                nftEarnings: Number(data?.nftEarnings || 0),
+                giftCount: Number(data?.giftCount || 0),
+                taskCount: Number(data?.taskCount || 0),
+                nftCount: Number(data?.nftCount || 0),
                 walletLoading: false,
             }))
             // ensure gifts are also in sync

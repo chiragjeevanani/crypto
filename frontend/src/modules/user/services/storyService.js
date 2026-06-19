@@ -16,6 +16,15 @@ export const storyService = {
     return data.stories || [];
   },
 
+  async getUserStories(userId) {
+    const res = await fetch(`${USER_STORIES}/user/${userId}`, {
+      headers: getAuthHeaders()
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || "Failed to load stories");
+    return data.stories || [];
+  },
+
   async createStory({ file, caption, musicTrackId, musicId, musicStartTime, captionPosX, captionPosY, captionTextColor, captionBgColor, filter, mediaScale, mediaPosX, mediaPosY }) {
     const form = new FormData();
     if (file) form.append("media", file);
