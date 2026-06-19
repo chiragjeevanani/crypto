@@ -22,6 +22,7 @@ import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import { savedPostService } from '../services/savedPostService'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
+import DeleteAccountConfirmationModal from '../components/shared/DeleteAccountConfirmationModal'
 const TABS = ['Posts', 'NFTs', 'Tasks']
 const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
@@ -114,6 +115,7 @@ export default function ProfilePage() {
     const [savedPosts, setSavedPosts] = useState([])
     const [savedLoading, setSavedLoading] = useState(false)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
     const { register, handleSubmit, reset: resetEditForm } = useForm({ defaultValues: { username: profile.username, bio: profile.bio } })
     const settingsForm = useForm({
@@ -769,20 +771,28 @@ export default function ProfilePage() {
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Terms & Policies' && (
                                     <div className="space-y-2">
-                                        <button onClick={() => { setSettingsOpen(false); navigate('/terms', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><FileText size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Terms & Conditions</p></button>
-                                        <button onClick={() => { setSettingsOpen(false); navigate('/privacy', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Shield size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Privacy Policy</p></button>
+                                        <button onClick={() => { setSettingsOpen(false); navigate('/terms-conditions', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><FileText size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Terms & Conditions</p></button>
+                                        <button onClick={() => { setSettingsOpen(false); navigate('/privacy-policy', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Shield size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Privacy Policy</p></button>
                                         <button onClick={() => { setSettingsOpen(false); navigate('/guidelines', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Terms & Policies' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><FileText size={14} style={{ color: 'var(--color-primary)' }} /><p className="text-sm" style={{ color: 'var(--color-text)' }}>Community Guidelines</p></button>
                                     </div>
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Contacts' && (
                                     <div className="space-y-2">
-                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Support</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>support@KnQReels.app</p></div></div>
-                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}><Phone size={14} style={{ color: 'var(--color-primary)' }} /><div><p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Business Contact</p><p className="text-xs" style={{ color: 'var(--color-muted)' }}>+91 90000 12345</p></div></div>
+                                        <button onClick={() => { setSettingsOpen(false); navigate('/support', { state: { openSettingsOnBack: { openSettings: true, settingsMode: 'detail', settingsTab: 'Contacts' } } }) }} className="w-full p-3 rounded-lg flex items-center gap-2 text-left cursor-pointer" style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}>
+                                            <Phone size={14} style={{ color: 'var(--color-primary)' }} />
+                                            <div>
+                                                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Support Page</p>
+                                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Get help and submit tickets</p>
+                                            </div>
+                                        </button>
                                     </div>
                                 )}
-                                <div className="pt-5 mt-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                                <div className="pt-5 mt-5 border-t space-y-3" style={{ borderColor: 'var(--color-border)' }}>
                                     <button onClick={() => setIsLogoutModalOpen(true)} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
                                         Logout
+                                    </button>
+                                    <button onClick={() => setIsDeleteModalOpen(true)} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
+                                        Delete Account
                                     </button>
                                 </div>
                             </div>
@@ -800,6 +810,16 @@ export default function ProfilePage() {
                     try { await privyLogout(); } catch(e) {}
                     window.location.href = '/signin'
                 }}
+            />
+            <DeleteAccountConfirmationModal 
+                isOpen={isDeleteModalOpen} 
+                onClose={() => setIsDeleteModalOpen(false)} 
+                onConfirm={async () => {
+                    setIsDeleteModalOpen(false)
+                    useUserStore.getState().logout()
+                    try { await privyLogout(); } catch(e) {}
+                    navigate('/login', { replace: true })
+                }} 
             />
         </div>
     )

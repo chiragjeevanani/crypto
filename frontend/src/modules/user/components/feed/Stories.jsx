@@ -72,14 +72,150 @@ export default function Stories() {
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [originalFile, setOriginalFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    
+    const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+    // Live camera states
+    const [isCameraMode, setIsCameraMode] = useState(false);
+    const [storyFacingMode, setStoryFacingMode] = useState('user');
+    const [captureMode, setCaptureMode] = useState('photo'); // 'photo' or 'video'
+    const [isRecording, setIsRecording] = useState(false);
+    const storyCameraStreamRef = useRef(null);
+    const storyCameraVideoRef = useRef(null);
+    const storyMediaRecorderRef = useRef(null);
+    const storyRecordedChunksRef = useRef([]);
+
     useEffect(() => {
         return () => {
             if (storyMedia && storyMedia.startsWith('blob:')) {
                 URL.revokeObjectURL(storyMedia);
             }
+            stopStoryCamera();
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [storyMedia]);
+
+    const startStoryCamera = async (facingMode = storyFacingMode) => {
+        stopStoryCamera();
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: facingMode,
+                    width: { ideal: 720 },
+                    height: { ideal: 1280 },
+                },
+                audio: true // Need audio for video recording
+            });
+            storyCameraStreamRef.current = stream;
+            if (storyCameraVideoRef.current) {
+                storyCameraVideoRef.current.srcObject = stream;
+                storyCameraVideoRef.current.play().catch(() => {});
+            }
+        } catch (err) {
+            console.error('Story camera error:', err);
+        }
+    };
+
+    const stopStoryCamera = () => {
+        if (isRecording) {
+            stopStoryRecording();
+        }
+        if (storyCameraStreamRef.current) {
+            storyCameraStreamRef.current.getTracks().forEach(t => t.stop());
+            storyCameraStreamRef.current = null;
+        }
+    };
+
+    const flipStoryCamera = async () => {
+        const next = storyFacingMode === 'user' ? 'environment' : 'user';
+        setStoryFacingMode(next);
+        await startStoryCamera(next);
+    };
+
+    const captureStoryPhoto = () => {
+        const video = storyCameraVideoRef.current;
+        if (!video) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 720;
+        canvas.height = video.videoHeight || 1280;
+        const ctx = canvas.getContext('2d');
+        // Mirror the captured frame for front camera
+        if (storyFacingMode === 'user') {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            const file = new File([blob], 'story-photo.jpg', { type: 'image/jpeg' });
+            setOriginalFile(file);
+            setIsEditorOpen(true);
+            setUploadError('');
+            stopStoryCamera();
+            setIsCameraMode(false);
+        }, 'image/jpeg', 0.92);
+    };
+
+    const startStoryRecording = () => {
+        if (!storyCameraStreamRef.current) return;
+        storyRecordedChunksRef.current = [];
+        const stream = storyCameraStreamRef.current;
+        let selectedType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+        const recorder = new MediaRecorder(stream, selectedType ? { mimeType: selectedType } : {});
+        storyMediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+                storyRecordedChunksRef.current.push(e.data);
+            }
+        };
+
+        recorder.onstop = () => {
+            const blob = new Blob(storyRecordedChunksRef.current, { type: selectedType || 'video/mp4' });
+            const file = new File([blob], 'story-video.mp4', { type: blob.type });
+            setOriginalFile(file);
+            setIsEditorOpen(true);
+            setUploadError('');
+            
+            // Clean up stream *after* processing so that MediaRecorder doesn't break
+            if (storyCameraStreamRef.current) {
+                storyCameraStreamRef.current.getTracks().forEach(t => t.stop());
+                storyCameraStreamRef.current = null;
+            }
+            setIsCameraMode(false);
+            setIsRecording(false);
+        };
+
+        recorder.start();
+        setIsRecording(true);
+    };
+
+    const stopStoryRecording = () => {
+        if (storyMediaRecorderRef.current && storyMediaRecorderRef.current.state !== 'inactive') {
+            storyMediaRecorderRef.current.stop();
+        }
+    };
+
+    // Re-attach stream when video element mounts after isCameraMode becomes true
+    useEffect(() => {
+        if (isCameraMode && storyCameraVideoRef.current && storyCameraStreamRef.current) {
+            storyCameraVideoRef.current.srcObject = storyCameraStreamRef.current;
+            storyCameraVideoRef.current.play().catch(() => {});
+        }
+    }, [isCameraMode]);
+
+    // Auto-start camera when opening the story creator without media
+
+    useEffect(() => {
+        if (isCreatingStory && !storyMedia) {
+            setIsCameraMode(true);
+            startStoryCamera();
+        } else if (!isCreatingStory) {
+            setIsCameraMode(false);
+            stopStoryCamera();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCreatingStory, storyMedia]);
+
 
     useEffect(() => {
         const currentStory = selectedStory?.stories?.[activeStoryIndex];
@@ -94,6 +230,8 @@ export default function Stories() {
             }
         }
     }, [selectedStory, activeStoryIndex, isPlayingViewer]);
+
+
 
     const loadStories = async () => {
         try {
@@ -675,7 +813,16 @@ export default function Stories() {
                     >
                         {/* Header Controls */}
                         <div className="flex items-center justify-between p-4 z-10 w-full absolute top-0 left-0">
-                            <button onClick={() => setIsCreatingStory(false)} className="w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white backdrop-blur-md">
+                            <button 
+                                onClick={() => {
+                                    if (storyMedia) {
+                                        setShowDiscardConfirm(true);
+                                    } else {
+                                        setIsCreatingStory(false);
+                                    }
+                                }} 
+                                className="w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white backdrop-blur-md"
+                            >
                                 <X size={24} />
                             </button>
                             <div className="flex gap-4">
@@ -744,10 +891,80 @@ export default function Stories() {
                                         </motion.div>
                                     )}
                                 </div>
+                            ) : isCameraMode ? (
+                                // --- Live Camera View ---
+                                <div className="absolute inset-0 bg-black overflow-hidden">
+                                    <video
+                                        ref={storyCameraVideoRef}
+                                        className="w-full h-full object-cover"
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        style={{ transform: storyFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                                    />
+                                    {/* Flip camera button */}
+                                    <button
+                                        type="button"
+                                        onClick={flipStoryCamera}
+                                        className="absolute top-4 right-4 w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white z-10"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/>
+                                            <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                            <path d="m18 2-3 3 3 3"/>
+                                            <path d="m6 22 3-3-3-3"/>
+                                        </svg>
+                                    </button>
+                                    {/* Shutter button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (captureMode === 'photo') {
+                                                captureStoryPhoto();
+                                            } else {
+                                                if (isRecording) {
+                                                    stopStoryRecording();
+                                                } else {
+                                                    startStoryRecording();
+                                                }
+                                            }
+                                        }}
+                                        className={`absolute bottom-20 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-4 border-white backdrop-blur-md transition-transform z-10 flex items-center justify-center ${
+                                            isRecording ? 'bg-red-500 scale-110' : 'bg-white/20 active:scale-90'
+                                        }`}
+                                    >
+                                        {isRecording && <div className="w-6 h-6 bg-white rounded-sm" />}
+                                        <span className="sr-only">Capture</span>
+                                    </button>
+
+                                    {/* Capture Mode Tabs */}
+                                    {!isRecording && (
+                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/50 backdrop-blur-md px-6 py-2 rounded-full z-10">
+                                            {['photo', 'video'].map((mode) => (
+                                                <button
+                                                    key={mode}
+                                                    type="button"
+                                                    onClick={() => setCaptureMode(mode)}
+                                                    className={`capitalize text-sm font-semibold transition-colors ${
+                                                        captureMode === mode ? 'text-white' : 'text-white/50'
+                                                    }`}
+                                                >
+                                                    {mode}
+                                                    {captureMode === mode && (
+                                                        <span className="absolute left-1/2 top-full mt-1 h-1 w-1 -translate-x-1/2 rounded-full bg-white" />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-white/50 flex-col gap-4">
-                                    <Camera size={64} className="opacity-20" />
-                                    <p className="text-sm font-semibold tracking-wider uppercase">Camera View</p>
+                                    <button onClick={() => setIsCameraMode(true)} className="p-6 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+                                        <Camera size={64} className="opacity-50" />
+                                    </button>
+                                    <p className="text-sm font-semibold tracking-wider uppercase">Tap Camera to start</p>
                                 </div>
                             )}
 
@@ -1011,6 +1228,25 @@ export default function Stories() {
 
                         {/* Bottom Actions - always on top and visible */}
                         <div className="flex-shrink-0 relative z-20 p-4 py-6 flex items-center justify-between bg-black">
+                            {/* Camera toggle button */}
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (isCameraMode) {
+                                        stopStoryCamera();
+                                        setIsCameraMode(false);
+                                    } else {
+                                        setIsCameraMode(true);
+                                        await startStoryCamera();
+                                    }
+                                }}
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 text-white shrink-0 transition-colors ${
+                                    isCameraMode ? 'border-primary bg-primary/20' : 'border-white/20 bg-white/10'
+                                }`}
+                            >
+                                <Camera size={24} />
+                            </button>
+
                             <label className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-white/20 bg-white/10 text-white cursor-pointer relative overflow-hidden shrink-0">
                                 {storyMedia ? (
                                     <img src={storyMedia} className="w-full h-full object-cover" alt="Preview" />
@@ -1115,6 +1351,53 @@ export default function Stories() {
                                 </button>
                             </div>
                         </div>
+                        {/* Discard Confirmation Modal */}
+                        <AnimatePresence>
+                            {showDiscardConfirm && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.9, y: 20 }}
+                                        animate={{ scale: 1, y: 0 }}
+                                        exit={{ scale: 0.9, y: 20 }}
+                                        className="bg-[#1c1c1c] rounded-3xl p-6 w-full max-w-sm"
+                                    >
+                                        <h3 className="text-xl font-bold text-white mb-2 text-center">Discard media?</h3>
+                                        <p className="text-white/60 text-sm text-center mb-6">
+                                            If you go back now, you will lose your selected photo or video.
+                                        </p>
+                                        <div className="flex flex-col gap-3">
+                                            <button
+                                                onClick={() => {
+                                                    setStoryMedia(null);
+                                                    setStoryFile(null);
+                                                    setStoryMusic(null);
+                                                    setStoryCaption('');
+                                                    setIsVideoPreview(false);
+                                                    setImageScale(1);
+                                                    setImagePosition({ x: 0, y: 0 });
+                                                    setShowDiscardConfirm(false);
+                                                    setIsCreatingStory(false);
+                                                }}
+                                                className="w-full py-4 bg-red-500/10 text-red-500 rounded-xl font-bold text-sm hover:bg-red-500/20 transition-colors"
+                                            >
+                                                Discard
+                                            </button>
+                                            <button
+                                                onClick={() => setShowDiscardConfirm(false)}
+                                                className="w-full py-4 bg-white/5 text-white rounded-xl font-bold text-sm hover:bg-white/10 transition-colors"
+                                            >
+                                                Keep
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 )}
             </AnimatePresence>

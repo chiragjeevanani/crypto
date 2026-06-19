@@ -32,6 +32,8 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
     const location = useLocation();
     const navigate = useNavigate();
     const [isLogoutModalOpen, setIsLogoutModalOpen] = React.useState(false);
+    const [isNotifOpen, setIsNotifOpen] = React.useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
 
     useEffect(() => {
         loadAdminNotifications();
@@ -102,6 +104,8 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
 
                 <div className="relative group/notif">
                     <button 
+                        onClick={() => setIsNotifOpen(!isNotifOpen)}
+                        onBlur={() => setTimeout(() => setIsNotifOpen(false), 200)}
                         className="relative p-2.5 rounded-lg hover:bg-surface2 text-muted transition-colors" 
                         title="System Alerts"
                     >
@@ -115,8 +119,8 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                     </button>
 
                     {/* Notifications Dropdown */}
-                    <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover/notif:opacity-100 group-hover/notif:visible transition-all duration-200 transform origin-top-right translate-y-1 group-hover/notif:translate-y-0 z-50">
-                        <div className="w-80 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden">
+                    <div className={`absolute right-0 top-full pt-2 transition-all duration-200 transform origin-top-right z-50 ${isNotifOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-1 lg:group-hover/notif:opacity-100 lg:group-hover/notif:visible lg:group-hover/notif:translate-y-0'}`}>
+                        <div className="w-[300px] sm:w-80 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden">
                             <div className="px-4 py-3 border-b border-surface flex items-center justify-between">
                                 <h3 className="text-[10px] font-black uppercase tracking-widest text-text">Notifications</h3>
                                 {unreadAdminNotificationsCount > 0 && (
@@ -183,7 +187,11 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                 <div className="h-5 w-px bg-surface mx-2"></div>
 
                 <div className="relative group">
-                    <button className="flex items-center gap-3 p-1 rounded-lg hover:bg-surface2 transition-all">
+                    <button 
+                        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                        onBlur={() => setTimeout(() => setIsUserMenuOpen(false), 200)}
+                        className="flex items-center gap-3 p-1 rounded-lg hover:bg-surface2 transition-all"
+                    >
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-[10px] text-black shadow-md overflow-hidden shrink-0">
                         <Avatar src={user?.avatar} size="w-full h-full" alt="Me" />
                         </div>
@@ -198,7 +206,7 @@ export default function AdminTopbar({ isCollapsed, setIsCollapsed, setIsMobileMe
                     </button>
 
                     {/* Premium Dropdown */}
-                    <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right group-hover:translate-y-0 translate-y-1">
+                    <div className={`absolute right-0 top-full pt-2 transition-all duration-200 transform origin-top-right z-50 ${isUserMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-1 lg:group-hover:opacity-100 lg:group-hover:visible lg:group-hover:translate-y-0'}`}>
                         <div className="w-52 bg-surface border border-surface rounded-lg shadow-2xl p-2">
                             <div className="px-3 py-2 mb-2 border-b border-surface pb-3">
                                 <p className="text-[10px] font-bold text-text uppercase tracking-wider truncate">{user?.name || getRoleLabel(user?.role)}</p>
