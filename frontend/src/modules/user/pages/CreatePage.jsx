@@ -1051,6 +1051,7 @@ const CreatePage = () => {
                console.error("Video error during thumbnail gen:", e);
                resolve();
             };
+            video.load();
             setTimeout(resolve, 3000); // 3s safety timeout
           });
 
@@ -1934,7 +1935,10 @@ const CreatePage = () => {
       recorder.start();
 
       if (audioCtx && audioCtx.state === 'suspended') {
-        await audioCtx.resume();
+        await Promise.race([
+          audioCtx.resume(),
+          new Promise(r => setTimeout(r, 1000))
+        ]).catch(() => {});
       }
 
       for (let i = 0; i < clipSequence.length; i++) {
@@ -1991,6 +1995,14 @@ const CreatePage = () => {
           }
         } else {
           renderVideo.src = clip.url;
+          renderVideo.load();
+          await new Promise((resolve) => {
+             renderVideo.onloadeddata = resolve;
+             renderVideo.oncanplay = resolve;
+             renderVideo.onerror = resolve;
+             setTimeout(resolve, 3000);
+          });
+          
           renderVideo.currentTime = 0;
           try {
              await renderVideo.play();
@@ -4124,44 +4136,6 @@ const CreatePage = () => {
             </div>
             <BiChevronRight size={18} className="text-black/35" />
           </button>
-
-          <button
-            type="button"
-            onClick={() => pushStage('location')}
-            className="flex w-full items-center justify-between rounded-[10px] bg-white px-4 py-4 active:opacity-80"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-black/45">
-                <IoLocationOutline size={18} />
-              </span>
-              <span className="text-[15px]">Location</span>
-            </div>
-            <div className="flex items-center gap-2 text-[13px] text-black/35">
-              <span>{postState.location || 'Add'}</span>
-              <BiChevronRight size={18} />
-            </div>
-          </button>
-
-          <div className="flex gap-2 overflow-x-auto no-scrollbar rounded-[10px] bg-white px-4 py-3">
-            {CREATE_LOCATION_CHIPS.map((chipLabel) => (
-              <button
-                key={chipLabel}
-                type="button"
-                onClick={() =>
-                  setPostState((currentState) => ({
-                    ...currentState,
-                    location: chipLabel,
-                  }))
-                }
-                className={`shrink-0 rounded-[4px] border px-3 py-1.5 text-[12px] ${
-                  postState.location === chipLabel ? 'border-[#fe2c55] text-[#fe2c55]' : 'border-black/10 text-black/70'
-                }`}
-              >
-                {chipLabel}
-              </button>
-            ))}
-          </div>
-
         </div>
 
         <div className="space-y-1 px-4 py-4">
@@ -4383,28 +4357,35 @@ const CreatePage = () => {
         <div className="flex-1 overflow-y-auto no-scrollbar">
           {displayResults.length > 0 ? (
             <div className="py-2 pb-[4.5rem] md:pb-2">
-              {displayResults.map((u) => (
+              {displayResults.map((u) => {
+                let handle = u.handle || u.username || '';
+                if (handle.startsWith('@')) handle = handle.substring(1);
+                const displayName = u.name || u.fullName || handle || 'User';
+                const avatar = u.avatar || u.profilePicture;
+
+                return (
                 <button
                   key={u.id || u._id}
                   type="button"
-                  onClick={() => u.username && handleSelectMention(u.username)}
+                  onClick={() => handle && handleSelectMention(handle)}
                   className="flex w-full items-center gap-3 px-4 py-3 active:bg-black/[0.03]"
                 >
                   <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black/5">
-                    {u.profilePicture ? (
-                      <img src={u.profilePicture} alt={u.username} className="h-full w-full object-cover" />
+                    {avatar ? (
+                      <img src={avatar} alt={handle} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-[#fe2c55]/10 text-[14px] font-bold text-[#fe2c55]">
-                        {u.username?.[0]?.toUpperCase() || '?'}
+                        {handle?.[0]?.toUpperCase() || '?'}
                       </div>
                     )}
                   </div>
                   <div className="flex flex-1 flex-col items-start overflow-hidden text-left">
-                    <span className="truncate text-[15px] font-semibold">{u.username}</span>
-                    <span className="truncate text-[13px] text-black/45">{u.fullName || u.name || 'User'}</span>
+                    <span className="truncate text-[15px] font-semibold">@{handle || 'user'}</span>
+                    <span className="truncate text-[13px] text-black/45">{displayName}</span>
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           ) : mentionSearchQuery.trim() && !isMentionSearching ? (
             <div className="flex flex-col items-center justify-center px-8 py-20 text-center">
@@ -4423,56 +4404,6 @@ const CreatePage = () => {
       </div>
     );
   };
-
-  const renderLocationStage = () => (
-    <div className="flex h-full flex-col bg-white text-black">
-      <div
-        className="border-b border-black/5 px-4 pb-4"
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
-      >
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={handleCloseOrBack} className="active:opacity-60">
-            <BiX size={22} />
-          </button>
-          <h2 className="text-[18px] font-semibold">Add location</h2>
-          <span className="w-6" />
-        </div>
-        <div className="mt-4 flex items-center gap-3 rounded-[10px] bg-[#f4f5f7] px-3 py-2 text-black/35">
-          <BiSearch size={18} />
-          <input
-            type="text"
-            placeholder="Search locations"
-            value={selectedLocationQuery}
-            onChange={(event) => setSelectedLocationQuery(event.target.value)}
-            className="w-full bg-transparent text-[14px] outline-none placeholder:text-black/30"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(1rem+4.5rem)] md:pb-4 no-scrollbar">
-        <p className="mb-4 text-[12px] text-black/35">Popular places in your area</p>
-        <div className="space-y-5">
-          {locationResults.map((locationItem) => (
-            <button
-              key={locationItem.id}
-              type="button"
-              onClick={() => {
-                setPostState((currentState) => ({
-                  ...currentState,
-                  location: locationItem.title,
-                }));
-                popStage();
-              }}
-              className="block w-full text-left active:opacity-70"
-            >
-              <p className="text-[16px] font-semibold">{locationItem.title}</p>
-              <p className="mt-1 text-[13px] text-black/40">{locationItem.subtitle}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 
   const renderMoreOptionsStage = () => (
     <div className="flex h-full flex-col bg-white text-black">
@@ -4553,8 +4484,6 @@ const CreatePage = () => {
         return renderMentionStage('@Mention');
       case 'tag-people':
         return renderMentionStage('Tag people');
-      case 'location':
-        return renderLocationStage();
       case 'more-options':
         return renderMoreOptionsStage();
       case 'sound-editor':

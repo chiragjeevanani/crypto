@@ -17,9 +17,9 @@ export default function WalletPage() {
         inrWallet,
         earningsWallet,
         walletRates,
-        giftCount,
-        taskCount,
-        nftCount,
+        giftEarnings,
+        taskEarnings,
+        nftEarnings,
         transactions,
         payoutMethods,
         loadWallet,
@@ -526,9 +526,9 @@ export default function WalletPage() {
 
             {/* Earnings breakdown */}
             <div className="flex gap-2 mb-4">
-                <WalletStatCard label="Gifts" amount={giftCount || 0} currencySymbol="" icon={Gift} color="var(--color-danger)" small />
-                <WalletStatCard label="Tasks" amount={taskCount || 0} currencySymbol="" icon={CheckSquare} color="var(--color-primary)" small />
-                <WalletStatCard label="NFTs" amount={nftCount || 0} currencySymbol="" icon={Gem} color="var(--color-purple)" small />
+                <WalletStatCard label="Gifts" amount={((giftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gift} color="var(--color-danger)" small />
+                <WalletStatCard label="Tasks" amount={((taskEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={CheckSquare} color="var(--color-primary)" small />
+                <WalletStatCard label="NFTs" amount={((nftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gem} color="var(--color-purple)" small />
             </div>
 
             <div

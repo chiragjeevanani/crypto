@@ -39,6 +39,7 @@ export default function UserProfilePage() {
     const [profileLoading, setProfileLoading] = useState(true)
     const [nfts, setNfts] = useState([])
     const [showShareMenu, setShowShareMenu] = useState(false)
+    const [deleteModalConfig, setDeleteModalConfig] = useState(null)
 
     useEffect(() => { loadPosts() }, [loadPosts])
 
@@ -527,7 +528,7 @@ export default function UserProfilePage() {
                                         </p>
                                         <NFTBadge status={nft.status === 'approved' ? 'listed' : 'sold'} price={nft.nftPriceINR || 0} className="mt-1" />
                                     </div>
-                                    <div className="shrink-0">
+                                    <div className="shrink-0 flex items-center gap-2">
                                         <button 
                                             className="px-3 py-1.5 rounded-lg text-xs font-bold transition-transform active:scale-95"
                                             style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--color-primary)' }}
@@ -538,6 +539,37 @@ export default function UserProfilePage() {
                                         >
                                             {nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed')) ? 'Buy NFT' : 'Make Offer'}
                                         </button>
+                                        
+                                        {profile?.id === userId && (
+                                            <button 
+                                                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-transform active:scale-95"
+                                                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeleteModalConfig({
+                                                        title: 'Delete NFT',
+                                                        message: 'Are you sure you want to delete this NFT?',
+                                                        onConfirm: async () => {
+                                                            try {
+                                                                await postService.deletePost(nft.id || nft.collectibleId);
+                                                                setNfts(prev => prev.filter(n => String(n.id) !== String(nft.id) && String(n.collectibleId) !== String(nft.collectibleId)));
+                                                                setDeleteModalConfig(null);
+                                                            } catch (err) {
+                                                                setDeleteModalConfig({
+                                                                    title: 'Error',
+                                                                    message: 'Failed to delete NFT.',
+                                                                    onConfirm: () => setDeleteModalConfig(null),
+                                                                    onCancel: () => setDeleteModalConfig(null)
+                                                                });
+                                                            }
+                                                        },
+                                                        onCancel: () => setDeleteModalConfig(null)
+                                                    });
+                                                }}
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -640,6 +672,44 @@ export default function UserProfilePage() {
                             </div>
                         </motion.div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {deleteModalConfig && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={deleteModalConfig.onCancel}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-sm rounded-[24px] shadow-2xl overflow-hidden"
+                            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                        >
+                            <div className="p-5">
+                                <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>{deleteModalConfig.title}</h2>
+                                {deleteModalConfig.message && (
+                                    <p className="text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }}>{deleteModalConfig.message}</p>
+                                )}
+                            </div>
+                            <div className="flex gap-2 p-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                                <button
+                                    onClick={deleteModalConfig.onCancel}
+                                    className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
+                                    style={{ color: 'var(--color-text)', background: 'var(--color-surface2)' }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={deleteModalConfig.onConfirm}
+                                    className="flex-1 py-3 rounded-xl text-sm font-bold shadow-md transition-transform active:scale-95"
+                                    style={{ background: deleteModalConfig.title === 'Error' ? 'var(--color-primary)' : '#ef4444', color: deleteModalConfig.title === 'Error' ? '#000' : '#fff' }}
+                                >
+                                    {deleteModalConfig.title === 'Error' ? 'OK' : 'Confirm'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

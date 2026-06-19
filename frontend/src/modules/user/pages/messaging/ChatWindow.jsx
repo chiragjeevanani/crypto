@@ -605,13 +605,13 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         <div className="flex-1 flex flex-col h-full overflow-hidden" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
             <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b backdrop-blur-md" style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                     {onBack && (
-                        <button onClick={onBack} className="p-1 -ml-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors">
+                        <button onClick={onBack} className="p-1 -ml-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors shrink-0">
                             <ChevronLeft size={24} style={{ color: 'var(--color-text)' }} />
                         </button>
                     )}
-                    <div className="relative">
+                    <div className="relative shrink-0">
                         <Avatar 
                             src={chat.user.avatar} 
                             alt={chat.user.username} 
@@ -621,12 +621,12 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
                         )}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <h4 className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{chat.isGroup ? groupData.name : chat.user.username}</h4>
-                        <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{chat.isGroup ? 'Group Chat' : isOnline ? 'Active now' : 'Offline'}</p>
+                        <p className="text-[10px] truncate" style={{ color: 'var(--color-muted)' }}>{chat.isGroup ? 'Group Chat' : isOnline ? 'Active now' : 'Offline'}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 relative">
+                <div className="flex items-center gap-2 shrink-0 relative ml-2">
                     {!chat?.isGroup && (
                         <>
                             <button 
@@ -890,7 +890,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         value={inputValue}
                         onChange={handleInputChange}
                         placeholder="Message..."
-                        className="flex-1 bg-transparent outline-none text-sm"
+                        className="flex-1 min-w-0 bg-transparent outline-none text-sm"
                         style={{ color: 'var(--color-text)' }}
                     />
                     <div className="flex items-center gap-2 shrink-0">
@@ -925,7 +925,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                     onClick={() => !isUploading && fileInputRef.current?.click()}
                                     disabled={isUploading}
                                 >
-                                    <Paperclip size={19} style={{ color: 'var(--color-text)' }} />
+                                    <Paperclip size={19} className="-rotate-45" style={{ color: 'var(--color-text)' }} />
                                 </button>
                             </>
                         )}

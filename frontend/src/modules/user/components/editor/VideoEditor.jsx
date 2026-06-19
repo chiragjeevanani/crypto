@@ -62,6 +62,22 @@ const VideoEditor = ({ file, onSave }) => {
     };
 
     const handleApply = async () => {
+        // Check if any actual video modification was made
+        const isModified = 
+            secondVideo !== null ||
+            layout !== 'single' ||
+            rotation !== 0 ||
+            musicAudioRef.current !== null || 
+            selectedMusic !== null ||
+            (Math.abs(startTime - 0) > 0.1) || 
+            (Math.abs(endTime - duration) > 0.1 && duration > 0);
+
+        if (!isModified) {
+            // Return just the file to bypass backend processing
+            onSave(file);
+            return;
+        }
+
         const editParams = {
             file,
             secondFile: secondVideo,
