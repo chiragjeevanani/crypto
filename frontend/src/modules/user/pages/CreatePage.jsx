@@ -1881,6 +1881,8 @@ const CreatePage = () => {
       
       const renderVideo = document.createElement('video');
       renderVideo.playsInline = true;
+      renderVideo.muted = true;
+      renderVideo.crossOrigin = 'anonymous';
 
       // Setup Web Audio routing to capture video audio silently
       let audioTrack = null;
@@ -1943,8 +1945,12 @@ const CreatePage = () => {
           const startTime = Date.now();
           const durationMs = (clip.duration || 5) * 1000;
           const img = new Image();
+          img.crossOrigin = 'anonymous';
           img.src = clip.url;
-          await new Promise(resolve => { img.onload = resolve; });
+          await new Promise((resolve, reject) => {
+             img.onload = resolve;
+             img.onerror = () => reject(new Error('Image load failed'));
+          });
           
           const clipStartTimeInGlobalTimeline = clipSequence.slice(0, i).reduce((acc, c) => acc + (c.duration || 5), 0);
 
@@ -1981,16 +1987,22 @@ const CreatePage = () => {
                 ctx.restore();
             });
 
-            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => setTimeout(r, 16));
           }
         } else {
           renderVideo.src = clip.url;
-          await renderVideo.play();
+          renderVideo.currentTime = 0;
+          try {
+             await renderVideo.play();
+          } catch(e) {
+             console.warn('Video play failed:', e);
+          }
           
-          const clipDuration = clip.duration || renderVideo.duration;
+          const clipDuration = clip.duration || renderVideo.duration || 5;
           const clipStartTimeInGlobalTimeline = clipSequence.slice(0, i).reduce((acc, c) => acc + (c.duration || 5), 0);
+          const startRenderTime = Date.now();
           
-          while (renderVideo.currentTime < clipDuration && !renderVideo.ended) {
+          while ((Date.now() - startRenderTime) / 1000 < clipDuration && !renderVideo.ended) {
             const globalTime = clipStartTimeInGlobalTimeline + renderVideo.currentTime;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2022,7 +2034,7 @@ const CreatePage = () => {
                 ctx.restore();
             });
 
-            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => setTimeout(r, 16));
           }
           renderVideo.pause();
         }
@@ -4029,20 +4041,24 @@ const CreatePage = () => {
               placeholder="Describe your post, add hashtags, or mention creators that inspired you"
               className="min-h-[110px] flex-1 resize-none border-none bg-transparent text-[15px] outline-none placeholder:text-black/35"
             />
-            <button
-              type="button"
-              onClick={() => {}}
-              className="relative h-[110px] w-[82px] overflow-hidden rounded-[6px] border border-black/10"
-            >
-              {previewUrl ? (
-                <video src={previewUrl} className="h-full w-full object-cover" />
-              ) : (
-                selectedMedia.image && <img src={selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
-              )}
-              <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
-                Select cover
-              </span>
-            </button>
+            {(previewUrl || selectedMedia.image) && (
+              <button
+                type="button"
+                onClick={() => {}}
+                className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
+              >
+                {(videoFile?.type?.startsWith('image/') || selectedMedia.image) ? (
+                  <img src={previewUrl || selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
+                ) : (
+                  <video src={previewUrl} className="h-full w-full object-cover" />
+                )}
+                {!(videoFile?.type?.startsWith('image/') || selectedMedia.image) && previewUrl && (
+                  <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
+                    Select cover
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           <div className="mt-4 flex items-center gap-2">

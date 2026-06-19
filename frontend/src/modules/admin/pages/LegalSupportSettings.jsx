@@ -9,6 +9,7 @@ export default function LegalSupportSettings() {
     const [config, setConfig] = useState({
         termsAndConditions: '',
         privacyPolicy: '',
+        nftTermsAndConditions: '',
         supportEmail: '',
         supportMobile: '',
         faqs: []
@@ -29,6 +30,7 @@ export default function LegalSupportSettings() {
                 setConfig({
                     termsAndConditions: c.termsAndConditions || '',
                     privacyPolicy: c.privacyPolicy || '',
+                    nftTermsAndConditions: c.nftTermsAndConditions || '',
                     supportEmail: c.supportEmail || '',
                     supportMobile: c.supportMobile || '',
                     faqs: c.faqs || []
@@ -110,6 +112,16 @@ export default function LegalSupportSettings() {
                         value={config.privacyPolicy}
                         onChange={e => setConfig({...config, privacyPolicy: e.target.value})}
                         placeholder="Enter privacy policy text..."
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold">NFT Terms & Conditions</label>
+                    <textarea 
+                        className="w-full bg-bg border border-border rounded-lg p-3 text-sm min-h-[150px] outline-none focus:ring-1 focus:ring-primary/50"
+                        value={config.nftTermsAndConditions}
+                        onChange={e => setConfig({...config, nftTermsAndConditions: e.target.value})}
+                        placeholder="Enter terms and conditions specifically for NFT creation..."
                     />
                 </div>
             </div>

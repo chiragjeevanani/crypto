@@ -131,7 +131,8 @@ exports.getSuggestedReels = async (req, res) => {
     // Suggested reels: Recent approved videos.
     let posts = await Post.find({
       status: "approved",
-      "media.type": "video"
+      "media.type": "video",
+      isNFT: { $ne: true }
     })
       .sort({ createdAt: -1 })
       .limit(10)
@@ -140,7 +141,8 @@ exports.getSuggestedReels = async (req, res) => {
 
     if (posts.length === 0) {
       posts = await Post.find({
-        "media.type": "video"
+        "media.type": "video",
+        isNFT: { $ne: true }
       })
         .sort({ createdAt: -1 })
         .limit(10)

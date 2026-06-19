@@ -45,7 +45,8 @@ exports.getReelsFeed = async (req, res) => {
       Post.find({ 
         status: "approved", 
         isPublished: true,
-        "media.type": "video" 
+        "media.type": "video",
+        isNFT: { $ne: true }
       }).sort({ createdAt: -1 }).limit(200)
     ).exec();
     const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
