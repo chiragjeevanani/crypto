@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { MoreHorizontal, Maximize2, X } from 'lucide-react'
 import TaskCard from '../components/tasks/TaskCard'
 import CampaignSkeleton from '../components/feed/CampaignSkeleton'
 import ReelSkeleton from '../components/feed/ReelSkeleton'
@@ -80,6 +81,8 @@ export default function TasksPage() {
     const [activeNftPostIndex, setActiveNftPostIndex] = useState(null)
     const [activePreviewNft, setActivePreviewNft] = useState(null)
     const [searchQuery, setSearchQuery] = useState('')
+    const [activeDropdownId, setActiveDropdownId] = useState(null)
+    const [fullScreenMedia, setFullScreenMedia] = useState(null)
 
     const { buyNft, addNftEarning } = useWalletStore()
     const { profile } = useUserStore()
@@ -876,7 +879,19 @@ export default function TasksPage() {
                                             />
                                         )}
                                         {/* Subtle overlay on hover */}
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFullScreenMedia({
+                                                    url: nft.media?.url || nft.mediaUrl || nft.thumbnail || '/person.png',
+                                                    type: nft.media?.type === 'video' || nft.mediaType === 'video' ? 'video' : 'image'
+                                                });
+                                            }}
+                                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/70 hover:scale-110"
+                                        >
+                                            <Maximize2 size={18} />
+                                        </button>
                                         {/* Status badge */}
                                         {nft.postStatus === 'pending' && (
                                             <div
@@ -906,12 +921,69 @@ export default function TasksPage() {
 
                                     {/* ── Card Body ── */}
                                     <div className="p-3.5 flex flex-col gap-1.5">
-                                        <p
-                                            className="text-[14px] font-bold truncate leading-tight group-hover:text-[var(--color-primary)] transition-colors duration-300"
-                                            style={{ color: 'var(--color-text)' }}
-                                        >
-                                            {nft.title}
-                                        </p>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p
+                                                className="text-[14px] font-bold truncate leading-tight group-hover:text-[var(--color-primary)] transition-colors duration-300 flex-1"
+                                                style={{ color: 'var(--color-text)' }}
+                                            >
+                                                {nft.title}
+                                            </p>
+                                            {isOwnerOrCreator && (
+                                                <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        onClick={() => setActiveDropdownId(activeDropdownId === nft.id ? null : nft.id)}
+                                                        className="p-1 -mr-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                                                        style={{ color: 'var(--color-muted)' }}
+                                                    >
+                                                        <MoreHorizontal size={18} />
+                                                    </button>
+                                                    <AnimatePresence>
+                                                        {activeDropdownId === nft.id && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-40" onClick={() => setActiveDropdownId(null)} />
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, scale: 0.95, transformOrigin: 'top right' }}
+                                                                    animate={{ opacity: 1, scale: 1 }}
+                                                                    exit={{ opacity: 0, scale: 0.95 }}
+                                                                    className="absolute right-0 top-full mt-1 w-32 rounded-xl shadow-xl overflow-hidden z-50 border py-1"
+                                                                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                                                >
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveDropdownId(null);
+                                                                            setModalConfig({
+                                                                                title: 'Delete NFT',
+                                                                                message: 'Are you sure you want to delete this NFT?',
+                                                                                onConfirm: async () => {
+                                                                                    try {
+                                                                                        await postService.deletePost(nft.id || nft.collectibleId);
+                                                                                        setModalConfig(null);
+                                                                                        fetchNFTs();
+                                                                                    } catch (err) {
+                                                                                        setModalConfig({
+                                                                                            title: 'Error',
+                                                                                            message: 'Failed to delete NFT.',
+                                                                                            onConfirm: () => setModalConfig(null),
+                                                                                            onCancel: () => setModalConfig(null)
+                                                                                        });
+                                                                                    }
+                                                                                },
+                                                                                onCancel: () => setModalConfig(null)
+                                                                            });
+                                                                        }}
+                                                                        className="w-full px-4 py-2 text-[12px] font-bold text-left hover:bg-[rgba(239,68,68,0.1)] transition-colors"
+                                                                        style={{ color: '#ef4444' }}
+                                                                    >
+                                                                        Delete NFT
+                                                                    </button>
+                                                                </motion.div>
+                                                            </>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* Price */}
                                         <div className="flex items-center gap-1.5">
@@ -1039,6 +1111,7 @@ export default function TasksPage() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="w-full max-w-sm overflow-hidden rounded-2xl p-5 shadow-xl"
                                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                onClick={(e) => e.stopPropagation()}
                             >
                                 <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--color-text)' }}>
                                     {modalConfig.title}
@@ -1165,6 +1238,44 @@ export default function TasksPage() {
                             </motion.div>
                         </div>
                     )}
+
+                    {/* Full Screen Media Viewer */}
+                    <AnimatePresence>
+                        {fullScreenMedia && (
+                            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={() => setFullScreenMedia(null)}>
+                                <button 
+                                    onClick={() => setFullScreenMedia(null)}
+                                    className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    className="w-full h-full max-w-5xl max-h-screen p-4 flex items-center justify-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {fullScreenMedia.type === 'video' ? (
+                                        <video 
+                                            src={fullScreenMedia.url} 
+                                            className="w-full h-full object-contain" 
+                                            controls 
+                                            autoPlay 
+                                            playsInline 
+                                            controlsList="nodownload"
+                                        />
+                                    ) : (
+                                        <img 
+                                            src={fullScreenMedia.url} 
+                                            className="max-w-full max-h-full object-contain rounded-lg" 
+                                            alt="Preview" 
+                                        />
+                                    )}
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
 
                 </div>
             )}

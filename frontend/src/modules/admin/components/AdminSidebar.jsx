@@ -124,7 +124,6 @@ const menuGroups = [
                 path: '/admin/settings',
                 children: [
                     { label: 'Financial', path: '/admin/settings/financial' },
-                    { label: 'Security', path: '/admin/settings/security' },
                     { label: 'Promotion', path: '/admin/settings/promotion' },
                     { label: 'Network', path: '/admin/settings/network' },
                     { label: 'Legal & Support', path: '/admin/settings/legal' }

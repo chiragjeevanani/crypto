@@ -33,7 +33,6 @@ import VotingManagement from './modules/admin/pages/VotingManagement'
 import FraudMonitoring from './modules/admin/pages/FraudMonitoring'
 import PlatformSettings from './modules/admin/pages/PlatformSettings'
 import FinancialRules from './modules/admin/pages/FinancialRules'
-import SecurityAccess from './modules/admin/pages/SecurityAccess'
 import NetworkConfig from './modules/admin/pages/NetworkConfig'
 import LegalSupportSettings from './modules/admin/pages/LegalSupportSettings'
 import WalletOverview from './modules/admin/pages/WalletOverview'
@@ -205,7 +204,6 @@ export default function App() {
               {/* platform settings now split into discrete sub‑pages */}
               <Route path="settings" element={<PlatformSettings />} />
               <Route path="settings/financial" element={<FinancialRules />} />
-              <Route path="settings/security" element={<SecurityAccess />} />
               <Route path="settings/promotion" element={<PromotionSettingsPage />} />
               <Route path="settings/network" element={<NetworkConfig />} />
               <Route path="settings/legal" element={<LegalSupportSettings />} />

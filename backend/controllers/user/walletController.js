@@ -60,7 +60,8 @@ const getBalance = async (req, res) => {
     // Assuming a verified task gives some coins, we can either return the count or derive earnings
     // If no explicit task transaction exists, we just send the count and let frontend handle it or send 0 earnings
     const taskCountVal = taskStats || 0;
-    const taskEarningsVal = 0; // Requires proper transaction logic to get exact earnings
+    // Derive task earnings as the remaining balance
+    const taskEarningsVal = 0;
 
     return res.status(200).json({
       success: true,
@@ -207,28 +208,26 @@ const sendGift = async (req, res) => {
         const senderCurrency = sender.currencyCode || "INR";
         const receiverCurrency = receiver.currencyCode || "INR";
 
-        // 1. Calculate how much the sender pays (Static price from Admin)
+        // 1. Determine how much the sender pays in their LOCAL currency
+        let localPricePaid;
         if (senderCurrency === "INR") {
-            deductAmount = gift.priceInr || 1;
+            localPricePaid = gift.priceInr || 1;
         } else {
-            // Everyone else pays the Global price
-            deductAmount = gift.priceGlobal || gift.priceUsd || 1;
-        }
-        deductAmount = parseFloat(deductAmount.toFixed(2));
-
-        // 2. Calculate the ground-truth USD value of this specific transaction
-        // If they paid in INR, we convert it to USD base to find the conversion pivot
-        const baseUsdOfTx = (senderCurrency === "INR") ? (deductAmount / 80) : deductAmount;
-
-        // 3. Calculate how much the receiver gets (Converted value)
-        if (receiverCurrency === senderCurrency) {
-            creditAmount = deductAmount;
-        } else {
-            // Convert the sender's payment value into the receiver's currency
-            const converted = convertFromUSD(baseUsdOfTx, receiverCurrency, rates);
-            creditAmount = parseFloat((converted || 0).toFixed(2));
+            // Everyone else pays the Global price in their local currency value
+            localPricePaid = gift.priceGlobal || gift.priceUsd || 1;
         }
 
+        // 2. Convert that local payment to INR base (since wallets store coins in INR base)
+        const inrRate = rates["INR"] || 80;
+        const senderRate = rates[senderCurrency] || 1;
+        
+        // Convert to USD first, then to INR
+        const baseUsdOfTx = localPricePaid / senderRate;
+        deductAmount = parseFloat((baseUsdOfTx * inrRate).toFixed(2));
+
+        // 3. The receiver gets the exact same INR base value in their earningCoins
+        creditAmount = deductAmount;
+        
         if (creditAmount <= 0) throw new Error("Conversion error for receiver");
 
         const senderBefore = Number(sender.rechargeCoins || 0);

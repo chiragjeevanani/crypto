@@ -168,9 +168,11 @@ export const useWalletStore = create((set, get) => ({
                 const localCurrency = tx.meta?.localCurrency ?? null;
 
                 // INR amount: from tx.amount (deposit/withdrawal) or coins/coinRate (gift)
-                const rsAmount = tx.amount !== undefined && tx.amount !== null 
+                const isFiatTx = tx.type === 'deposit' || tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
+                const localRate = Number(get().walletRates?.localRate || 1);
+                const rsAmount = isFiatTx && tx.amount !== undefined && tx.amount !== null 
                     ? Number(tx.amount) 
-                    : (coins / coinRate)
+                    : ((coins / coinRate) * localRate)
 
                 return {
                     id: tx._id || tx.id,
@@ -252,11 +254,15 @@ export const useWalletStore = create((set, get) => ({
         const parsed = Number(amount || 0)
         const state = get()
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Invalid gift amount.' }
-        if (state.inrWallet < parsed) {
-            return { ok: false, message: 'Not enough INR balance.', error: 'insufficient_balance' }
+        
+        const localRate = state.walletRates?.localRate || 1
+        const parsedInInr = parsed / localRate
+
+        if (state.inrWallet < parsedInInr) {
+            return { ok: false, message: 'Not enough balance.', error: 'insufficient_balance' }
         }
         set((prev) => ({
-            inrWallet: round2(prev.inrWallet - parsed),
+            inrWallet: round2(prev.inrWallet - parsedInInr),
             transactions: [
                 {
                     id: `tx_${Date.now()}`,
@@ -277,14 +283,17 @@ export const useWalletStore = create((set, get) => ({
         const coinsNeeded = Number(gift.coins || gift.price || 0)
         const giftIdForBackend = gift.id
 
-        if (state.inrWallet < coinsNeeded) {
-            return { ok: false, message: 'Not enough INR balance.', error: 'insufficient_balance' }
+        const localRate = state.walletRates?.localRate || 1
+        const coinsNeededInInr = coinsNeeded / localRate
+
+        if (state.inrWallet < coinsNeededInInr) {
+            return { ok: false, message: 'Not enough balance.', error: 'insufficient_balance' }
         }
 
         // Optimistic update
         set((prev) => ({
-            inrWallet: round2(prev.inrWallet - coinsNeeded),
-            balance: round2(prev.balance - coinsNeeded)
+            inrWallet: round2(prev.inrWallet - coinsNeededInInr),
+            balance: round2(prev.balance - coinsNeededInInr)
         }))
 
         try {
@@ -308,7 +317,11 @@ export const useWalletStore = create((set, get) => ({
         const parsed = Number(amount || 0)
         const state = get()
         if (!Number.isFinite(parsed) || parsed <= 0) return { ok: false, message: 'Invalid NFT price.' }
-        if (state.inrWallet < parsed) return { ok: false, message: 'Not enough INR wallet balance.' }
+        
+        const localRate = state.walletRates?.localRate || 1
+        const parsedInInr = parsed / localRate
+
+        if (state.inrWallet < parsedInInr) return { ok: false, message: 'Not enough wallet balance.' }
         
         try {
             await walletService.buyPostNFT(postId)

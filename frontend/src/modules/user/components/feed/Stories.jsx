@@ -1350,19 +1350,24 @@ export default function Stories() {
                                         setIsEditorOpen(false);
                                         
                                         if (editData instanceof File) {
-                                            // Image Editor
                                             if (storyMedia && storyMedia.startsWith('blob:')) {
                                                 URL.revokeObjectURL(storyMedia);
                                             }
                                             const url = URL.createObjectURL(editData);
                                             setStoryMedia(url);
                                             setStoryFile(editData);
-                                            setIsVideoPreview(false);
-                                            setImageScale(1);
-                                            setImagePosition({ x: 0, y: 0 });
+                                            
+                                            // Check if it's a video file being passed directly
+                                            if (editData.type && editData.type.startsWith('video/')) {
+                                                setIsVideoPreview(true);
+                                            } else {
+                                                setIsVideoPreview(false);
+                                                setImageScale(1);
+                                                setImagePosition({ x: 0, y: 0 });
+                                            }
                                             setUploadError('');
                                         } else {
-                                            // Video Editor
+                                            // Video Editor Backend Processing
                                             setIsProcessing(true);
                                             try {
                                                 const res = await videoService.processVideo({
@@ -1370,7 +1375,9 @@ export default function Stories() {
                                                     secondFile: editData.secondFile,
                                                     trim: editData.trim,
                                                     layout: editData.layout,
-                                                    rotation: editData.rotation
+                                                    rotation: editData.rotation,
+                                                    splitRatio: editData.splitRatio,
+                                                    music: editData.music
                                                 });
                                                 const response = await fetch(res.url);
                                                 const blob = await response.blob();

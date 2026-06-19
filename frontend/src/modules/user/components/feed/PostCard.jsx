@@ -452,11 +452,13 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                             ref={videoRef}
                             src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
                             className="w-full h-full object-cover"
-                            style={{ filter: post.filter || 'none' }}
+                            style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none' }}
                             loop
                             playsInline
                             muted={isMuted}
                             preload="auto"
+                            controlsList="nodownload"
+                            onContextMenu={(e) => e.preventDefault()}
                             poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                             crossOrigin="anonymous"
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
@@ -520,8 +522,9 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                             src={optimizeCloudinaryUrl(post.media?.url, { width: 1080, quality: '80' })}
                             alt="post media"
                             className="w-full h-full object-cover"
-                            style={{ filter: post.filter || 'none' }}
+                            style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none' }}
                             loading="lazy"
+                            onContextMenu={(e) => e.preventDefault()}
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
                         <AnimatePresence>
