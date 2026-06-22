@@ -371,18 +371,18 @@ export default function ProfilePage() {
                         setSettingsMode('menu')
                         setSettingsOpen(true)
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
+                    className="flex items-center justify-center p-2 rounded-full cursor-pointer"
                     style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                 >
-                    <Settings size={13} /> Settings
+                    <Settings size={15} />
                 </motion.button>
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={toggleDarkMode}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
+                    className="flex items-center justify-center p-2 rounded-full cursor-pointer"
                     style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                 >
-                    {darkMode ? <Sun size={13} /> : <Moon size={13} />}
+                    {darkMode ? <Sun size={15} /> : <Moon size={15} />}
                 </motion.button>
             </div>
 

@@ -2,9 +2,11 @@ import { Star, Check, Share2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCount, useUserCurrency } from '../../utils/formatCurrency'
 import Avatar from '../shared/Avatar'
+import { useNavigate } from 'react-router-dom'
 
 export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpenFollowing }) {
     const { format: formatLocal } = useUserCurrency()
+    const navigate = useNavigate()
     return (
         <div className="px-4 pt-5 pb-4">
             {/* Avatar + stats */}
@@ -89,7 +91,8 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
             {/* Earnings summary */}
             <div className="mt-3 flex gap-2">
                 <div
-                    className="flex-1 px-4 py-2.5 rounded-xl flex items-center justify-between"
+                    onClick={() => navigate('/wallet')}
+                    className="flex-1 px-4 py-2.5 rounded-xl flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
                     style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
                 >
                     <span className="text-[10px] font-bold uppercase tracking-tight text-muted">Earned</span>

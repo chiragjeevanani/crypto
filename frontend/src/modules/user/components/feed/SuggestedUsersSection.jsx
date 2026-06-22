@@ -25,7 +25,6 @@ export default function SuggestedUsersSection({ title = "Suggested for you" }) {
         <div className="mt-4 mb-8">
             <div className="flex items-center justify-between px-4 mb-4">
                 <span className="text-sm font-bold" style={{ color: 'var(--color-text-dark, #000)' }}>{title}</span>
-                <button className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>See all</button>
             </div>
             <div className="flex gap-4 overflow-x-auto px-4 pb-4 hide-scrollbar">
                 {suggestedUsers.map(user => (

@@ -42,12 +42,14 @@ import {
   IoVolumeHighOutline,
 } from 'react-icons/io5';
 import { FiScissors } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAppContent } from '../../../hooks/useAppContent';
 import { useAuth } from '../../../context/AuthContext';
 import reelService from '../../../services/reelService';
 import userService from '../../../services/userService';
+import { businessService } from '../services/businessService';
+import { loadRazorpayScript } from '../../../utils/razorpayLoader';
 import { followService } from '../services/followService';
 import audioService from '../../../services/audioService';
 const SOUND_FAVORITES_KEY = 'soundFavorites';
@@ -70,6 +72,9 @@ const createInitialPostState = () => ({
   isBusiness: false,
   dailyBudget: 99,
   durationDays: 10,
+  ctaType: 'Shop Now',
+  redirectType: 'whatsapp',
+  whatsappNumber: '',
 });
 
 const formatElapsed = (value) => `00:${String(Math.max(0, Math.round(value))).padStart(2, '0')}`;
@@ -575,6 +580,7 @@ const TimelineThumbnail = memo(({ src, isVideo, i, videoDuration }) => {
 
 const CreatePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode } = useTheme();
   const { config } = useAppContent();
   const { user } = useAuth();
@@ -608,15 +614,62 @@ const CreatePage = () => {
   const createFlow = config?.createFlow || {};
   const DURATION_OPTIONS = createFlow.durations || ['15s', '30s', '60s'];
   const SPEED_OPTIONS = createFlow.speeds || ['0.3x', '0.5x', '1x', '2x', '3x'];
-  const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
+const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const CREATE_GALLERY_ITEMS = createFlow.galleryItems || [];
   const CREATE_FILTER_GROUPS = (createFlow.filters && createFlow.filters.length > 0) ? createFlow.filters : [
     {
       id: 'instacam',
-      label: 'Instacam',
-      filters: Object.keys(FILTER_PRESETS)
+      label: 'Insta Filters',
+      filters: []
     }
   ];
+
+  useEffect(() => {
+      const params = new URLSearchParams(location.search);
+      const status = params.get('status');
+      const postId = params.get('postId');
+      const sessionId = params.get('session_id');
+      
+      if (status === 'success' && postId && sessionId) {
+          const verifyStripe = async () => {
+              setUploading(true);
+              showToast('Verifying Stripe payment...');
+              try {
+                  const verifyRes = await businessService.verifyPayment({
+                      postId,
+                      sessionId
+                  });
+                  if (verifyRes.success) {
+                      showToast('Promotion payment successful! Your post has been submitted for admin review.');
+                      clearVideoCache();
+                      localStorage.removeItem('create_stageStack');
+                      localStorage.removeItem('create_recordStatus');
+                      localStorage.removeItem('create_recordedSeconds');
+                      setTimeout(() => {
+                          navigate('/', { replace: true });
+                      }, 2500);
+                  }
+              } catch (err) {
+                  showToast('Payment verification failed.');
+                  setUploading(false);
+              }
+          };
+          verifyStripe();
+      } else if (status === 'cancelled' && postId) {
+          showToast('Payment cancelled. Post created as draft.');
+          businessService.failPayment(postId, 'User cancelled').catch(console.error);
+          
+          clearVideoCache();
+          localStorage.removeItem('create_stageStack');
+          localStorage.removeItem('create_recordStatus');
+          localStorage.removeItem('create_recordedSeconds');
+          
+          setTimeout(() => {
+              navigate('/', { replace: true });
+          }, 1500);
+      }
+  }, [location.search, navigate]);
+
   const CREATE_SOUND_LIBRARY = createFlow.sounds || [];
   const CREATE_LOCATION_CHIPS = createFlow.locations?.chips || [];
   const CREATE_LOCATION_RESULTS = createFlow.locations?.results || [];
@@ -1203,10 +1256,10 @@ const CreatePage = () => {
   } ${isFiltersTrayOpen ? 'pt-7' : 'pt-12'}`;
   const themedDurationRowClass = `${isFiltersTrayOpen ? 'mb-4' : 'mb-5'} flex items-center justify-center gap-5 text-[12px] text-white/80`;
   const getDurationButtonClass = (isSelected) =>
-    `rounded-full px-2 py-1 transition-colors ${
+    `rounded-full px-2 py-1 transition-colors drop-shadow-md ${
       isSelected
         ? 'bg-white text-black font-semibold shadow-sm'
-        : 'text-white/75 hover:text-white'
+        : 'text-white font-medium hover:text-white/90'
     }`;
   
   const formatDuration = (seconds) => {
@@ -2252,15 +2305,114 @@ const CreatePage = () => {
             formData.append('dailyBudget', postState.dailyBudget?.toString() || '99');
             formData.append('duration', postState.durationDays?.toString() || '10');
             formData.append('promoEnabled', 'true');
+            formData.append('ctaType', postState.ctaType || 'Shop Now');
+            formData.append('redirectType', postState.redirectType || 'whatsapp');
+            formData.append('whatsappNumber', postState.whatsappNumber || '');
         }
 
         showToast('Finalizing post...');
         const response = await reelService.uploadReel(formData);
         
-        if (response) {
+        if (response && response.post) {
+            const newPost = response.post;
+            
+            if (postState.isBusiness) {
+                showToast('Initiating payment...');
+                try {
+                    const initRes = await businessService.initiatePayment(newPost.id);
+                    if (initRes.success && initRes.data) {
+                        const { gateway, orderId, keyId, amount, currency } = initRes.data;
+                        
+                        if (gateway === 'razorpay' && orderId) {
+                            const isLoaded = await loadRazorpayScript();
+                            if (isLoaded && typeof window.Razorpay !== 'undefined') {
+                                const options = {
+                                    key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID, 
+                                    amount: amount ? amount * 100 : ((postState.dailyBudget || 99) * (postState.durationDays || 10) * 100),
+                                    currency: currency || "INR",
+                                    name: "KnQ Promotion",
+                                    description: `Promotion for Reel`,
+                                    order_id: orderId,
+                                    handler: async function (paymentRes) {
+                                        try {
+                                            showToast('Verifying payment...');
+                                            const verifyRes = await businessService.verifyPayment({
+                                                postId: newPost.id,
+                                                paymentId: paymentRes.razorpay_payment_id,
+                                                orderId: paymentRes.razorpay_order_id,
+                                                signature: paymentRes.razorpay_signature
+                                            });
+
+                                            if (verifyRes.success) {
+                                                showToast('Promotion payment successful! Your post has been submitted for admin review.');
+                                                setTimeout(() => {
+                                                    navigate('/');
+                                                    setRecordStatus('idle');
+                                                }, 2500);
+                                            }
+                                        } catch (err) {
+                                            showToast('Payment verification failed.');
+                                        } finally {
+                                            setUploading(false);
+                                        }
+                                    },
+                                    prefill: {
+                                        name: user?.name || user?.username || "",
+                                        email: user?.email || "",
+                                        contact: user?.phone || ""
+                                    },
+                                    theme: { color: "#fe2c55" },
+                                    modal: {
+                                        ondismiss: function() {
+                                            setUploading(false);
+                                            showToast('Payment cancelled. Post created as draft.');
+                                            businessService.failPayment(newPost.id, 'User cancelled').catch(console.error);
+                                        }
+                                    }
+                                };
+                                
+                                const rzp = new window.Razorpay(options);
+                                rzp.on('payment.failed', function (paymentRes) {
+                                    setUploading(false);
+                                    showToast('Payment failed.');
+                                    businessService.failPayment(newPost.id, paymentRes.error.description).catch(console.error);
+                                });
+                                rzp.open();
+                                return; // Prevent navigating away until payment completes
+                            }
+                        } else if (gateway === 'stripe' && initRes.data.sessionUrl) {
+                            window.location.href = initRes.data.sessionUrl;
+                            return;
+                        }
+                    }
+                } catch (initErr) {
+                    console.error("Payment initiation failed:", initErr);
+                    showToast("Payment initiation failed. Post saved as draft.");
+                    setUploading(false);
+                    
+                    // Clear persistence cache
+                    clearVideoCache();
+                    localStorage.removeItem('create_stageStack');
+                    localStorage.removeItem('create_recordStatus');
+                    localStorage.removeItem('create_recordedSeconds');
+                    
+                    setTimeout(() => {
+                        navigate('/');
+                        // Reset state
+                        setRecordStatus('idle');
+                        setVideoFile(null);
+                        setPreviewUrl(null);
+                        setOverlayText('');
+                        setActiveStickers([]);
+                        setSelectedFilter('Normal');
+                    }, 2500);
+                    return;
+                }
+            }
+
             if (postState.isNFT) {
                 showToast('Your NFT has been submitted for review. It will show to other users after approval.');
-            } else {
+            } else if (!postState.isBusiness) {
                 showToast('Reel published successfully!');
             }
             
@@ -4213,6 +4365,109 @@ const CreatePage = () => {
               />
             </div>
 
+            {postState.isBusiness && (
+              <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+                <div className={`rounded-2xl p-4 ${isDarkMode ? 'bg-[#17181c] border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Daily Budget</label>
+                        <span className="font-bold">₹{postState.dailyBudget || 99}</span>
+                      </div>
+                      <input 
+                        type="range"
+                        min="50"
+                        max="10000"
+                        step="50"
+                        value={postState.dailyBudget || 99}
+                        onChange={(e) => setPostState(s => ({ ...s, dailyBudget: parseInt(e.target.value) || 50 }))}
+                        className="w-full accent-[#fe2c55]"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Duration (Days)</label>
+                        <span className="font-bold">{postState.durationDays || 10} Days</span>
+                      </div>
+                      <input 
+                        type="range"
+                        min="1"
+                        max="30"
+                        value={postState.durationDays || 10}
+                        onChange={(e) => setPostState(s => ({ ...s, durationDays: parseInt(e.target.value) || 1 }))}
+                        className="w-full accent-[#fe2c55]"
+                      />
+                    </div>
+                    <div className="pt-3 border-t border-gray-200 dark:border-white/10 flex justify-between items-center">
+                      <span className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Total Estimated Spend</span>
+                      <span className="text-[18px] font-bold text-[#fe2c55]">₹{(postState.dailyBudget || 99) * (postState.durationDays || 10)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`mt-4 rounded-2xl p-4 ${isDarkMode ? 'bg-[#17181c] border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label className={`block text-[13px] font-medium mb-2 ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Call to Action</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['Shop Now', 'Order Now', 'Contact Us'].map(cta => (
+                          <button
+                            key={cta}
+                            type="button"
+                            onClick={() => setPostState(s => ({ ...s, ctaType: cta }))}
+                            className={`py-2 px-1 rounded-lg text-[12px] font-bold border transition-all ${postState.ctaType === cta ? 'border-[#fe2c55] bg-[#fe2c55]/10 text-[#fe2c55]' : (isDarkMode ? 'border-white/10 bg-black/20 text-white/60' : 'border-gray-200 bg-white text-gray-500')}`}
+                          >
+                            {cta}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className={`block text-[13px] font-medium mb-2 ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Redirect To</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'whatsapp', label: 'WhatsApp' },
+                          { id: 'internal', label: 'In-App Direct' }
+                        ].map(type => (
+                          <button
+                            key={type.id}
+                            type="button"
+                            onClick={() => setPostState(s => ({ ...s, redirectType: type.id }))}
+                            className={`py-2 rounded-lg text-[12px] font-bold border transition-all ${postState.redirectType === type.id ? 'border-[#fe2c55] bg-[#fe2c55]/10 text-[#fe2c55]' : (isDarkMode ? 'border-white/10 bg-black/20 text-white/60' : 'border-gray-200 bg-white text-gray-500')}`}
+                          >
+                            {type.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {postState.redirectType === 'whatsapp' && (
+                      <div>
+                        <label className={`block text-[13px] font-medium mb-2 ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>WhatsApp Number</label>
+                        <input
+                          type="text"
+                          value={postState.whatsappNumber || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^\d+]/g, '');
+                            if (val.length <= 15) {
+                                setPostState(s => ({ ...s, whatsappNumber: val }));
+                            }
+                          }}
+                          placeholder="e.g. +91 9876543210"
+                          className={`w-full px-4 py-3 rounded-xl text-[14px] outline-none border ${isDarkMode ? 'bg-[#25262a] text-white border-white/10' : 'bg-white text-black border-gray-200'}`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <p className={`mt-3 text-[12px] leading-relaxed ${isDarkMode ? 'text-white/40' : 'text-gray-500'}`}>
+                  Boost your content to the business feed. Your promotion will run for the selected duration and budget.
+                </p>
+              </div>
+            )}
+
             <div className="flex flex-col py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -4308,7 +4563,7 @@ const CreatePage = () => {
             disabled={isUploading}
             className={`rounded-[10px] bg-[#fe2c55] py-3 text-[15px] font-semibold text-white active:opacity-80 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {isUploading ? 'Posting...' : 'Post'}
+            {isUploading ? 'Posting...' : (postState.isBusiness ? `Commit & Pay ₹${(postState.dailyBudget || 99) * (postState.durationDays || 10)}` : 'Post')}
           </button>
         </div>
       </div>

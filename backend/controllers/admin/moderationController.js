@@ -72,7 +72,7 @@ exports.getPostById = async (req, res) => {
         paymentStatus: post.paymentStatus || "pending",
         promotion: post.promotion || null,
         createdAt: post.createdAt,
-        status: post.status,
+        status: post.status === "approved" ? "Approved" : post.status === "rejected" ? "Rejected" : "Pending",
         flagReason: "Pending review",
         reportCount: 0,
         aiRiskScore: "—",
@@ -124,6 +124,25 @@ exports.updatePostStatus = async (req, res) => {
     });
 
     await post.save();
+    
+    // Notify User
+    const Notification = require("../../models/Notification");
+    try {
+        await Notification.create({
+            recipientId: post.creator,
+            type: "system",
+            title: approved 
+                ? (post.isBusiness ? "Promotion Approved" : (post.isNFT ? "NFT Approved" : "Post Approved"))
+                : (post.isBusiness ? "Promotion Rejected" : (post.isNFT ? "NFT Rejected" : "Post Rejected")),
+            subtitle: approved 
+                ? (post.isBusiness ? "Your business promotion is now active and visible to users." : (post.isNFT ? "Your NFT is now live on the marketplace." : "Your post has been approved and published."))
+                : `Reason: ${reason || "Does not meet community guidelines."}`,
+            meta: { postId: post._id.toString() }
+        });
+    } catch (notifErr) {
+        console.error("Failed to send moderation notification:", notifErr);
+    }
+
     const baseUrl = getBaseUrl(req);
     return res.status(200).json({
       success: true,

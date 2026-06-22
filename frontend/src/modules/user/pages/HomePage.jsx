@@ -51,7 +51,9 @@ export default function HomePage() {
     const isReels = view === 'reels'
 
     const feedPosts = useMemo(() => {
-        if (postFilter === 'all') return posts
+        if (postFilter === 'all') {
+            return posts.filter(post => post.postType !== 'nft' && !post.isNFT)
+        }
         if (postFilter === 'brand') {
             return posts.filter((post) => {
                 if (post.postType === 'brand' || post.postType === 'campaign_card') return true
@@ -63,7 +65,7 @@ export default function HomePage() {
     }, [posts, postFilter])
 
     const videoPosts = useMemo(
-        () => posts.filter((post) => post.media?.type === 'video'),
+        () => posts.filter((post) => post.media?.type === 'video' && post.postType !== 'nft' && !post.isNFT),
         [posts],
     )
 
@@ -174,9 +176,10 @@ export default function HomePage() {
     }, [currentPostId, posts.length, isReels, fetchSinglePost, reelFeed.length])
 
     const filteredExplore = useMemo(() => {
-        if (!query.trim()) return posts
+        const nonNftPosts = posts.filter(post => post.postType !== 'nft' && !post.isNFT)
+        if (!query.trim()) return nonNftPosts
         const q = query.toLowerCase()
-        return posts.filter(
+        return nonNftPosts.filter(
             (post) =>
                 (post.caption || '').toLowerCase().includes(q) ||
                 (post.creator?.username || '').toLowerCase().includes(q) ||
