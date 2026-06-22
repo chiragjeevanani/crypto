@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "mkdir -p /tmp/mockbin && ln -s /bin/true /tmp/mockbin/xsel && ln -s /bin/true /tmp/mockbin/xclip && export PATH=/tmp/mockbin:$PATH && cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "cd frontend && npm install",
   "framework": "vite",
