@@ -89,6 +89,7 @@ export default function TasksPage() {
     const platformSettings = usePlatformSettings()
 
     const [modalConfig, setModalConfig] = useState(null)
+    const isProcessingRef = useRef(false)
 
     useEffect(() => {
         const fetchRates = async () => {
@@ -1220,12 +1221,18 @@ export default function TasksPage() {
                                     </button>
                                     {modalConfig.type !== 'manage_nft' && (
                                         <button
-                                            onClick={() => {
-                                                if (modalConfig.type === 'prompt') {
-                                                    const val = document.getElementById('prompt-input')?.value;
-                                                    modalConfig.onConfirm(val);
-                                                } else {
-                                                    modalConfig.onConfirm();
+                                            onClick={async () => {
+                                                if (isProcessingRef.current) return;
+                                                isProcessingRef.current = true;
+                                                try {
+                                                    if (modalConfig.type === 'prompt') {
+                                                        const val = document.getElementById('prompt-input')?.value;
+                                                        await modalConfig.onConfirm(val);
+                                                    } else {
+                                                        await modalConfig.onConfirm();
+                                                    }
+                                                } finally {
+                                                    isProcessingRef.current = false;
                                                 }
                                             }}
                                             className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
