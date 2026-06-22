@@ -105,7 +105,7 @@ const initiateRecharge = async (req, res) => {
                 coins = Math.round((amount / targetRate) * inrRate);
             }
             
-            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+            const frontendUrl = req.headers.origin || process.env.FRONTEND_URL || "http://localhost:5173";
 
             // Create a pending transaction FIRST to get the ID for redirect URLs
             const transaction = await WalletTransaction.create({
