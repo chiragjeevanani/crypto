@@ -406,14 +406,16 @@ const buyPostNFT = async (req, res) => {
     // Credit coins to creator (minus platform commission)
     const commissionPct = 5; // Standard 5% commission, adjustable via PlatformSettings if needed
     const creatorShare = Math.round(price * (100 - commissionPct) / 100);
-    await User.findByIdAndUpdate(post.creator._id, { $inc: { earningCoins: creatorShare } });
+    if (post.creator && post.creator._id) {
+      await User.findByIdAndUpdate(post.creator._id, { $inc: { earningCoins: creatorShare } });
+    }
 
     // Create ownership record
     const collectibleId = await generateCollectibleId();
     const ownership = await CollectibleOwnership.create({
       postId: post._id,
       collectibleId,
-      fromUserId: post.creator._id,
+      fromUserId: post.creator ? post.creator._id : null,
       toUserId: buyerId,
       salePrice: price,
       transferType: "initial_sale",
@@ -711,7 +713,8 @@ const buyResaleNFT = async (req, res) => {
 
     await User.findByIdAndUpdate(sellerId, { $inc: { earningCoins: sellerEarning } });
     if (creatorId) {
-      await User.findByIdAndUpdate(creatorId, { $inc: { earningCoins: royalty } });
+      const actualCreatorId = creatorId._id || creatorId;
+      await User.findByIdAndUpdate(actualCreatorId, { $inc: { earningCoins: royalty } });
     }
 
     // Update ownership
