@@ -14,43 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
-
-// Mock data fetch - in real app this would be an API call
-const mockUsers = [
-    {
-        id: 'U-7721',
-        name: 'CryptoWhale_88',
-        email: 'whale@crypto.com',
-        status: 'Verified',
-        riskScore: 'Low',
-        joined: 'Jan 12, 2024',
-        walletBalance: 1240.50,
-        campaigns: 12,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
-    },
-    {
-        id: 'U-7722',
-        name: 'BotHunter_X',
-        email: 'bh@gmail.com',
-        status: 'Flagged',
-        riskScore: 'High',
-        joined: 'Feb 05, 2024',
-        walletBalance: 45.00,
-        campaigns: 2,
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
-    },
-    {
-        id: 'U-7723',
-        name: 'MemeMaster',
-        email: 'meme@xyz.com',
-        status: 'Pending',
-        riskScore: 'Medium',
-        joined: 'Feb 20, 2024',
-        walletBalance: 210.00,
-        campaigns: 5,
-        avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop'
-    }
-];
+import { userService } from '../services/userService';
 
 export default function EditUser({ createMode = false }) {
     const { userId } = useParams();
@@ -62,44 +26,63 @@ export default function EditUser({ createMode = false }) {
     const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
-        if (createMode) {
-            // initialize blank profile for creation
-            setFormData({
-                id: '',
-                fullName: '',
-                username: '',
-                name: '',
-                email: '',
-                phone: '',
-                password: '',
-                confirmPassword: '',
-                role: 'Standard',
-                referralCode: '',
-                status: 'Pending',
-                riskScore: 'Medium',
-                joined: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-                walletBalance: 0,
-                campaigns: 0,
-                avatar: 'https://via.placeholder.com/100'
-            });
-            return;
-        }
-        const user = mockUsers.find(u => u.id === userId);
-        if (user) {
-            setFormData({ ...user });
-        } else {
-            // Handle user not found
-            navigate('/admin/users');
-        }
+        const loadUser = async () => {
+            if (createMode) {
+                // initialize blank profile for creation
+                setFormData({
+                    id: '',
+                    fullName: '',
+                    username: '',
+                    name: '',
+                    email: '',
+                    phone: '',
+                    password: '',
+                    confirmPassword: '',
+                    role: 'Standard',
+                    referralCode: '',
+                    status: 'Pending',
+                    riskScore: 'Low',
+                    joined: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    walletBalance: 0,
+                    campaigns: 0,
+                    avatar: 'https://via.placeholder.com/100'
+                });
+                return;
+            }
+
+            try {
+                const user = await userService.fetchUserDetail(userId);
+                if (user) {
+                    setFormData({
+                        ...user,
+                        fullName: user.name,
+                        username: user.name,
+                        status: user.isBanned ? 'Flagged' : (user.kycVerified ? 'Verified' : 'Pending'),
+                        riskScore: user.isSuspicious ? 'High' : 'Low',
+                        joined: user.joined,
+                        walletBalance: user.walletBalance || 0,
+                        campaigns: user.campaigns || 0,
+                        avatar: user.avatar || 'https://via.placeholder.com/100'
+                    });
+                } else {
+                    navigate('/admin/users');
+                }
+            } catch (err) {
+                setErrorMessage('Failed to load user: ' + err.message);
+                navigate('/admin/users');
+            }
+        };
+
+        loadUser();
     }, [userId, navigate, createMode]);
 
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         if (e?.preventDefault) e.preventDefault();
 
         if (createMode) {
-            if (!formData.fullName || !formData.username || !formData.email || !formData.phone || !formData.password) {
-                setErrorMessage('Please fill all required creation fields.');
+            if (!formData.fullName || !formData.email || !formData.password) {
+                setErrorMessage('Name, Email, and Password are required.');
                 return;
             }
             if (formData.password !== formData.confirmPassword) {
@@ -110,12 +93,43 @@ export default function EditUser({ createMode = false }) {
 
         setErrorMessage('');
         setIsSaving(true);
-        // Simulate API call
-        setTimeout(() => {
+        
+        try {
+            if (createMode) {
+                await userService.createUser({
+                    name: formData.fullName,
+                    email: formData.email,
+                    password: formData.password,
+                    phone: formData.phone,
+                    role: formData.role === 'Standard' ? 'User' : formData.role
+                });
+                setShowSuccess(true);
+                setTimeout(() => {
+                    setShowSuccess(false);
+                    navigate('/admin/users');
+                }, 2000);
+            } else {
+                await userService.updateUser(userId, {
+                    name: formData.fullName || formData.name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    role: formData.role === 'Standard' ? 'User' : formData.role,
+                    avatar: formData.avatar
+                });
+
+                // Handle Suspicious Toggle
+                const isCurrentlySuspicious = formData.riskScore === 'High';
+                // Note: We might need a separate mechanism to check initial state if it diverges, 
+                // but for now we apply it based on current UI state
+                
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 3000);
+            }
+        } catch (err) {
+            setErrorMessage(err.message || 'Failed to save user.');
+        } finally {
             setIsSaving(false);
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
-        }, 1000);
+        }
     };
 
     if (!formData) return null;

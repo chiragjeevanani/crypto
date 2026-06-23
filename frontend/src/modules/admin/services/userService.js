@@ -109,5 +109,14 @@ export const userService = {
     fetchSuspiciousUsers: async () => {
         const data = await fetchApi(`${ADMIN_USERS}?flagged=true`);
         return data.users || [];
+    },
+
+    createUser: async (userData) => {
+        const data = await fetchApi(ADMIN_USERS, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(userData)
+        });
+        return data.user;
     }
 };

@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Post = require("../../models/Post");
+const { getCachedRates } = require("../../utils/exchangeRate");
 
 // Map a User document into the shape expected by the admin UI
 function toAdminUserSummary(user, extra = {}) {
@@ -144,6 +146,21 @@ exports.getUserDetail = async (req, res) => {
 
     const base = toAdminUserSummary(user);
 
+    let localRate = 1;
+    const currencyCode = base.currencyCode || "INR";
+    if (currencyCode !== "INR") {
+      try {
+        const { rates } = await getCachedRates();
+        const inrRate = rates["INR"];
+        const targetRate = rates[currencyCode];
+        if (inrRate && targetRate) {
+          localRate = targetRate / inrRate;
+        }
+      } catch (err) {
+        console.error("Failed to fetch rates for admin user detail", err);
+      }
+    }
+
     const followersList = (user.followers || []).filter(Boolean).map((f) => ({
       id: (f._id || f.id || "").toString(),
       name: f.name || "User",
@@ -159,6 +176,8 @@ exports.getUserDetail = async (req, res) => {
 
     const detail = {
       ...base,
+      walletBalanceLocal: base.walletBalance * localRate,
+      totalEarningsLocal: base.totalEarnings * localRate,
       kycStatus: base.kycVerified ? "approved" : "pending",
       followersCount: Number(followersList.length),
       followingCount: Number(followingList.length),
@@ -257,6 +276,43 @@ exports.toggleSuspicious = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, password, phone, role } = req.body;
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: "Name, email and password are required" });
+    }
+
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return res.status(409).json({ success: false, message: "Email already registered" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate a basic referral code using the first name
+    const baseCode = name.split(" ")[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const referralCode = `${baseCode}${randomStr}`;
+
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      role: role || "User",
+      phone: phone || "",
+      referralCode,
+      isEmailVerified: true // Auto-verify admin created users
+    });
+
+    return res.status(201).json({ success: true, user: toAdminUserSummary(user) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 
 exports.updateUser = async (req, res) => {
   try {

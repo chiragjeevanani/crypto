@@ -8,7 +8,8 @@ const {
   toggleBan,
   toggleSuspicious,
   updateUser,
-  deleteUser
+  deleteUser,
+  createUser
 } = require("../../controllers/admin/userAdminController");
 
 const router = express.Router();
@@ -16,6 +17,7 @@ const adminAuth = [protect, authorize("SuperNode", "Admin", "super_admin", "Deve
 
 // Only admin roles can see/manage users
 router.get("/", ...adminAuth, listUsers);
+router.post("/", ...adminAuth, createUser);
 
 router.patch("/:id/ban", ...adminAuth, toggleBan);
 router.patch("/:id/suspicious", ...adminAuth, toggleSuspicious);

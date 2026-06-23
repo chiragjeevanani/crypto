@@ -214,11 +214,11 @@ export default function UserDetailPage() {
                         <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-surface">
                             <div className="p-3 bg-bg/50 border border-surface rounded-xl text-center">
                                 <p className="text-[9px] font-bold text-muted uppercase">Wallet</p>
-                                <p className="text-sm font-bold text-text">{formatCurrency(u.walletBalance ?? 0, u.currencySymbol)}</p>
+                                <p className="text-sm font-bold text-text">{formatCurrency(u.walletBalanceLocal ?? u.walletBalance ?? 0, u.currencySymbol)}</p>
                             </div>
                             <div className="p-3 bg-bg/50 border border-surface rounded-xl text-center">
                                 <p className="text-[9px] font-bold text-muted uppercase">Earnings</p>
-                                <p className="text-sm font-bold text-primary">{formatCurrency(u.totalEarnings ?? 0, u.currencySymbol)}</p>
+                                <p className="text-sm font-bold text-primary">{formatCurrency(u.totalEarningsLocal ?? u.totalEarnings ?? 0, u.currencySymbol)}</p>
                             </div>
                         </div>
 
