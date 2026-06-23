@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, ShieldCheck, Zap, Globe } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck, Zap, Globe, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 
@@ -14,6 +14,7 @@ export default function SignInPage() {
         email: '',
         password: ''
     });
+    const [showPassword, setShowPassword] = useState(false);
 
 
     const handleSubmit = async (e) => {
@@ -25,8 +26,10 @@ export default function SignInPage() {
                 password: formData.password
             });
             navigate('/home');
-        } catch {
-            // error handled in store
+        } catch (err) {
+            if (err?.response?.data?.requireVerification || err?.data?.requireVerification || err?.requireVerification) {
+                navigate(`/signup?verify=true&email=${encodeURIComponent(formData.email)}`);
+            }
         }
     };
 
@@ -68,14 +71,33 @@ export default function SignInPage() {
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    className="w-full bg-bg border border-surface rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text"
+                                    className="w-full bg-bg border border-surface rounded-xl py-3.5 pl-12 pr-12 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text"
                                     placeholder="••••••••"
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
+                        </div>
+                        <div className="flex justify-end">
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const actualEmail = formData.email || document.querySelector('input[type="email"]')?.value || '';
+                                    navigate(`/forgot-password${actualEmail ? `?email=${encodeURIComponent(actualEmail)}` : ''}`);
+                                }}
+                                className="text-[10px] text-primary hover:underline font-medium"
+                            >
+                                Forgot Password?
+                            </button>
                         </div>
                         <button
                             type="submit"

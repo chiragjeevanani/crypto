@@ -127,6 +127,26 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    resetPasswordOtp: {
+      type: String,
+      default: null
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerificationOtp: {
+      type: String,
+      default: null
+    },
+    emailVerificationExpires: {
+      type: Date,
+      default: null
+    },
     fcmTokens: [{ type: String }],
     // ─── Payout Methods ───────────────────────────────────────────────────
     payoutMethods: [{

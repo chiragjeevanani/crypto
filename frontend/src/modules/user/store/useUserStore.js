@@ -262,6 +262,10 @@ export const useUserStore = create((set, get) => ({
             })
             return { user }
         } catch (error) {
+            if (error.response?.data?.requireVerification || error.data?.requireVerification) {
+                set({ authLoading: false, authError: '' })
+                throw error;
+            }
             set({ authLoading: false, authError: error.message })
             throw error
         }
@@ -294,6 +298,10 @@ export const useUserStore = create((set, get) => ({
         set({ authLoading: true, authError: '' })
         try {
             const response = await authService.register({ name, email, password, phone, countryCode, state, language, referralCode, agreedToTerms })
+            if (response.requireVerification || response.response?.data?.requireVerification) {
+                set({ authLoading: false, authError: '' })
+                return response.response?.data || response;
+            }
             const { token, refreshToken, user } = response
             saveAuthToStorage({ token, refreshToken, user })
             set({
@@ -306,6 +314,21 @@ export const useUserStore = create((set, get) => ({
                 authError: ''
             })
             return { user }
+        } catch (error) {
+            set({ authLoading: false, authError: error.message })
+            throw error
+        }
+    },
+
+    verifyEmail: async (email, otp) => {
+        set({ authLoading: true, authError: '' })
+        try {
+            const response = await authService.verifyEmail(email, otp)
+            set({
+                authLoading: false,
+                authError: ''
+            })
+            return response
         } catch (error) {
             set({ authLoading: false, authError: error.message })
             throw error

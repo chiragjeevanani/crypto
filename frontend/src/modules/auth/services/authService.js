@@ -104,6 +104,30 @@ export const authService = {
       body: JSON.stringify(data)
     }),
 
+  forgotPassword: (email) =>
+    request("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    }),
+
+  resetPassword: (email, otp, newPassword) =>
+    request("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ email, otp, newPassword })
+    }),
+
+  verifyEmail: (email, otp) =>
+    request("/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ email, otp })
+    }),
+
+  resendVerification: (email) =>
+    request("/auth/resend-verification", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    }),
+
   uploadAvatar: (token, file) => {
     const formData = new FormData();
     formData.append("avatar", file);

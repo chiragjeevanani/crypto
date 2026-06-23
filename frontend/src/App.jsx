@@ -61,6 +61,7 @@ import PublicAuditLogs from './modules/public/pages/PublicAuditLogs'
 // Auth Modules
 import LoginPage from './modules/auth/pages/LoginPage' // admin login
 import LogoutPage from './modules/auth/pages/LogoutPage'
+import ForgotPasswordPage from './modules/user/pages/ForgotPasswordPage'
 import ProtectedRoute from './modules/auth/components/ProtectedRoute'
 import RootRoute from './modules/auth/components/RootRoute'
 import UserCreatePage from './modules/admin/pages/UserCreatePage'
@@ -141,6 +142,7 @@ export default function App() {
           <Route path="/" element={<RootRoute />} />
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/terms-conditions" element={<TermsConditionsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/support" element={<SupportPage />} />

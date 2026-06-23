@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check, Globe } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check, Globe, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { authService } from '../../auth/services/authService';
@@ -95,6 +95,13 @@ export default function SignUpPage() {
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
     const [searchParams] = useSearchParams();
+    const [showPassword, setShowPassword] = useState(false);
+
+    // Step 1: Form, Step 2: OTP Verification
+    const [step, setStep] = useState(() => searchParams.get('verify') === 'true' ? 2 : 1);
+    const [registeredEmail, setRegisteredEmail] = useState(() => searchParams.get('email') || '');
+    const [otp, setOtp] = useState('');
+    const verifyEmail = useUserStore(state => state.verifyEmail);
 
 
     const [countries, setCountries] = useState([]);
@@ -301,7 +308,7 @@ export default function SignUpPage() {
         if (nameErr || emailErr || passwordErr || phoneErr || countryErr || stateErr || agreedErr) return;
 
         try {
-            await registerUser({
+            const res = await registerUser({
                 name: formData.name.trim(),
                 email: formData.email.trim(),
                 password: formData.password,
@@ -312,9 +319,15 @@ export default function SignUpPage() {
                 referralCode: formData.referralCode.trim().toUpperCase(),
                 agreedToTerms: formData.agreedToTerms,
             });
-            // Clear draft on successful registration so next user starts fresh
-            sessionStorage.removeItem(FORM_STORAGE_KEY);
-            navigate('/signin');
+            if (res?.requireVerification) {
+                setRegisteredEmail(formData.email.trim());
+                setStep(2);
+                setAuthError('');
+            } else {
+                // Clear draft on successful registration so next user starts fresh
+                sessionStorage.removeItem(FORM_STORAGE_KEY);
+                navigate('/home');
+            }
         } catch (err) {
             const msg = err?.message || '';
             if (msg.toLowerCase().includes('email already registered')) {
@@ -323,6 +336,28 @@ export default function SignUpPage() {
                 // Route any phone-related backend error to the phone field (shows under input, not after button)
                 setFieldErrors(prev => ({ ...prev, phone: msg }));
             }
+        }
+    };
+
+    const handleVerify = async (e) => {
+        e.preventDefault();
+        if (otp.length !== 4) return;
+        try {
+            await verifyEmail(registeredEmail, otp);
+            sessionStorage.removeItem(FORM_STORAGE_KEY);
+            alert("Email verified successfully! You can now sign in.");
+            navigate('/signin');
+        } catch (err) {
+            // Error is handled by store and displayed via authError
+        }
+    };
+
+    const handleResendOtp = async () => {
+        try {
+            await authService.resendVerification(registeredEmail);
+            alert("A new OTP has been sent to your email.");
+        } catch (err) {
+            alert(err.message || "Failed to resend OTP");
         }
     };
 
@@ -339,12 +374,26 @@ export default function SignUpPage() {
                         <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4">
                             <ShieldCheck className="text-white w-8 h-8" />
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight text-text">Create Account</h1>
+                        <h1 className="text-2xl font-bold tracking-tight text-text">
+                            {step === 1 ? "Create Account" : "Verify Email"}
+                        </h1>
+                        {step === 2 && (
+                            <p className="text-xs text-muted mt-2">
+                                We've sent a 4-digit OTP to {registeredEmail}. It is valid for 10 minutes.
+                            </p>
+                        )}
                     </div>
 
-
-
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <AnimatePresence mode="wait">
+                        {step === 1 ? (
+                    <motion.form 
+                        key="step1"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        onSubmit={handleSubmit} 
+                        className="space-y-5"
+                    >
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Full Name</label>
                             <div className="relative group">
@@ -386,12 +435,19 @@ export default function SignUpPage() {
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     value={formData.password}
                                     onChange={(e) => handleChange('password', e.target.value)}
-                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.password ? 'border-red-500' : 'border-surface'}`}
+                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-12 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.password ? 'border-red-500' : 'border-surface'}`}
                                     placeholder="••••••••"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
                             {fieldErrors.password && (
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.password}</p>
@@ -711,11 +767,73 @@ export default function SignUpPage() {
                                 </>
                             )}
                         </button>
-                        {authError && <p className="text-xs text-red-500">{authError}</p>}
-                    </form>
-                    <p className="mt-6 text-center text-[10px] text-muted">
-                        Already registered? <Link to="/signin" className="text-primary underline">Sign in</Link>
-                    </p>
+                        {authError && <p className="text-xs text-red-500 text-center mt-2">{authError}</p>}
+                    </motion.form>
+                        ) : (
+                            <motion.form 
+                                key="step2"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                onSubmit={handleVerify} 
+                                className="space-y-5"
+                            >
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">4-Digit OTP</label>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type="text"
+                                            maxLength={4}
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                                            className="w-full bg-bg border border-surface rounded-xl py-3.5 pl-12 pr-4 text-center tracking-[0.5em] text-lg font-bold focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text uppercase placeholder:tracking-normal placeholder:font-medium placeholder:text-sm"
+                                            placeholder="e.g. 1234"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <button
+                                    type="submit"
+                                    disabled={authLoading}
+                                    className="w-full bg-primary text-black font-bold uppercase tracking-widest text-[11px] py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                                >
+                                    {authLoading ? (
+                                        <Zap className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <>
+                                            Verify & Continue <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
+                                </button>
+                                {authError && <p className="text-xs text-red-500 text-center mt-2">{authError}</p>}
+                                
+                                <div className="flex flex-col items-center gap-3 mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleResendOtp}
+                                        className="text-xs font-medium text-primary hover:underline"
+                                    >
+                                        Resend OTP
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setStep(1); setAuthError(''); }}
+                                        className="text-xs text-muted hover:text-text transition-colors"
+                                    >
+                                        Back to Details
+                                    </button>
+                                </div>
+                            </motion.form>
+                        )}
+                    </AnimatePresence>
+
+                    {step === 1 && (
+                        <p className="mt-6 text-center text-[10px] text-muted">
+                            Already registered? <Link to="/signin" className="text-primary underline">Sign in</Link>
+                        </p>
+                    )}
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[10px] text-muted font-medium">
                         <Link to="/terms-conditions" className="hover:text-primary transition-colors">Terms & Conditions</Link>
                         <span>•</span>
