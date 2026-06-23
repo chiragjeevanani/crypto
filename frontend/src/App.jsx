@@ -16,6 +16,7 @@ import { useFeedStore } from './modules/user/store/useFeedStore'
 import { useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import ErrorBoundary from './modules/user/components/shared/ErrorBoundary'
+import { usePushNotifications } from './hooks/usePushNotifications'
 
 // Admin Modules
 import AdminLayout from './modules/admin/layouts/AdminLayout'
@@ -111,6 +112,14 @@ export default function App() {
   useEffect(() => {
     initializeAuth()
   }, [initializeAuth, pathToken])
+
+  // Call push notification hook
+  const token = useUserStore(state => state.token)
+  usePushNotifications(token, (message) => {
+    console.log("Push Notification: ", message);
+    // You can integrate your own toast library here
+    alert("New Notification: " + message);
+  });
 
   useEffect(() => {
     if (authChecked && isAuthenticated) {

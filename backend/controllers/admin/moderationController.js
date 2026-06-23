@@ -127,17 +127,29 @@ exports.updatePostStatus = async (req, res) => {
     
     // Notify User
     const Notification = require("../../models/Notification");
+    const PushNotificationService = require("../../services/pushNotificationService");
     try {
+        const title = approved 
+            ? (post.isBusiness ? "Promotion Approved" : (post.isNFT ? "NFT Approved" : "Post Approved"))
+            : (post.isBusiness ? "Promotion Rejected" : (post.isNFT ? "NFT Rejected" : "Post Rejected"));
+        
+        const subtitle = approved 
+            ? (post.isBusiness ? "Your business promotion is now active and visible to users." : (post.isNFT ? "Your NFT is now live on the marketplace." : "Your post has been approved and published."))
+            : `Reason: ${reason || "Does not meet community guidelines."}`;
+
         await Notification.create({
             recipientId: post.creator,
             type: "system",
-            title: approved 
-                ? (post.isBusiness ? "Promotion Approved" : (post.isNFT ? "NFT Approved" : "Post Approved"))
-                : (post.isBusiness ? "Promotion Rejected" : (post.isNFT ? "NFT Rejected" : "Post Rejected")),
-            subtitle: approved 
-                ? (post.isBusiness ? "Your business promotion is now active and visible to users." : (post.isNFT ? "Your NFT is now live on the marketplace." : "Your post has been approved and published."))
-                : `Reason: ${reason || "Does not meet community guidelines."}`,
+            title,
+            subtitle,
             meta: { postId: post._id.toString() }
+        });
+
+        // Send Push Notification
+        await PushNotificationService.sendToUser(post.creator, title, subtitle, {
+            type: 'moderation',
+            postId: post._id.toString(),
+            status: approved ? 'approved' : 'rejected'
         });
     } catch (notifErr) {
         console.error("Failed to send moderation notification:", notifErr);

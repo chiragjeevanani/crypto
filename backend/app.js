@@ -88,6 +88,7 @@ app.use("/api/notifications", userNotificationRoutes);
 app.use("/api/video", userVideoRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
+app.use("/api/fcm", require("./routes/user/fcm.routes"));
 app.use("/api/auctions", auctionRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/nft", nftRoutes); // Collectible (Web2) endpoints
