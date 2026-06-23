@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, Heart, MessageCircle, Music } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, EyeOff, Heart, MessageCircle, Music } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
+import { authService } from '../../auth/services/authService'
 import { useFeedStore } from '../store/useFeedStore'
 import { useWalletStore } from '../store/useWalletStore'
 import { formatCount } from '../utils/formatCurrency'
@@ -134,6 +135,29 @@ export default function ProfilePage() {
     const [profileSaveError, setProfileSaveError] = useState('')
     const [profileSaving, setProfileSaving] = useState(false)
 
+    // Delete Account State
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deletePassword, setDeletePassword] = useState('')
+    const [deleteError, setDeleteError] = useState('')
+    const [isDeleting, setIsDeleting] = useState(false)
+    const deleteAccount = useUserStore(state => state.deleteAccount)
+
+    const handleDeleteAccount = async () => {
+        if (!deletePassword) {
+            setDeleteError("Password is required");
+            return;
+        }
+        setDeleteError('');
+        setIsDeleting(true);
+        try {
+            await deleteAccount(deletePassword);
+            navigate('/signin');
+        } catch (err) {
+            setDeleteError(err?.message || "Failed to delete account");
+            setIsDeleting(false);
+        }
+    };
+
     const onEdit = async (data) => {
         setProfileSaveError('')
         setProfileSaving(true)
@@ -184,7 +208,14 @@ export default function ProfilePage() {
         }
     }
 
-    const onChangePassword = () => {
+    const [passwordChanging, setPasswordChanging] = useState(false);
+    const [showPasswords, setShowPasswords] = useState({ current: false, next: false, confirm: false });
+
+    const togglePasswordVisibility = (field) => {
+        setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
+    }
+
+    const onChangePassword = async () => {
         if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
             setPasswordMsg('Please fill all password fields.')
             return
@@ -193,8 +224,18 @@ export default function ProfilePage() {
             setPasswordMsg('New password and confirm password do not match.')
             return
         }
-        setPasswordMsg('Password changed successfully.')
-        setPasswordForm({ current: '', next: '', confirm: '' })
+        setPasswordChanging(true);
+        setPasswordMsg('');
+        try {
+            const res = await authService.changePassword(passwordForm.current, passwordForm.next);
+            setPasswordMsg(res.message || 'Password changed successfully.');
+            setPasswordForm({ current: '', next: '', confirm: '' });
+            setShowPasswords({ current: false, next: false, confirm: false });
+        } catch (error) {
+            setPasswordMsg(error.message || 'Failed to change password.');
+        } finally {
+            setPasswordChanging(false);
+        }
     }
 
     useEffect(() => {
@@ -767,11 +808,26 @@ export default function ProfilePage() {
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Change Password' && (
                                     <div className="space-y-3">
-                                        <input type="password" value={passwordForm.current} onChange={(e) => setPasswordForm((p) => ({ ...p, current: e.target.value }))} placeholder="Current Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <input type="password" value={passwordForm.next} onChange={(e) => setPasswordForm((p) => ({ ...p, next: e.target.value }))} placeholder="New Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <input type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} placeholder="Confirm New Password" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <button onClick={onChangePassword} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>Update Password</button>
-                                        {passwordMsg && <p className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>{passwordMsg}</p>}
+                                        <div className="relative">
+                                            <input type={showPasswords.current ? "text" : "password"} value={passwordForm.current} onChange={(e) => setPasswordForm((p) => ({ ...p, current: e.target.value }))} placeholder="Current Password" className="w-full pl-3 pr-10 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} disabled={passwordChanging} />
+                                            <button type="button" onClick={() => togglePasswordVisibility('current')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                                {showPasswords.current ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                        <div className="relative">
+                                            <input type={showPasswords.next ? "text" : "password"} value={passwordForm.next} onChange={(e) => setPasswordForm((p) => ({ ...p, next: e.target.value }))} placeholder="New Password" className="w-full pl-3 pr-10 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} disabled={passwordChanging} />
+                                            <button type="button" onClick={() => togglePasswordVisibility('next')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                                {showPasswords.next ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                        <div className="relative">
+                                            <input type={showPasswords.confirm ? "text" : "password"} value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} placeholder="Confirm New Password" className="w-full pl-3 pr-10 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} disabled={passwordChanging} />
+                                            <button type="button" onClick={() => togglePasswordVisibility('confirm')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                                {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                        <button onClick={onChangePassword} disabled={passwordChanging} className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50 mt-2" style={{ background: 'var(--color-primary)', color: '#fff' }}>{passwordChanging ? 'Updating...' : 'Update Password'}</button>
+                                        {passwordMsg && <p className="text-xs font-semibold mt-1" style={{ color: passwordMsg.includes('success') ? 'var(--color-primary)' : 'var(--color-danger)' }}>{passwordMsg}</p>}
                                     </div>
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Usage & Screen Time' && (
@@ -803,11 +859,11 @@ export default function ProfilePage() {
                                         </button>
                                     </div>
                                 )}
-                                <div className="pt-5 mt-5 border-t space-y-3" style={{ borderColor: 'var(--color-border)' }}>
-                                    <button onClick={() => setIsLogoutModalOpen(true)} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
+                                <div className="pt-5 mt-5 border-t flex flex-col items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+                                    <button onClick={() => setIsLogoutModalOpen(true)} className="w-full max-w-[200px] py-1.5 rounded-lg text-xs font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
                                         Logout
                                     </button>
-                                    <button onClick={() => setIsDeleteModalOpen(true)} className="w-full py-2.5 rounded-lg text-sm font-bold" style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
+                                    <button onClick={() => setIsDeleteModalOpen(true)} className="w-full max-w-[200px] py-1.5 rounded-lg text-xs font-bold" style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
                                         Delete Account
                                     </button>
                                 </div>
@@ -829,13 +885,16 @@ export default function ProfilePage() {
             />
             <DeleteAccountConfirmationModal 
                 isOpen={isDeleteModalOpen} 
-                onClose={() => setIsDeleteModalOpen(false)} 
-                onConfirm={async () => {
+                onClose={() => {
                     setIsDeleteModalOpen(false)
-                    useUserStore.getState().logout()
-                    try { await privyLogout(); } catch(e) {}
-                    navigate('/login', { replace: true })
+                    setDeleteError('')
+                    setDeletePassword('')
                 }} 
+                onConfirm={handleDeleteAccount}
+                password={deletePassword}
+                setPassword={setDeletePassword}
+                error={deleteError}
+                isDeleting={isDeleting}
             />
         </div>
     )

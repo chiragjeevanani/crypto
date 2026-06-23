@@ -1,5 +1,5 @@
-// Backend is running on port 5002 as per .env
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5002/api";
+import { getStoredToken } from "../../user/store/useUserStore";
 
 const request = async (path, options = {}) => {
   let response;
@@ -127,6 +127,26 @@ export const authService = {
       method: "POST",
       body: JSON.stringify({ email })
     }),
+
+  deleteAccount: (password) => {
+    return request("/auth/account", {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getStoredToken()}`
+      },
+      body: JSON.stringify({ password })
+    });
+  },
+
+  changePassword: (currentPassword, newPassword) => {
+    return request("/auth/password", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${getStoredToken()}`
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+  },
 
   uploadAvatar: (token, file) => {
     const formData = new FormData();

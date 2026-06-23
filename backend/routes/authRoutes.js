@@ -10,7 +10,9 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  resendVerificationOtp
+  resendVerificationOtp,
+  deleteMyAccount,
+  changePassword
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const { upload } = require("../utils/upload");
@@ -29,5 +31,7 @@ router.post("/resend-verification", resendVerificationOtp);
 router.get("/me", protect, getMe);
 router.patch("/profile", protect, updateProfile);
 router.patch("/profile/avatar", protect, upload.single("avatar"), updateAvatar);
+router.delete("/account", protect, deleteMyAccount);
+router.put("/password", protect, changePassword);
 
 module.exports = router;

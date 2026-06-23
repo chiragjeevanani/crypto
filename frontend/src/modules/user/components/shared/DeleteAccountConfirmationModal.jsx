@@ -1,7 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, X } from 'lucide-react'
 
-export default function DeleteAccountConfirmationModal({ isOpen, onClose, onConfirm }) {
+export default function DeleteAccountConfirmationModal({ 
+    isOpen, 
+    onClose, 
+    onConfirm,
+    password,
+    setPassword,
+    error,
+    isDeleting 
+}) {
     return (
         <AnimatePresence>
             {isOpen && (
@@ -45,17 +53,31 @@ export default function DeleteAccountConfirmationModal({ isOpen, onClose, onConf
                             <h3 className="mb-2 text-xl font-bold text-red-500">
                                 Delete Account?
                             </h3>
-                            <p className="mb-8 text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }}>
+                            <p className="mb-4 text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }}>
                                 Are you absolutely sure you want to delete your account? This action cannot be undone and you will lose all your data, posts, and wallet balance.
                             </p>
+
+                            <div className="w-full mb-6">
+                                <input 
+                                    type="password" 
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter your password to confirm"
+                                    className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                                    style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                    disabled={isDeleting}
+                                />
+                                {error && <p className="mt-2 text-xs font-semibold text-red-500 text-left">{error}</p>}
+                            </div>
 
                             <div className="flex w-full flex-col gap-3">
                                 <button
                                     onClick={onConfirm}
-                                    className="w-full rounded-2xl py-3.5 text-sm font-bold shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                    disabled={isDeleting}
+                                    className="w-full rounded-2xl py-3.5 text-sm font-bold shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                                     style={{ background: 'linear-gradient(135deg, #ef4444, #f87171)', color: 'white' }}
                                 >
-                                    Yes, Delete My Account
+                                    {isDeleting ? 'Deleting...' : 'Yes, Delete My Account'}
                                 </button>
                                 <button
                                     onClick={onClose}

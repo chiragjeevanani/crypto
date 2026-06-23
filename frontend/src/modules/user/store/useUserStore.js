@@ -335,6 +335,26 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
+    deleteAccount: async (password) => {
+        set({ authLoading: true, authError: '' })
+        try {
+            await authService.deleteAccount(password)
+            clearAuthStorage()
+            set({
+                token: null,
+                user: null,
+                profile: null,
+                isAuthenticated: false,
+                authLoading: false,
+                authError: ''
+            })
+            return true
+        } catch (error) {
+            set({ authLoading: false, authError: error.message })
+            throw error
+        }
+    },
+
     login: (userData) => set({
         isAuthenticated: true,
         user: userData

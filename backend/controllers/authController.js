@@ -613,6 +613,64 @@ const resendVerificationOtp = async (req, res) => {
 };
 
 
+const { deleteUserCascade } = require("../utils/userDeletion");
+
+const deleteMyAccount = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Password is required to delete your account" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Incorrect password" });
+    }
+
+    await deleteUserCascade(userId);
+
+    return res.status(200).json({ success: true, message: "Account deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Current and new password are required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Incorrect current password" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -624,5 +682,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  resendVerificationOtp
+  resendVerificationOtp,
+  deleteMyAccount,
+  changePassword
 };

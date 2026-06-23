@@ -274,10 +274,16 @@ exports.updateUser = async (req, res) => {
   }
 };
 
+const { deleteUserCascade } = require("../../utils/userDeletion");
+
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    
+    // Perform cascade deletion
+    await deleteUserCascade(req.params.id);
+    
     return res.status(200).json({ success: true, user: toAdminUserSummary(user) });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
