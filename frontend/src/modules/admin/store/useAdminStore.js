@@ -49,11 +49,7 @@ export const useAdminStore = create((set, get) => ({
         strictMode: true,
     },
     kycQueue: [],
-    fraudSignals: [
-        { id: 'FR-201', type: 'ip_cluster', severity: 'high', entity: 'U-7722', detail: '3 accounts from same /24 subnet', status: 'open' },
-        { id: 'FR-202', type: 'device_reuse', severity: 'medium', entity: 'U-7723', detail: 'Shared device fingerprint with flagged account', status: 'open' },
-        { id: 'FR-203', type: 'duplicate_submission', severity: 'high', entity: 'POST-4821', detail: 'Near-identical media hash used in multiple campaigns', status: 'open' },
-    ],
+
     settlementRails: [
         { id: 'rail_upi', name: 'UPI', status: 'active', reconciled: 42, pending: 3, lastRun: '5 mins ago' },
         { id: 'rail_bank', name: 'Bank Transfer', status: 'degraded', reconciled: 20, pending: 5, lastRun: '17 mins ago' },
@@ -610,27 +606,7 @@ export const useAdminStore = create((set, get) => ({
     // incrementReferralOnboarding is deprecated – referral counts come from the database.
     // The KYC eligibility is now derived server-side via the users API (flagged filter).
 
-    loadFraudSignals: () => get().execute(async () => {
-        set({ fraudSignals: [...get().fraudSignals] });
-    }),
 
-    resolveFraudSignal: (signalId, resolution = 'resolved') => get().execute(async () => {
-        set((state) => ({
-            fraudSignals: state.fraudSignals.map((signal) =>
-                signal.id === signalId ? { ...signal, status: resolution } : signal,
-            ),
-            auditLogs: [
-                {
-                    id: `LOG-${Date.now()}`,
-                    action: 'Fraud Resolution',
-                    admin: 'SuperAdmin',
-                    timestamp: new Date().toISOString(),
-                    details: `Signal ${signalId} -> ${resolution}`,
-                },
-                ...state.auditLogs,
-            ],
-        }));
-    }, "Fraud signal disposition recorded."),
 
     loadSettlementRails: () => get().execute(async () => {
         set({ settlementRails: [...get().settlementRails] });

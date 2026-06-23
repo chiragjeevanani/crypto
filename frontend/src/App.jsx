@@ -31,7 +31,7 @@ import UserManagement from './modules/admin/pages/UserManagement'
 import AuditLogs from './modules/admin/pages/AuditLogs'
 import NFTModeration from './modules/admin/pages/NFTModeration'
 import VotingManagement from './modules/admin/pages/VotingManagement'
-import FraudMonitoring from './modules/admin/pages/FraudMonitoring'
+
 import PlatformSettings from './modules/admin/pages/PlatformSettings'
 import FinancialRules from './modules/admin/pages/FinancialRules'
 import NetworkConfig from './modules/admin/pages/NetworkConfig'
