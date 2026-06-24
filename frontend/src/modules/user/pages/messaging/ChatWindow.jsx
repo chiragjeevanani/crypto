@@ -850,7 +850,35 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         >
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                                    <img src={sharingPost.media?.url || sharingPost.thumbnail || sharingPost.avatar || '/person.png'} alt="shared content" className="w-full h-full object-cover" />
+                                    <img 
+                                        src={
+                                            sharingPost.type === 'profile'
+                                                ? (sharingPost.avatar || '/person.png')
+                                                : (() => {
+                                                    const rawUrl = sharingPost.media?.url || sharingPost.thumbnail;
+                                                    if (!rawUrl) return '/person.png';
+                                                    
+                                                    const isVideo = sharingPost.media?.type === 'video' || 
+                                                                    sharingPost.type === 'reel' || 
+                                                                    (typeof rawUrl === 'string' && rawUrl.toLowerCase().endsWith('.mp4'));
+                                                    
+                                                    if (isVideo) {
+                                                        const thumb = sharingPost.media?.thumbnail || sharingPost.media?.poster;
+                                                        if (thumb && !thumb.endsWith('.mp4')) return thumb;
+                                                        if (typeof rawUrl === 'string') {
+                                                            return rawUrl.replace(/\.[^/.]+$/, ".jpg");
+                                                        }
+                                                        return '/video_placeholder.png';
+                                                    }
+                                                    return rawUrl;
+                                                })()
+                                        } 
+                                        alt="shared content" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            e.currentTarget.src = '/person.png';
+                                        }}
+                                    />
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>Share this {sharingPost.type === 'profile' ? 'Profile' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'Reel' : 'Post')}?</p>

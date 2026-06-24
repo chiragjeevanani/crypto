@@ -131,10 +131,6 @@ export default function ContentDetailPage() {
                             <span className="text-text font-semibold">{postDetail?.reportCount}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted flex items-center gap-1"><Shield className="w-3.5 h-3.5" /> AI Risk</span>
-                            <span className="text-rose-500 font-semibold">{postDetail?.aiRiskScore}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
                             <span className="text-muted flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Submitted</span>
                             <span className="text-text font-semibold">{new Date(postDetail?.createdAt || Date.now()).toLocaleString()}</span>
                         </div>

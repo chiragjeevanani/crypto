@@ -2044,6 +2044,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 ctx.restore();
             });
 
+            const totalDuration = clipSequence.reduce((acc, c) => acc + (c.duration || 5), 0);
+            if (totalDuration > 0) {
+              setRenderProgress(Math.min(99, Math.round((globalTime / totalDuration) * 100)));
+            }
+
             await new Promise(r => setTimeout(r, 16));
           }
         } else {
@@ -2098,6 +2103,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 ctx.fillText(sticker.content, 0, 0);
                 ctx.restore();
             });
+
+            const totalDuration = clipSequence.reduce((acc, c) => acc + (c.duration || 5), 0);
+            if (totalDuration > 0) {
+              setRenderProgress(Math.min(99, Math.round((globalTime / totalDuration) * 100)));
+            }
 
             await new Promise(r => setTimeout(r, 16));
           }
@@ -4211,12 +4221,12 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 onClick={() => {}}
                 className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
               >
-                {(videoFile?.type?.startsWith('image/') || selectedMedia.image) ? (
+                {(videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia.type === 'image')) ? (
                   <img src={previewUrl || selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
                 ) : (
                   <video src={previewUrl} className="h-full w-full object-cover" />
                 )}
-                {!(videoFile?.type?.startsWith('image/') || selectedMedia.image) && previewUrl && (
+                {!(videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia.type === 'image')) && previewUrl && (
                   <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
                     Select cover
                   </span>
