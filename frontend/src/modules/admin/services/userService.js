@@ -27,6 +27,9 @@ export const userService = {
         const { search = '', role = 'all', status = 'all', kyc = 'all', page = 1, limit = 10, flagged = false } = params;
         const query = new URLSearchParams();
         if (search) query.set("search", search);
+        if (role && role !== 'all') query.set("role", role);
+        if (status && status !== 'all') query.set("status", status);
+        if (kyc && kyc !== 'all') query.set("kyc", kyc);
         query.set("page", String(page));
         query.set("limit", String(limit));
         if (flagged) query.set("flagged", "true");

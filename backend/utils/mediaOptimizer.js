@@ -10,11 +10,11 @@ if (ffmpegPath) {
 }
 
 /**
- * Compresses an image file in-place using sharp.
+ * Compresses and converts an image file to WebP format.
  */
-async function compressImage(filePath) {
+async function compressImageToWebP(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  const tempPath = filePath + "-temp" + ext;
+  const webpPath = filePath.replace(new RegExp(ext + "$", "i"), "") + ".webp";
 
   try {
     let pipeline = sharp(filePath);
@@ -27,25 +27,19 @@ async function compressImage(filePath) {
       withoutEnlargement: true
     });
 
-    // Compress based on extension
-    if (ext === ".png") {
-      pipeline = pipeline.png({ quality: 80, compressionLevel: 8 });
-    } else if (ext === ".webp") {
-      pipeline = pipeline.webp({ quality: 80 });
-    } else {
-      pipeline = pipeline.jpeg({ quality: 80, progressive: true });
-    }
+    // Compress/Convert to WebP with balanced quality and effort configuration
+    pipeline = pipeline.webp({ quality: 75, effort: 4 });
 
-    await pipeline.toFile(tempPath);
+    await pipeline.toFile(webpPath);
 
-    // Replace original file with compressed file
-    if (fs.existsSync(filePath)) {
+    // Replace original file with compressed webp file
+    if (filePath !== webpPath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    fs.renameSync(tempPath, filePath);
+    return webpPath;
   } catch (error) {
-    if (fs.existsSync(tempPath)) {
-      fs.unlinkSync(tempPath);
+    if (fs.existsSync(webpPath) && filePath !== webpPath) {
+      fs.unlinkSync(webpPath);
     }
     throw error;
   }
@@ -59,7 +53,7 @@ function compressVideo(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     
     // We target MP4 container with H.264 and AAC codec for maximum web/mobile compatibility
-    const tempPath = filePath.replace(ext, "") + "-temp.mp4";
+    const tempPath = filePath.replace(new RegExp(ext + "$", "i"), "") + "-temp.mp4";
 
     ffmpeg(filePath)
       .outputOptions([
@@ -97,6 +91,47 @@ function compressVideo(filePath) {
 }
 
 /**
+ * Compresses an audio file in-place (converting to mp3) using ffmpeg to save data.
+ */
+function compressAudio(filePath) {
+  return new Promise((resolve, reject) => {
+    const ext = path.extname(filePath).toLowerCase();
+    
+    // Output mp3 format
+    const tempPath = filePath.replace(new RegExp(ext + "$", "i"), "") + "-temp.mp3";
+
+    ffmpeg(filePath)
+      .outputOptions([
+        "-acodec libmp3lame",
+        "-b:a 64k", // Highly optimized bitrate for light data consumption
+        "-ac 1"    // Mono format to save extra bandwidth
+      ])
+      .output(tempPath)
+      .on("end", () => {
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+          fs.renameSync(tempPath, filePath);
+          resolve({
+            path: filePath,
+            mimetype: "audio/mpeg"
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .on("error", (err) => {
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+        reject(err);
+      })
+      .run();
+  });
+}
+
+/**
  * Helper to process a single file object from multer.
  */
 async function processFile(file) {
@@ -107,12 +142,15 @@ async function processFile(file) {
 
   try {
     if (/^image\//.test(mimetype)) {
-      // Don't compress gifs as sharp might require extra setup, and gifs are animated
+      // Don't compress/convert gifs to avoid breaking animation
       if (mimetype !== "image/gif") {
-        await compressImage(file.path);
-        const stats = fs.statSync(file.path);
+        const newPath = await compressImageToWebP(file.path);
+        const stats = fs.statSync(newPath);
+        file.path = newPath;
+        file.filename = path.basename(newPath);
+        file.mimetype = "image/webp";
         file.size = stats.size;
-        console.log(`[MediaOptimizer] Compressed image ${file.filename}: ${originalSize} -> ${file.size} bytes`);
+        console.log(`[MediaOptimizer] Converted image to WebP ${file.filename}: ${originalSize} -> ${file.size} bytes`);
       }
     } else if (/^video\//.test(mimetype)) {
       const result = await compressVideo(file.path);
@@ -120,6 +158,12 @@ async function processFile(file) {
       file.size = stats.size;
       file.mimetype = result.mimetype; // Ensure it reports as video/mp4
       console.log(`[MediaOptimizer] Compressed video ${file.filename}: ${originalSize} -> ${file.size} bytes`);
+    } else if (/^audio\//.test(mimetype)) {
+      const result = await compressAudio(file.path);
+      const stats = fs.statSync(file.path);
+      file.size = stats.size;
+      file.mimetype = result.mimetype; // Ensure it reports as audio/mpeg
+      console.log(`[MediaOptimizer] Compressed audio ${file.filename}: ${originalSize} -> ${file.size} bytes`);
     }
   } catch (err) {
     console.error(`[MediaOptimizer] Failed to compress ${file.filename || file.path}:`, err.message);

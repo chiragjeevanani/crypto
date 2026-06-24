@@ -5,7 +5,7 @@ import { useCallStore } from '../../store/useCallStore'
 import { getSocket } from '../../../../socket'
 
 export default function SocketHandler() {
-    const { profile, isAuthenticated, authChecked } = useUserStore()
+    const { profile, isAuthenticated, authChecked, logout } = useUserStore()
     const { addLiveNotification } = useFeedStore()
 
     useEffect(() => {
@@ -19,6 +19,13 @@ export default function SocketHandler() {
 
         const onReconnect = () => {
              socket.emit('register_user', profile.id)
+        }
+
+        // Handle force logout (when account is deleted)
+        const onForceLogout = (data) => {
+            console.log('[Socket] Force logout triggered:', data?.reason)
+            logout()
+            window.location.href = '/signin'
         }
 
         // Handle private notifications (only for this user)
@@ -79,6 +86,7 @@ export default function SocketHandler() {
         socket.on('notification', onNotification)
         socket.on('notification_broadcast', onBroadcast)
         socket.on('new_nft_offer', onNewNftOffer)
+        socket.on('force_logout', onForceLogout)
         
         socket.on('incoming_call', onIncomingCall)
         socket.on('call_accepted', onCallAccepted)
@@ -91,13 +99,14 @@ export default function SocketHandler() {
             socket.off('notification', onNotification)
             socket.off('notification_broadcast', onBroadcast)
             socket.off('new_nft_offer', onNewNftOffer)
+            socket.off('force_logout', onForceLogout)
             
             socket.off('incoming_call', onIncomingCall)
             socket.off('call_accepted', onCallAccepted)
             socket.off('call_rejected', onCallRejected)
             socket.off('call_ended', onCallEnded)
         }
-    }, [profile?.id, isAuthenticated, authChecked, addLiveNotification])
+    }, [profile?.id, isAuthenticated, authChecked, addLiveNotification, logout])
 
     return null
 }

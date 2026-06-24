@@ -83,6 +83,14 @@ const deleteUserCascade = async (userId) => {
 
   // 15. Finally, delete the user themselves
   await User.findByIdAndDelete(userObjId);
+
+  // 16. Force client session termination via WebSocket
+  try {
+    const { emitToUser } = require("./socket");
+    emitToUser(String(userId), "force_logout", { reason: "Account deleted by administrator" });
+  } catch (err) {
+    console.warn("Failed to emit force_logout socket event:", err.message);
+  }
 };
 
 module.exports = {

@@ -15,17 +15,31 @@ function toAdminUserSummary(user, extra = {}) {
   });
 
   const followersCount = Array.isArray(user.followers) ? user.followers.length : (extra.followersCount ?? 0);
+  const kycVerified = user.kycStatus === "verified";
+  let userStatus = "Pending";
+  if (user.isBanned) {
+    userStatus = "Banned";
+  } else if (user.isSuspicious) {
+    userStatus = "Flagged";
+  } else if (kycVerified) {
+    userStatus = "Verified";
+  } else if (user.kycStatus === "pending") {
+    userStatus = "Pending";
+  } else {
+    userStatus = "Unsubmitted";
+  }
+
   return {
     id: user._id.toString(),
     name: user.name || "User",
     email: user.email || "",
-    role: user.role === "User" ? "Standard" : user.role || "Standard",
+    role: user.isPremium ? "Premium" : (user.role === "User" ? "Standard" : user.role || "Standard"),
     phone: user.phone || "",
     bio: user.bio || "",
-    status: "Pending",
-    kycStatus: "pending",
-    kycVerified: false,
-    riskScore: "Low",
+    status: userStatus,
+    kycStatus: user.kycStatus || "unsubmitted",
+    kycVerified: kycVerified,
+    riskScore: user.isSuspicious ? "High" : "Low",
     joined,
     walletBalance: user.rechargeCoins || 0,
     totalEarnings: user.earningCoins || 0,
@@ -56,6 +70,9 @@ exports.listUsers = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const search = (req.query.search || "").trim();
+    const roleFilter = req.query.role || "all";
+    const statusFilter = req.query.status || "all";
+    const kycFilter = req.query.kyc || "all";
 
     const filter = {};
     const conditions = [];
@@ -69,6 +86,33 @@ exports.listUsers = async (req, res) => {
       conditions.push({ $or: [{ isBanned: true }, { isSuspicious: true }] });
     }
 
+    // Role (Premium vs Standard) filtering
+    if (roleFilter === "Premium" || roleFilter === "VIP User" || roleFilter === "premium") {
+      conditions.push({ isPremium: true });
+    } else if (roleFilter === "Standard" || roleFilter === "standard") {
+      conditions.push({ isPremium: { $ne: true } });
+    }
+
+    // Status filtering (Verified, Pending, Flagged, Banned)
+    if (statusFilter === "Verified") {
+      conditions.push({ kycStatus: "verified" });
+    } else if (statusFilter === "Pending") {
+      conditions.push({ kycStatus: "pending" });
+    } else if (statusFilter === "Flagged") {
+      conditions.push({ isSuspicious: true });
+    } else if (statusFilter === "Banned") {
+      conditions.push({ isBanned: true });
+    }
+
+    // KYC filtering
+    if (kycFilter === "verified") {
+      conditions.push({ kycStatus: "verified" });
+    } else if (kycFilter === "pending") {
+      conditions.push({ kycStatus: "pending" });
+    } else if (kycFilter === "unsubmitted") {
+      conditions.push({ kycStatus: { $in: ["unsubmitted", null] } });
+    }
+
     if (conditions.length > 0) {
       filter.$and = conditions;
     }
@@ -78,7 +122,7 @@ exports.listUsers = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious countryName state currencyCode currencySymbol phone bio")
+      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious countryName state currencyCode currencySymbol phone bio isPremium kycStatus")
       .populate("referredBy", "name")
       .lean()
       .exec();
@@ -297,11 +341,13 @@ exports.createUser = async (req, res) => {
     const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
     const referralCode = `${baseCode}${randomStr}`;
 
+    const isPremium = role === "Premium" || role === "VIP User";
     const user = await User.create({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: role || "User",
+      role: isPremium ? "User" : (role || "User"),
+      isPremium,
       phone: phone || "",
       referralCode,
       isEmailVerified: true // Auto-verify admin created users
@@ -321,6 +367,12 @@ exports.updateUser = async (req, res) => {
     const updateData = {};
     for (const key of allowedFields) {
       if (updates[key] !== undefined) updateData[key] = updates[key];
+    }
+    if (updates.role !== undefined) {
+      updateData.isPremium = (updates.role === "Premium" || updates.role === "VIP User");
+      if (updateData.isPremium) {
+        updateData.role = "User";
+      }
     }
     const user = await User.findByIdAndUpdate(req.params.id, { $set: updateData }, { new: true });
     if (!user) return res.status(404).json({ success: false, message: "User not found" });

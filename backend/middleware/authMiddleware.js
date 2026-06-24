@@ -2,7 +2,9 @@ const jwt = require("jsonwebtoken");
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
 
-const protect = (req, res, next) => {
+const User = require("../models/User");
+
+const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || "";
     console.log(`[Auth] ${req.method} ${req.originalUrl} - Incoming Header:`, authHeader ? "Present" : "Missing");
@@ -18,8 +20,19 @@ const protect = (req, res, next) => {
       return res.status(401).json({ success: false, message: "Use access token for this request" });
     }
     
+    const dbUser = await User.findById(decoded.userId).select("isBanned role").lean();
+    if (!dbUser) {
+      console.log(`[Auth] ${req.method} ${req.originalUrl} - User no longer exists in DB:`, decoded.userId);
+      return res.status(401).json({ success: false, message: "Unauthorized - User account has been deleted" });
+    }
+
+    if (dbUser.isBanned) {
+      console.log(`[Auth] ${req.method} ${req.originalUrl} - User account is banned:`, decoded.userId);
+      return res.status(401).json({ success: false, message: "Unauthorized - User account is banned" });
+    }
+
     console.log(`[Auth] ${req.method} ${req.originalUrl} - Decoded token for user:`, decoded.userId);
-    req.user = decoded;
+    req.user = { ...decoded, role: dbUser.role };
     return next();
   } catch (error) {
     console.error(`[Auth] ${req.method} ${req.originalUrl} - Verification failed:`, error.message);

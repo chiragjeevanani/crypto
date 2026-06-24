@@ -370,7 +370,7 @@ export default function EditUser({ createMode = false }) {
                                             className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
                                         >
                                             <option value="Standard">Standard</option>
-                                            <option value="VIP User">VIP User</option>
+                                            <option value="Premium">Premium</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2.5">

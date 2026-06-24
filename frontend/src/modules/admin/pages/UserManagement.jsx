@@ -136,7 +136,7 @@ export default function UserManagement() {
                     className="bg-bg border border-surface rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-text outline-none focus:ring-1 focus:ring-primary/20"
                 >
                     <option value="all">All Roles</option>
-                    <option value="VIP User">VIP User</option>
+                    <option value="Premium">Premium User</option>
                     <option value="Standard">Standard</option>
                 </select>
                 <select
