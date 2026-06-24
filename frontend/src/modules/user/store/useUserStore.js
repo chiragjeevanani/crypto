@@ -46,6 +46,18 @@ export const clearAuthStorage = () => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    
+    // Clear all creation page states & cached files on logout/token clearing
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('create_') || key === 'selectedSound' || key === 'soundFavorites') {
+            localStorage.removeItem(key);
+        }
+    });
+    try {
+        indexedDB.deleteDatabase("JhumrooCreateDB");
+    } catch (e) {
+        console.warn("Failed to delete IndexedDB draft cache:", e);
+    }
 }
 
 const defaultProfile = {

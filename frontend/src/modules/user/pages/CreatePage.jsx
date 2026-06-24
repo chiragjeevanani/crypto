@@ -802,6 +802,40 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   });
 
   const { profile } = useUserStore();
+
+  // Reset draft if it belongs to another user
+  useEffect(() => {
+    if (profile?.id) {
+      const draftOwner = localStorage.getItem('create_draft_owner_id');
+      if (draftOwner && draftOwner !== profile.id) {
+        console.log("Draft belongs to another user. Clearing creation cache.");
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('create_') || key === 'selectedSound') {
+            localStorage.removeItem(key);
+          }
+        });
+        try {
+          indexedDB.deleteDatabase("JhumrooCreateDB");
+        } catch (e) {}
+
+        // Reset all creation page states
+        setPostState(createInitialPostState());
+        setPreviewUrl(null);
+        setVideoFile(null);
+        setClipSequence([]);
+        setStageStack(['camera']);
+        setRecordedSeconds(0);
+        setRecordStatus('idle');
+        setVideoDuration(0);
+        setVideoThumbnails([]);
+        setActiveStickers([]);
+        setActiveOverlays([]);
+        setOverlayText('');
+      }
+      localStorage.setItem('create_draft_owner_id', profile.id);
+    }
+  }, [profile?.id]);
+
   const [promoSettings, setPromoSettings] = useState({
     minDailyBudget: 99,
     minDailyBudgetGlobal: 5,
@@ -2267,7 +2301,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     showToast('Saved to drafts');
   };
 
-  const handlePublishUi = async () => {
+  const handlePublishUi = async (termsAcceptedOverride = false) => {
     if (isUploading) return;
     
     const fileToUpload = mergedVideoBlob || videoFile;
@@ -2276,7 +2310,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         return;
     }
 
-    if (postState.isNFT && !nftTermsAccepted) {
+    const accepted = nftTermsAccepted || termsAcceptedOverride;
+    if (postState.isNFT && !accepted) {
         showToast('Fetching terms and conditions...');
         try {
             const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -5521,7 +5556,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                    onClick={() => {
                      setNftTermsAccepted(true);
                      setActiveSheet(null);
-                     setTimeout(handlePublishUi, 300);
+                     setTimeout(() => handlePublishUi(true), 300);
                    }}
                    className="flex-1 py-3.5 bg-[#fe2c55] text-white font-bold rounded-xl"
                  >
