@@ -23,15 +23,14 @@ import ErrorBoundary from '../components/shared/ErrorBoundary'
 export default function HomePage() {
     const { 
         posts, postsLoading, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
-        reelFeed, reelFeedLoading, reelFeedError, loadReelFeed
+        reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal
     } = useFeedStore()
     const { profile } = useUserStore()
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
     useEffect(() => { 
         loadPosts() 
-        loadNotifications()
-    }, [loadPosts, loadNotifications])
+    }, [loadPosts])
     const [searchParams] = useSearchParams()
     const [query, setQuery] = useState('')
     const [postFilter, setPostFilter] = useState('all')
@@ -44,7 +43,6 @@ export default function HomePage() {
     const [suggestedUsers, setSuggestedUsers] = useState([])
     const [suggestedReels, setSuggestedReels] = useState([])
     const [suggestedLoading, setSuggestedLoading] = useState(false)
-    const [unreadTotal, setUnreadTotal] = useState(0)
     const view = searchParams.get('view')
     const currentPostId = searchParams.get('post')
     const isExplore = view === 'explore'
@@ -135,25 +133,6 @@ export default function HomePage() {
         }, 450)
         return () => clearTimeout(handle)
     }, [isExplore, query])
-
-    useEffect(() => {
-        messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
-
-        const socket = getSocket()
-        const handleMsg = () => messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
-        const handleSeen = () => messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
-
-        socket.on('receive_message', handleMsg)
-        socket.on('messages_seen_update', handleSeen)
-
-        // Ensure live count is hydrated
-        fetchAuctions('live')
-
-        return () => {
-            socket.off('receive_message', handleMsg)
-            socket.off('messages_seen_update', handleSeen)
-        }
-    }, [])
 
     useEffect(() => {
         if (!currentPostId) return
@@ -323,7 +302,7 @@ export default function HomePage() {
                     {(feedPosts.length === 0) && !suggestedLoading && (
                         <div className="py-2">
                             <ErrorBoundary>
-                                <SuggestedUsersSection />
+                                <SuggestedUsersSection users={suggestedUsers} loading={suggestedLoading} />
                             </ErrorBoundary>
                             {suggestedReels.length > 0 && (
                                 <ErrorBoundary>
@@ -360,7 +339,7 @@ export default function HomePage() {
                             {/* Suggested Users - shown after the 2nd post (index 1) or after the 1st if it is the only post */}
                             {((index === 1) || (index === 0 && feedPosts.length === 1)) && (
                                 <ErrorBoundary>
-                                    <SuggestedUsersSection />
+                                    <SuggestedUsersSection users={suggestedUsers} loading={suggestedLoading} />
                                 </ErrorBoundary>
                             )}
 

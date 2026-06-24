@@ -24,10 +24,22 @@ const fileFilter = (req, file, cb) => {
   else cb(new Error("Only image, video, and audio files are allowed"), false);
 };
 
-const upload = multer({
+const mediaOptimizer = require("./mediaOptimizer");
+
+const multerInstance = multer({
   storage,
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE }
 });
 
+// Wrap multer methods so mediaOptimizer runs automatically after upload
+const upload = {
+  single: (fieldName) => [multerInstance.single(fieldName), mediaOptimizer],
+  array: (fieldName, maxCount) => [multerInstance.array(fieldName, maxCount), mediaOptimizer],
+  fields: (fields) => [multerInstance.fields(fields), mediaOptimizer],
+  any: () => [multerInstance.any(), mediaOptimizer],
+  none: () => multerInstance.none()
+};
+
 module.exports = { upload, UPLOAD_DIR };
+

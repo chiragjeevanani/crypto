@@ -147,6 +147,8 @@ export const useUserStore = create((set, get) => ({
     setAuthError: (message) => set({ authError: message || '' }),
 
     initializeAuth: async () => {
+        if (get().authLoading) return
+
         let token = get().token || getStoredToken()
         const refreshToken = getStoredRefreshToken()
 

@@ -54,6 +54,9 @@ const mapPostToNFT = (post) => {
     }
 }
 
+let lastNftFetchTime = 0
+let lastCampaignFetchTime = 0
+
 export default function TasksPage() {
     const navigate = useNavigate()
     const { taskId: routeTaskId } = useParams()
@@ -92,6 +95,9 @@ export default function TasksPage() {
     const isProcessingRef = useRef(false)
 
     useEffect(() => {
+        if (Date.now() - lastNftFetchTime < 1000) return
+        lastNftFetchTime = Date.now()
+
         const fetchRates = async () => {
             setRatesLoading(true)
             try {
@@ -208,6 +214,9 @@ export default function TasksPage() {
 
 
     useEffect(() => {
+        if (Date.now() - lastCampaignFetchTime < 1000) return
+        lastCampaignFetchTime = Date.now()
+
         let mounted = true
         const load = async () => {
             setCampaignLoading(true)
@@ -985,6 +994,9 @@ export default function TasksPage() {
                                                 </div>
                                             )}
                                         </div>
+                                        <p className="text-[11px] truncate font-semibold" style={{ color: 'var(--color-muted)' }}>
+                                            Owner: {nft.creatorName}
+                                        </p>
 
                                         {/* Price */}
                                         <div className="flex items-center gap-1.5">

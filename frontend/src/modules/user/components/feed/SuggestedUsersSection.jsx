@@ -2,24 +2,32 @@ import { useState, useEffect } from 'react'
 import { searchService } from '../../services/searchService'
 import SuggestedUserCard from './SuggestedUserCard'
 
-export default function SuggestedUsersSection({ title = "Suggested for you" }) {
+export default function SuggestedUsersSection({ title = "Suggested for you", users, loading }) {
     const [suggestedUsers, setSuggestedUsers] = useState([])
-    const [loading, setLoading] = useState(true)
+    const [localLoading, setLocalLoading] = useState(true)
 
     useEffect(() => {
+        if (users) {
+            setSuggestedUsers(users)
+            setLocalLoading(loading ?? false)
+        }
+    }, [users, loading])
+
+    useEffect(() => {
+        if (users) return
         let mounted = true
         searchService.getSuggestedUsers().then(res => {
             if (mounted) {
                 setSuggestedUsers(res.users || [])
-                setLoading(false)
+                setLocalLoading(false)
             }
         }).catch(() => {
-            if (mounted) setLoading(false)
+            if (mounted) setLocalLoading(false)
         })
         return () => { mounted = false }
-    }, [])
+    }, [users])
 
-    if (!loading && suggestedUsers.length === 0) return null
+    if (!localLoading && suggestedUsers.length === 0) return null
 
     return (
         <div className="mt-4 mb-8">

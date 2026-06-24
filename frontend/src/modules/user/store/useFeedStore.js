@@ -43,6 +43,7 @@ export const useFeedStore = create((set, get) => ({
     commentsByPostId: {},
     commentsLoading: {},
     savedPostIds: new Set(),
+    viewedPostIds: new Set(),
     reelFeed: [],
     reelFeedLoading: false,
     reelFeedError: null,
@@ -128,8 +129,10 @@ export const useFeedStore = create((set, get) => ({
     notifications: [],
     notificationsLoading: false,
     unreadNotifications: 0,
+    unreadMessagesTotal: 0,
     suggestions: [],
     suggestionsLoading: false,
+    setUnreadMessagesTotal: (count) => set({ unreadMessagesTotal: count }),
 
     toggleLike: async (postId) => {
         // Optimistic update
@@ -327,6 +330,17 @@ export const useFeedStore = create((set, get) => ({
     },
 
     recordView: async (postId) => {
+        if (!postId) return
+        const idStr = String(postId)
+        if (get().viewedPostIds.has(idStr)) return
+
+        // Optimistically mark as viewed to block concurrent requests
+        set((state) => {
+            const nextSet = new Set(state.viewedPostIds)
+            nextSet.add(idStr)
+            return { viewedPostIds: nextSet }
+        })
+
         try {
             const res = await postService.recordView(postId)
             if (res.success && !res.alreadyViewed) {
@@ -339,7 +353,7 @@ export const useFeedStore = create((set, get) => ({
                 }))
             }
         } catch {
-            // silence view errors
+            // Non-blocking: if view logging fails, we keep the optimistically added ID to avoid retrying in this session
         }
     },
 

@@ -65,11 +65,13 @@ export default function AppShell() {
 
     const platformSettings = usePlatformSettings()
     const earningsInRs = earningsWallet / platformSettings.coinRate
-    const { posts, pushNotification, notifTotal, loadNotifications } = useFeedStore(useShallow(state => ({
+    const { posts, pushNotification, notifTotal, loadNotifications, unreadTotal, setUnreadMessagesTotal } = useFeedStore(useShallow(state => ({
         posts: state.posts,
         pushNotification: state.pushNotification,
         notifTotal: state.unreadNotifications,
-        loadNotifications: state.loadNotifications
+        loadNotifications: state.loadNotifications,
+        unreadTotal: state.unreadMessagesTotal,
+        setUnreadMessagesTotal: state.setUnreadMessagesTotal
     })))
     const { kyc, setKYCFromSync, user, profile } = useUserStore(useShallow(state => ({
         kyc: state.kyc,
@@ -84,7 +86,6 @@ export default function AppShell() {
     const [campaignError, setCampaignError] = useState('')
 
     const [userNFTListings, setUserNFTListings] = useState([])
-    const [unreadTotal, setUnreadTotal] = useState(0)
     const trendingNFTs = useMemo(() => {
         const nftPosts = posts
             .filter((post) => post.postType === 'nft' || post.isNFT || (post.nftPriceINR || 0) > 0)
@@ -261,8 +262,8 @@ export default function AppShell() {
         }
     }, [])
     useEffect(() => {
-        if (!user) return
-        messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+        if (!user?.id) return
+        messageService.getUnreadTotal().then(setUnreadMessagesTotal).catch(console.error)
 
         const socket = getSocket()
         if (!socket.connected) socket.connect()
@@ -270,11 +271,11 @@ export default function AppShell() {
         const handleNewMessage = () => {
             // When ANY new message arrives, if we're not inside that specific chat,
             // we should probably just re-fetch the total for simplicity
-            messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+            messageService.getUnreadTotal().then(setUnreadMessagesTotal).catch(console.error)
         }
 
         const handleSeenUpdate = () => {
-            messageService.getUnreadTotal().then(setUnreadTotal).catch(console.error)
+            messageService.getUnreadTotal().then(setUnreadMessagesTotal).catch(console.error)
         }
 
         socket.on('receive_message', handleNewMessage)
@@ -284,7 +285,7 @@ export default function AppShell() {
             socket.off('receive_message', handleNewMessage)
             socket.off('messages_seen_update', handleSeenUpdate)
         }
-    }, [user])
+    }, [user?.id, setUnreadMessagesTotal])
 
     return (
         <div
