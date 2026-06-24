@@ -52,6 +52,7 @@ import WalletTransactions from './modules/admin/pages/WalletTransactions'
 import PromotionSettingsPage from './modules/admin/pages/PromotionSettingsPage'
 import ReportsManagement from './modules/admin/pages/ReportsManagement'
 import KycManagement from './modules/admin/pages/KycManagement'
+import TrendingDealsManagement from './modules/admin/pages/TrendingDealsManagement'
 // Public transparency pages
 import TransparencyPortal from './modules/public/pages/TransparencyPortal'
 import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
@@ -198,6 +199,7 @@ export default function App() {
               <Route path="voting" element={<VotingManagement />} />
               <Route path="nfts" element={<NFTModeration />} />
               <Route path="reports" element={<ReportsManagement />} />
+              <Route path="deals" element={<TrendingDealsManagement />} />
 
               <Route path="wallet" element={<WalletOverview />} />
               <Route path="wallet/deposits" element={<WalletTransactions />} />

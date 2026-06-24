@@ -25,7 +25,7 @@ export const storyService = {
     return data.stories || [];
   },
 
-  async createStory({ file, caption, musicTrackId, musicId, musicStartTime, captionPosX, captionPosY, captionTextColor, captionBgColor, filter, mediaScale, mediaPosX, mediaPosY }) {
+  async createStory({ file, caption, musicTrackId, musicId, musicStartTime, captionPosX, captionPosY, captionTextColor, captionBgColor, filter, mediaScale, mediaPosX, mediaPosY, aspectRatio }) {
     const form = new FormData();
     if (file) form.append("media", file);
     if (caption) form.append("caption", caption);
@@ -42,6 +42,7 @@ export const storyService = {
     if (typeof captionPosY === "number") form.append("captionPosY", String(captionPosY));
     if (captionTextColor) form.append("captionTextColor", captionTextColor);
     if (captionBgColor) form.append("captionBgColor", captionBgColor);
+    if (aspectRatio) form.append("aspectRatio", aspectRatio);
 
     const controller = new AbortController();
     const timeoutMs = file && file.type && file.type.startsWith("video/") ? 60000 : 25000;

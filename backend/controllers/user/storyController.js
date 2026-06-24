@@ -50,6 +50,7 @@ const formatStoryForClient = (story, currentUserId, baseUrl) => {
     mediaScale: story.mediaScale || 1,
     mediaPosition: story.mediaPosition || { x: 0, y: 0 },
     musicPosition: story.musicPosition || { x: 0.5, y: 0.25 },
+    aspectRatio: story.aspectRatio || "9/16",
     createdAt: story.createdAt,
     isMe
   };
@@ -130,7 +131,8 @@ exports.createStory = async (req, res) => {
       musicPosition: {
         x: Number(body.musicPosX) || 0.5,
         y: Number(body.musicPosY) || 0.25,
-      }
+      },
+      aspectRatio: body.aspectRatio || "9/16"
     });
 
     const user = await User.findById(userId).select("name handle avatar").lean();

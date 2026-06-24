@@ -53,7 +53,7 @@ const getMyCollection = async (req, res) => {
       })
       .populate({
         path: "postId",
-        select: "title caption thumbnail media creator nftPriceINR status",
+        select: "title caption thumbnail media creator nftPriceINR status totalCopies copiesSold",
         populate: { path: "creator", select: "name handle avatar" }
       })
       .sort({ createdAt: -1 });
@@ -73,7 +73,10 @@ const getMyCollection = async (req, res) => {
         resalePrice: o.resalePrice,
         acquiredAt: o.createdAt,
         creator: source?.creator || null,
-        status: source?.status || source?.nftStatus || "sold"
+        status: source?.status || source?.nftStatus || "sold",
+        totalCopies: o.totalCopies || source?.totalCopies || 1,
+        copiesSold: source?.copiesSold || 0,
+        copyNumber: o.copyNumber || 1
       };
     });
 
@@ -101,7 +104,7 @@ const getUserCollection = async (req, res) => {
       })
       .populate({
         path: "postId",
-        select: "title caption thumbnail media creator nftPriceINR status",
+        select: "title caption thumbnail media creator nftPriceINR status totalCopies copiesSold",
         populate: { path: "creator", select: "name handle avatar" }
       })
       .sort({ createdAt: -1 });
@@ -118,6 +121,9 @@ const getUserCollection = async (req, res) => {
         resalePrice: o.resalePrice,
         acquiredAt: o.createdAt,
         creator: source?.creator || null,
+        totalCopies: o.totalCopies || source?.totalCopies || 1,
+        copiesSold: source?.copiesSold || 0,
+        copyNumber: o.copyNumber || 1
       };
     });
 
@@ -243,7 +249,7 @@ const getResaleListings = async (req, res) => {
       })
       .populate({
         path: "postId",
-        select: "title caption thumbnail media creator nftPriceINR status",
+        select: "title caption thumbnail media creator nftPriceINR status totalCopies copiesSold",
         populate: { path: "creator", select: "name handle avatar" }
       })
       .populate("toUserId", "name handle avatar")
@@ -261,6 +267,9 @@ const getResaleListings = async (req, res) => {
         acquiredAt: o.createdAt,
         owner: o.toUserId,
         creator: source?.creator || null,
+        totalCopies: o.totalCopies || source?.totalCopies || 1,
+        copiesSold: source?.copiesSold || 0,
+        copyNumber: o.copyNumber || 1
       };
     });
 

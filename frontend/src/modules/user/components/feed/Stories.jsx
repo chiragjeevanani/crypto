@@ -345,6 +345,7 @@ export default function Stories() {
                             mediaScale: s.mediaScale || 1,
                             mediaPosition: s.mediaPosition || { x: 0, y: 0 },
                             musicPosition: s.musicPosition || { x: 0.5, y: 0.25 },
+                            aspectRatio: s.aspectRatio || '9/16',
                             createdAt: s.createdAt,
                         })),
                     });
@@ -399,6 +400,7 @@ export default function Stories() {
                     mediaScale: s.mediaScale || 1,
                     mediaPosition: s.mediaPosition || { x: 0, y: 0 },
                     musicPosition: s.musicPosition || { x: 0.5, y: 0.25 },
+                    aspectRatio: s.aspectRatio || '9/16',
                     createdAt: s.createdAt,
                 })),
             });
@@ -427,6 +429,7 @@ export default function Stories() {
                 mediaPosY: imagePosition.y,
                 musicPosX: musicPos.x,
                 musicPosY: musicPos.y,
+                aspectRatio: storyAspect,
             });
             await loadStories();
             setIsCreatingStory(false);
@@ -444,6 +447,7 @@ export default function Stories() {
             setMusicPos({ x: 0.5, y: 0.25 });
             setImageScale(1);
             setImagePosition({ x: 0, y: 0 });
+            setStoryAspect('9/16');
         } catch (err) {
             setUploadError(err?.message || 'Failed to share. Try again.');
         } finally {
@@ -592,45 +596,54 @@ export default function Stories() {
                                 />
                             </div>
 
-                             {/* Story Content Background */}
-                             {selectedStory.stories?.[activeStoryIndex] && (
-                                <>
-                                    {selectedStory.stories[activeStoryIndex].musicData && (
-                                        <audio
-                                            key={`story-audio-${selectedStory.stories[activeStoryIndex].id}`}
-                                            ref={viewerAudioRef}
-                                            src={selectedStory.stories[activeStoryIndex].musicData.audioUrl}
-                                            muted={isMuted}
-                                            loop
-                                        />
-                                    )}
-                                    {selectedStory.stories[activeStoryIndex].mediaType === 'video' ? (
-                                        <video
-                                            key={`story-video-${selectedStory.stories[activeStoryIndex].id}`}
-                                            src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { isVideo: true, width: 720, quality: '60' })}
-                                            className="w-full h-full object-cover"
-                                            autoPlay
-                                            muted={isMuted || !!selectedStory.stories[activeStoryIndex].musicData}
-                                            loop
-                                            playsInline
-                                            style={{
-                                                filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
-                                                transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
-                                            }}
-                                        />
-                                    ) : (
-                                        <img
-                                            key={`story-img-${selectedStory.stories[activeStoryIndex].id}`}
-                                            src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { width: 1080, quality: '80' })}
-                                            alt="Story Content"
-                                            className="w-full h-full object-cover"
-                                            style={{
-                                                filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
-                                                transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
-                                            }}
-                                        />
-                                    )}
-                                </>
+                              {/* Story Content Background */}
+                              {selectedStory.stories?.[activeStoryIndex] && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
+                                    <div 
+                                        className="w-full relative overflow-hidden"
+                                        style={{
+                                            aspectRatio: selectedStory.stories[activeStoryIndex].aspectRatio === '9/16' ? undefined : selectedStory.stories[activeStoryIndex].aspectRatio,
+                                            maxHeight: selectedStory.stories[activeStoryIndex].aspectRatio === '1/1' ? '100%' : selectedStory.stories[activeStoryIndex].aspectRatio === '16/9' ? '56.25vw' : '100%',
+                                            height: selectedStory.stories[activeStoryIndex].aspectRatio === '9/16' ? '100%' : 'auto',
+                                        }}
+                                    >
+                                        {selectedStory.stories[activeStoryIndex].musicData && (
+                                            <audio
+                                                key={`story-audio-${selectedStory.stories[activeStoryIndex].id}`}
+                                                ref={viewerAudioRef}
+                                                src={selectedStory.stories[activeStoryIndex].musicData.audioUrl}
+                                                muted={isMuted}
+                                                loop
+                                            />
+                                        )}
+                                        {selectedStory.stories[activeStoryIndex].mediaType === 'video' ? (
+                                            <video
+                                                key={`story-video-${selectedStory.stories[activeStoryIndex].id}`}
+                                                src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { isVideo: true, width: 720, quality: '60' })}
+                                                className="w-full h-full object-cover"
+                                                autoPlay
+                                                muted={isMuted || !!selectedStory.stories[activeStoryIndex].musicData}
+                                                loop
+                                                playsInline
+                                                style={{
+                                                    filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
+                                                    transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
+                                                }}
+                                            />
+                                        ) : (
+                                            <img
+                                                key={`story-img-${selectedStory.stories[activeStoryIndex].id}`}
+                                                src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { width: 1080, quality: '80' })}
+                                                alt="Story Content"
+                                                className="w-full h-full object-cover"
+                                                style={{
+                                                    filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
+                                                    transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
                              )}
 
                              {/* Music Sticker Viewer Overlay */}
@@ -890,50 +903,55 @@ export default function Stories() {
                         {/* Story Content Area */}
                         <div
                             ref={storyCanvasRef}
-                            className="flex-1 relative rounded-b-3xl overflow-hidden bg-zinc-900 mt-16 mx-2 mb-2"
-                            style={{
-                                aspectRatio: storyAspect === '9/16' ? undefined : storyAspect,
-                                maxHeight: storyAspect === '1/1' ? '70vw' : storyAspect === '16/9' ? '56.25vw' : undefined,
-                            }}
+                            className="flex-1 relative rounded-3xl overflow-hidden bg-zinc-950 mt-16 mx-2 mb-2"
                         >
                             {storyMedia ? (
-                                <div className="absolute inset-0 overflow-hidden">
-                                    {isVideoPreview ? (
-                                        <video
-                                            src={storyMedia}
-                                            className="w-full h-full object-cover"
-                                            autoPlay
-                                            muted
-                                            loop
-                                        />
-                                    ) : (
-                                        <motion.div 
-                                            drag
-                                            dragMomentum={false}
-                                            onDragEnd={(_, info) => {
-                                                const bounds = storyCanvasRef.current?.getBoundingClientRect();
-                                                if (!bounds) return;
-                                                // Convert pixels to percentage offset for consistency
-                                                const xMove = (info.offset.x / bounds.width) * 100;
-                                                const yMove = (info.offset.y / bounds.height) * 100;
-                                                setImagePosition(prev => ({ 
-                                                    x: prev.x + xMove, 
-                                                    y: prev.y + yMove 
-                                                }));
-                                            }}
-                                            className="w-full h-full cursor-move touch-none"
-                                        >
-                                            <img
+                                <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
+                                    <div 
+                                        className="w-full relative overflow-hidden"
+                                        style={{
+                                            aspectRatio: storyAspect === '9/16' ? undefined : storyAspect,
+                                            maxHeight: storyAspect === '1/1' ? '100%' : storyAspect === '16/9' ? '56.25vw' : '100%',
+                                            height: storyAspect === '9/16' ? '100%' : 'auto',
+                                        }}
+                                    >
+                                        {isVideoPreview ? (
+                                            <video
                                                 src={storyMedia}
-                                                className="w-full h-full object-cover transition-transform duration-150 pointer-events-none select-none"
-                                                alt="Preview"
-                                                style={{
-                                                    filter: FILTERS.find(f => f.name.toLowerCase() === storyFilter.toLowerCase())?.value || 'none',
-                                                    transform: `scale(${imageScale}) translate(${imagePosition.x}%, ${imagePosition.y}%)`,
-                                                }}
+                                                className="w-full h-full object-cover"
+                                                autoPlay
+                                                muted
+                                                loop
                                             />
-                                        </motion.div>
-                                    )}
+                                        ) : (
+                                            <motion.div 
+                                                drag
+                                                dragMomentum={false}
+                                                onDragEnd={(_, info) => {
+                                                    const bounds = storyCanvasRef.current?.getBoundingClientRect();
+                                                    if (!bounds) return;
+                                                    // Convert pixels to percentage offset for consistency
+                                                    const xMove = (info.offset.x / bounds.width) * 100;
+                                                    const yMove = (info.offset.y / bounds.height) * 100;
+                                                    setImagePosition(prev => ({ 
+                                                        x: prev.x + xMove, 
+                                                        y: prev.y + yMove 
+                                                    }));
+                                                }}
+                                                className="w-full h-full cursor-move touch-none"
+                                            >
+                                                <img
+                                                    src={storyMedia}
+                                                    className="w-full h-full object-cover transition-transform duration-150 pointer-events-none select-none"
+                                                    alt="Preview"
+                                                    style={{
+                                                        filter: FILTERS.find(f => f.name.toLowerCase() === storyFilter.toLowerCase())?.value || 'none',
+                                                        transform: `scale(${imageScale}) translate(${imagePosition.x}%, ${imagePosition.y}%)`,
+                                                    }}
+                                                />
+                                            </motion.div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : isCameraMode ? (
                                 // --- Live Camera View ---

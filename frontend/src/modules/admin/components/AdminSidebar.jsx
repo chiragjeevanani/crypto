@@ -21,7 +21,8 @@ import {
     Target,
     PanelLeftClose,
     ChevronDown,
-    Gavel
+    Gavel,
+    Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -76,6 +77,7 @@ const menuGroups = [
                 ]
             },
             { icon: Users, label: 'Advertisers', path: '/admin/advertisers' },
+            { icon: Sparkles, label: 'Trending Deals', path: '/admin/deals' },
         ]
     },
     {

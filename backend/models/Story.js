@@ -57,6 +57,10 @@ const storySchema = new mongoose.Schema(
       x: { type: Number, default: 0.5 },
       y: { type: Number, default: 0.25 }
     },
+    aspectRatio: {
+      type: String,
+      default: "9/16"
+    },
     deletedAt: {
       type: Date,
       default: null
