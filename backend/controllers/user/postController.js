@@ -678,3 +678,34 @@ exports.deletePost = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Background worker task to process expired promotions.
+ */
+exports.processExpiredPromotions = async () => {
+  try {
+    const now = new Date();
+    // Find all business posts where the promotion is active and endDate has passed
+    const expiredPosts = await Post.find({
+      isBusiness: true,
+      "promotion.status": "active",
+      "promotion.endDate": { $lte: now }
+    });
+
+    if (expiredPosts.length > 0) {
+      console.log(`[Jobs] Found ${expiredPosts.length} expired promotions. Processing completion...`);
+      for (const post of expiredPosts) {
+        post.promotion.status = "completed";
+        post.isPublished = false; // Unpublish the post so it is removed from the feed/home page
+        post.history.push({
+          action: "Promotion duration completed. Post automatically unpublished.",
+          admin: "System"
+        });
+        await post.save();
+        console.log(`[Jobs] Promotion completed and post unpublished: ${post._id}`);
+      }
+    }
+  } catch (err) {
+    console.error("[Jobs] Error processing expired promotions:", err.message);
+  }
+};

@@ -52,6 +52,7 @@ import { businessService } from '../services/businessService';
 import { loadRazorpayScript } from '../../../utils/razorpayLoader';
 import { followService } from '../services/followService';
 import audioService from '../../../services/audioService';
+import { useUserStore } from '../store/useUserStore';
 const SOUND_FAVORITES_KEY = 'soundFavorites';
 
 
@@ -799,6 +800,60 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     const saved = localStorage.getItem('create_postState');
     return saved ? JSON.parse(saved) : createInitialPostState();
   });
+
+  const { profile } = useUserStore();
+  const [promoSettings, setPromoSettings] = useState({
+    minDailyBudget: 99,
+    minDailyBudgetGlobal: 5,
+    maxDailyBudget: 100000,
+    maxDailyBudgetGlobal: 5000,
+    minDuration: 1,
+    maxDuration: 30,
+    minImpressionFactor: 14,
+    maxImpressionFactor: 29
+  });
+  const [exchangeRates, setExchangeRates] = useState({});
+
+  useEffect(() => {
+    businessService.getSettings().then(res => {
+      if (res) {
+        setPromoSettings(res);
+      }
+    }).catch(console.error);
+
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    fetch(`${API_BASE}/public-config/exchange-rates`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.rates) {
+          setExchangeRates(data.rates);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const isINR = (profile?.currencyCode || 'INR').toUpperCase() === 'INR';
+  const currencySymbol = profile?.currencySymbol || '₹';
+  const currencyCode = (profile?.currencyCode || 'INR').toUpperCase();
+  const exchangeRate = isINR ? 1 : (exchangeRates[currencyCode] || 1);
+
+  const minBudget = isINR 
+    ? (promoSettings.minDailyBudget || 99) 
+    : Math.round((promoSettings.minDailyBudgetGlobal || 5) * exchangeRate);
+    
+  const maxBudget = isINR 
+    ? (promoSettings.maxDailyBudget || 100000) 
+    : Math.round((promoSettings.maxDailyBudgetGlobal || 5000) * exchangeRate);
+
+  const budgetStep = isINR ? 50 : Math.max(1, Math.round(1 * exchangeRate));
+
+  useEffect(() => {
+    if (postState.dailyBudget < minBudget) {
+      setPostState(s => ({ ...s, dailyBudget: minBudget }));
+    } else if (postState.dailyBudget > maxBudget && maxBudget > 0) {
+      setPostState(s => ({ ...s, dailyBudget: maxBudget }));
+    }
+  }, [minBudget, maxBudget, postState.dailyBudget]);
   const [tagInfoSeen, setTagInfoSeen] = useState(false);
   const [nftTermsText, setNftTermsText] = useState('');
   const [nftTermsAccepted, setNftTermsAccepted] = useState(false);
@@ -4382,15 +4437,15 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Daily Budget</label>
-                        <span className="font-bold">₹{postState.dailyBudget || 99}</span>
+                        <span className="font-bold">{currencySymbol}{postState.dailyBudget || minBudget}</span>
                       </div>
                       <input 
                         type="range"
-                        min="50"
-                        max="10000"
-                        step="50"
-                        value={postState.dailyBudget || 99}
-                        onChange={(e) => setPostState(s => ({ ...s, dailyBudget: parseInt(e.target.value) || 50 }))}
+                        min={minBudget}
+                        max={maxBudget}
+                        step={budgetStep}
+                        value={postState.dailyBudget || minBudget}
+                        onChange={(e) => setPostState(s => ({ ...s, dailyBudget: parseInt(e.target.value) || minBudget }))}
                         className="w-full accent-[#fe2c55]"
                       />
                     </div>
@@ -4401,8 +4456,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                       </div>
                       <input 
                         type="range"
-                        min="1"
-                        max="30"
+                        min={promoSettings.minDuration || 1}
+                        max={promoSettings.maxDuration || 30}
                         value={postState.durationDays || 10}
                         onChange={(e) => setPostState(s => ({ ...s, durationDays: parseInt(e.target.value) || 1 }))}
                         className="w-full accent-[#fe2c55]"
@@ -4410,7 +4465,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     </div>
                     <div className="pt-3 border-t border-gray-200 dark:border-white/10 flex justify-between items-center">
                       <span className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Total Estimated Spend</span>
-                      <span className="text-[18px] font-bold text-[#fe2c55]">₹{(postState.dailyBudget || 99) * (postState.durationDays || 10)}</span>
+                      <span className="text-[18px] font-bold text-[#fe2c55]">{currencySymbol}{(postState.dailyBudget || minBudget) * (postState.durationDays || 10)}</span>
                     </div>
                   </div>
                 </div>

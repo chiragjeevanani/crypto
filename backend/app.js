@@ -38,6 +38,7 @@ const nftRoutes = require("./routes/nftRoutes"); // Collectible (Web2) routes
 const agoraRoutes = require("./routes/agoraRoutes"); // Agora Voice/Video endpoints
 const { processEndedAuctions } = require("./controllers/auctionController");
 const { processVaultSettlements } = require("./controllers/nftController");
+const { processExpiredPromotions } = require("./controllers/user/postController");
 
 
 const app = express();
@@ -103,6 +104,11 @@ const startBackgroundJobs = () => {
     console.log('[Jobs] Starting background workers...');
     setInterval(processEndedAuctions, 60 * 1000); 
     setInterval(processVaultSettlements, 65 * 1000); 
+    
+    // Process expired promotions every 60 seconds
+    setInterval(processExpiredPromotions, 60 * 1000);
+    // Run once immediately on start
+    processExpiredPromotions().catch(err => console.error('[Jobs] Initial promotion check failed:', err.message));
 };
 
 app.startBackgroundJobs = startBackgroundJobs;
