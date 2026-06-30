@@ -205,7 +205,7 @@ const overlayButtonClass =
   'w-9 h-9 rounded-full bg-black/30 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:opacity-70';
 
 const sheetOverlayClass =
-  'absolute inset-0 z-[100] bg-black/55 backdrop-blur-[2px] flex items-end justify-center';
+  'fixed inset-0 z-[100] bg-black/55 backdrop-blur-[2px] flex items-end justify-center';
 
 const Toggle = ({ enabled, onToggle, isDarkMode = false }) => (
   <button
@@ -249,8 +249,25 @@ const BottomSheet = ({ title, onClose, children, compact = false, scrollable = f
   </div>
 );
 
+const CenterDialog = ({ title, onClose, children }) => (
+  <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm px-6" onClick={onClose}>
+    <div 
+      className="w-full max-w-[340px] bg-white rounded-3xl p-6 shadow-2xl relative text-black"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-4 border-b border-black/5 pb-3">
+        <h3 className="text-[17px] font-bold text-black">{title}</h3>
+        <button type="button" onClick={onClose} className="text-black/60 hover:text-black active:opacity-60">
+          <BiX size={22} />
+        </button>
+      </div>
+      <div>{children}</div>
+    </div>
+  </div>
+);
+
 const CenterModal = ({ title, description, primaryLabel, secondaryLabel, onPrimary, onSecondary, isDarkMode = false }) => (
-  <div className={`absolute inset-0 z-[100] flex items-center justify-center px-6 ${isDarkMode ? 'bg-black/58' : 'bg-black/45'}`}>
+  <div className={`fixed inset-0 z-[100] flex items-center justify-center px-6 ${isDarkMode ? 'bg-black/58' : 'bg-black/45'}`}>
     <div
       className={`w-full max-w-[300px] rounded-[18px] px-5 py-5 text-center shadow-xl ${
         isDarkMode
@@ -399,7 +416,7 @@ const MediaPreview = ({ image, rotation = 0, className = '', filter = 'Normal', 
         <img
           src={image}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover transition-all duration-300"
+          className="absolute inset-0 h-full w-full object-contain transition-all duration-300"
           onError={(e) => { e.target.style.display = 'none'; }}
           style={{
             transform: `rotate(${rotation}deg) scale(${isQuarterTurn ? 0.68 : 1})`,
@@ -608,10 +625,14 @@ const CreatePage = () => {
   const audioRef = useRef(null);
   const overlayInputRef = useRef(null);
   const canvasRef = useRef(null);
+  const canvasContainerRef = useRef(null);
   const instacamRef = useRef(null);
   const pressStartTimeRef = useRef(0);
   const isPressingRef = useRef(false);
   const lastTouchTimeRef = useRef(0);
+  const isGalleryPickerOpen = useRef(false);
+  const lastFocusTimeRef = useRef(0);
+  const stageRef = useRef('camera');
   const createFlow = config?.createFlow || {};
   const DURATION_OPTIONS = createFlow.durations || ['15s', '30s', '60s'];
   const SPEED_OPTIONS = createFlow.speeds || ['0.3x', '0.5x', '1x', '2x', '3x'];
@@ -752,6 +773,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     }
   });
   const stage = stageStack[stageStack.length - 1];
+  stageRef.current = stage || 'camera';
   const [activeSheet, setActiveSheet] = useState(null);
   const [activeCameraTool, setActiveCameraTool] = useState(null);
   const [recordStatus, setRecordStatus] = useState(() => {
@@ -1065,12 +1087,35 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       }
     };
 
+    // When window regains focus (e.g. after file picker dismissal), clear the gallery guard
+    // This ensures camera capture is not permanently blocked if user cancels without picking a file
+    const handleWindowFocus = () => {
+      if (isGalleryPickerOpen.current) {
+        lastFocusTimeRef.current = Date.now();
+        // Clear after a full 1000ms delay to absorb any laggy synthetic clicks/touches on focus return
+        setTimeout(() => {
+          isGalleryPickerOpen.current = false;
+          // If the user cancelled the gallery picker, they remain on the 'camera' stage.
+          // In that case, we need to restart the webcam preview stream since we stopped it in triggerFilePicker.
+          if (stageRef.current === 'camera' && !streamRef.current) {
+            console.log('User cancelled gallery picker. Restarting camera preview stream.');
+            startCamera();
+          }
+        }, 1000);
+      }
+    };
+
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('touchmove', preventZoom, { passive: false });
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') handleWindowFocus();
+    });
 
     return () => {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('touchmove', preventZoom);
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, []);
 
@@ -1317,6 +1362,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const [isOverDeleteZone, setIsOverDeleteZone] = useState(false);
 
   const [mentionSearchQuery, setMentionSearchQuery] = useState('');
+  const [musicSearchQuery, setMusicSearchQuery] = useState('');
   const [mentionSearchResults, setMentionSearchResults] = useState([]);
   const [isMentionSearching, setIsMentionSearching] = useState(false);
   const [followingUsers, setFollowingUsers] = useState([]);
@@ -1493,7 +1539,15 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   }, [stage]);
 
   const startCamera = async (overrideMode) => {
-    if (!canvasRef.current) return;
+    if (!canvasContainerRef.current) return;
+
+    // Dynamically create a fresh canvas inside the container to prevent Instacam wrapper leaks/crashes
+    canvasContainerRef.current.innerHTML = '';
+    const canvas = document.createElement('canvas');
+    canvas.className = "h-full w-full object-cover transition-all duration-300";
+    canvas.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'none';
+    canvasContainerRef.current.appendChild(canvas);
+    canvasRef.current = canvas;
 
     const activeMode = overrideMode || facingMode;
     const isUser = activeMode === 'user';
@@ -1595,35 +1649,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       instacamRef.current = null;
     }
 
-    // Clean up DOM elements created by Instacam to prevent nested wrapper leaks
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      const parent = canvas.parentElement;
-      
-      // If the parent is the Instacam wrapper, unwrap the canvas
-      if (parent && parent.hasAttribute('data-instacam')) {
-        const grandParent = parent.parentElement;
-        if (grandParent) {
-          grandParent.insertBefore(canvas, parent);
-          grandParent.removeChild(parent);
-        }
-      }
-      
-      // Look for any other orphaned instacam elements in the container
-      const container = canvas.parentElement;
-      if (container) {
-        const elements = container.querySelectorAll('[data-instacam], [data-instacam-viewport], [data-instacam-stream], [data-instacam-blend]');
-        elements.forEach(el => {
-          if (el !== canvas && container.contains(el)) {
-            el.remove();
-          }
-        });
-      }
-      
-      // Reset custom canvas styles if any
-      canvas.removeAttribute('data-instacam-viewport');
-      canvas.style.transform = '';
+    // Clean up DOM elements created by Instacam
+    if (canvasContainerRef.current) {
+      canvasContainerRef.current.innerHTML = '';
     }
+    canvasRef.current = null;
 
     streamRef.current = null;
   };
@@ -1718,6 +1748,47 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     return () => clearTimeout(timer);
   }, [mentionSearchQuery]);
 
+  // Spotify search integration with debounce
+  useEffect(() => {
+    if (activeSheet !== 'music-library' && activeSheet !== 'replace-sound') return;
+
+    const handler = setTimeout(async () => {
+      if (musicSearchQuery.trim()) {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/music/search?q=${encodeURIComponent(musicSearchQuery)}`, {
+            headers: localStorage.getItem("crypto_auth_token") ? { Authorization: `Bearer ${localStorage.getItem("crypto_auth_token")}` } : {}
+          });
+          const data = await response.json();
+          if (data.success && data.music) {
+            const mapped = data.music.map(item => ({
+              _id: item.id,
+              id: item.id,
+              title: item.title,
+              artist: item.artist,
+              url: item.preview || item.audioUrl || "",
+              audioUrl: item.preview || item.audioUrl || "",
+              cover: item.image || item.thumbnail || "",
+              thumbnail: item.image || item.thumbnail || "",
+              duration: item.duration || 30
+            }));
+            setLibraryAudios(mapped);
+          }
+        } catch (err) {
+          console.error("Failed to search music via API:", err);
+        }
+      } else {
+        try {
+          const audios = await audioService.getAllAudios();
+          setLibraryAudios(audios);
+        } catch (err) {
+          console.error('Failed to restore local audios:', err);
+        }
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [musicSearchQuery, activeSheet]);
+
   useEffect(() => {
     const fetchFollowing = async () => {
       if (stage !== 'mention' && stage !== 'tag-people') return;
@@ -1785,6 +1856,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   };
 
   const handleRecordPressStart = (e) => {
+    // Ignore any touch/click event on shutter if gallery picker is open or was just closed within 1000ms
+    if (isGalleryPickerOpen.current || (lastFocusTimeRef.current && Date.now() - lastFocusTimeRef.current < 1000)) {
+      return;
+    }
+
     if (e && e.type === 'touchstart') {
       lastTouchTimeRef.current = Date.now();
     }
@@ -1835,19 +1911,46 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   };
 
   const handleStartOrStopRecording = (autoConfirm = false) => {
+    // Block camera capture while gallery file picker is open or was just closed within 1000ms
+    if (isGalleryPickerOpen.current || (lastFocusTimeRef.current && Date.now() - lastFocusTimeRef.current < 1000)) return;
     if (captureMode === 'photo') {
       if (canvasRef.current) {
-        canvasRef.current.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-            const url = URL.createObjectURL(blob);
-            setVideoFile(file);
-            setPreviewUrl(url);
-            setVideoDuration(15);
-            setRecordStatus('recorded');
-            pushStage('preview');
-          }
-        }, 'image/jpeg', 0.95);
+        const sourceCanvas = canvasRef.current;
+        const isUserFacing = facingMode === 'user';
+
+        if (isUserFacing) {
+          // Front camera: Instacam renders pixels mirrored. Create a corrected canvas before export.
+          const correctedCanvas = document.createElement('canvas');
+          correctedCanvas.width = sourceCanvas.width;
+          correctedCanvas.height = sourceCanvas.height;
+          const ctx = correctedCanvas.getContext('2d');
+          ctx.translate(correctedCanvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(sourceCanvas, 0, 0);
+          correctedCanvas.toBlob((blob) => {
+            if (blob) {
+              const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+              const url = URL.createObjectURL(blob);
+              setVideoFile(file);
+              setPreviewUrl(url);
+              setVideoDuration(15);
+              setRecordStatus('recorded');
+              pushStage('preview');
+            }
+          }, 'image/jpeg', 0.95);
+        } else {
+          sourceCanvas.toBlob((blob) => {
+            if (blob) {
+              const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+              const url = URL.createObjectURL(blob);
+              setVideoFile(file);
+              setPreviewUrl(url);
+              setVideoDuration(15);
+              setRecordStatus('recorded');
+              pushStage('preview');
+            }
+          }, 'image/jpeg', 0.95);
+        }
       }
       return;
     }
@@ -2012,6 +2115,92 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const performMergeSave = async (isExportOnly = true) => {
     if (isRendering) return;
     
+    const isImageFile = videoFile?.type?.startsWith('image/') || (clipSequence.length === 1 && clipSequence[0]?.isImage) || (!videoFile && selectedMedia.type === 'image');
+    const hasMusic = selectedSounds.length > 0 && selectedSound && selectedSound.id !== 'sound-original';
+
+    if (isImageFile && !hasMusic) {
+      try {
+        setIsRendering(true);
+        setRenderProgress(0);
+        showToast('Preparing your post...');
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 720;
+        canvas.height = 1280;
+        const ctx = canvas.getContext('2d');
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = clipSequence[0]?.url || previewUrl;
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error('Image load failed'));
+        });
+
+        setRenderProgress(40);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((editorSettings.rotation * Math.PI) / 180);
+        ctx.filter = getCombinedFilter();
+        ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+        ctx.restore();
+
+        setRenderProgress(70);
+
+        if (overlayText) {
+          ctx.save();
+          ctx.fillStyle = overlayColor;
+          ctx.font = `${overlayFontSize * 2}px ${overlayFont}`;
+          ctx.textAlign = 'center';
+          ctx.translate(canvas.width / 2 + textPos.x * 2, canvas.height / 2 + textPos.y * 2);
+          ctx.rotate((textRotation * Math.PI) / 180);
+          ctx.fillText(overlayText, 0, 0);
+          ctx.restore();
+        }
+
+        activeStickers.forEach(sticker => {
+          ctx.save();
+          ctx.font = '120px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.translate(canvas.width / 2 + sticker.x * 2, canvas.height / 2 + sticker.y * 2);
+          ctx.fillText(sticker.content, 0, 0);
+          ctx.restore();
+        });
+
+        setRenderProgress(90);
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showToast('Post preparation failed.');
+            setIsRendering(false);
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          if (isExportOnly) {
+            saveFile(url, `jhumroo_post_${Date.now()}.jpg`, true);
+          } else {
+            setMergedVideoBlob(blob);
+            setPreviewUrl(url);
+            setClipSequence([]);
+            setCurrentClipIndex(0);
+            pushStage('post');
+          }
+          setRenderProgress(100);
+          setIsRendering(false);
+        }, 'image/jpeg', 0.95);
+
+      } catch (err) {
+        console.error("Image render failed:", err);
+        showToast('Post preparation failed.');
+        setIsRendering(false);
+      }
+      return;
+    }
+
     try {
       setIsRendering(true);
       setRenderProgress(0);
@@ -2391,6 +2580,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         formData.append('media', fileToUpload, `upload.${extension}`);
         formData.append('mediaType', fileType.startsWith('video') ? 'video' : 'image');
         formData.append('caption', postState.caption || '');
+        formData.append('language', postState.captionLanguage || 'English');
         formData.append('category', 'General');
         formData.append('postData', JSON.stringify(postMetadata));
 
@@ -2542,6 +2732,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   };
 
   const handleFileChange = (e) => {
+    // Gallery picker closed — clear the guard flag and register focus cooldown timestamp
+    isGalleryPickerOpen.current = false;
+    lastFocusTimeRef.current = Date.now();
     const file = e.target.files[0];
     if (file) {
       if (file.type.startsWith('video/') || file.type.startsWith('image/')) {
@@ -2624,7 +2817,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     e.target.value = '';
   };
 
-  const triggerFilePicker = () => {
+  const triggerFilePicker = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // Set guard so camera capture is blocked while picker is open
+    isGalleryPickerOpen.current = true;
+    // Also clear pressing state to prevent shutter firing after picker closes
+    isPressingRef.current = false;
+    
+    // Stop the camera stream immediately to release resources, turn off camera light,
+    // and completely block any canvas-to-blob captures while native picker is open!
+    console.log('Stopping camera preview stream for gallery selection.');
+    stopCamera();
+
     fileInputRef.current?.click();
   };
 
@@ -3116,6 +3323,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             <button
               type="button"
               onClick={triggerFilePicker}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => { e.stopPropagation(); }}
+              onTouchEnd={(e) => e.stopPropagation()}
               className={`w-[74px] text-center ${themedUtilityTextClass} active:opacity-70`}
             >
               <span className={themedUtilityBadgeClass}>
@@ -3162,7 +3372,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     const progressPercent = (recordedSeconds / maxDurationSeconds) * 100;
 
     return (
-      <div className={`relative h-full w-full overflow-hidden ${isDarkMode ? 'bg-black text-white' : 'bg-[var(--theme-page-bg)] text-white'}`}>
+      <div className={`relative flex-1 min-h-0 w-full overflow-hidden ${isDarkMode ? 'bg-black text-white' : 'bg-[var(--theme-page-bg)] text-white'}`}>
         <style>
           {`
             [data-instacam] {
@@ -3180,11 +3390,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           `}
         </style>
         <div className="absolute inset-0 z-0">
-          <canvas 
-            ref={canvasRef} 
-            className="h-full w-full object-cover transition-all duration-300"
-            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
-          />
+          <div ref={canvasContainerRef} className="h-full w-full relative" />
           <video 
             ref={videoRef} 
             autoPlay 
@@ -3336,7 +3542,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     const timelineWidth = videoDuration * PIXELS_PER_SECOND;
 
     return (
-    <div className="flex h-full flex-col bg-black text-white overflow-hidden">
+    <div className="flex flex-1 min-h-0 w-full flex-col bg-black text-white overflow-hidden">
       {/* Top Header */}
       <div
         className="flex items-center justify-between px-4 pb-4"
@@ -3985,12 +4191,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 };
 
   const renderPreviewStage = () => (
-    <div className={`relative h-full overflow-hidden ${isDarkMode ? 'bg-black text-white' : 'bg-[var(--theme-page-bg)] text-white'}`}>
-      {previewUrl ? (
+    <div className={`flex flex-col flex-1 min-h-0 w-full overflow-hidden bg-black text-white`}>
+      <div className="flex-1 relative overflow-hidden bg-[#0d0d0f] flex items-center justify-center">
+        {previewUrl ? (
         videoFile?.type?.startsWith('image/') ? (
           <img 
             src={previewUrl} 
-            className="h-full w-full object-cover transition-all duration-500" 
+            className="h-full w-full object-contain transition-all duration-500" 
             alt="Preview"
             style={{ 
                 transform: `rotate(${editorSettings.rotation}deg)`,
@@ -4227,11 +4434,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         </div>
       </div>
 
+      </div>
+
       {/* Bottom Tools & Buttons */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-20 pb-[calc(max(1.2rem,env(safe-area-inset-bottom))+6.5rem)] md:pb-[max(1.2rem,env(safe-area-inset-bottom))] pt-32 ${
-          isDarkMode ? 'bg-gradient-to-t from-black via-black/60 to-transparent' : 'bg-gradient-to-t from-black/80 via-black/40 to-transparent'
-        }`}
+        className="bg-[#121214] border-t border-white/5 pt-4 pb-[calc(max(1rem,env(safe-area-inset-bottom))+2.5rem)] md:pb-[max(1rem,env(safe-area-inset-bottom))] z-20"
       >
         {/* Horizontal Tools List */}
         <div className="mb-6 flex gap-6 overflow-x-auto px-6 no-scrollbar">
@@ -4278,52 +4485,55 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     </div>
   );
 
-  const renderPostStage = () => (
-    <div className="flex h-full flex-col bg-white text-black">
-      <div
-        className="flex items-center justify-between border-b border-black/5 px-4 pb-4"
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
-      >
-        <button type="button" onClick={handleCloseOrBack} className="active:opacity-60">
-          <BiChevronLeft size={22} />
-        </button>
-        <h2 className="text-[18px] font-semibold">Post</h2>
-        <span className="w-6" />
-      </div>
+  const renderPostStage = () => {
+    const isPreviewImage = videoFile?.type?.startsWith('image/') || mergedVideoBlob?.type?.startsWith('image/') || (!videoFile && !mergedVideoBlob && selectedMedia.type === 'image');
+    
+    return (
+      <div className="flex flex-1 min-h-0 w-full flex-col bg-white text-black">
+        <div
+          className="flex items-center justify-between border-b border-black/5 px-4 pb-4"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
+        >
+          <button type="button" onClick={handleCloseOrBack} className="active:opacity-60">
+            <BiChevronLeft size={22} />
+          </button>
+          <h2 className="text-[18px] font-semibold">Post</h2>
+          <span className="w-6" />
+        </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="border-b border-black/5 px-4 py-4">
-          <div className="flex gap-4">
-            <textarea
-              value={postState.caption}
-              onChange={(event) =>
-                setPostState((currentState) => ({
-                  ...currentState,
-                  caption: event.target.value,
-                }))
-              }
-              placeholder="Describe your post, add hashtags, or mention creators that inspired you"
-              className="min-h-[110px] flex-1 resize-none border-none bg-transparent text-[15px] outline-none placeholder:text-black/35"
-            />
-            {(previewUrl || selectedMedia.image) && (
-              <button
-                type="button"
-                onClick={() => {}}
-                className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
-              >
-                {(videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia.type === 'image')) ? (
-                  <img src={previewUrl || selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
-                ) : (
-                  <video src={previewUrl} className="h-full w-full object-cover" />
-                )}
-                {!(videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia.type === 'image')) && previewUrl && (
-                  <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
-                    Select cover
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="border-b border-black/5 px-4 py-4">
+            <div className="flex gap-4">
+              <textarea
+                value={postState.caption}
+                onChange={(event) =>
+                  setPostState((currentState) => ({
+                    ...currentState,
+                    caption: event.target.value,
+                  }))
+                }
+                placeholder="Describe your post, add hashtags, or mention creators that inspired you"
+                className="min-h-[110px] flex-1 resize-none border-none bg-transparent text-[15px] outline-none placeholder:text-black/35"
+              />
+              {(previewUrl || selectedMedia.image) && (
+                <button
+                  type="button"
+                  onClick={() => {}}
+                  className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
+                >
+                  {isPreviewImage ? (
+                    <img src={previewUrl || selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
+                  ) : (
+                    <video src={previewUrl} className="h-full w-full object-cover" />
+                  )}
+                  {!isPreviewImage && previewUrl && (
+                    <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
+                      Select cover
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
 
           <div className="mt-4 flex items-center gap-2">
             <button
@@ -4406,14 +4616,25 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             </div>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveSheet('language')}
+            className="flex w-full items-center justify-between rounded-[10px] px-0 py-3 active:opacity-80"
+          >
+            <div className="flex items-center gap-3">
+              <BiWorld size={18} className="text-black/45" />
+              <span className="text-[15px]">Content Language</span>
+            </div>
+            <div className="flex items-center gap-2 text-[13px] text-black/40">
+              <span>{postState.captionLanguage || 'English'}</span>
+              <BiChevronRight size={18} />
+            </div>
+          </button>
+
           {[
             {
               key: 'allowComments',
               label: 'Allow comments',
-            },
-            {
-              key: 'highQuality',
-              label: 'Allow high-quality uploads',
             },
           ].map((toggleItem) => (
             <div key={toggleItem.key} className="flex items-center justify-between py-3">
@@ -4431,20 +4652,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             </div>
           ))}
 
-          <button
-            type="button"
-            onClick={() => pushStage('more-options')}
-            className="flex w-full items-center justify-between py-3 active:opacity-80"
-          >
-            <div>
-              <p className="text-left text-[15px]">More options</p>
-              <p className="mt-1 text-left text-[12px] text-black/35">Branded content</p>
-            </div>
-            <BiChevronRight size={18} className="text-black/35" />
-          </button>
         </div>
 
-        <div className="px-4 pb-28">
+        <div className="px-4 pb-6">
           <div className="flex flex-col gap-4 mt-2">
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
@@ -4646,29 +4856,30 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             ))}
           </div>
         </div>
-      </div>
 
-      <div className="border-t border-black/5 bg-white px-4 pt-4 pb-[calc(1rem+6.5rem)] md:pb-4">
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={handleSaveDraftUi}
-            className="rounded-[10px] border border-black/10 py-3 text-[15px] font-medium text-black active:opacity-80"
-          >
-            Drafts
-          </button>
-          <button
-            type="button"
-            onClick={handlePublishUi}
-            disabled={isUploading}
-            className={`rounded-[10px] bg-[#fe2c55] py-3 text-[15px] font-semibold text-white active:opacity-80 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isUploading ? 'Posting...' : (postState.isBusiness ? `Commit & Pay ₹${(postState.dailyBudget || 99) * (postState.durationDays || 10)}` : 'Post')}
-          </button>
+        <div className="border-t border-black/5 bg-white px-4 pt-4 pb-2">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleSaveDraftUi}
+              className="rounded-[10px] border border-black/10 py-3 text-[15px] font-medium text-black active:opacity-80"
+            >
+              Drafts
+            </button>
+            <button
+              type="button"
+              onClick={handlePublishUi}
+              disabled={isUploading}
+              className={`rounded-[10px] bg-[#fe2c55] py-3 text-[15px] font-semibold text-white active:opacity-80 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isUploading ? 'Posting...' : (postState.isBusiness ? `Commit & Pay ₹${(postState.dailyBudget || 99) * (postState.durationDays || 10)}` : 'Post')}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderMentionStage = (title) => {
     const isTagging = title === 'Tag people';
@@ -5323,8 +5534,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             <input
               type="text"
               placeholder="Search"
-              value={mentionSearchQuery}
-              onChange={(e) => setMentionSearchQuery(e.target.value)}
+              value={musicSearchQuery}
+              onChange={(e) => setMusicSearchQuery(e.target.value)}
               className="w-full bg-transparent text-[16px] outline-none placeholder:text-[#8e8e93]"
             />
           </div>
@@ -5354,7 +5565,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom,20px)] no-scrollbar">
           <div className="space-y-6">
             {(soundBrowserTab === 'favorites' || soundBrowserTab === 'saved' ? favoriteSounds : libraryAudios)
-              .filter(s => s.title.toLowerCase().includes(mentionSearchQuery.toLowerCase()) || s.artist.toLowerCase().includes(mentionSearchQuery.toLowerCase()))
+              .filter(s => {
+                if (soundBrowserTab === 'favorites' || soundBrowserTab === 'saved') {
+                  const query = musicSearchQuery.toLowerCase();
+                  return s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query);
+                }
+                return true;
+              })
               .map((soundItem) => (
               <div
                 key={soundItem._id || soundItem.id}
@@ -5519,7 +5736,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
   return (
     <div 
-      className={`theme-create-page relative h-full min-h-screen w-full overflow-hidden select-none ${isDarkMode ? 'bg-black' : 'bg-[var(--theme-page-bg)]'}`}
+      className={`theme-create-page relative w-full overflow-hidden select-none ${isDarkMode ? 'bg-black' : 'bg-[var(--theme-page-bg)]'} h-[100dvh] md:h-[85vh] md:max-h-[850px] md:w-[480px] md:mx-auto md:mt-6 md:rounded-2xl md:border md:border-white/10 md:shadow-2xl flex flex-col`}
       style={{ touchAction: 'none' }}
     >
       {renderActiveStage()}
@@ -5811,8 +6028,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       )}
 
       {activeSheet === 'audience' && (
-        <BottomSheet title="Who can watch this video" onClose={() => setActiveSheet(null)} compact>
-          <div className="px-5 pb-2">
+        <CenterDialog title="Who can watch this video" onClose={() => setActiveSheet(null)}>
+          <div className="pb-2">
             {CREATE_AUDIENCE_OPTIONS.map((audienceItem) => (
               <button
                 key={audienceItem.id}
@@ -5827,16 +6044,16 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 className="flex w-full items-center justify-between py-4 text-left"
               >
                 <div>
-                  <p className="text-[15px]">{audienceItem.label}</p>
+                  <p className="text-[15px] font-semibold text-black">{audienceItem.label}</p>
                   {audienceItem.subtitle && (
-                    <p className="mt-1 text-[12px] text-black/35">{audienceItem.subtitle}</p>
+                    <p className="mt-1 text-[12px] text-gray-500">{audienceItem.subtitle}</p>
                   )}
                 </div>
                 <span
                   className={`flex h-6 w-6 items-center justify-center rounded-full border ${
                     postState.audience === audienceItem.id
                       ? 'border-[#fe2c55] text-[#fe2c55]'
-                      : 'border-black/15 text-transparent'
+                      : 'border-gray-300 text-transparent'
                   }`}
                 >
                   <span className="h-3 w-3 rounded-full bg-current" />
@@ -5844,7 +6061,41 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               </button>
             ))}
           </div>
-        </BottomSheet>
+        </CenterDialog>
+      )}
+
+      {activeSheet === 'language' && (
+        <CenterDialog title="Select Content Language" onClose={() => setActiveSheet(null)}>
+          <div className="pb-2 max-h-[320px] overflow-y-auto pr-1">
+            {["English", "Hindi", "Bengali", "Marathi", "Punjabi", "Gujarati", "Tamil", "Malayalam", "Kannada", "Telugu", "Bhojpuri", "Odia", "Rajasthani", "Assamese", "Haryanvi"].map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => {
+                  setPostState((currentState) => ({
+                    ...currentState,
+                    captionLanguage: lang,
+                  }));
+                  setActiveSheet(null);
+                }}
+                className="flex w-full items-center justify-between py-3.5 text-left border-b border-gray-100 last:border-0"
+              >
+                <p className={`text-[15px] ${postState.captionLanguage === lang ? 'text-[#f59e0b] font-semibold' : 'text-gray-700'}`}>
+                  {lang}
+                </p>
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                    postState.captionLanguage === lang
+                      ? 'border-[#fe2c55] text-[#fe2c55]'
+                      : 'border-gray-300 text-transparent'
+                  }`}
+                >
+                  <span className="h-3 w-3 rounded-full bg-current" />
+                </span>
+              </button>
+            ))}
+          </div>
+        </CenterDialog>
       )}
       {activeSheet === 'filters-preview' && (
         <div className="absolute inset-x-0 bottom-0 z-[100] animate-in slide-in-from-bottom duration-500">
@@ -6228,8 +6479,14 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Creating your Reel</h2>
-              <p className="mt-2 text-[13px] text-white/60">Applying filters, text, and merging clips... Please don't close the app.</p>
+              <h2 className="text-xl font-bold text-white">
+                {videoFile?.type?.startsWith('image') ? 'Creating your Post' : 'Creating your Reel'}
+              </h2>
+              <p className="mt-2 text-[13px] text-white/60">
+                {videoFile?.type?.startsWith('image')
+                  ? "Applying filters and overlays... Please don't close the app."
+                  : "Applying filters, text, and merging clips... Please don't close the app."}
+              </p>
             </div>
           </div>
         </div>

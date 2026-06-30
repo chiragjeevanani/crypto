@@ -11,13 +11,24 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
     const audioRef = useRef(null)
 
     useEffect(() => {
-        fetchMusic()
+        const handler = setTimeout(() => {
+            fetchMusic(search)
+        }, 300)
+
+        return () => {
+            clearTimeout(handler)
+        }
     }, [search])
 
-    const fetchMusic = async () => {
+    const fetchMusic = async (query) => {
         setLoading(true)
         try {
-            const data = await musicService.getActiveMusic(1, search)
+            let data;
+            if (query.trim()) {
+                data = await musicService.searchMusic(query)
+            } else {
+                data = await musicService.getActiveMusic(1, "")
+            }
             setMusicList(data.music || [])
         } catch (err) {
             console.error(err)
@@ -27,13 +38,15 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
     }
 
     const togglePlay = (m) => {
-        if (playingId === m._id || playingId === m.id) {
+        const id = m._id || m.id;
+        const audioUrl = m.audioUrl || m.preview;
+        if (playingId === id) {
             audioRef.current.pause()
             setPlayingId(null)
         } else {
-            setPlayingId(m._id || m.id)
+            setPlayingId(id)
             if (audioRef.current) {
-                audioRef.current.src = m.audioUrl
+                audioRef.current.src = audioUrl
                 audioRef.current.play()
             }
         }
@@ -59,7 +72,7 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
                     <h3 className="text-lg font-bold text-zinc-900">Add Music</h3>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-100 text-zinc-500 transition-colors">
                         <X size={20} />
-                    </button>
+                     </button>
                 </div>
 
                 <div className="p-4 flex-1 overflow-hidden flex flex-col">
@@ -81,17 +94,20 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
                             <div className="py-10 text-center text-zinc-400 text-sm">No music found</div>
                         ) : (
                             musicList.map((m) => {
-                                const isPlaying = playingId === (m._id || m.id);
-                                const isSelected = currentSelected?.id === (m._id || m.id);
+                                const id = m._id || m.id;
+                                const isPlaying = playingId === id;
+                                const isSelected = currentSelected?.id === id;
+                                const thumbnail = m.thumbnail || m.image;
+                                const audioUrl = m.audioUrl || m.preview;
                                 return (
                                     <div 
-                                        key={m._id || m.id}
+                                        key={id}
                                         className={`flex items-center gap-3 p-3 rounded-2xl transition-all cursor-pointer ${isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-zinc-50 border border-transparent'}`}
-                                        onClick={() => onSelect({ id: m._id || m.id, title: m.title, artist: m.artist, audioUrl: m.audioUrl, duration: m.duration, thumbnail: m.thumbnail })}
+                                        onClick={() => onSelect({ id, title: m.title, artist: m.artist, audioUrl, duration: m.duration || 30, thumbnail })}
                                     >
                                         <div className="relative group shrink-0" onClick={(e) => { e.stopPropagation(); togglePlay(m); }}>
-                                            {m.thumbnail ? (
-                                                <img src={m.thumbnail} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                                            {thumbnail ? (
+                                                <img src={thumbnail} className="w-12 h-12 rounded-xl object-cover" alt="" />
                                             ) : (
                                                 <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400">
                                                     <Music size={20} />
@@ -106,9 +122,11 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
                                             <p className="text-xs text-zinc-500 truncate">{m.artist}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-zinc-400 font-mono">
-                                                {Math.floor(m.duration / 60)}:{(m.duration % 60).toString().padStart(2, '0')}
-                                            </span>
+                                            {m.duration ? (
+                                                <span className="text-[10px] text-zinc-400 font-mono">
+                                                    {Math.floor(m.duration / 60)}:{(Math.floor(m.duration % 60)).toString().padStart(2, '0')}
+                                                </span>
+                                            ) : null}
                                             {isSelected && <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white shrink-0"><Check size={12} strokeWidth={3} /></div>}
                                         </div>
                                     </div>

@@ -10,6 +10,7 @@ import EditorModal from '../editor/EditorModal';
 import { videoService } from '../../services/videoService';
 import { Loader2 } from 'lucide-react';
 import Avatar from '../shared/Avatar';
+import MusicSelectionModal from './MusicSelectionModal';
 
 const STORY_AUDIO_TRACKS = [
     { id: '1', title: 'Trending Now' },
@@ -408,6 +409,37 @@ export default function Stories() {
         }
     };
 
+    const isDraggingImageRef = useRef(false);
+    const dragImageStartRef = useRef({ x: 0, y: 0 });
+
+    const handleImagePointerDown = (e) => {
+        e.preventDefault();
+        isDraggingImageRef.current = true;
+        dragImageStartRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handleImagePointerMove = (e) => {
+        if (!isDraggingImageRef.current) return;
+        const bounds = storyCanvasRef.current?.getBoundingClientRect();
+        if (!bounds) return;
+        
+        const dx = e.clientX - dragImageStartRef.current.x;
+        const dy = e.clientY - dragImageStartRef.current.y;
+        dragImageStartRef.current = { x: e.clientX, y: e.clientY };
+        
+        const px = (dx / bounds.width) * 100 / imageScale;
+        const py = (dy / bounds.height) * 100 / imageScale;
+        
+        setImagePosition(prev => ({
+            x: prev.x + px,
+            y: prev.y + py
+        }));
+    };
+
+    const handleImagePointerUp = () => {
+        isDraggingImageRef.current = false;
+    };
+
     const handleCreateStory = async () => {
         if (!storyFile || isSubmitting) return;
         setIsSubmitting(true);
@@ -430,6 +462,7 @@ export default function Stories() {
                 musicPosX: musicPos.x,
                 musicPosY: musicPos.y,
                 aspectRatio: storyAspect,
+                music: storyMusic,
             });
             await loadStories();
             setIsCreatingStory(false);
@@ -583,7 +616,7 @@ export default function Stories() {
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Tap zones for previous / next story (behind header and controls) */}
-                            <div className="absolute inset-0 flex">
+                            <div className="absolute inset-0 flex z-10">
                                 <button
                                     type="button"
                                     className="flex-1"
@@ -907,6 +940,15 @@ export default function Stories() {
                         >
                             {storyMedia ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
+                                    {storyMusic && (
+                                        <audio
+                                            key={`preview-audio-${storyMusic.id || storyMusic._id}`}
+                                            ref={previewAudioRef}
+                                            src={storyMusic.preview || storyMusic.audioUrl}
+                                            autoPlay
+                                            loop
+                                        />
+                                    )}
                                     <div 
                                         className="w-full relative overflow-hidden"
                                         style={{
@@ -924,32 +966,23 @@ export default function Stories() {
                                                 loop
                                             />
                                         ) : (
-                                            <motion.div 
-                                                drag
-                                                dragMomentum={false}
-                                                onDragEnd={(_, info) => {
-                                                    const bounds = storyCanvasRef.current?.getBoundingClientRect();
-                                                    if (!bounds) return;
-                                                    // Convert pixels to percentage offset for consistency
-                                                    const xMove = (info.offset.x / bounds.width) * 100;
-                                                    const yMove = (info.offset.y / bounds.height) * 100;
-                                                    setImagePosition(prev => ({ 
-                                                        x: prev.x + xMove, 
-                                                        y: prev.y + yMove 
-                                                    }));
-                                                }}
+                                            <div 
+                                                onPointerDown={handleImagePointerDown}
+                                                onPointerMove={handleImagePointerMove}
+                                                onPointerUp={handleImagePointerUp}
+                                                onPointerLeave={handleImagePointerUp}
                                                 className="w-full h-full cursor-move touch-none"
                                             >
                                                 <img
                                                     src={storyMedia}
-                                                    className="w-full h-full object-cover transition-transform duration-150 pointer-events-none select-none"
+                                                    className="w-full h-full object-cover pointer-events-none select-none"
                                                     alt="Preview"
                                                     style={{
                                                         filter: FILTERS.find(f => f.name.toLowerCase() === storyFilter.toLowerCase())?.value || 'none',
                                                         transform: `scale(${imageScale}) translate(${imagePosition.x}%, ${imagePosition.y}%)`,
                                                     }}
                                                 />
-                                            </motion.div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -1152,7 +1185,7 @@ export default function Stories() {
                                             <span className="text-white/60 text-[10px] uppercase tracking-wider font-bold shrink-0">Size</span>
                                             <input
                                                 type="range"
-                                                min="1"
+                                                min="0.2"
                                                 max="3"
                                                 step="0.1"
                                                 value={imageScale}
@@ -1234,85 +1267,15 @@ export default function Stories() {
                             {/* Music Picker Bottom Sheet */}
                             <AnimatePresence>
                                 {showMusicPicker && (
-                                    <motion.div
-                                        initial={{ y: '100%' }}
-                                        animate={{ y: 0 }}
-                                        exit={{ y: '100%' }}
-                                        className="absolute bottom-0 inset-x-0 bg-black/90 backdrop-blur-xl rounded-t-3xl p-4 z-20 h-1/2 flex flex-col"
-                                    >
-                                        <div className="w-12 h-1 bg-white/30 rounded-full mx-auto mb-4" />
-                                        <h3 className="text-white font-bold text-center mb-4">Choose Audio</h3>
-                                        <div className="flex flex-col gap-2 overflow-y-auto hide-scrollbar pb-20">
-                                            {musicList.map(track => (
-                                                <div
-                                                    key={track._id || track.id}
-                                                    onClick={() => {
-                                                        setStoryMusic(track);
-                                                        setStoryMusicStartTime(0);
-                                                        setShowMusicPicker(false);
-                                                        if (previewAudioRef.current) previewAudioRef.current.pause();
-                                                        setIsPlayingPreview(false);
-                                                    }}
-                                                    className="flex items-center justify-between p-4 bg-white/10 rounded-2xl text-left hover:bg-white/20 transition-all cursor-pointer group border border-transparent hover:border-white/10"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div 
-                                                            className="relative group/play shrink-0" 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const isThisPlaying = isPlayingPreview && previewAudioRef.current?.src === track.audioUrl;
-                                                                if (isThisPlaying) {
-                                                                    previewAudioRef.current.pause();
-                                                                    setIsPlayingPreview(false);
-                                                                } else {
-                                                                    previewAudioRef.current.src = track.audioUrl;
-                                                                    previewAudioRef.current.play().catch(() => {});
-                                                                    setIsPlayingPreview(true);
-                                                                }
-                                                            }}
-                                                        >
-                                                            {track.thumbnail ? (
-                                                                <img src={track.thumbnail} className="w-10 h-10 rounded-lg object-cover" alt="" />
-                                                            ) : (
-                                                                <div className="w-10 h-10 bg-gradient-to-tr from-pink-500 to-orange-500 rounded-lg flex items-center justify-center text-white">
-                                                                    <Music size={18} />
-                                                                </div>
-                                                            )}
-                                                            <div className={`absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 text-white transition-opacity ${(isPlayingPreview && previewAudioRef.current?.src === track.audioUrl) ? 'opacity-100' : 'opacity-0 group-hover/play:opacity-100'}`}>
-                                                                {(isPlayingPreview && previewAudioRef.current?.src === track.audioUrl) ? <Pause size={14} fill="white" /> : <Play size={14} fill="white" />}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-white font-semibold text-sm">{track.title}</p>
-                                                            <p className="text-white/50 text-[10px]">{track.artist}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {(storyMusic?._id === track._id || storyMusic?.id === track.id) ? (
-                                                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
-                                                                <Check size={16} strokeWidth={3} />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <ArrowRight size={14} />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            <button
-                                                onClick={() => {
-                                                    setStoryMusic(null);
-                                                    setShowMusicPicker(false);
-                                                    if (previewAudioRef.current) previewAudioRef.current.pause();
-                                                }}
-                                                className="p-4 bg-white/5 rounded-2xl text-white text-sm text-center font-semibold mt-2"
-                                            >
-                                                Remove Audio
-                                            </button>
-                                        </div>
-                                        <audio ref={previewAudioRef} onEnded={() => setIsPlayingPreview(false)} className="hidden" loop />
-                                    </motion.div>
+                                    <MusicSelectionModal
+                                        currentSelected={storyMusic}
+                                        onSelect={(track) => {
+                                            setStoryMusic(track);
+                                            setStoryMusicStartTime(0);
+                                            setShowMusicPicker(false);
+                                        }}
+                                        onClose={() => setShowMusicPicker(false)}
+                                    />
                                 )}
                             </AnimatePresence>
                         </div>
@@ -1364,7 +1327,7 @@ export default function Stories() {
                                     file={originalFile}
                                     type={originalFile.type.startsWith('video/') ? 'video' : 'image'}
                                     onClose={() => setIsEditorOpen(false)}
-                                    onSave={async (editData) => {
+                                    onSave={async (editData, selectedRatio) => {
                                         setIsEditorOpen(false);
                                         
                                         if (editData instanceof File) {
@@ -1382,6 +1345,9 @@ export default function Stories() {
                                                 setIsVideoPreview(false);
                                                 setImageScale(1);
                                                 setImagePosition({ x: 0, y: 0 });
+                                                if (selectedRatio) {
+                                                    setStoryAspect(selectedRatio);
+                                                }
                                             }
                                             setUploadError('');
                                         } else {

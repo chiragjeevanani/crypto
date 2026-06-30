@@ -26,6 +26,7 @@ router.patch("/:id/toggle", protect, authorize("Admin", "SuperNode", "super_admi
 router.delete("/:id", protect, authorize("Admin", "SuperNode", "super_admin", "Developer"), musicController.deleteMusic);
 
 // User routes
+router.get("/search", protect, musicController.searchMusic);
 router.get("/", protect, musicController.getActiveMusic);
 
 module.exports = router;

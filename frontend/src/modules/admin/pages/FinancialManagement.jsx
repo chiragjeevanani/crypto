@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
+import { getSocket } from '../../../socket';
 
 const pendingWithdrawals = [
     { id: 'W-9821', user: 'Alex Rivera', amount: 450.00, method: 'USDT (TRC20)', status: 'Pending', date: '2024-02-26 14:20' },
@@ -73,6 +74,22 @@ export default function FinancialManagement() {
         loadSettings();
         loadSettlementRails();
     }, [loadWithdrawals, loadSettings, withdrawalFilter]);
+
+    useEffect(() => {
+        const socket = getSocket();
+        if (!socket.connected) socket.connect();
+
+        const onNewWithdrawalRequest = (payload) => {
+            console.log('[Socket] Real-time withdrawal request received:', payload);
+            loadWithdrawals(withdrawalFilter);
+        };
+
+        socket.on('new_withdrawal_request', onNewWithdrawalRequest);
+
+        return () => {
+            socket.off('new_withdrawal_request', onNewWithdrawalRequest);
+        };
+    }, [loadWithdrawals, withdrawalFilter]);
 
     const handleWithdrawalReview = async (w) => {
         setReviewWithdrawal(w);

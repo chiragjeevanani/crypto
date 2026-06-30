@@ -78,6 +78,20 @@ const approveWithdrawal = async (req, res) => {
 
     // Return populated
     const populated = await Withdrawal.findById(withdrawalId).populate("userId", "name email phone avatar").exec();
+
+    // Notify user via real-time WebSocket
+    if (updatedWithdrawal) {
+      try {
+        const { emitToUser } = require("../../utils/socket");
+        emitToUser(updatedWithdrawal.userId, "withdrawal_update", {
+          status: "success",
+          withdrawalId: updatedWithdrawal._id
+        });
+      } catch (err) {
+        console.error("Socket error in approveWithdrawal:", err);
+      }
+    }
+
     return res.status(200).json({ success: true, withdrawal: populated });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -115,6 +129,7 @@ const rejectWithdrawal = async (req, res) => {
         if (tx) {
           tx.status = "failed";
           tx.meta = { ...tx.meta, rejectionReason: withdrawal.rejectionReason };
+          tx.markModified("meta");
           await tx.save({ session });
         }
       });
@@ -123,6 +138,22 @@ const rejectWithdrawal = async (req, res) => {
     }
 
     const populated = await Withdrawal.findById(withdrawalId).populate("userId", "name email phone avatar").exec();
+
+    // Notify user via real-time WebSocket
+    if (populated) {
+      try {
+        const { emitToUser } = require("../../utils/socket");
+        const recipientId = populated.userId?._id || populated.userId;
+        emitToUser(recipientId, "withdrawal_update", {
+          status: "rejected",
+          withdrawalId: populated._id,
+          reason: populated.rejectionReason
+        });
+      } catch (err) {
+        console.error("Socket error in rejectWithdrawal:", err);
+      }
+    }
+
     return res.status(200).json({ success: true, withdrawal: populated });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

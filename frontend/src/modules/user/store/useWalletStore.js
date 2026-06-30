@@ -185,6 +185,7 @@ export const useWalletStore = create((set, get) => ({
                     localCurrency,
                     date: tx.createdAt || new Date().toISOString(),
                     status: tx.status === 'success' ? 'completed' : tx.status,
+                    meta: tx.meta,
                 }
             })
             set({ transactions: mapped, transactionsLoading: false })

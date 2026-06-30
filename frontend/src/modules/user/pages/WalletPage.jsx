@@ -85,6 +85,7 @@ export default function WalletPage() {
     const [panCardFile, setPanCardFile] = useState(null)
     const [withdrawBankName, setWithdrawBankName] = useState('')
     const [withdrawAccountHolder, setWithdrawAccountHolder] = useState('')
+    const [validationErrors, setValidationErrors] = useState({})
 
     const hasAadharFront = Boolean(kycAadharFront) || Boolean(kyc.aadharFrontName)
     const hasAadharBack = Boolean(kycAadharBack) || Boolean(kyc.aadharBackName)
@@ -100,6 +101,26 @@ export default function WalletPage() {
         loadWallet()
         loadTransactions()
     }, [loadWallet, loadTransactions])
+
+    // Auto-populate withdrawal fields from primary/first saved linked account
+    useEffect(() => {
+        if (payoutMethods && payoutMethods.length > 0) {
+            const methodsOfType = payoutMethods.filter(acc => acc.type === withdrawMethod)
+            const activeMethod = methodsOfType.find(acc => acc.primary) || methodsOfType[0]
+            
+            if (activeMethod) {
+                if (withdrawMethod === 'upi') {
+                    setWithdrawUpiId(activeMethod.upiId || '')
+                } else if (withdrawMethod === 'bank') {
+                    setWithdrawAccountNumber(activeMethod.accountNumber || '')
+                    setWithdrawIFSC(activeMethod.ifscCode || '')
+                    setWithdrawBankName(activeMethod.bankName || '')
+                    setWithdrawAccountHolder(activeMethod.accountHolder || '')
+                }
+                setValidationErrors({})
+            }
+        }
+    }, [payoutMethods, withdrawMethod])
 
     // Polling for KYC status updates if pending
     useEffect(() => {
@@ -495,6 +516,11 @@ export default function WalletPage() {
                                     type="number"
                                     value={addInrAmount}
                                     onChange={(e) => setAddInrAmount(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                            e.preventDefault();
+                                        }
+                                    }}
                                     placeholder="Enter custom amount"
                                     className={`w-full h-14 ${currencySymbol.length > 2 ? 'pl-[4.5rem]' : currencySymbol.length > 1 ? 'pl-14' : 'pl-10'} pr-4 rounded-xl border-2 bg-primary/10 text-sm font-black outline-none border-primary/30 focus:border-primary focus:bg-primary/20 transition-all placeholder:text-primary/60`}
                                     style={{ color: 'var(--color-text)' }}
@@ -771,9 +797,20 @@ export default function WalletPage() {
                                                         placeholder={`0.00`}
                                                         value={withdrawAmount}
                                                         onChange={(e) => {
-                                                            const valInRs = Number(e.target.value);
+                                                            const rawVal = e.target.value;
+                                                            if (rawVal === '') {
+                                                                setWithdrawAmount('');
+                                                                return;
+                                                            }
+                                                            const valInRs = Number(rawVal);
+                                                            if (isNaN(valInRs)) return;
                                                             const maxRs = earningsWallet / platformSettings.coinRate;
                                                             setWithdrawAmount(Math.min(valInRs, maxRs));
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                                                e.preventDefault();
+                                                            }
                                                         }}
                                                         className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/20"
                                                     />
@@ -824,45 +861,93 @@ export default function WalletPage() {
                                                         type="text"
                                                         placeholder="e.g. yourname@bank"
                                                         value={withdrawUpiId}
-                                                        onChange={(e) => setWithdrawUpiId(e.target.value)}
-                                                        className="w-full px-5 h-16 rounded-[22px] text-sm outline-none border bg-bg/50 focus:ring-4 ring-primary/10 focus:border-primary transition-all font-bold placeholder:text-muted/30"
-                                                        style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+                                                        onChange={(e) => {
+                                                            setWithdrawUpiId(e.target.value);
+                                                            if (validationErrors.upiId) {
+                                                                setValidationErrors(prev => ({ ...prev, upiId: '' }));
+                                                            }
+                                                        }}
+                                                        className={`w-full px-5 h-16 rounded-[22px] text-sm outline-none border bg-bg/50 focus:ring-4 ring-primary/10 transition-all font-bold placeholder:text-muted/30 ${validationErrors.upiId ? 'border-red-500 focus:border-red-500' : 'focus:border-primary'}`}
+                                                        style={{ color: 'var(--color-text)', borderColor: validationErrors.upiId ? '#ef4444' : 'var(--color-border)' }}
                                                     />
+                                                    {validationErrors.upiId && (
+                                                        <p className="text-red-500 text-xs font-bold mt-2 ml-3">{validationErrors.upiId}</p>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="grid grid-cols-1 gap-4">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Account Holder Name"
-                                                        value={withdrawAccountHolder}
-                                                        onChange={(e) => setWithdrawAccountHolder(e.target.value)}
-                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
-                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Bank Name"
-                                                        value={withdrawBankName}
-                                                        onChange={(e) => setWithdrawBankName(e.target.value)}
-                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
-                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Account Number"
-                                                        value={withdrawAccountNumber}
-                                                        onChange={(e) => setWithdrawAccountNumber(e.target.value)}
-                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
-                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="IFSC Code (e.g. SBIN0001234)"
-                                                        value={withdrawIFSC}
-                                                        onChange={(e) => setWithdrawIFSC(e.target.value.toUpperCase())}
-                                                        className="w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50"
-                                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                                                    />
+                                                    <div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Account Holder Name"
+                                                            value={withdrawAccountHolder}
+                                                            onChange={(e) => {
+                                                                setWithdrawAccountHolder(e.target.value);
+                                                                if (validationErrors.accountHolder) {
+                                                                    setValidationErrors(prev => ({ ...prev, accountHolder: '' }));
+                                                                }
+                                                            }}
+                                                            className={`w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50 ${validationErrors.accountHolder ? 'border-red-500' : ''}`}
+                                                            style={{ borderColor: validationErrors.accountHolder ? '#ef4444' : 'var(--color-border)', color: 'var(--color-text)' }}
+                                                        />
+                                                        {validationErrors.accountHolder && (
+                                                            <p className="text-red-500 text-xs font-bold mt-1 ml-3">{validationErrors.accountHolder}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Bank Name"
+                                                            value={withdrawBankName}
+                                                            onChange={(e) => {
+                                                                setWithdrawBankName(e.target.value);
+                                                                if (validationErrors.bankName) {
+                                                                    setValidationErrors(prev => ({ ...prev, bankName: '' }));
+                                                                }
+                                                            }}
+                                                            className={`w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50 ${validationErrors.bankName ? 'border-red-500' : ''}`}
+                                                            style={{ borderColor: validationErrors.bankName ? '#ef4444' : 'var(--color-border)', color: 'var(--color-text)' }}
+                                                        />
+                                                        {validationErrors.bankName && (
+                                                            <p className="text-red-500 text-xs font-bold mt-1 ml-3">{validationErrors.bankName}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Account Number"
+                                                            value={withdrawAccountNumber}
+                                                            onChange={(e) => {
+                                                                setWithdrawAccountNumber(e.target.value);
+                                                                if (validationErrors.accountNumber) {
+                                                                    setValidationErrors(prev => ({ ...prev, accountNumber: '' }));
+                                                                }
+                                                            }}
+                                                            className={`w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50 ${validationErrors.accountNumber ? 'border-red-500' : ''}`}
+                                                            style={{ borderColor: validationErrors.accountNumber ? '#ef4444' : 'var(--color-border)', color: 'var(--color-text)' }}
+                                                        />
+                                                        {validationErrors.accountNumber && (
+                                                            <p className="text-red-500 text-xs font-bold mt-1 ml-3">{validationErrors.accountNumber}</p>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="IFSC Code (e.g. SBIN0001234)"
+                                                            value={withdrawIFSC}
+                                                            onChange={(e) => {
+                                                                setWithdrawIFSC(e.target.value.toUpperCase());
+                                                                if (validationErrors.ifsc) {
+                                                                    setValidationErrors(prev => ({ ...prev, ifsc: '' }));
+                                                                }
+                                                            }}
+                                                            className={`w-full px-5 h-16 rounded-[22px] border font-bold text-sm bg-bg/50 ${validationErrors.ifsc ? 'border-red-500' : ''}`}
+                                                            style={{ borderColor: validationErrors.ifsc ? '#ef4444' : 'var(--color-border)', color: 'var(--color-text)' }}
+                                                        />
+                                                        {validationErrors.ifsc && (
+                                                            <p className="text-red-500 text-xs font-bold mt-1 ml-3">{validationErrors.ifsc}</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -883,6 +968,24 @@ export default function WalletPage() {
                                             whileHover={{ scale: 1.01 }}
                                             whileTap={{ scale: 0.98 }}
                                             onClick={async () => {
+                                                const errors = {};
+                                                if (withdrawMethod === 'upi') {
+                                                    if (!withdrawUpiId.trim()) {
+                                                        errors.upiId = 'UPI ID is required';
+                                                    }
+                                                } else {
+                                                    if (!withdrawAccountHolder.trim()) errors.accountHolder = 'Account Holder Name is required';
+                                                    if (!withdrawBankName.trim()) errors.bankName = 'Bank Name is required';
+                                                    if (!withdrawAccountNumber.trim()) errors.accountNumber = 'Account Number is required';
+                                                    if (!withdrawIFSC.trim()) errors.ifsc = 'IFSC Code is required';
+                                                }
+
+                                                if (Object.keys(errors).length > 0) {
+                                                    setValidationErrors(errors);
+                                                    return;
+                                                }
+                                                setValidationErrors({});
+
                                                 setWalletActionMessage('Processing payout request...')
                                                  const payoutPayload = {
                                                     paymentMethod: withdrawMethod,

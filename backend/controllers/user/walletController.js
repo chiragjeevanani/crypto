@@ -559,7 +559,7 @@ const withdraw = async (req, res) => {
               userId,
               type: "withdrawal",
               coins,
-              amount: finalAmount,
+              amount: grossAmount,
               beforeBalance,
               afterBalance: beforeBalance,
               referenceId: createdWithdrawal._id.toString(),
@@ -586,6 +586,10 @@ const withdraw = async (req, res) => {
             title: "New Withdrawal Request",
             referenceId: withdrawal._id
         });
+        
+        // Emit real-time WebSocket event for admins
+        const { broadcastAll } = require("../../utils/socket");
+        broadcastAll("new_withdrawal_request", withdrawal);
     } catch (err) {
         console.error("Error in withdrawal notification:", err);
     }

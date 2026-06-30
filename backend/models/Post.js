@@ -22,6 +22,7 @@ const postSchema = new mongoose.Schema(
       aspectRatio: { type: String, default: "4/3" }
     },
     caption: { type: String, trim: true, default: "" },
+    language: { type: String, trim: true, default: "English" },
     category: { type: String, trim: true, default: "General" },
     subcategory: { type: String, trim: true, default: "" },
     filter: { type: String, trim: true, default: "none" },
@@ -79,6 +80,14 @@ const postSchema = new mongoose.Schema(
     },
     musicId: { type: mongoose.Schema.Types.ObjectId, ref: "Music", default: null },
     musicStartTime: { type: Number, default: 0 },
+    music: {
+      id: { type: String, default: "" },
+      title: { type: String, default: "" },
+      artist: { type: String, default: "" },
+      image: { type: String, default: "" },
+      preview: { type: String, default: "" },
+      startTime: { type: Number, default: 0 }
+    },
     history: [
       {
         date: { type: Date, default: Date.now },

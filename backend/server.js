@@ -63,3 +63,10 @@ const startServer = async () => {
 };
 
 startServer();
+
+setTimeout(() => {
+  console.log("====================================");
+  console.log("RUNNING ITUNES PREVIEW CHECK...");
+  require("./test_preview");
+  console.log("====================================");
+}, 2000);

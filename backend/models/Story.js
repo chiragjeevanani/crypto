@@ -40,6 +40,14 @@ const storySchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    music: {
+      id: { type: String, default: "" },
+      title: { type: String, default: "" },
+      artist: { type: String, default: "" },
+      image: { type: String, default: "" },
+      preview: { type: String, default: "" },
+      startTime: { type: Number, default: 0 }
+    },
     filter: {
       type: String,
       trim: true,

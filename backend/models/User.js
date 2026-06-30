@@ -119,6 +119,14 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: "English"
     },
+    languages: {
+      type: [String],
+      default: []
+    },
+    hasSelectedLanguages: {
+      type: Boolean,
+      default: false
+    },
     isPremium: {
       type: Boolean,
       default: false

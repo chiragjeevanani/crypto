@@ -505,7 +505,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         />
                     </div>
                 ) : (
-                    <div className="w-full h-full relative" onClick={toggleMute}>
+                    <div className="w-full h-full relative" onClick={post.musicData ? toggleMute : undefined}>
                         {post.musicData?.audioUrl && (
                             <audio 
                                 ref={audioRef}
@@ -766,7 +766,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                 {post.allowGifts !== false && !isSelfPost ? (
                     <>
                         <div className="flex items-center gap-2 mb-3">
-                            <span className="text-[10px] font-bold uppercase tracking-wider animate-pulse" style={{ color: 'var(--color-primary)' }}>
+                            <span className="text-xs font-bold uppercase tracking-wider animate-pulse" style={{ color: '#10b981' }}>
                                 Gift the creator
                             </span>
                         </div>

@@ -35,7 +35,8 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
         if (giftTypes.length === 0) {
             loadGifts()
         }
-    }, [giftTypes.length, loadGifts])
+        setGiftSpendWallet('inr')
+    }, [giftTypes.length, loadGifts, setGiftSpendWallet])
 
 
     const handleGift = (gift) => {
@@ -72,34 +73,21 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
             {!compact && (
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
-                        <Gift size={18} style={{ color: 'var(--color-muted)', flexShrink: 0 }} />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
+                        <Gift size={18} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
                             Pay with
                         </span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setGiftSpendWallet('inr')}
-                            className="px-2 py-1 rounded-md text-[10px] font-semibold"
+                        <div
+                            className="px-2 py-1 rounded-md text-xs font-semibold"
                             style={{
-                                background: giftSpendWallet === 'inr' ? 'rgba(245,158,11,0.16)' : 'var(--color-surface2)',
-                                color: giftSpendWallet === 'inr' ? 'var(--color-primary)' : 'var(--color-muted)',
+                                background: 'rgba(16,185,129,0.16)',
+                                color: '#10b981',
                             }}
                         >
                             {Math.round(inrWallet)} Coins
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setGiftSpendWallet('crypto')}
-                            className="px-2 py-1 rounded-md text-[10px] font-semibold"
-                            style={{
-                                background: giftSpendWallet === 'crypto' ? 'rgba(245,158,11,0.16)' : 'var(--color-surface2)',
-                                color: giftSpendWallet === 'crypto' ? 'var(--color-primary)' : 'var(--color-muted)',
-                            }}
-                        >
-                            Crypto {Number(cryptoWallet || 0).toFixed(4)}
-                        </button>
+                        </div>
                     </div>
                 </div>
             )}

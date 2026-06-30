@@ -1,6 +1,7 @@
 const Music = require("../models/Music");
 const { cloudinary } = require("../utils/cloudinary");
 const fs = require("fs");
+const spotifyService = require("../services/spotifyService");
 
 /**
  * Admin: Upload music
@@ -158,3 +159,20 @@ exports.getActiveMusic = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * User: Search music via Spotify API
+ */
+exports.searchMusic = async (req, res) => {
+  try {
+    const query = req.query.q || "";
+    const results = await spotifyService.searchSpotifyMusic(query);
+    return res.status(200).json({
+      success: true,
+      music: results
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

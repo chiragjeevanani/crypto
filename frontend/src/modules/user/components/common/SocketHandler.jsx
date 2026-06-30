@@ -2,10 +2,11 @@ import { useEffect } from 'react'
 import { useUserStore } from '../../store/useUserStore'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useCallStore } from '../../store/useCallStore'
+import { useWalletStore } from '../../store/useWalletStore'
 import { getSocket } from '../../../../socket'
 
 export default function SocketHandler() {
-    const { profile, isAuthenticated, authChecked, logout } = useUserStore()
+    const { profile, isAuthenticated, authChecked, logout, updateReferralCount } = useUserStore()
     const { addLiveNotification } = useFeedStore()
 
     useEffect(() => {
@@ -81,12 +82,27 @@ export default function SocketHandler() {
             }
         }
 
+        const onReferralCountUpdate = (payload) => {
+            if (payload && typeof payload.referralCount === 'number') {
+                updateReferralCount(payload.referralCount)
+            }
+        }
+
+        const onWithdrawalUpdate = (payload) => {
+            console.log('[Socket] Withdrawal status updated in real-time:', payload)
+            // Auto reload wallet balances and transaction activity
+            useWalletStore.getState().loadWallet()
+            useWalletStore.getState().loadTransactions()
+        }
+
         socket.on('connect', onReconnect)
         socket.on('reconnect', onReconnect)
         socket.on('notification', onNotification)
         socket.on('notification_broadcast', onBroadcast)
         socket.on('new_nft_offer', onNewNftOffer)
         socket.on('force_logout', onForceLogout)
+        socket.on('referral_count_update', onReferralCountUpdate)
+        socket.on('withdrawal_update', onWithdrawalUpdate)
         
         socket.on('incoming_call', onIncomingCall)
         socket.on('call_accepted', onCallAccepted)
@@ -100,13 +116,15 @@ export default function SocketHandler() {
             socket.off('notification_broadcast', onBroadcast)
             socket.off('new_nft_offer', onNewNftOffer)
             socket.off('force_logout', onForceLogout)
+            socket.off('referral_count_update', onReferralCountUpdate)
+            socket.off('withdrawal_update', onWithdrawalUpdate)
             
             socket.off('incoming_call', onIncomingCall)
             socket.off('call_accepted', onCallAccepted)
             socket.off('call_rejected', onCallRejected)
             socket.off('call_ended', onCallEnded)
         }
-    }, [profile?.id, isAuthenticated, authChecked, addLiveNotification, logout])
+    }, [profile?.id, isAuthenticated, authChecked, addLiveNotification, logout, updateReferralCount])
 
     return null
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, EyeOff, Heart, MessageCircle, Music } from 'lucide-react'
+import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, EyeOff, Heart, MessageCircle, Music, Globe } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
 import { authService } from '../../auth/services/authService'
@@ -25,7 +25,7 @@ import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
 import DeleteAccountConfirmationModal from '../components/shared/DeleteAccountConfirmationModal'
 const TABS = ['Posts', 'NFTs', 'Tasks']
-const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
+const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Content Languages', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
 export default function ProfilePage() {
     const navigate = useNavigate()
@@ -53,6 +53,13 @@ export default function ProfilePage() {
     const [joinedCampaigns, setJoinedCampaigns] = useState([])
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
     const [ownedNfts, setOwnedNfts] = useState([])
+    const [selectedLangs, setSelectedLangs] = useState([])
+
+    useEffect(() => {
+        if (settingsOpen && settingsTab === 'Content Languages') {
+            setSelectedLangs(profile.languages || [])
+        }
+    }, [settingsOpen, settingsTab, profile.languages])
 
     useEffect(() => {
         if (!profile?.id) return;
@@ -520,7 +527,7 @@ export default function ProfilePage() {
                                             </div>
                                         ) : (
                                             <img
-                                                src={nft.thumbnail || nft.media?.thumbnail || nft.media?.url || nft.mediaUrl}
+                                                src={nft.media?.url || nft.mediaUrl || nft.thumbnail || nft.media?.thumbnail}
                                                 alt={nft.title}
                                                 className="w-full h-full object-cover"
                                             />
@@ -702,6 +709,7 @@ export default function ProfilePage() {
                                             >
                                                 <div className="flex items-center gap-2">
                                                     {section === 'Saved Posts' && <Bookmark size={15} style={{ color: 'var(--color-primary)' }} />}
+                                                    {section === 'Content Languages' && <Globe size={15} style={{ color: 'var(--color-primary)' }} />}
                                                     <span>{section}</span>
                                                 </div>
                                                 <ChevronRight size={15} style={{ color: 'var(--color-muted)' }} />
@@ -805,6 +813,75 @@ export default function ProfilePage() {
                                         <textarea {...settingsForm.register('bio')} rows={3} placeholder="Bio" className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
                                         <button type="submit" disabled={profileSaving} className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-primary)', color: '#fff' }}>{profileSaving ? 'Saving...' : 'Save Personal Information'}</button>
                                     </form>
+                                )}
+                                
+                                {settingsMode === 'detail' && settingsTab === 'Content Languages' && (
+                                    <div className="space-y-4">
+                                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                                            Select the languages you prefer to watch content in. We will prioritize showing posts in these languages.
+                                        </p>
+                                        
+                                        {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}
+
+                                        <div className="grid grid-cols-2 gap-2 max-h-[350px] overflow-y-auto no-scrollbar pr-1">
+                                            {["English", "Hindi", "Gujarati", "Marathi", "Bengali", "Telugu", "Tamil", "Kannada", "Malayalam"].map((lang) => {
+                                                const isChecked = selectedLangs.includes(lang);
+                                                return (
+                                                    <button
+                                                        key={lang}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedLangs(prev => 
+                                                                prev.includes(lang) 
+                                                                    ? prev.filter(l => l !== lang) 
+                                                                    : [...prev, lang]
+                                                            );
+                                                        }}
+                                                        className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-left"
+                                                        style={{ 
+                                                            background: isChecked ? 'rgba(77,112,255,0.08)' : 'var(--color-surface2)', 
+                                                            color: isChecked ? 'var(--color-primary)' : 'var(--color-text)', 
+                                                            borderColor: isChecked ? 'var(--color-primary)' : 'var(--color-border)' 
+                                                        }}
+                                                    >
+                                                        <span>{lang}</span>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={isChecked} 
+                                                            readOnly 
+                                                            className="accent-[var(--color-primary)] w-3.5 h-3.5 cursor-pointer pointer-events-none"
+                                                        />
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <button 
+                                            type="button" 
+                                            disabled={profileSaving}
+                                            onClick={async () => {
+                                                setProfileSaveError('');
+                                                setProfileSaving(true);
+                                                try {
+                                                    await updateProfile({
+                                                        languages: selectedLangs,
+                                                        hasSelectedLanguages: selectedLangs.length > 0
+                                                    });
+                                                    setSettingsOpen(false);
+                                                    setSettingsMode('menu');
+                                                } catch (err) {
+                                                    console.error("Failed to save content languages:", err);
+                                                    setProfileSaveError(err?.message || 'Failed to save languages');
+                                                } finally {
+                                                    setProfileSaving(false);
+                                                }
+                                            }}
+                                            className="w-full py-2.5 rounded-lg text-sm font-bold disabled:opacity-50 mt-4 shadow-lg active:scale-95 transition-transform" 
+                                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                        >
+                                            {profileSaving ? 'Saving...' : 'Save Content Languages'}
+                                        </button>
+                                    </div>
                                 )}
                                 {settingsMode === 'detail' && settingsTab === 'Change Password' && (
                                     <div className="space-y-3">

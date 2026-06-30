@@ -712,18 +712,7 @@ export default function SignUpPage() {
                                 <p className="text-xs text-red-500 ml-1">{fieldErrors.state}</p>
                             )}
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Preferred Language</label>
-                            <select
-                                value={formData.language}
-                                onChange={(e) => handleChange('language', e.target.value)}
-                                className="w-full bg-bg border border-surface rounded-xl py-3.5 px-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text"
-                            >
-                                {["English", "Hindi", "Gujarati", "Marathi", "Bengali", "Telugu", "Tamil", "Kannada", "Malayalam"].map(lang => (
-                                    <option key={lang} value={lang}>{lang}</option>
-                                ))}
-                            </select>
-                        </div>
+
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Referral Code (Optional)</label>
                             <div className="relative group">

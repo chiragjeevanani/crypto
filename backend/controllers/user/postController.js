@@ -1,5 +1,6 @@
 const Post = require("../../models/Post");
 const User = require("../../models/User");
+const mongoose = require("mongoose");
 const Comment = require("../../models/Comment");
 const Campaign = require("../../models/Campaign");
 const Report = require("../../models/Report");
@@ -61,13 +62,22 @@ exports.createPost = async (req, res) => {
       }
     }
 
-    const body = req.body || {};
+    let body = req.body || {};
+    if (body.postData) {
+      try {
+        const parsed = typeof body.postData === "string" ? JSON.parse(body.postData) : body.postData;
+        body = { ...body, ...parsed };
+      } catch (err) {
+        console.error("Failed to parse body.postData:", err);
+      }
+    }
     const caption = typeof body.caption === "string" ? body.caption.trim() : "";
+    const language = typeof body.language === "string" ? body.language.trim() : (typeof req.body.language === "string" ? req.body.language.trim() : "English");
     const category = typeof body.category === "string" ? body.category.trim() : "General";
     const subcategory = typeof body.subcategory === "string" ? body.subcategory.trim() : "";
     const filter = typeof body.filter === "string" ? body.filter : "none";
     const musicTrackId = typeof body.musicTrackId === "string" ? body.musicTrackId : "none";
-    const musicId = (body.musicId && body.musicId !== "undefined" && body.musicId !== "") ? body.musicId : null;
+    const musicId = (body.musicId && body.musicId !== "undefined" && body.musicId !== "" && mongoose.Types.ObjectId.isValid(body.musicId)) ? body.musicId : null;
     const isNFT = body.isNFT === true || body.isNFT === "true";
     const nftPriceINR = Math.max(0, Number(body.nftPriceINR) || 0);
     const totalCopies = isNFT ? Math.max(1, Number(body.totalCopies) || 1) : 1;
@@ -97,6 +107,23 @@ exports.createPost = async (req, res) => {
       status: promoEnabled ? "paused" : "none" // Wait for payment/approval to activate
     };
 
+    let musicData = undefined;
+    if (body.music) {
+      try {
+        const parsed = typeof body.music === "string" ? JSON.parse(body.music) : body.music;
+        musicData = {
+          id: parsed.id || parsed._id || "",
+          title: parsed.title || "",
+          artist: parsed.artist || parsed.author || "",
+          image: parsed.image || parsed.thumbnail || "",
+          preview: parsed.preview || parsed.audioUrl || "",
+          startTime: Number(parsed.startTime) || 0
+        };
+      } catch (err) {
+        console.error("Failed to parse music body data:", err);
+      }
+    }
+
     const postDoc = await Post.create({
       creator: userId,
       media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3" },
@@ -120,6 +147,8 @@ exports.createPost = async (req, res) => {
       promotion: promotionData,
       musicId: musicId,
       musicStartTime: Number(body.musicStartTime) || 0,
+      music: musicData,
+      language: language,
       history: [{ action: isBusiness ? "Promotion Submission created" : (isNFT ? "NFT Submission created" : "Post created") }]
     });
 
@@ -265,7 +294,7 @@ exports.getPosts = async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const currentUserId = req.user?.userId;
-    const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
+    const currentUser = currentUserId ? await User.findById(currentUserId).select("following languages").lean() : null;
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
 
     const query = { status: "approved", isPublished: true };
@@ -275,14 +304,39 @@ exports.getPosts = async (req, res) => {
     }
     if (req.query.creator) query.creator = req.query.creator;
 
+    // Soft language preference: we don't query filter by language, but sort the results in memory.
     const config = await getAdminConfig();
     const posts = await populateCreator(
       Post.find(query).sort({ createdAt: -1 }).limit(200)
     ).exec();
     const list = posts.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
 
+    let sortedList = list;
+    if (!req.query.creator && currentUser && currentUser.languages && currentUser.languages.length > 0) {
+      const preferredLangs = currentUser.languages.map(l => l.toLowerCase());
+      const preferred = [];
+      const others = [];
+
+      list.forEach((post) => {
+        const isOwnPost = post.creator?.id === currentUserId;
+        const postLang = (post.language || "").toLowerCase();
+        const matchesPref = 
+          isOwnPost ||
+          preferredLangs.includes(postLang) ||
+          postLang === "" ||
+          postLang === "english";
+
+        if (matchesPref) {
+          preferred.push(post);
+        } else {
+          others.push(post);
+        }
+      });
+      sortedList = [...preferred, ...others];
+    }
+
     // Interleave Active Campaigns only if not NFT feed
-    let interleaved = list;
+    let interleaved = sortedList;
     if (req.query.isNFT !== "true") {
       const campaignsRaw = await Campaign.find({ status: "Active" }).sort({ createdAt: -1 }).limit(10).lean();
       const now = new Date();

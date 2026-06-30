@@ -13,5 +13,12 @@ export const musicService = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data?.message || "Failed to load music");
         return data;
+    },
+    async searchMusic(query) {
+        const url = `${MUSIC_URL}/search?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url, { headers: getAuthHeaders() });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.message || "Failed to search music");
+        return data;
     }
 };

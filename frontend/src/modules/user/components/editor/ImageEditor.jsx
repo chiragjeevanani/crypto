@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useRef } from 'react';
-import Cropper from 'react-easy-crop';
 import { motion, AnimatePresence } from 'framer-motion';
 import DrawingCanvas from './components/DrawingCanvas';
 import TextLayer from './components/TextLayer';
@@ -11,12 +10,26 @@ import { FILTERS } from './constants/filters';
 import { TEXT_STYLES } from './constants/textStyles';
 
 const ImageEditor = ({ file, onClose, onSave }) => {
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
-    const [aspect, setAspect] = useState(9 / 16);
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const [aspect, setAspect] = useState('original');
     const [imageSrc] = useState(URL.createObjectURL(file));
+
+    const aspectMap = {
+        '9/16': 9 / 16,
+        '1:1': 1,
+        '4:5': 4 / 5,
+        '16:9': 16 / 9
+    };
+    
+    const getAspectValue = useCallback((selectedAspectStr) => {
+        if (selectedAspectStr === 'free') return null;
+        if (selectedAspectStr === 'original') {
+            const img = imgRef.current;
+            if (img) return img.naturalWidth / img.naturalHeight;
+            return 1; // fallback before image load
+        }
+        return aspectMap[selectedAspectStr] || 9 / 16;
+    }, []);
     
     // Tools State
     const [activeTool, setActiveTool] = useState(null);
@@ -26,10 +39,157 @@ const ImageEditor = ({ file, onClose, onSave }) => {
     const [editingText, setEditingText] = useState(null);
     
     const drawingCanvasRef = useRef(null);
+    const imgRef = useRef(null);
 
-    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
-        setCroppedAreaPixels(croppedAreaPixels);
-    }, []);
+    // Custom resizable crop box state
+    const [cropBox, setCropBox] = useState({ x: 10, y: 10, w: 80, h: 80 });
+    const dragStartRef = useRef({ x: 0, y: 0 });
+    const startBoxRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
+    const activeActionRef = useRef(null); // 'drag' or 'resize-top-left', etc.
+
+    // Reset crop box on aspect ratio change
+    const resetCropBox = useCallback((selectedAspectStr) => {
+        const img = imgRef.current;
+        if (!img) return;
+        const imgWidth = img.naturalWidth || img.clientWidth || 300;
+        const imgHeight = img.naturalHeight || img.clientHeight || 400;
+        const imgAspect = imgWidth / imgHeight;
+        
+        const aspectVal = getAspectValue(selectedAspectStr);
+        
+        let w, h;
+        if (aspectVal === null) {
+            // 'free' ratio: default to a large crop covering 80%
+            w = 80;
+            h = 80;
+        } else if (imgAspect > aspectVal) {
+            h = 80;
+            w = h * (aspectVal / imgAspect);
+        } else {
+            w = 80;
+            h = w * (imgAspect / aspectVal);
+        }
+        
+        setCropBox({
+            x: (100 - w) / 2,
+            y: (100 - h) / 2,
+            w: w,
+            h: h
+        });
+    }, [getAspectValue]);
+
+    const handleAspectChange = (newRatio) => {
+        setAspect(newRatio);
+        resetCropBox(newRatio);
+    };
+
+    const handlePointerDown = (e, action) => {
+        e.preventDefault();
+        e.stopPropagation();
+        activeActionRef.current = action;
+        dragStartRef.current = { x: e.clientX, y: e.clientY };
+        startBoxRef.current = { ...cropBox };
+    };
+
+    const handlePointerMove = useCallback((e) => {
+        if (!activeActionRef.current) return;
+        const img = imgRef.current;
+        if (!img) return;
+        
+        const rect = img.getBoundingClientRect();
+        const containerWidth = rect.width;
+        const containerHeight = rect.height;
+        
+        const dx = e.clientX - dragStartRef.current.x;
+        const dy = e.clientY - dragStartRef.current.y;
+        
+        const dxPct = (dx / containerWidth) * 100;
+        const dyPct = (dy / containerHeight) * 100;
+        
+        const startBox = startBoxRef.current;
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        
+        if (activeActionRef.current === 'drag') {
+            const x = Math.max(0, Math.min(100 - startBox.w, startBox.x + dxPct));
+            const y = Math.max(0, Math.min(100 - startBox.h, startBox.y + dyPct));
+            setCropBox(prev => ({ ...prev, x, y }));
+        } else {
+            const handle = activeActionRef.current;
+            let newW = startBox.w;
+            let newH = startBox.h;
+            let newX = startBox.x;
+            let newY = startBox.y;
+
+            if (aspect === 'free') {
+                // Freeform dragging (each side moves independently)
+                if (handle === 'resize-bottom-right') {
+                    newW = Math.max(15, Math.min(100 - startBox.x, startBox.w + dxPct));
+                    newH = Math.max(15, Math.min(100 - startBox.y, startBox.h + dyPct));
+                } else if (handle === 'resize-top-left') {
+                    newW = Math.max(15, Math.min(startBox.w + startBox.x, startBox.w - dxPct));
+                    newH = Math.max(15, Math.min(startBox.h + startBox.y, startBox.h - dyPct));
+                    newX = startBox.x + startBox.w - newW;
+                    newY = startBox.y + startBox.h - newH;
+                } else if (handle === 'resize-top-right') {
+                    newW = Math.max(15, Math.min(100 - startBox.x, startBox.w + dxPct));
+                    newH = Math.max(15, Math.min(startBox.h + startBox.y, startBox.h - dyPct));
+                    newY = startBox.y + startBox.h - newH;
+                } else if (handle === 'resize-bottom-left') {
+                    newW = Math.max(15, Math.min(startBox.w + startBox.x, startBox.w - dxPct));
+                    newH = Math.max(15, Math.min(100 - startBox.y, startBox.h + dyPct));
+                    newX = startBox.x + startBox.w - newW;
+                }
+            } else {
+                // Keep aspect ratio constraint
+                const aspectVal = getAspectValue(aspect);
+                const aspectPercentRatio = aspectVal / imgAspect;
+                
+                if (handle === 'resize-bottom-right') {
+                    const delta = Math.abs(dxPct) > Math.abs(dyPct) ? dxPct : dyPct * aspectPercentRatio;
+                    newW = Math.max(15, Math.min(100 - startBox.x, startBox.w + delta));
+                    newH = newW / aspectPercentRatio;
+                    if (startBox.y + newH > 100) {
+                        newH = 100 - startBox.y;
+                        newW = newH * aspectPercentRatio;
+                    }
+                } else if (handle === 'resize-top-left') {
+                    const delta = Math.abs(dxPct) > Math.abs(dyPct) ? -dxPct : -dyPct * aspectPercentRatio;
+                    newW = Math.max(15, Math.min(startBox.w + startBox.x, startBox.w + delta));
+                    newH = newW / aspectPercentRatio;
+                    if (startBox.y + startBox.h - newH < 0) {
+                        newH = startBox.y + startBox.h;
+                        newW = newH * aspectPercentRatio;
+                    }
+                    newX = startBox.x + startBox.w - newW;
+                    newY = startBox.y + startBox.h - newH;
+                } else if (handle === 'resize-top-right') {
+                    const delta = Math.abs(dxPct) > Math.abs(dyPct) ? dxPct : -dyPct * aspectPercentRatio;
+                    newW = Math.max(15, Math.min(100 - startBox.x, startBox.w + delta));
+                    newH = newW / aspectPercentRatio;
+                    if (startBox.y + startBox.h - newH < 0) {
+                        newH = startBox.y + startBox.h;
+                        newW = newH * aspectPercentRatio;
+                    }
+                    newY = startBox.y + startBox.h - newH;
+                } else if (handle === 'resize-bottom-left') {
+                    const delta = Math.abs(dxPct) > Math.abs(dyPct) ? -dxPct : dyPct * aspectPercentRatio;
+                    newW = Math.max(15, Math.min(startBox.w + startBox.x, startBox.w + delta));
+                    newH = newW / aspectPercentRatio;
+                    if (startBox.y + newH > 100) {
+                        newH = 100 - startBox.y;
+                        newW = newH * aspectPercentRatio;
+                    }
+                    newX = startBox.x + startBox.w - newW;
+                }
+            }
+            
+            setCropBox({ x: newX, y: newY, w: newW, h: newH });
+        }
+    }, [aspect, getAspectValue, cropBox]);
+
+    const handlePointerUp = () => {
+        activeActionRef.current = null;
+    };
 
     const createImage = (url) =>
         new Promise((resolve, reject) => {
@@ -153,35 +313,21 @@ const ImageEditor = ({ file, onClose, onSave }) => {
     };
 
     const handleApply = async () => {
-        // If user never moved/zoomed the cropper, croppedAreaPixels is null.
-        // Compute a default crop covering the entire image at the selected aspect ratio.
-        let pixelCrop = croppedAreaPixels;
-        if (!pixelCrop) {
-            const img = await new Promise((res, rej) => {
-                const i = new Image();
-                i.onload = () => res(i);
-                i.onerror = rej;
-                i.src = imageSrc;
-            });
-            const imgAspect = img.width / img.height;
-            let w, h, x, y;
-            if (imgAspect > aspect) {
-                // Image wider than target: fit by height
-                h = img.height;
-                w = h * aspect;
-                x = (img.width - w) / 2;
-                y = 0;
-            } else {
-                // Image taller than target: fit by width
-                w = img.width;
-                h = w / aspect;
-                x = 0;
-                y = (img.height - h) / 2;
-            }
-            pixelCrop = { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) };
-        }
+        const img = imgRef.current;
+        if (!img) return;
+        const oW = img.naturalWidth;
+        const oH = img.naturalHeight;
+        const pixelCrop = {
+            x: Math.round((cropBox.x / 100) * oW),
+            y: Math.round((cropBox.y / 100) * oH),
+            width: Math.round((cropBox.w / 100) * oW),
+            height: Math.round((cropBox.h / 100) * oH),
+        };
         const editedFile = await getCroppedImg(imageSrc, pixelCrop, rotation, selectedFilter, texts);
-        onSave(editedFile);
+        const saveAspectStr = aspect === 'free' ? `${pixelCrop.width}/${pixelCrop.height}` : 
+                              aspect === 'original' ? `${oW}/${oH}` : 
+                              aspect;
+        onSave(editedFile, saveAspectStr);
     };
 
     const handleSaveText = (textData) => {
@@ -209,7 +355,11 @@ const ImageEditor = ({ file, onClose, onSave }) => {
     const activeFilterCSS = FILTERS.find(f => f.id === selectedFilter)?.filter || 'none';
 
     return (
-        <div className="flex flex-col h-full bg-black text-white relative overflow-hidden">
+        <div 
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="flex flex-col h-full bg-black text-white relative overflow-hidden"
+        >
             {/* Immersive Tool Bar */}
             <StoryToolBar 
                 activeTool={activeTool}
@@ -225,28 +375,24 @@ const ImageEditor = ({ file, onClose, onSave }) => {
             {!activeTool && (
                 <div className="absolute top-24 left-0 right-0 flex justify-center gap-2 z-40">
                     {[
-                        { label: '9:16', value: 9/16 },
-                        { label: '1:1', value: 1 },
-                        { label: '4:5', value: 4/5 },
-                        { label: '16:9', value: 16/9 }
+                        { label: 'Original', value: 'original' },
+                        { label: 'Free', value: 'free' },
+                        { label: '9:16', value: '9/16' },
+                        { label: '1:1', value: '1/1' },
+                        { label: '4:5', value: '4/5' },
+                        { label: '16:9', value: '16/9' }
                     ].map((ratio) => (
                         <button
                             key={ratio.label}
                             onPointerDown={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setAspect(ratio.value);
-                                setCrop({ x: 0, y: 0 });
-                                setZoom(1);
-                                setCroppedAreaPixels(null);
+                                handleAspectChange(ratio.value);
                             }}
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setAspect(ratio.value);
-                                setCrop({ x: 0, y: 0 });
-                                setZoom(1);
-                                setCroppedAreaPixels(null);
+                                handleAspectChange(ratio.value);
                             }}
                             className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-lg backdrop-blur-md ${aspect === ratio.value ? 'bg-white text-black scale-105' : 'bg-black/60 text-white border border-white/20 hover:bg-black/80'}`}
                         >
@@ -258,21 +404,67 @@ const ImageEditor = ({ file, onClose, onSave }) => {
 
             {/* Immersive Preview */}
             <div className="flex-1 relative bg-black flex items-center justify-center p-4">
-                <div className="w-full h-full max-w-[450px] aspect-[9/16] relative rounded-[40px] overflow-hidden shadow-2xl border border-white/5 bg-zinc-900">
-                    <div className="w-full h-full" style={{ filter: activeFilterCSS }}>
-                        <Cropper
-                            image={imageSrc}
-                            crop={crop}
-                            zoom={zoom}
-                            rotation={rotation}
-                            aspect={aspect}
-                            onCropChange={setCrop}
-                            onCropComplete={onCropComplete}
-                            onZoomChange={setZoom}
-                            showGrid={false}
-                            restrictPosition={false}
-                            style={{ containerStyle: { background: '#111' } }}
+                <div className="w-full h-full max-w-[450px] aspect-[9/16] relative rounded-[40px] overflow-hidden shadow-2xl border border-white/5 bg-zinc-900 flex items-center justify-center">
+                    <div className="relative inline-block select-none pointer-events-auto" style={{ filter: activeFilterCSS }}>
+                        <img
+                            ref={imgRef}
+                            src={imageSrc}
+                            alt="Crop Target"
+                            className="max-w-full max-h-[60vh] object-contain pointer-events-none"
+                            onLoad={() => resetCropBox(aspect)}
                         />
+                        {/* Crop Box Overlay */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                left: `${cropBox.x}%`,
+                                top: `${cropBox.y}%`,
+                                width: `${cropBox.w}%`,
+                                height: `${cropBox.h}%`,
+                                border: '2px solid #fff',
+                                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)',
+                                cursor: 'move',
+                                touchAction: 'none',
+                                zIndex: 10
+                            }}
+                            onPointerDown={(e) => handlePointerDown(e, 'drag')}
+                        >
+                            {/* Grid lines inside crop box */}
+                            <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-40">
+                                <div className="border-r border-dashed border-white col-span-1 row-span-3" />
+                                <div className="border-r border-dashed border-white col-span-1 row-span-3" />
+                                <div className="border-b border-dashed border-white col-span-3 row-span-1" />
+                                <div className="border-b border-dashed border-white col-span-3 row-span-1" />
+                            </div>
+
+                            {/* Draggable Corner Handles */}
+                            {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map(handle => {
+                                const style = {};
+                                if (handle.includes('top')) style.top = '-6px';
+                                else style.bottom = '-6px';
+                                if (handle.includes('left')) style.left = '-6px';
+                                else style.right = '-6px';
+                                
+                                return (
+                                    <div
+                                        key={handle}
+                                        style={{
+                                            position: 'absolute',
+                                            width: '16px',
+                                            height: '16px',
+                                            backgroundColor: '#fff',
+                                            border: '2px solid #000',
+                                            borderRadius: '50%',
+                                            cursor: `${handle === 'top-left' || handle === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'}`,
+                                            touchAction: 'none',
+                                            ...style,
+                                            zIndex: 20
+                                        }}
+                                        onPointerDown={(e) => handlePointerDown(e, `resize-${handle}`)}
+                                    />
+                                );
+                            })}
+                        </div>
                     </div>
                     
                     {/* Layer 1: Drawing */}

@@ -20,6 +20,7 @@ import BottomNavbar from '../components/shared/BottomNavbar'
 import CoinRain from '../components/shared/CoinRain'
 import RoseShower from '../components/shared/RoseShower'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
+import LanguageSelectionModal from '../components/shared/LanguageSelectionModal'
 import { useWalletStore } from '../store/useWalletStore'
 import { useFeedStore } from '../store/useFeedStore'
 import { useUserStore } from '../store/useUserStore'
@@ -73,11 +74,12 @@ export default function AppShell() {
         unreadTotal: state.unreadMessagesTotal,
         setUnreadMessagesTotal: state.setUnreadMessagesTotal
     })))
-    const { kyc, setKYCFromSync, user, profile } = useUserStore(useShallow(state => ({
+    const { kyc, setKYCFromSync, user, profile, isAuthenticated } = useUserStore(useShallow(state => ({
         kyc: state.kyc,
         setKYCFromSync: state.setKYCFromSync,
         user: state.user,
-        profile: state.profile
+        profile: state.profile,
+        isAuthenticated: state.isAuthenticated
     })))
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
 
@@ -383,8 +385,8 @@ export default function AppShell() {
                 </div>
             </aside>
 
-            <main className="app-shell-main flex flex-col flex-1 overflow-y-auto hide-scrollbar pb-safe md:pb-6 md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]">
-                <div className="mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col pt-4">
+            <main className={`app-shell-main flex flex-col flex-1 hide-scrollbar pb-safe ${location.pathname === '/create' ? 'overflow-hidden md:pb-0' : 'overflow-y-auto md:pb-6'} md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]`}>
+                <div className={`mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col ${location.pathname === '/create' ? 'pt-0' : 'pt-4'}`}>
                     <Outlet />
                 </div>
             </main>
@@ -571,6 +573,9 @@ export default function AppShell() {
                     window.location.href = '/signin'
                 }}
             />
+            {isAuthenticated && user?.role === 'User' && !user?.hasSelectedLanguages && (
+                <LanguageSelectionModal />
+            )}
         </div>
     )
 }

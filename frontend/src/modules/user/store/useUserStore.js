@@ -82,6 +82,8 @@ const defaultProfile = {
     followingList: [],
     state: '',
     language: 'English',
+    languages: [],
+    hasSelectedLanguages: false,
 }
 
 function profileFromUser(user) {
@@ -112,6 +114,8 @@ function profileFromUser(user) {
         followingList: [],
         state: user.state || '',
         language: user.language || 'English',
+        languages: user.languages || [],
+        hasSelectedLanguages: user.hasSelectedLanguages || false,
     }
 }
 
@@ -494,6 +498,8 @@ export const useUserStore = create((set, get) => ({
             
             if (data.state !== undefined) payload.state = data.state
             if (data.language !== undefined) payload.language = data.language
+            if (data.languages !== undefined) payload.languages = data.languages
+            if (data.hasSelectedLanguages !== undefined) payload.hasSelectedLanguages = data.hasSelectedLanguages
 
 
             let user = mergedUser
@@ -525,4 +531,15 @@ export const useUserStore = create((set, get) => ({
             throw err
         }
     },
+
+    updateReferralCount: (count) => set((state) => ({
+        profile: {
+            ...state.profile,
+            referralCount: count
+        },
+        kyc: {
+            ...state.kyc,
+            referredCount: count
+        }
+    })),
 }))

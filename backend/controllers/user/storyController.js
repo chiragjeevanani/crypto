@@ -1,5 +1,6 @@
 const Story = require("../../models/Story");
 const User = require("../../models/User");
+const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const { UPLOAD_DIR } = require("../../utils/upload");
@@ -37,14 +38,22 @@ const formatStoryForClient = (story, currentUserId, baseUrl) => {
         }
       : null,
     musicTrackId: story.musicTrackId || "none",
-    musicData: story.musicId && typeof story.musicId === "object" ? {
-      id: story.musicId._id,
+    music: story.music || null,
+    musicData: (story.musicId && typeof story.musicId === "object") ? {
+      id: story.musicId._id?.toString() || "",
       title: story.musicId.title,
       artist: story.musicId.artist,
-      audioUrl: story.musicId.audioUrl, // Music audio usually already fully resolved in DB or through separate logic
+      audioUrl: story.musicId.audioUrl, 
       duration: story.musicId.duration,
       thumbnail: story.musicId.thumbnail
-    } : null,
+    } : (story.music && story.music.title ? {
+      id: story.music.id || "",
+      title: story.music.title,
+      artist: story.music.artist,
+      audioUrl: story.music.preview || "",
+      duration: 30, // Default 30s for preview clips
+      thumbnail: story.music.image || ""
+    } : null),
     musicStartTime: story.musicStartTime || 0,
     filter: story.filter || "none",
     mediaScale: story.mediaScale || 1,
@@ -114,14 +123,32 @@ exports.createStory = async (req, res) => {
           : "#000000"
     };
 
+    let musicData = undefined;
+    if (body.music) {
+      try {
+        const parsed = typeof body.music === "string" ? JSON.parse(body.music) : body.music;
+        musicData = {
+          id: parsed.id || parsed._id || "",
+          title: parsed.title || "",
+          artist: parsed.artist || parsed.author || "",
+          image: parsed.image || parsed.thumbnail || "",
+          preview: parsed.preview || parsed.audioUrl || "",
+          startTime: Number(parsed.startTime) || 0
+        };
+      } catch (err) {
+        console.error("[Story] Failed to parse music body data:", err);
+      }
+    }
+
     const story = await Story.create({
       user: userId,
       media: { type: mediaType, url: mediaUrl },
       caption,
       captionStyle,
       musicTrackId,
-      musicId: body.musicId || null,
+      musicId: (body.musicId && mongoose.Types.ObjectId.isValid(body.musicId)) ? body.musicId : null,
       musicStartTime: Number(body.musicStartTime) || 0,
+      music: musicData,
       filter: body.filter || "none",
       mediaScale: Number(body.mediaScale) || 1,
       mediaPosition: {

@@ -123,17 +123,26 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
     paymentStatus: post.paymentStatus || "pending",
     isPublished: Boolean(post.isPublished),
     musicId: post.musicId ? post.musicId._id || post.musicId : null,
-    musicData: post.musicId && typeof post.musicId === "object" ? {
+    musicData: (post.musicId && typeof post.musicId === "object") ? {
       id: post.musicId._id,
       title: post.musicId.title,
       artist: post.musicId.artist,
       audioUrl: resolveUrl(post.musicId.audioUrl, baseUrl),
       duration: post.musicId.duration,
       thumbnail: resolveUrl(post.musicId.thumbnail, baseUrl)
-    } : null,
+    } : (post.music && post.music.title ? {
+      id: post.music.id || "",
+      title: post.music.title,
+      artist: post.music.artist,
+      audioUrl: post.music.preview || "",
+      duration: 30,
+      thumbnail: post.music.image || ""
+    } : null),
     musicStartTime: post.musicStartTime || 0,
+    music: post.music || null,
     totalCopies: post.totalCopies || 1,
-    copiesSold: post.copiesSold || 0
+    copiesSold: post.copiesSold || 0,
+    language: post.language || "English"
   };
 }
 

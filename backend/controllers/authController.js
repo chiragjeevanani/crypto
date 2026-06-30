@@ -118,6 +118,8 @@ const safeUser = (user, kyc = null) => {
     isPremium: user.isPremium || false,
     state: user.state || "",
     language: user.language || "English",
+    languages: user.languages || [],
+    hasSelectedLanguages: user.hasSelectedLanguages || false,
     kycStatus: user.kycStatus || "unsubmitted",
     isMonetized: user.isMonetized || false,
     walletAddress: user.walletAddress || "",
@@ -195,7 +197,19 @@ const registerUser = async (req, res) => {
 
     // If referred, increment referrer count
     if (referrerId) {
-      await User.findByIdAndUpdate(referrerId, { $inc: { referralCount: 1 } });
+      const updatedReferrer = await User.findByIdAndUpdate(
+        referrerId,
+        { $inc: { referralCount: 1 } },
+        { new: true }
+      );
+      try {
+        const { emitToUser } = require("../utils/socket");
+        emitToUser(referrerId, "referral_count_update", {
+          referralCount: updatedReferrer?.referralCount || 0
+        });
+      } catch (socketErr) {
+        console.error("[Referral] Failed to emit count update:", socketErr);
+      }
     }
 
     // Generate verification OTP
@@ -372,7 +386,7 @@ const updateProfile = async (req, res) => {
     // Removed req.body logging to prevent crashes from large base64 strings
 
     const baseUrl = getBaseUrl(req);
-    const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language"];
+    const allowed = ["name", "email", "phone", "bio", "avatar", "handle", "countryCode", "state", "language", "languages", "hasSelectedLanguages"];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
