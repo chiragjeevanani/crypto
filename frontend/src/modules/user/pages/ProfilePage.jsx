@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, EyeOff, Heart, MessageCircle, Music, Globe } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useUserStore } from '../store/useUserStore'
+import { useUserStore, getStoredToken } from '../store/useUserStore'
 import { authService } from '../../auth/services/authService'
 import { useFeedStore } from '../store/useFeedStore'
 import { useWalletStore } from '../store/useWalletStore'
@@ -65,7 +65,7 @@ export default function ProfilePage() {
         if (!profile?.id) return;
         let mounted = true;
         fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/nft/user/${profile.id}/collection`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` }
+            headers: { Authorization: `Bearer ${getStoredToken()}` }
         })
         .then(res => res.json())
         .then(data => {

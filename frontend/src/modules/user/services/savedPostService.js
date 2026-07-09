@@ -1,8 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const SAVED_URL = `${API_BASE}/saved`;
 
+import { getStoredToken } from '../store/useUserStore';
+
 const getAuthHeaders = () => {
-  const raw = localStorage.getItem("crypto_auth_token");
+  const raw = getStoredToken();
   return raw ? { Authorization: `Bearer ${raw}` } : {};
 };
 

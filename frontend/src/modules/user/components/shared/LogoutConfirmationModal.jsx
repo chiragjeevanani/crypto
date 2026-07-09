@@ -1,8 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { LogOut, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 
 export default function LogoutConfirmationModal({ isOpen, onClose, onConfirm }) {
-    return (
+    if (typeof window === 'undefined') return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
@@ -69,6 +72,7 @@ export default function LogoutConfirmationModal({ isOpen, onClose, onConfirm }) 
                     </motion.div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     )
 }

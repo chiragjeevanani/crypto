@@ -52,7 +52,7 @@ import { businessService } from '../services/businessService';
 import { loadRazorpayScript } from '../../../utils/razorpayLoader';
 import { followService } from '../services/followService';
 import audioService from '../../../services/audioService';
-import { useUserStore } from '../store/useUserStore';
+import { useUserStore, getStoredToken } from '../store/useUserStore';
 const SOUND_FAVORITES_KEY = 'soundFavorites';
 
 
@@ -1756,7 +1756,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       if (musicSearchQuery.trim()) {
         try {
           const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/music/search?q=${encodeURIComponent(musicSearchQuery)}`, {
-            headers: localStorage.getItem("crypto_auth_token") ? { Authorization: `Bearer ${localStorage.getItem("crypto_auth_token")}` } : {}
+            headers: getStoredToken() ? { Authorization: `Bearer ${getStoredToken()}` } : {}
           });
           const data = await response.json();
           if (data.success && data.music) {

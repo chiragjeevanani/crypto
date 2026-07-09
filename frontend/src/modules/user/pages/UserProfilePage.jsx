@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Share2, MoreHorizontal, UserPlus, Check, Star, X, Play, Eye, MessageCircle } from 'lucide-react'
 import { formatCount } from '../utils/formatCurrency'
 import { useFeedStore } from '../store/useFeedStore'
-import { useUserStore } from '../store/useUserStore'
+import { useUserStore, getStoredToken } from '../store/useUserStore'
 import NFTBadge from '../components/shared/NFTBadge'
 import PostFeedModal from '../components/feed/PostFeedModal'
 import { followService } from '../services/followService'
@@ -56,10 +56,10 @@ export default function UserProfilePage() {
                     followService.getFollowing(id),
                     searchService.getUserById(id),
                     fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/user/posts?creator=${id}&isNFT=true`, { 
-                        headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` } 
+                        headers: { Authorization: `Bearer ${getStoredToken()}` } 
                     }).then(r => r.json().catch(() => ({}))),
                     fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/nft/user/${id}/collection`, { 
-                        headers: { Authorization: `Bearer ${localStorage.getItem('crypto_auth_token')}` } 
+                        headers: { Authorization: `Bearer ${getStoredToken()}` } 
                     }).then(r => r.json().catch(() => ({})))
                 ])
                 if (cancelled) return
