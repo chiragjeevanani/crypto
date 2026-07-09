@@ -170,7 +170,7 @@ export default function GiftListPage() {
                                         placeholder="Emoji"
                                     />
                                     <div className="flex flex-wrap gap-1.5 justify-center">
-                                        {['❤️', '💎', '🌹', '🔥', '⭐', '🎁', '🍫', '🍬', '🍭', '🍦', '🍩', '🍰', '🥨', '🥂', '👑', '🦄'].map((emoji) => (
+                                        {['❤️', '💎', '🌹', '🔥', '⭐', '🎁', '🍫', '🍬', '🍭', '🍦', '🍩', '🍰', '🥨', '🥂', '👑', '🦄', '🦋', '🫰', '🍻', '🥊', '🥚', '🌟', '🎉', '🏆', '💯', '🚀'].map((emoji) => (
                                             <button
                                                 key={emoji}
                                                 type="button"
