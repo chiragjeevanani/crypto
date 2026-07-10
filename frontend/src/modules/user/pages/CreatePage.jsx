@@ -4438,7 +4438,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
       {/* Bottom Tools & Buttons */}
       <div
-        className="bg-[#121214] border-t border-white/5 pt-4 pb-[calc(max(1rem,env(safe-area-inset-bottom))+2.5rem)] md:pb-[max(1rem,env(safe-area-inset-bottom))] z-20"
+        className="bg-[#121214] border-t border-white/5 pt-4 pb-[calc(max(1.25rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.25rem,env(safe-area-inset-bottom))] z-20"
       >
         {/* Horizontal Tools List */}
         <div className="mb-6 flex gap-6 overflow-x-auto px-6 no-scrollbar">
@@ -4501,7 +4501,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           <span className="w-6" />
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-[calc(max(1rem,env(safe-area-inset-bottom))+5rem)]">
           <div className="border-b border-black/5 px-4 py-4">
             <div className="flex gap-4">
               <textarea
@@ -4857,7 +4857,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           </div>
         </div>
 
-        <div className="border-t border-black/5 bg-white px-4 pt-4 pb-2">
+        <div className="sticky bottom-0 z-10 border-t border-black/5 bg-white px-4 pt-4 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+4rem)] md:pb-3">
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -5789,14 +5789,14 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         type="file" 
         ref={overlayInputRef} 
         className="hidden" 
-        accept="image/*,video/*" 
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/3gpp,video/x-msvideo" 
         onChange={handleOverlaySelect} 
       />
       <input 
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
-        accept="video/*,image/*" 
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/3gpp,video/x-msvideo" 
         onChange={handleFileChange} 
       />
 
