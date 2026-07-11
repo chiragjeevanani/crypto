@@ -209,6 +209,9 @@ export default function NotificationsPage() {
                         <p className="text-[10px] font-medium opacity-50 uppercase tracking-widest">Your notifications</p>
                     </div>
                 </div>
+                <div className="flex-shrink-0">
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover shadow-sm opacity-80" />
+                </div>
             </div>
 
             <div className="px-4 pt-6 space-y-6">

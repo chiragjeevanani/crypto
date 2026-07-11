@@ -82,11 +82,7 @@ exports.createStory = async (req, res) => {
     }
 
     const localPath = path.join(UPLOAD_DIR, file.filename);
-    const useCloudinary =
-      cloudinary &&
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET;
+    const useCloudinary = false;
 
     if (useCloudinary) {
       try {

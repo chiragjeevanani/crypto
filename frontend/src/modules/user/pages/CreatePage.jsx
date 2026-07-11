@@ -3568,7 +3568,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       <div className="flex-1 flex flex-col items-center justify-center px-4 min-h-0">
         <div className="relative aspect-[9/16] h-full max-h-[380px] overflow-hidden rounded-[16px] bg-black shadow-2xl border border-white/5">
           {previewUrl ? (
-            (clipSequence.length > 0 ? clipSequence[currentClipIndex]?.isImage : videoFile?.type?.startsWith('image/')) ? (
+            ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || previewUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
               <img 
                 src={clipSequence.length > 0 ? clipSequence[currentClipIndex].url : previewUrl} 
                 className="h-full w-full object-cover" 
@@ -4194,7 +4194,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     <div className={`flex flex-col flex-1 min-h-0 w-full overflow-hidden bg-black text-white`}>
       <div className="flex-1 relative overflow-hidden bg-[#0d0d0f] flex items-center justify-center">
         {previewUrl ? (
-        videoFile?.type?.startsWith('image/') ? (
+        ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || previewUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
           <img 
             src={previewUrl} 
             className="h-full w-full object-contain transition-all duration-500" 
@@ -4857,7 +4857,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 border-t border-black/5 bg-white px-4 pt-4 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+4rem)] md:pb-3">
+        <div className="mt-4 border-t border-black/5 bg-white px-4 pt-4 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+4rem)] md:pb-3">
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"

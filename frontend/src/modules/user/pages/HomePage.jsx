@@ -193,9 +193,12 @@ export default function HomePage() {
                     className="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
-                    <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
-                        KnQ Reels
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover" />
+                        <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
+                            Reels
+                        </span>
+                    </div>
                     <div className="relative flex items-center gap-2">
                         <button
                             onClick={() => navigate('/auctions')}

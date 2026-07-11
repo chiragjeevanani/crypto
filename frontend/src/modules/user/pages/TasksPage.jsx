@@ -648,7 +648,7 @@ export default function TasksPage() {
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <h1 className="text-xl font-extrabold italic text-white drop-shadow-md">e Digital Marketplace</h1>
-                                <div className="px-1.5 py-0.5 bg-yellow-400 rounded text-[9px] font-bold text-black uppercase tracking-wider">Plus</div>
+                                <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-6 w-6 rounded-full object-cover" />
                             </div>
                             <button onClick={() => navigate('/create')} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white">
                                 +

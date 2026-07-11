@@ -445,12 +445,7 @@ const updateAvatar = async (req, res) => {
 
     const baseUrl = getBaseUrl(req);
     const localPath = path.join(UPLOAD_DIR, file.filename);
-    const useCloudinary = Boolean(
-      cloudinary &&
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-    );
+    const useCloudinary = false;
 
     let avatarUrl = "";
     if (useCloudinary) {

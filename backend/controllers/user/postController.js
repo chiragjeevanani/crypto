@@ -30,12 +30,7 @@ exports.createPost = async (req, res) => {
 
     if (file) {
       const localPath = path.join(UPLOAD_DIR, file.filename);
-      const useCloudinary = Boolean(
-        cloudinary &&
-          process.env.CLOUDINARY_CLOUD_NAME &&
-          process.env.CLOUDINARY_API_KEY &&
-          process.env.CLOUDINARY_API_SECRET
-      );
+      const useCloudinary = false;
 
       if (useCloudinary) {
         const resourceType = file.mimetype.startsWith("video/")

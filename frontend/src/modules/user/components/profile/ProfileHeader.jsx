@@ -8,7 +8,8 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
     const { format: formatLocal } = useUserCurrency()
     const navigate = useNavigate()
     return (
-        <div className="px-4 pt-5 pb-4">
+        <div className="px-4 pt-5 pb-4 relative">
+            
             {/* Avatar + stats */}
             <div className="flex items-start gap-4">
                 {/* Avatar with gradient ring */}
@@ -52,40 +53,45 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                 </div>
             </div>
 
-            {/* Name + badge + handle + bio */}
-            <div className="mt-3">
-                <div className="flex items-center gap-2">
-                    <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
-                        {profile.username}
+            {/* Name + badge + handle + bio + Logo */}
+            <div className="mt-3 flex justify-between items-start">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                        <p className="font-bold text-base" style={{ color: 'var(--color-text)' }}>
+                            {profile.username}
+                        </p>
+                        {profile.isPremium && (
+                            <div className="w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
+                                <Check size={9} className="text-white" strokeWidth={5} />
+                            </div>
+                        )}
+                        {profile.badge && (
+                            <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--color-primary)' }}
+                            >
+                                <Star size={9} strokeWidth={2.5} fill="var(--color-primary)" />
+                                {profile.badge}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                        {profile.handle}
                     </p>
-                    {profile.isPremium && (
-                        <div className="w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
-                            <Check size={9} className="text-white" strokeWidth={5} />
-                        </div>
-                    )}
-                    {profile.badge && (
-                        <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                            style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--color-primary)' }}
-                        >
-                            <Star size={9} strokeWidth={2.5} fill="var(--color-primary)" />
-                            {profile.badge}
-                        </span>
+                    {/* BIO - Now clearly visible after the name/handle */}
+                    {profile.bio ? (
+                        <p className="text-sm mt-2 font-medium leading-relaxed" style={{ color: 'var(--color-sub)' }}>
+                            {profile.bio}
+                        </p>
+                    ) : (
+                        <p className="text-[11px] mt-1.5 italic opacity-50" style={{ color: 'var(--color-muted)' }}>
+                            Add a bio to tell people about yourself...
+                        </p>
                     )}
                 </div>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                    {profile.handle}
-                </p>
-                {/* BIO - Now clearly visible after the name/handle */}
-                {profile.bio ? (
-                    <p className="text-sm mt-2 font-medium leading-relaxed" style={{ color: 'var(--color-sub)' }}>
-                        {profile.bio}
-                    </p>
-                ) : (
-                    <p className="text-[11px] mt-1.5 italic opacity-50" style={{ color: 'var(--color-muted)' }}>
-                        Add a bio to tell people about yourself...
-                    </p>
-                )}
+                <div className="flex-shrink-0 ml-3">
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-10 w-10 rounded-full object-cover shadow-sm opacity-80" />
+                </div>
             </div>
 
             {/* Earnings summary */}
