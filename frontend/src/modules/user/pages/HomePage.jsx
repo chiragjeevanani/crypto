@@ -194,8 +194,8 @@ export default function HomePage() {
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
                     <div className="flex items-center gap-2">
-                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover" />
-                        <span className="text-xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
+                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover" />
+                        <span className="text-2xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
                             Reels
                         </span>
                     </div>
@@ -439,7 +439,6 @@ export default function HomePage() {
                                                         playsInline
                                                         loop
                                                         preload="none"
-                                                        crossOrigin="anonymous"
                                                         poster={post.media?.thumbnail || post.media?.poster}
                                                     />
                                                     <div className="p-2.5">
@@ -478,7 +477,6 @@ export default function HomePage() {
                                                             playsInline
                                                             loop
                                                             preload="none"
-                                                            crossOrigin="anonymous"
                                                             poster={post.media?.thumbnail || post.media?.poster}
                                                             onMouseEnter={(e) => e.target.play().catch(() => {})}
                                                             onMouseLeave={(e) => {
@@ -527,7 +525,6 @@ export default function HomePage() {
                                                     playsInline
                                                     loop
                                                     preload="none"
-                                                    crossOrigin="anonymous"
                                                     poster={post.media?.thumbnail || post.media?.poster}
                                                     onMouseEnter={(e) => e.target.play().catch(() => {})}
                                                     onMouseLeave={(e) => {
@@ -570,7 +567,6 @@ export default function HomePage() {
                                                 playsInline
                                                 loop
                                                 preload="none"
-                                                crossOrigin="anonymous"
                                                 poster={post.media?.thumbnail || post.media?.poster}
                                                 onMouseEnter={(e) => e.target.play().catch(() => {})}
                                                 onMouseLeave={(e) => {

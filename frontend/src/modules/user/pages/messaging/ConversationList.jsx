@@ -195,7 +195,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
             {/* Header */}
             <div className="px-4 py-4 flex items-center justify-between border-b relative" style={{ borderColor: 'var(--color-border)' }}>
                 <div className="absolute left-1/2 -translate-x-1/2">
-                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover shadow-sm" />
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover shadow-sm" />
                 </div>
                 <h2 className="text-lg font-bold truncate z-10" style={{ color: 'var(--color-text)' }}>
                     {profile?.username || 'Messages'}

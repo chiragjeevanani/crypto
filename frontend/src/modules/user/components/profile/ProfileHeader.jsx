@@ -90,7 +90,7 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
                     )}
                 </div>
                 <div className="flex-shrink-0 ml-3">
-                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-10 w-10 rounded-full object-cover shadow-sm opacity-80" />
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-14 w-14 rounded-full object-cover shadow-sm opacity-80" />
                 </div>
             </div>
 

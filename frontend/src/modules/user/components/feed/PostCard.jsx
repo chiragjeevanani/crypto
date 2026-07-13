@@ -460,7 +460,6 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                             controlsList="nodownload"
                             onContextMenu={(e) => e.preventDefault()}
                             poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
-                            crossOrigin="anonymous"
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
                         <AnimatePresence>

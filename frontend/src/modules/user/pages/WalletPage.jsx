@@ -388,7 +388,7 @@ export default function WalletPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-14 w-14 rounded-full object-cover shadow-sm" />
                     <h1 className="text-3xl md:text-4xl font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Wallet</h1>
                 </div>
                 <div className="p-2 rounded-2xl bg-surface border border-border/50">
@@ -649,7 +649,7 @@ export default function WalletPage() {
                                             <p className="text-[10px] font-black uppercase text-muted tracking-widest">Your Referral Identity</p>
                                             <h3 className="text-xl font-black text-primary tracking-tighter uppercase">{profile.referralCode || 'GENERATING...'}</h3>
                                         </div>
-                                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover shadow-sm opacity-80" />
+                                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover shadow-sm opacity-80" />
                                     </div>
                                     <button 
                                         onClick={handleShareReferral}

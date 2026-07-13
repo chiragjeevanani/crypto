@@ -39,7 +39,7 @@ export default function AuctionListingPage() {
             <header className="flex items-center justify-between mb-2">
                 <div>
                     <div className="flex items-center gap-2">
-                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover shadow-sm" />
+                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover shadow-sm" />
                         <h1 className="text-2xl font-extrabold" style={{ color: 'var(--color-text)' }}>Auctions</h1>
                     </div>
                     <p className="text-sm opacity-50 font-medium">Join live auctions and place your bids</p>

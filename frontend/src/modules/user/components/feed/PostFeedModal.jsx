@@ -245,7 +245,6 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         playsInline
                         preload={active || shouldPreload ? "auto" : "metadata"}
                         poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
-                        crossOrigin="anonymous"
                         onClick={toggleMute}
                     />
                 ) : (

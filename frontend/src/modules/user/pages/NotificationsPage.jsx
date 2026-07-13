@@ -210,7 +210,7 @@ export default function NotificationsPage() {
                     </div>
                 </div>
                 <div className="flex-shrink-0">
-                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-8 w-8 rounded-full object-cover shadow-sm opacity-80" />
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover shadow-sm opacity-80" />
                 </div>
             </div>
 

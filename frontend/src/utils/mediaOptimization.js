@@ -40,14 +40,8 @@ export function optimizeCloudinaryUrl(url, options = {}) {
     ];
 
     if (effectiveIsVideo) {
-        // Remove f_auto for videos to avoid 416 Range Not Satisfiable errors
-        const fIdx = transformations.findIndex(t => t.startsWith('f_'));
-        if (fIdx !== -1) transformations.splice(fIdx, 1);
-        
-        if (width > 720) {
-            const idx = transformations.findIndex(t => t.startsWith('w_'));
-            if (idx !== -1) transformations[idx] = 'w_720';
-        }
+        // Skip optimizing videos to prevent playback/CORS issues on older formats
+        return url;
     }
 
     // Clean up: join with comma and remove any leading/trailing slashes to avoid double slashes
