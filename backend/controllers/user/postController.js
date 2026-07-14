@@ -313,7 +313,7 @@ exports.getPosts = async (req, res) => {
       const others = [];
 
       list.forEach((post) => {
-        const isOwnPost = post.creator?.id === currentUserId;
+        const isOwnPost = post.creator?._id?.toString() === currentUserId?.toString() || post.creator?.id === currentUserId;
         const postLang = (post.language || "").toLowerCase();
         const matchesPref = 
           isOwnPost ||
@@ -352,7 +352,7 @@ exports.getPosts = async (req, res) => {
         })
         .map((c) => formatCampaignForUser(c, req));
 
-      interleaved = injectCampaignCards(list, activeCampaigns, 5);
+      interleaved = injectCampaignCards(sortedList, activeCampaigns, 5);
 
       if (!interleaved.length && !req.query.creator) {
         const demoPost = {

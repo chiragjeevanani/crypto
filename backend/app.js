@@ -54,6 +54,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/api/test-ping", (req, res) => res.json({ success: true, message: "pong" }));
 app.use("/api/health", healthRoutes);
 app.use("/api/config", require("./routes/publicConfigRoutes"));

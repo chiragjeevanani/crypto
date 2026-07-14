@@ -8,7 +8,14 @@ const resolveUrl = (url, baseUrl) => {
   if (!url) return null;
   if (typeof url !== "string") return null;
   if (url.startsWith("http") || url.startsWith("data:")) return url;
-  const path = url.startsWith("/") ? url : `/${url}`;
+  
+  let path = url;
+  if (path.startsWith("/uploads")) {
+    path = `/api${path}`;
+  } else if (!path.startsWith("/")) {
+    path = `/${path}`;
+  }
+  
   return `${baseUrl}${path}`;
 };
 

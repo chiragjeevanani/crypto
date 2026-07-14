@@ -8,7 +8,31 @@ export function optimizeCloudinaryUrl(url, options = {}) {
     }
 
     if (!url.includes('cloudinary.com')) {
-        return url;
+        let cleanUrl = url;
+        
+        // If the backend accidentally attached localhost but we are on a live server, strip it.
+        if (cleanUrl.includes('localhost:') && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+            const apiUploadIndex = cleanUrl.indexOf('/api/uploads/');
+            if (apiUploadIndex !== -1) {
+                cleanUrl = cleanUrl.substring(apiUploadIndex);
+            } else {
+                const uploadIndex = cleanUrl.indexOf('/uploads/');
+                if (uploadIndex !== -1) {
+                    cleanUrl = cleanUrl.substring(uploadIndex);
+                }
+            }
+        }
+
+        if (cleanUrl.startsWith('/api/uploads/')) {
+            const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+            const baseUrl = API_BASE.replace(/\/api$/, '');
+            return `${baseUrl}${cleanUrl}`;
+        } else if (cleanUrl.startsWith('/uploads/')) {
+            const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+            const baseUrl = API_BASE.replace(/\/api$/, '');
+            return `${baseUrl}/api${cleanUrl}`;
+        }
+        return cleanUrl;
     }
 
     const { width = 1080, quality = 'auto', format = 'auto', isVideo = false } = options;
