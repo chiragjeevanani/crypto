@@ -330,6 +330,7 @@ const ImageEditor = ({ file, onClose, onSave }) => {
         onSave(editedFile, saveAspectStr);
     };
 
+    // Handler for saving text data
     const handleSaveText = (textData) => {
         if (editingText) {
             // Updating existing text
