@@ -780,11 +780,12 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
 const ReelPost = memo(ReelPostInner)
 
 export default function PostFeedModal({ posts = [], startIndex = null, onClose, forceReels = false, onNftAction }) {
+    const { loadReelFeed, reelFeedPage, reelFeedHasMore, reelFeedLoadingMore } = useFeedStore()
     const containerRef = useRef(null)
     const postRefs = useRef({})
     const [activeReelIndex, setActiveReelIndex] = useState(null)
     const itemHeightRef = useRef(0)
-    const loopedPosts = useMemo(() => (posts.length > 1 ? [...posts, ...posts, ...posts] : posts), [posts])
+    const loopedPosts = useMemo(() => (posts.length > 1 && !forceReels ? [...posts, ...posts, ...posts] : posts), [posts, forceReels])
 
     const isOpen = startIndex !== null && startIndex >= 0
     const isReelsMode = useMemo(() => {
@@ -848,6 +849,9 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                         const index = parseInt(entry.target.getAttribute('data-index'))
                         if (!isNaN(index)) {
                             setActiveReelIndex(index)
+                            if (forceReels && reelFeedHasMore && !reelFeedLoadingMore && index >= loopedPosts.length - 3) {
+                                loadReelFeed(6, reelFeedPage + 1)
+                            }
                         }
                     }
                 })
@@ -868,7 +872,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     }, [isOpen, isReelsMode, loopedPosts])
 
     useEffect(() => {
-        if (!isOpen || posts.length <= 1) return
+        if (!isOpen || posts.length <= 1 || forceReels) return
         const container = containerRef.current
         if (!container) return
         let lock = false

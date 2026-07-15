@@ -36,6 +36,10 @@ exports.getReelsFeed = async (req, res) => {
   try {
     const baseUrl = getBaseUrl(req);
     const interval = Math.max(3, Math.min(10, Number(req.query?.interval) || 6));
+    const page = Math.max(1, Number(req.query?.page) || 1);
+    const limit = Math.max(1, Number(req.query?.limit) || 10);
+    const skip = (page - 1) * limit;
+
     const currentUserId = req.user?.userId;
     const currentUser = currentUserId ? await User.findById(currentUserId).select("following").lean() : null;
     const followingIds = new Set((currentUser?.following || []).map(id => id.toString()));
@@ -47,7 +51,7 @@ exports.getReelsFeed = async (req, res) => {
         isPublished: true,
         "media.type": "video",
         isNFT: { $ne: true }
-      }).sort({ createdAt: -1 }).limit(200)
+      }).sort({ createdAt: -1 }).skip(skip).limit(limit)
     ).exec();
     const formattedReels = reels.map((p) => formatPostForUserFeed(p, baseUrl, null, currentUserId, followingIds, config.premiumThreshold));
 
@@ -91,7 +95,9 @@ exports.getReelsFeed = async (req, res) => {
       if (bulk.length) await Campaign.bulkWrite(bulk);
     }
 
-    return res.status(200).json({ success: true, items: mixed });
+    const hasMore = reels.length === limit;
+
+    return res.status(200).json({ success: true, items: mixed, page, hasMore });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

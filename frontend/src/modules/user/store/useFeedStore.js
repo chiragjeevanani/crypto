@@ -46,7 +46,10 @@ export const useFeedStore = create((set, get) => ({
     viewedPostIds: new Set(),
     reelFeed: [],
     reelFeedLoading: false,
+    reelFeedLoadingMore: false,
     reelFeedError: null,
+    reelFeedPage: 1,
+    reelFeedHasMore: true,
 
     addPost: (post) => set((state) => ({
         posts: [post, ...state.posts],
@@ -67,16 +70,26 @@ export const useFeedStore = create((set, get) => ({
         }
     },
 
-    loadReelFeed: async (interval = 6) => {
-        set({ reelFeedLoading: true, reelFeedError: null })
+    loadReelFeed: async (interval = 6, page = 1) => {
+        if (page === 1) set({ reelFeedLoading: true, reelFeedError: null })
+        else set({ reelFeedLoadingMore: true, reelFeedError: null })
+
         try {
             const { reelFeedService } = await import('../services/reelFeedService')
-            const items = await reelFeedService.getFeed(interval)
-            set({ reelFeed: items || [] })
+            const res = await reelFeedService.getFeed(interval, page, 10)
+            const items = res.items || []
+            const hasMore = res.hasMore !== undefined ? res.hasMore : true
+
+            set((state) => ({ 
+                reelFeed: page === 1 ? items : [...state.reelFeed, ...items],
+                reelFeedPage: page,
+                reelFeedHasMore: hasMore
+            }))
         } catch (err) {
             set({ reelFeedError: err?.message || 'Failed to load reels feed' })
         } finally {
-            set({ reelFeedLoading: false })
+            if (page === 1) set({ reelFeedLoading: false })
+            else set({ reelFeedLoadingMore: false })
         }
     },
 

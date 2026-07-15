@@ -15,9 +15,9 @@ const handle = async (response) => {
 };
 
 export const reelFeedService = {
-    async getFeed(interval = 6) {
-        const response = await fetch(`${REELS_FEED}?interval=${interval}`, { headers: getAuthHeaders() });
+    async getFeed(interval = 6, page = 1, limit = 10) {
+        const response = await fetch(`${REELS_FEED}?interval=${interval}&page=${page}&limit=${limit}`, { headers: getAuthHeaders() });
         const data = await handle(response);
-        return data.items || [];
+        return data; // returning the full data object to access .items, .page, .hasMore
     }
 };
