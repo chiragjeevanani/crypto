@@ -8,6 +8,7 @@ import { formatCount } from '../../utils/formatCurrency'
 import { postService } from '../../services/postService'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
+import LazyVideo from '../common/LazyVideo'
 
 export default function ReelViewerModal({ posts = [], startIndex = null, onClose }) {
     const navigate = useNavigate()
@@ -114,16 +115,16 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                 <div className="h-full w-full flex items-center justify-center px-3 py-4">
                     <div className="relative w-full max-w-[430px] h-full max-h-[92vh] rounded-3xl overflow-hidden bg-black border border-white/15 shadow-2xl">
                         {post.media.type === 'video' ? (
-                            <video 
+                            <LazyVideo 
                                 src={post.media.url} 
                                 style={{ filter: post.filter || 'none' }} 
                                 className="w-full h-full object-cover" 
                                 autoPlay 
                                 loop 
                                 playsInline 
-                                preload="auto"
                                 poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
                             />
+
                         ) : (
                             <img src={post.media.url} style={{ filter: post.filter || 'none' }} alt={post.caption} className="w-full h-full object-cover" />
                         )}

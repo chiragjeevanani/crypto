@@ -92,14 +92,16 @@ export default function HomePage() {
     useEffect(() => {
         if (!isReels) return
         
-        loadReelFeed(6)
+        if (reelFeed.length === 0) {
+            loadReelFeed(6)
+        }
         
-        const onRefresh = () => loadReelFeed(6)
+        const onRefresh = () => loadReelFeed(6, 1)
         window.addEventListener('reels-feed-refresh', onRefresh)
         return () => {
             window.removeEventListener('reels-feed-refresh', onRefresh)
         }
-    }, [isReels, loadReelFeed])
+    }, [isReels, loadReelFeed, reelFeed.length])
 
     useEffect(() => {
         if (!isExplore) return
