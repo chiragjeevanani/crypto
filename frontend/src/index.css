@@ -100,7 +100,9 @@ input, textarea, [contenteditable="true"] {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* Mobile safe top/bottom zones */

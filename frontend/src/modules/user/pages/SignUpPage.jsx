@@ -362,7 +362,7 @@ export default function SignUpPage() {
     };
 
     return (
-        <div className="min-h-screen bg-bg flex flex-col py-8 px-4 selection:bg-primary/30">
+        <div className="h-full w-full overflow-y-auto bg-bg flex flex-col py-8 px-4 selection:bg-primary/30 pb-safe">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
