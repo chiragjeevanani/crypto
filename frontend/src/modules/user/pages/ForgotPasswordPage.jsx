@@ -122,7 +122,7 @@ export default function ForgotPasswordPage() {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 20 }}
                                 onSubmit={handleRequestOtp} 
-                                className="space-y-5"
+                                className="space-y-3"
                             >
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Email</label>
@@ -160,7 +160,7 @@ export default function ForgotPasswordPage() {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 onSubmit={handleResetPassword} 
-                                className="space-y-5"
+                                className="space-y-3"
                             >
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">4-Digit OTP</label>

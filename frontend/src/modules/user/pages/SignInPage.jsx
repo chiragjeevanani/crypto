@@ -51,7 +51,7 @@ export default function SignInPage() {
                     </div>
 
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-3">
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Email</label>
                             <div className="relative group">

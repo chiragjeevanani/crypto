@@ -392,7 +392,7 @@ export default function SignUpPage() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         onSubmit={handleSubmit} 
-                        className="space-y-5"
+                        className="space-y-3"
                     >
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Full Name</label>
