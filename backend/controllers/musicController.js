@@ -16,33 +16,42 @@ exports.uploadMusic = async (req, res) => {
     const audioFile = req.files.audio[0];
     const thumbnailFile = req.files.thumbnail ? req.files.thumbnail[0] : null;
 
-    // Upload audio to Cloudinary
-    const audioUpload = await cloudinary.uploader.upload(audioFile.path, {
-      resource_type: "video", // audio files are uploaded as video resource type
-      folder: "crypto-app/music/audio"
-    });
+    const path = require("path");
+    const musicDir = path.join(__dirname, "../uploads/music");
+    if (!fs.existsSync(musicDir)) {
+      fs.mkdirSync(musicDir, { recursive: true });
+    }
+
+    const audioExt = path.extname(audioFile.originalname) || ".mp3";
+    const audioFilename = `audio_${Date.now()}${audioExt}`;
+    const audioPath = path.join(musicDir, audioFilename);
+    
+    fs.copyFileSync(audioFile.path, audioPath);
+    fs.unlinkSync(audioFile.path);
+
+    const audioUrl = `/uploads/music/${audioFilename}`;
 
     let thumbnailUrl = "";
     if (thumbnailFile) {
-      const thumbUpload = await cloudinary.uploader.upload(thumbnailFile.path, {
-        folder: "crypto-app/music/thumbnails"
-      });
-      thumbnailUrl = thumbUpload.secure_url;
+      const thumbExt = path.extname(thumbnailFile.originalname) || ".jpg";
+      const thumbFilename = `thumb_${Date.now()}${thumbExt}`;
+      const thumbPath = path.join(musicDir, thumbFilename);
+      
+      fs.copyFileSync(thumbnailFile.path, thumbPath);
+      fs.unlinkSync(thumbnailFile.path);
+      
+      thumbnailUrl = `/uploads/music/${thumbFilename}`;
     }
 
     const music = await Music.create({
       title,
       artist,
-      audioUrl: audioUpload.secure_url,
-      publicId: audioUpload.public_id,
-      duration: audioUpload.duration || 0,
+      audioUrl: audioUrl,
+      publicId: audioFilename,
+      duration: 0,
       thumbnail: thumbnailUrl,
       isActive: true
     });
-
-    // cleanup
-    fs.unlink(audioFile.path, () => {});
-    if (thumbnailFile) fs.unlink(thumbnailFile.path, () => {});
 
     return res.status(201).json({ success: true, music });
   } catch (error) {
@@ -113,8 +122,24 @@ exports.deleteMusic = async (req, res) => {
     const music = await Music.findById(req.params.id);
     if (!music) return res.status(404).json({ success: false, message: "Music not found" });
 
-    // delete from cloudinary
-    if (music.publicId) {
+    const path = require("path");
+    const fs = require("fs");
+
+    if (music.audioUrl && music.audioUrl.startsWith('/uploads')) {
+      const audioPath = path.join(__dirname, '..', music.audioUrl);
+      if (fs.existsSync(audioPath)) {
+        fs.unlinkSync(audioPath);
+      }
+    }
+    
+    if (music.thumbnail && music.thumbnail.startsWith('/uploads')) {
+      const thumbPath = path.join(__dirname, '..', music.thumbnail);
+      if (fs.existsSync(thumbPath)) {
+        fs.unlinkSync(thumbPath);
+      }
+    }
+
+    if (music.publicId && !music.audioUrl.startsWith('/uploads')) {
       await cloudinary.uploader.destroy(music.publicId, { resource_type: "video" });
     }
 

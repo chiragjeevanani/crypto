@@ -195,9 +195,9 @@ export default function ContentControl() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {categories.map((cat) => (
-                        <div key={cat} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg border border-surface">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-text">{cat}</span>
-                            <button onClick={() => handleRemoveCategory(cat)} className="text-rose-500">
+                        <div key={cat.id || cat.name || cat} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg border border-surface">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-text">{cat.name || cat}</span>
+                            <button onClick={() => handleRemoveCategory(cat.name || cat)} className="text-rose-500">
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
                         </div>
