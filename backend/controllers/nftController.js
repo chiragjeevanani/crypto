@@ -5,10 +5,7 @@ const AdminConfig = require("../models/AdminConfig");
 const CollectibleOwnership = require("../models/CollectibleOwnership");
 const NFTOffer = require("../models/NFTOffer");
 const { emitToUser } = require("../utils/socket");
-const { cloudinary } = require("../utils/cloudinary");
 const { DEFAULTS } = require("../utils/adminConfig");
-const fs = require("fs");
-const path = require("path");
 const { UPLOAD_DIR } = require("../utils/upload");
 const { generateCertificate } = require("../utils/pdfGenerator");
 const { sendCertificateEmail } = require("../utils/mailer");
@@ -602,41 +599,8 @@ const submitNFT = async (req, res) => {
     else if (mediaFile.mimetype.startsWith("audio/")) mediaType = "audio";
     else mediaType = "image";
 
-    const localMediaPath = path.join(UPLOAD_DIR, mediaFile.filename);
-    const useCloudinary = Boolean(
-      cloudinary &&
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
-    );
-
-    if (useCloudinary) {
-      try {
-        const mediaUploadResult = await cloudinary.uploader.upload(localMediaPath, {
-          resource_type: "auto",
-          folder: "crypto-app/nft-submissions"
-        });
-        mediaUrl = mediaUploadResult.secure_url;
-        fs.unlink(localMediaPath, () => {});
-
-        if (proofVideoFile) {
-          const localProofPath = path.join(UPLOAD_DIR, proofVideoFile.filename);
-          const proofUploadResult = await cloudinary.uploader.upload(localProofPath, {
-            resource_type: "video",
-            folder: "crypto-app/nft-proofs"
-          });
-          proofVideoUrl = proofUploadResult.secure_url;
-          fs.unlink(localProofPath, () => {});
-        }
-      } catch (cloudErr) {
-        console.error("[SubmitNFT] Cloudinary upload failed:", cloudErr);
-        mediaUrl = `/uploads/${mediaFile.filename}`;
-        if (proofVideoFile) proofVideoUrl = `/uploads/${proofVideoFile.filename}`;
-      }
-    } else {
-      mediaUrl = `/uploads/${mediaFile.filename}`;
-      if (proofVideoFile) proofVideoUrl = `/uploads/${proofVideoFile.filename}`;
-    }
+    mediaUrl = `/uploads/${mediaFile.filename}`;
+    if (proofVideoFile) proofVideoUrl = `/uploads/${proofVideoFile.filename}`;
 
     // Use sensible auction dates: starts now, ends in 7 days by default
     const startDate = new Date();

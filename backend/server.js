@@ -39,8 +39,34 @@ const listenWithFallback = (startPort, retries) =>
     tryPort(startPort, retries);
   });
 
+const { execSync } = require('child_process');
+
+function killPort(port) {
+  try {
+    if (process.platform === 'win32') {
+      const output = execSync(`netstat -ano | findstr :${port}`).toString();
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (line.includes(`:${port}`) && line.includes('LISTENING')) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && pid !== '0' && pid !== String(process.pid)) {
+            console.log(`Killing old process ${pid} on port ${port}...`);
+            execSync(`taskkill /F /PID ${pid}`);
+          }
+        }
+      }
+    } else {
+      execSync(`lsof -t -i:${port} | xargs kill -9`);
+    }
+  } catch (e) {
+    // Ignore if no process or fail to kill
+  }
+}
+
 const startServer = async () => {
   try {
+    killPort(BASE_PORT);
     await connectDB();
     await seedAdmin();
     await seedGifts();

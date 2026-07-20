@@ -1,10 +1,6 @@
 const Story = require("../../models/Story");
 const User = require("../../models/User");
 const mongoose = require("mongoose");
-const fs = require("fs");
-const path = require("path");
-const { UPLOAD_DIR } = require("../../utils/upload");
-const { cloudinary } = require("../../utils/cloudinary");
 const { getBaseUrl, resolveUrl, avatarUrlFromUser } = require("../../utils/postHelpers");
 
 // Helper: 24h window
@@ -81,27 +77,8 @@ exports.createStory = async (req, res) => {
       return res.status(400).json({ success: false, message: "Story media is required" });
     }
 
-    const localPath = path.join(UPLOAD_DIR, file.filename);
-    const useCloudinary = false;
-
-    if (useCloudinary) {
-      try {
-        const uploadResult = await cloudinary.uploader.upload(localPath, {
-          resource_type: "auto",
-          folder: "crypto-app/stories"
-        });
-        mediaUrl = uploadResult.secure_url;
-        if (file.mimetype.startsWith("video/")) mediaType = "video";
-        fs.unlink(localPath, () => {});
-      } catch (cloudinaryErr) {
-        console.error("[Story] Cloudinary upload failed, using local file:", cloudinaryErr?.message || cloudinaryErr);
-        mediaUrl = `/uploads/${file.filename}`;
-        if (file.mimetype.startsWith("video/")) mediaType = "video";
-      }
-    } else {
-      mediaUrl = `/uploads/${file.filename}`;
-      if (file.mimetype.startsWith("video/")) mediaType = "video";
-    }
+    mediaUrl = `/uploads/${file.filename}`;
+    if (file.mimetype.startsWith("video/")) mediaType = "video";
 
     const caption = typeof body.caption === "string" ? body.caption.trim() : "";
     const musicTrackId = typeof body.musicTrackId === "string" ? body.musicTrackId.trim() : "none";

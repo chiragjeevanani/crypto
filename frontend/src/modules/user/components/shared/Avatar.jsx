@@ -6,7 +6,6 @@ export const NO_IMAGE_AVATAR = '/person.png';
 
 export default function Avatar({ src, alt = 'user', className = '', size = 'md', isPremium = false, ...props }) {
     const [imgSrc, setImgSrc] = useState(NO_IMAGE_AVATAR);
-    const [hasAttemptedRaw, setHasAttemptedRaw] = useState(false);
 
     const sizeClasses = {
         'xs': 'w-6 h-6',
@@ -20,20 +19,14 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
     useEffect(() => {
         // Initially try the optimized version
         if (src && src !== 'null' && src !== 'undefined') {
-            setImgSrc(optimizeCloudinaryUrl(src, { width: 200, quality: '80' }));
-            setHasAttemptedRaw(false);
+            setImgSrc(optimizeCloudinaryUrl(src));
         } else {
             setImgSrc(NO_IMAGE_AVATAR);
         }
     }, [src]);
 
     const handleError = (e) => {
-        if (!hasAttemptedRaw && src && src.includes('cloudinary.com')) {
-            // If optimization failed (e.g. 401), try the raw URL
-            setImgSrc(src);
-            setHasAttemptedRaw(true);
-        } else if (imgSrc !== NO_IMAGE_AVATAR) {
-            // Already tried raw, or or not a cloudinary URL, go to placeholder
+        if (imgSrc !== NO_IMAGE_AVATAR) {
             setImgSrc(NO_IMAGE_AVATAR);
         }
     };

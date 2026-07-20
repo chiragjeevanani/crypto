@@ -7,7 +7,6 @@ const path = require("path");
 const fs = require("fs");
 const { getBaseUrl } = require("../utils/postHelpers");
 const { UPLOAD_DIR } = require("../utils/upload");
-const { cloudinary } = require("../utils/cloudinary");
 const { sendOtpEmail, sendVerificationEmail } = require("../utils/mailer");
 
 
@@ -444,22 +443,7 @@ const updateAvatar = async (req, res) => {
     }
 
     const baseUrl = getBaseUrl(req);
-    const localPath = path.join(UPLOAD_DIR, file.filename);
-    const useCloudinary = false;
-
-    let avatarUrl = "";
-    if (useCloudinary) {
-      const uploadResult = await cloudinary.uploader.upload(localPath, {
-        resource_type: "image",
-        folder: "crypto-app/avatars",
-        type: "upload",
-        access_mode: "public"
-      });
-      avatarUrl = uploadResult.secure_url;
-      fs.unlink(localPath, () => {});
-    } else {
-      avatarUrl = `${baseUrl}/uploads/${file.filename}`;
-    }
+    let avatarUrl = `${baseUrl}/uploads/${file.filename}`;
 
     const user = await User.findByIdAndUpdate(
       userId,

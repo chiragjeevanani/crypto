@@ -1,5 +1,4 @@
 const Music = require("../models/Music");
-const { cloudinary } = require("../utils/cloudinary");
 const fs = require("fs");
 const spotifyService = require("../services/spotifyService");
 
@@ -139,9 +138,7 @@ exports.deleteMusic = async (req, res) => {
       }
     }
 
-    if (music.publicId && !music.audioUrl.startsWith('/uploads')) {
-      await cloudinary.uploader.destroy(music.publicId, { resource_type: "video" });
-    }
+
 
     await music.deleteOne();
 

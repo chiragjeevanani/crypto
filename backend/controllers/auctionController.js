@@ -11,7 +11,6 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const { UPLOAD_DIR } = require("../utils/upload");
-const { cloudinary } = require("../utils/cloudinary");
 
 /**
  * Initiate Listing Fee Payment
@@ -97,36 +96,9 @@ const createAuction = async (req, res) => {
         let mediaType = "image";
 
         if (file) {
-            const localPath = path.join(UPLOAD_DIR, file.filename);
-            const useCloudinary = Boolean(
-                cloudinary &&
-                process.env.CLOUDINARY_CLOUD_NAME &&
-                process.env.CLOUDINARY_API_KEY &&
-                process.env.CLOUDINARY_API_SECRET
-            );
-
-            if (useCloudinary) {
-                try {
-                    const uploadResult = await cloudinary.uploader.upload(localPath, {
-                        resource_type: "auto",
-                        folder: "crypto-app/auctions"
-                    });
-                    mediaUrl = uploadResult.secure_url;
-                    if (file.mimetype.startsWith("video/")) mediaType = "video";
-                    else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-                    fs.unlink(localPath, () => {});
-                } catch (cloudinaryErr) {
-                    console.error("[CreateAuction] Cloudinary upload failed:", cloudinaryErr);
-                    // Fallback to local if Cloudinary fails but we have the file
-                    mediaUrl = `/uploads/${file.filename}`;
-                    if (file.mimetype.startsWith("video/")) mediaType = "video";
-                    else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-                }
-            } else {
-                mediaUrl = `/uploads/${file.filename}`;
-                if (file.mimetype.startsWith("video/")) mediaType = "video";
-                else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-            }
+            mediaUrl = `/uploads/${file.filename}`;
+            if (file.mimetype.startsWith("video/")) mediaType = "video";
+            else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
         }
 
         if (!mediaUrl) {

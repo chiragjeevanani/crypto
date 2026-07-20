@@ -4,9 +4,6 @@ const Post = require("../../models/Post");
 const { formatCampaignForUser, normalizeStatus, computeStatus } = require("../../utils/campaignHelpers");
 const { getBaseUrl } = require("../../utils/postHelpers");
 const { UPLOAD_DIR } = require("../../utils/upload");
-const { cloudinary } = require("../../utils/cloudinary");
-const fs = require("fs");
-const path = require("path");
 
 const toDate = (value) => {
   const dt = new Date(value);
@@ -100,29 +97,10 @@ exports.submitEntry = async (req, res) => {
     const caption = typeof req.body?.caption === "string" ? req.body.caption.trim() : "";
     const files = req.files || {};
     const baseUrl = getBaseUrl(req);
-    const useCloudinary = Boolean(
-      cloudinary &&
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-    );
-
     const processFile = async (field) => {
       const file = files[field]?.[0];
       if (!file) return "";
-      const localPath = path.join(UPLOAD_DIR, file.filename);
-      let url = "";
-      if (useCloudinary) {
-        const uploadResult = await cloudinary.uploader.upload(localPath, {
-          resource_type: "auto",
-          folder: `crypto-app/campaigns/${field}`
-        });
-        url = uploadResult.secure_url;
-        fs.unlink(localPath, () => {});
-      } else {
-        url = `${baseUrl}/uploads/${file.filename}`;
-      }
-      return url;
+      return `${baseUrl}/uploads/${file.filename}`;
     };
 
     const [billUrl, productUrl, selfieUrl, reelUrl] = await Promise.all([

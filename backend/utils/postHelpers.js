@@ -24,9 +24,6 @@ const mediaUrlFromPost = (post, baseUrl) => resolveUrl(post.media?.url, baseUrl)
 const thumbnailUrlFromPost = (post, baseUrl) => {
   const url = mediaUrlFromPost(post, baseUrl);
   if (post.media?.type === "video") {
-    if (url?.includes('cloudinary')) {
-      return url.replace(/\.[^/.]+$/, ".jpg");
-    }
     // Return a video placeholder for local videos
     return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'%3E%3C/polygon%3E%3C/svg%3E";
   }
@@ -99,9 +96,7 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
     media: {
       type: post.media?.type || "image",
       url: mediaUrlFromPost(post, baseUrl),
-      thumbnail: (post.media?.type === "video" && mediaUrlFromPost(post, baseUrl)?.includes('cloudinary'))
-        ? mediaUrlFromPost(post, baseUrl).replace(/\.[^/.]+$/, ".jpg")
-        : mediaUrlFromPost(post, baseUrl),
+      thumbnail: mediaUrlFromPost(post, baseUrl),
       aspectRatio: post.media?.aspectRatio || "4/3"
     },
     caption: post.caption || "",

@@ -6,12 +6,8 @@ const Campaign = require("../../models/Campaign");
 const Report = require("../../models/Report");
 const WalletTransaction = require("../../models/WalletTransaction");
 const { computeStatus, formatCampaignForUser } = require("../../utils/campaignHelpers");
-const fs = require("fs");
-const path = require("path");
 const { getBaseUrl, formatPostForUserFeed, populateCreator, resolveUrl } = require("../../utils/postHelpers");
 const { getAdminConfig } = require("../../utils/adminConfig");
-const { UPLOAD_DIR } = require("../../utils/upload");
-const { cloudinary } = require("../../utils/cloudinary");
 const { notifyAdmins } = require("../../utils/adminNotifier");
 
 /**
@@ -29,32 +25,9 @@ exports.createPost = async (req, res) => {
     let mediaType = "image";
 
     if (file) {
-      const localPath = path.join(UPLOAD_DIR, file.filename);
-      const useCloudinary = false;
-
-      if (useCloudinary) {
-        const resourceType = file.mimetype.startsWith("video/")
-          ? "video"
-          : file.mimetype.startsWith("audio/")
-          ? "video" // Cloudinary treats long audio via video resource_type
-          : "image";
-        const uploadResult = await cloudinary.uploader.upload(localPath, {
-          resource_type: resourceType,
-          folder: "crypto-app/posts",
-          type: "upload",
-          access_mode: "public"
-        });
-        mediaUrl = uploadResult.secure_url;
-        if (file.mimetype.startsWith("video/")) mediaType = "video";
-        else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-
-        // best-effort cleanup
-        fs.unlink(localPath, () => {});
-      } else {
-        mediaUrl = `/uploads/${file.filename}`;
-        if (file.mimetype.startsWith("video/")) mediaType = "video";
-        else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
-      }
+      mediaUrl = `/uploads/${file.filename}`;
+      if (file.mimetype.startsWith("video/")) mediaType = "video";
+      else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
     }
 
     let body = req.body || {};
@@ -703,19 +676,7 @@ exports.deletePost = async (req, res) => {
       return res.status(403).json({ success: false, message: "You are not authorized to delete this post" });
     }
 
-    // Attempt to delete from Cloudinary if applicable
-    if (post.media?.url && post.media.url.includes("cloudinary.com")) {
-      try {
-        const urlParts = post.media.url.split("/");
-        const fileName = urlParts[urlParts.length - 1].split(".")[0];
-        const folderPath = urlParts.slice(urlParts.indexOf("crypto-app"), urlParts.indexOf(urlParts[urlParts.length - 1])).join("/");
-        const publicId = folderPath ? `${folderPath}/${fileName}` : fileName;
-        
-        await cloudinary.uploader.destroy(publicId, { resource_type: post.media.type === "video" ? "video" : "image" });
-      } catch (cloudinaryErr) {
-        console.error("Error deleting from Cloudinary:", cloudinaryErr);
-      }
-    }
+    // Post deletion (local file deletion can be added here if needed in the future)
 
     await Post.deleteOne({ _id: postId });
     // Cleanup comments

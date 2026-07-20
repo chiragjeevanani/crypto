@@ -177,40 +177,13 @@ exports.uploadMedia = async (req, res) => {
     if (!file) return res.status(400).json({ success: false, message: "No file uploaded" });
 
     const { getBaseUrl } = require("../../utils/postHelpers");
-    const { cloudinary } = require("../../utils/cloudinary");
-    const { UPLOAD_DIR } = require("../../utils/upload");
-    const path = require("path");
-    const fs = require("fs");
 
     const baseUrl = getBaseUrl(req);
-    const localPath = path.join(UPLOAD_DIR, file.filename);
     const isImage = file.mimetype.startsWith("image/");
     const isVideo = file.mimetype.startsWith("video/");
     const isAudio = file.mimetype.startsWith("audio/");
 
-    let resourceType = "raw";
-    if (isImage) resourceType = "image";
-    if (isVideo) resourceType = "video";
-    if (isAudio) resourceType = "video"; // Cloudinary treats audio as video for some aspects
-
-    const useCloudinary = Boolean(
-      cloudinary &&
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-    );
-
-    let url = "";
-    if (useCloudinary) {
-      const result = await cloudinary.uploader.upload(localPath, {
-        resource_type: resourceType,
-        folder: "crypto-app/messages"
-      });
-      url = result.secure_url;
-      fs.unlink(localPath, () => {});
-    } else {
-      url = `${baseUrl}/uploads/${file.filename}`;
-    }
+    let url = `${baseUrl}/uploads/${file.filename}`;
 
     res.json({ 
         success: true, 
