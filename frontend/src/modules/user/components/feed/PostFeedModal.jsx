@@ -243,8 +243,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         loop
                         muted={isMuted}
                         playsInline
-                        preload={active || shouldPreload ? "auto" : "metadata"}
-                        poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
+                        preload={active ? "auto" : shouldPreload ? "metadata" : "none"}
+                        poster={post.media?.poster || optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
                         onClick={toggleMute}
                     />
                 ) : (
@@ -957,7 +957,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                 {isReelsMode
                                     ? post?.type === 'campaign'
                                         ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
-                                        : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && Math.abs(index - activeReelIndex) <= 1} onClose={onClose} onNftAction={onNftAction} />
+                                        : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && (index === activeReelIndex + 1)} onClose={onClose} onNftAction={onNftAction} />
                                     : post && <PostCard post={post} onDeleteSuccess={onClose} />}
                             </div>
                         ))}

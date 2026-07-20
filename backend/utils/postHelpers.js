@@ -150,6 +150,9 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
 
 function populateCreator(query) {
   return query
+    // Exclude heavy arrays: likedBy, viewedBy, sharedBy are NOT needed for feed display.
+    // Their COUNT equivalents (likes, views, shares) are still returned.
+    .select("-likedBy -viewedBy -sharedBy -history -rejectReason -isAdminViewed")
     .populate("creator", "name email handle avatar role earningCoins isPremium bio")
     .populate("campaign", "title brandName bannerUrl rewardDetails status isActive")
     .populate("campaignSubmission", "votes voters")

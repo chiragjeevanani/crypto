@@ -53,11 +53,13 @@ import { loadRazorpayScript } from '../../../utils/razorpayLoader';
 import { followService } from '../services/followService';
 import audioService from '../../../services/audioService';
 import { useUserStore, getStoredToken } from '../store/useUserStore';
+import { useAdminStore } from '../../admin/store/useAdminStore';
 const SOUND_FAVORITES_KEY = 'soundFavorites';
 
 
 const createInitialPostState = () => ({
   caption: '',
+  category: 'General',
   audience: 'everyone',
   location: '',
   linkType: '',
@@ -602,6 +604,12 @@ const CreatePage = () => {
   const { isDarkMode } = useTheme();
   const { config } = useAppContent();
   const { user } = useAuth();
+  const { categories, loadCategories } = useAdminStore();
+  
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
   const [videoFile, setVideoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [videoDuration, setVideoDuration] = useState(0);
@@ -2581,7 +2589,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         formData.append('mediaType', fileType.startsWith('video') ? 'video' : 'image');
         formData.append('caption', postState.caption || '');
         formData.append('language', postState.captionLanguage || 'English');
-        formData.append('category', 'General');
+        formData.append('category', postState.category || 'General');
         formData.append('postData', JSON.stringify(postMetadata));
 
         // Add NFT and Advertisement options
@@ -4631,6 +4639,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             </div>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveSheet('category')}
+            className="flex w-full items-center justify-between rounded-[10px] px-0 py-3 active:opacity-80"
+          >
+            <div className="flex items-center gap-3">
+              <BiSliderAlt size={18} className="text-black/45" />
+              <span className="text-[15px]">Category</span>
+            </div>
+            <div className="flex items-center gap-2 text-[13px] text-black/40">
+              <span>{postState.category || 'General'}</span>
+              <BiChevronRight size={18} />
+            </div>
+          </button>
+
           {[
             {
               key: 'allowComments',
@@ -6023,6 +6046,40 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 </div>
               </button>
             ))}
+          </div>
+        </BottomSheet>
+      )}
+
+      {activeSheet === 'category' && (
+        <BottomSheet title="Category" onClose={() => setActiveSheet(null)} compact scrollable>
+          <div className="px-5 pb-2">
+            <div className="mt-3 space-y-4 max-h-[400px]">
+              {[{ name: 'General' }, ...(categories || []).filter(c => c.isActive !== false)].map((cat) => (
+                <button
+                  key={cat.name}
+                  type="button"
+                  onClick={() => {
+                    setPostState((currentState) => ({
+                      ...currentState,
+                      category: cat.name,
+                    }));
+                    setActiveSheet(null);
+                  }}
+                  className="flex w-full items-center justify-between text-left"
+                >
+                  <p className="text-[15px]">{cat.name}</p>
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                      postState.category === cat.name
+                        ? 'border-[#fe2c55] text-[#fe2c55]'
+                        : 'border-black/15 text-transparent'
+                    }`}
+                  >
+                    <span className="h-3 w-3 rounded-full bg-current" />
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </BottomSheet>
       )}

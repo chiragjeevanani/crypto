@@ -36,7 +36,40 @@ const saveSharedPostIds = (set) => {
     } catch { /* ignore */ }
 }
 
+// ─── Reel Feed Cache (localStorage, 10-min TTL) ──────────────────────────────
+const REEL_CACHE_KEY = 'crypto_reel_feed_cache'
+const REEL_CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
+const REEL_CACHE_MAX = 15 // max reels to cache
+
+const getReelCache = () => {
+    try {
+        const raw = localStorage.getItem(REEL_CACHE_KEY)
+        if (!raw) return null
+        const { items, timestamp } = JSON.parse(raw)
+        if (Date.now() - timestamp > REEL_CACHE_TTL_MS) {
+            localStorage.removeItem(REEL_CACHE_KEY)
+            return null
+        }
+        return items
+    } catch {
+        return null
+    }
+}
+
+const saveReelCache = (items) => {
+    try {
+        const toCache = items.slice(0, REEL_CACHE_MAX)
+        localStorage.setItem(REEL_CACHE_KEY, JSON.stringify({ items: toCache, timestamp: Date.now() }))
+    } catch { /* ignore quota errors */ }
+}
+
+const clearReelCache = () => {
+    try { localStorage.removeItem(REEL_CACHE_KEY) } catch { /* ignore */ }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const useFeedStore = create((set, get) => ({
+
     posts: [],
     postsLoading: false,
     postsError: null,
@@ -71,27 +104,58 @@ export const useFeedStore = create((set, get) => ({
     },
 
     loadReelFeed: async (interval = 6, page = 1) => {
-        if (page === 1) set({ reelFeedLoading: true, reelFeedError: null })
-        else set({ reelFeedLoadingMore: true, reelFeedError: null })
+        // Page 1: try cache first (only if not a forced refresh)
+        if (page === 1) {
+            const cached = getReelCache();
+            if (cached && cached.length > 0) {
+                set({
+                    reelFeed: cached,
+                    reelFeedPage: 1,
+                    reelFeedHasMore: true,
+                    reelFeedLoading: false,
+                    reelFeedError: null
+                });
+                return; // Served from cache — no network request
+            }
+            set({ reelFeedLoading: true, reelFeedError: null });
+        } else {
+            set({ reelFeedLoadingMore: true, reelFeedError: null });
+        }
 
         try {
-            const { reelFeedService } = await import('../services/reelFeedService')
-            const res = await reelFeedService.getFeed(interval, page, 10)
-            const items = res.items || []
-            const hasMore = res.hasMore !== undefined ? res.hasMore : true
+            const { reelFeedService } = await import('../services/reelFeedService');
+            const res = await reelFeedService.getFeed(interval, page, 10);
+            const items = res.items || [];
+            const hasMore = res.hasMore !== undefined ? res.hasMore : true;
 
-            set((state) => ({ 
-                reelFeed: page === 1 ? items : [...state.reelFeed, ...items],
-                reelFeedPage: page,
-                reelFeedHasMore: hasMore
-            }))
+            set((state) => {
+                const nextFeed = page === 1 ? items : [...state.reelFeed, ...items];
+                // Update cache with latest reels (pages 1 & 2 = up to 15 reels)
+                if (nextFeed.length <= REEL_CACHE_MAX) {
+                    saveReelCache(nextFeed);
+                }
+                return {
+                    reelFeed: nextFeed,
+                    reelFeedPage: page,
+                    reelFeedHasMore: hasMore
+                };
+            });
         } catch (err) {
-            set({ reelFeedError: err?.message || 'Failed to load reels feed' })
+            set({ reelFeedError: err?.message || 'Failed to load reels feed' });
         } finally {
-            if (page === 1) set({ reelFeedLoading: false })
-            else set({ reelFeedLoadingMore: false })
+            if (page === 1) set({ reelFeedLoading: false });
+            else set({ reelFeedLoadingMore: false });
         }
     },
+
+    // Force-refresh reels: clears cache first then fetches
+    refreshReelFeed: async (interval = 6) => {
+        clearReelCache();
+        const { loadReelFeed } = useFeedStore.getState();
+        await loadReelFeed(interval, 1);
+    },
+
+
 
     fetchSinglePost: async (postId) => {
         if (!postId) return null

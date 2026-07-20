@@ -344,6 +344,9 @@ const processEndedAuctions = async () => {
 
                         // Temporarily bypass balance check to allow testing
                         winner.rechargeCoins -= auction.highestBid;
+                        if (winner.rechargeCoins < 0) {
+                            winner.rechargeCoins = 0;
+                        }
                         await winner.save({ session });
 
                         // Add to creator

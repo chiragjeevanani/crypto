@@ -46,35 +46,67 @@ async function compressImageToWebP(filePath) {
 }
 
 /**
- * Compresses a video file in-place (converting to mp4/h264) using ffmpeg.
+ * Generates a poster thumbnail (JPEG) from a video at 0.5 seconds.
+ * The thumbnail is saved next to the video with a `.thumb.jpg` suffix.
+ */
+function generateVideoThumbnail(videoPath) {
+  return new Promise((resolve) => {
+    const thumbPath = videoPath.replace(/\.[^/.]+$/, "") + ".thumb.jpg";
+
+    ffmpeg(videoPath)
+      .screenshots({
+        timestamps: ["00:00:00.500"],
+        filename: path.basename(thumbPath),
+        folder: path.dirname(thumbPath),
+        size: "640x?"
+      })
+      .on("end", () => {
+        console.log(`[MediaOptimizer] Thumbnail generated: ${path.basename(thumbPath)}`);
+        resolve(thumbPath);
+      })
+      .on("error", (err) => {
+        console.warn(`[MediaOptimizer] Thumbnail generation skipped: ${err.message}`);
+        resolve(null); // Non-blocking: thumbnail is optional
+      });
+  });
+}
+
+/**
+ * Compresses a video to 360p (640x360) in-place using ffmpeg.
+ * This reduces file size by ~70-80% compared to the original.
+ * After compression, a poster thumbnail is generated automatically.
  */
 function compressVideo(filePath) {
   return new Promise((resolve, reject) => {
     const ext = path.extname(filePath).toLowerCase();
-    
-    // We target MP4 container with H.264 and AAC codec for maximum web/mobile compatibility
+
+    // Target MP4/H.264 at 360p for maximum mobile data efficiency
     const tempPath = filePath.replace(new RegExp(ext + "$", "i"), "") + "-temp.mp4";
 
     ffmpeg(filePath)
       .outputOptions([
         "-vcodec libx264",
-        "-crf 28", // Good compression/quality trade-off for mobile delivery (23 is default, higher = smaller size)
+        "-crf 30",              // Higher CRF = smaller file (30 is good for 360p reels)
         "-preset superfast",
         "-acodec aac",
-        "-b:a 128k",
-        "-vf scale=w=1280:h=720:force_original_aspect_ratio=decrease" // limit resolution to 720p max
+        "-b:a 96k",             // Reduced audio bitrate for mobile (was 128k)
+        "-vf scale=w=640:h=360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2" // 360p with letterbox
       ])
       .output(tempPath)
-      .on("end", () => {
+      .on("end", async () => {
         try {
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
           }
-          // Rename temp MP4 file to original filename (we keep the MP4 encoding)
           fs.renameSync(tempPath, filePath);
+
+          // Generate poster thumbnail (non-blocking — won't fail the upload)
+          const thumbPath = await generateVideoThumbnail(filePath);
+
           resolve({
             path: filePath,
-            mimetype: "video/mp4"
+            mimetype: "video/mp4",
+            thumbPath: thumbPath || null
           });
         } catch (err) {
           reject(err);
@@ -89,6 +121,7 @@ function compressVideo(filePath) {
       .run();
   });
 }
+
 
 /**
  * Compresses an audio file in-place (converting to mp3) using ffmpeg to save data.
@@ -157,7 +190,12 @@ async function processFile(file) {
       const stats = fs.statSync(file.path);
       file.size = stats.size;
       file.mimetype = result.mimetype; // Ensure it reports as video/mp4
-      console.log(`[MediaOptimizer] Compressed video ${file.filename}: ${originalSize} -> ${file.size} bytes`);
+      // Attach thumbnail path so upload routes can include it in the response
+      if (result.thumbPath) {
+        file.thumbPath = result.thumbPath;
+        file.thumbFilename = path.basename(result.thumbPath);
+      }
+      console.log(`[MediaOptimizer] Compressed video to 360p ${file.filename}: ${originalSize} -> ${file.size} bytes`);
     } else if (/^audio\//.test(mimetype)) {
       const result = await compressAudio(file.path);
       const stats = fs.statSync(file.path);

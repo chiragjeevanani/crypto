@@ -104,5 +104,7 @@ postSchema.index({ status: 1, createdAt: -1 });
 postSchema.index({ isNFT: 1, status: 1 });
 postSchema.index({ isBusiness: 1, status: 1 });
 postSchema.index({ createdAt: -1 });
+// Compound index for reel feed: covers media.type filter + status + isPublished + sort
+postSchema.index({ "media.type": 1, status: 1, isPublished: 1, isNFT: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Post", postSchema);
