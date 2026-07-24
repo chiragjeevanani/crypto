@@ -435,7 +435,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                 onClick={() => onOpen?.(post.id)}
             >
                 {post.media?.type === 'video' ? (
-                    <div className="w-full h-full relative" onClick={toggleMute}>
+                    <div className="absolute inset-0 w-full h-full" onClick={toggleMute}>
                         {post.musicData?.audioUrl && (
                             <audio 
                                 ref={audioRef}
@@ -451,7 +451,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <video
                             ref={videoRef}
                             src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
-                            className="w-full h-full object-cover"
+                            className="absolute inset-0 w-full h-full object-cover"
                             style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none' }}
                             loop
                             playsInline
@@ -504,7 +504,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         />
                     </div>
                 ) : (
-                    <div className="w-full h-full relative" onClick={post.musicData ? toggleMute : undefined}>
+                    <div className="absolute inset-0 w-full h-full" onClick={post.musicData ? toggleMute : undefined}>
                         {post.musicData?.audioUrl && (
                             <audio 
                                 ref={audioRef}
@@ -520,7 +520,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <img
                             src={optimizeCloudinaryUrl(post.media?.url, { width: 1080, quality: '80' })}
                             alt="post media"
-                            className="w-full h-full object-cover"
+                            className="absolute inset-0 w-full h-full object-cover"
                             style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none' }}
                             loading="lazy"
                             onContextMenu={(e) => e.preventDefault()}
