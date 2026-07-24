@@ -440,7 +440,7 @@ export default function HomePage() {
                                                         muted
                                                         playsInline
                                                         loop
-                                                        preload="none"
+                                                        preload="metadata"
                                                         poster={post.media?.thumbnail || post.media?.poster}
                                                     />
                                                     <div className="p-2.5">
@@ -478,7 +478,7 @@ export default function HomePage() {
                                                             muted
                                                             playsInline
                                                             loop
-                                                            preload="none"
+                                                            preload="metadata"
                                                             poster={post.media?.thumbnail || post.media?.poster}
                                                             onMouseEnter={(e) => e.target.play().catch(() => {})}
                                                             onMouseLeave={(e) => {

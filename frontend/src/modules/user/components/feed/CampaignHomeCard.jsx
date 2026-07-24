@@ -35,7 +35,7 @@ export default function CampaignHomeCard({ campaign }) {
                             <video 
                                 src={resolvedBannerUrl} 
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                muted playsInline loop preload="none" crossOrigin="anonymous"
+                                muted playsInline loop preload="metadata"
                                 onMouseEnter={(e) => e.target.play().catch(() => {})}
                                 onMouseLeave={(e) => {
                                     e.target.pause();

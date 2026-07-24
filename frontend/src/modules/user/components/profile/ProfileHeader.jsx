@@ -1,4 +1,4 @@
-import { Star, Check, Share2 } from 'lucide-react'
+import { Star, Check, Share2, ChevronLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCount, useUserCurrency } from '../../utils/formatCurrency'
 import Avatar from '../shared/Avatar'
@@ -8,7 +8,16 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
     const { format: formatLocal } = useUserCurrency()
     const navigate = useNavigate()
     return (
-        <div className="px-4 pt-5 pb-4 relative">
+        <div className="px-4 pt-4 pb-4 relative">
+            {/* Top Bar with Back Button */}
+            <div className="flex items-center mb-4">
+                <button 
+                    onClick={() => navigate(-1)} 
+                    className="p-2 -ml-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                >
+                    <ChevronLeft size={24} style={{ color: 'var(--color-text)' }} />
+                </button>
+            </div>
             
             {/* Avatar + stats */}
             <div className="flex items-start gap-4">

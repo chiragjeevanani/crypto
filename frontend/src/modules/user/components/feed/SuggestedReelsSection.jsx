@@ -35,9 +35,9 @@ export default function SuggestedReelsSection({ reels = [] }) {
                             muted
                             playsInline
                             loop
-                            preload="none"
-                            crossOrigin="anonymous"
-                            poster={reel.media?.thumbnail || reel.media?.poster}
+                            autoPlay
+                            preload="metadata"
+                            poster={reel.media?.thumbnail ? optimizeCloudinaryUrl(reel.media.thumbnail) : (reel.media?.poster ? optimizeCloudinaryUrl(reel.media.poster) : '')}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-2 left-2 right-2 flex flex-col min-w-0">
