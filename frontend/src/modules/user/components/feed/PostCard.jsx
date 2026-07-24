@@ -431,7 +431,7 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
 
             <div
                 ref={containerRef}
-                className={`w-full relative bg-black/5 ${post.media?.type !== 'audio' ? 'post-media-aspect' : ''} ${onOpen ? 'cursor-pointer' : ''}`}
+                className={`w-full relative bg-black/5 ${post.media?.type === 'video' ? 'aspect-[9/16]' : post.media?.type !== 'audio' ? 'post-media-aspect' : ''} ${onOpen ? 'cursor-pointer' : ''}`}
                 onClick={() => onOpen?.(post.id)}
             >
                 {post.media?.type === 'video' ? (

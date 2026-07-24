@@ -886,7 +886,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     }).catch(console.error);
 
     const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    fetch(`${API_BASE}/public-config/exchange-rates`)
+    fetch(`${API_BASE}/config/exchange-rates`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.rates) {
