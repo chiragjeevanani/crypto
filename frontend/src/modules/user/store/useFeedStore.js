@@ -75,6 +75,10 @@ export const useFeedStore = create((set, get) => ({
     postsError: null,
     commentsByPostId: {},
     commentsLoading: {},
+
+    globalMute: false,
+    setGlobalMute: (muted) => set({ globalMute: muted }),
+
     savedPostIds: new Set(),
     viewedPostIds: new Set(),
     reelFeed: [],
@@ -93,7 +97,7 @@ export const useFeedStore = create((set, get) => ({
         set({ postsLoading: true, postsError: null })
         try {
             const res = await postService.getPosts()
-            const list = res?.posts || []
+            const list = (res?.posts || []).filter(p => p.postType === 'campaign_card' || p.creator)
             // Always reflect backend state, even if empty (no mock fallback)
             set({ posts: list })
         } catch (err) {
@@ -125,7 +129,7 @@ export const useFeedStore = create((set, get) => ({
         try {
             const { reelFeedService } = await import('../services/reelFeedService');
             const res = await reelFeedService.getFeed(interval, page, 10);
-            const items = res.items || [];
+            const items = (res.items || []).filter(p => p.type === 'campaign' || p.creator);
             const hasMore = res.hasMore !== undefined ? res.hasMore : true;
 
             set((state) => {

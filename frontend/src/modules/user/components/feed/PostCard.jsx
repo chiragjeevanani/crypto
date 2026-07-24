@@ -27,6 +27,7 @@ function getColor(id) {
 
 export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     if (!post) return null
+    if (post.postType !== 'campaign_card' && !post.creator) return null
     const { 
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,

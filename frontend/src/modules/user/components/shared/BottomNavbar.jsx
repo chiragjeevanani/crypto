@@ -36,7 +36,7 @@ export default function BottomNavbar() {
         <nav
             className="bottom-navbar fixed inset-x-0 bottom-0 z-[70] flex items-center justify-around px-2 lg:justify-start lg:gap-2 lg:px-4"
             style={{
-                height: 'var(--bottom-nav-height)',
+                height: 'calc(var(--bottom-nav-height) + var(--safe-area-bottom))',
                 paddingBottom: 'var(--safe-area-bottom)',
                 background: 'var(--color-surface)',
                 borderTop: '1px solid var(--color-border)',

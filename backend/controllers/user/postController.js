@@ -70,7 +70,7 @@ exports.createPost = async (req, res) => {
       isEnabled: promoEnabled,
       dailyBudget: Number(body.dailyBudget) || 0,
       duration: Number(body.duration) || 0,
-      totalBudget: Number(body.totalBudget) || 0,
+      totalBudget: Number(body.totalBudget) || (Number(body.dailyBudget) * Number(body.duration)) || 0,
       estimatedImpressions: body.estimatedImpressions || "",
       status: promoEnabled ? "paused" : "none" // Wait for payment/approval to activate
     };

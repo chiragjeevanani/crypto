@@ -2600,8 +2600,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         }
         if (postState.isBusiness) {
             formData.append('isBusiness', 'true');
-            formData.append('dailyBudget', postState.dailyBudget?.toString() || '99');
-            formData.append('duration', postState.durationDays?.toString() || '10');
+            const daily = postState.dailyBudget || 99;
+            const duration = postState.durationDays || 10;
+            formData.append('dailyBudget', daily.toString());
+            formData.append('duration', duration.toString());
+            formData.append('totalBudget', (daily * duration).toString());
             formData.append('promoEnabled', 'true');
             formData.append('ctaType', postState.ctaType || 'Shop Now');
             formData.append('redirectType', postState.redirectType || 'whatsapp');

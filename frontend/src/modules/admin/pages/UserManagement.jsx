@@ -176,7 +176,7 @@ export default function UserManagement() {
                                             onClick={() => navigate(`/admin/users/view/${user.id}`)}
                                             className="text-xs font-bold text-text hover:text-primary transition-colors"
                                         >
-                                            @{user.name}
+                                            {user.name}
                                         </button>
                                         <p className="text-[9px] text-muted font-bold uppercase">{user.referralCode || 'No Code'}</p>
                                     </div>

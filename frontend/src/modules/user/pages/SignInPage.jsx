@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, ShieldCheck, Zap, Globe, Eye, EyeOff } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 
 export default function SignInPage() {
@@ -10,6 +10,9 @@ export default function SignInPage() {
     const authLoading = useUserStore(state => state.authLoading);
     const authError = useUserStore(state => state.authError);
     const setAuthError = useUserStore(state => state.setAuthError);
+    const location = useLocation();
+    const successMsg = location.state?.message;
+
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -34,22 +37,28 @@ export default function SignInPage() {
     };
 
     return (
-        <div className="h-full w-full overflow-y-auto bg-bg flex items-center justify-center p-4 selection:bg-primary/30 pb-safe">
+        <div className="h-full w-full overflow-y-auto bg-bg flex flex-col justify-center py-8 px-4 selection:bg-primary/30 pb-safe">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-[440px] bg-surface border rounded-2xl overflow-hidden shadow-2xl"
+                className="w-full max-w-[440px] m-auto bg-surface border rounded-2xl overflow-hidden shadow-2xl"
                 style={{ borderColor: 'var(--color-border)' }}
             >
                 {/* form side */}
                 <div className="w-full p-8">
                     <div className="text-center mb-8">
-                        <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4">
-                            <ShieldCheck className="text-white w-8 h-8" />
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4 overflow-hidden">
+                            <img src="/knqlogo.jpeg" alt="KnQ Logo" className="w-full h-full object-cover" />
                         </div>
                         <h1 className="text-2xl font-bold tracking-tight text-text">Sign In</h1>
                     </div>
 
+                    {successMsg && (
+                        <div className="mb-6 p-3 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3">
+                            <ShieldCheck className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                            <p className="text-xs text-green-500 font-medium leading-relaxed">{successMsg}</p>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-3">
                         <div className="space-y-2">

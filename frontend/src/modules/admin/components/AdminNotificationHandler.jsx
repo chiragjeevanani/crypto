@@ -47,7 +47,7 @@ export default function AdminNotificationHandler() {
                         initial={{ opacity: 0, x: 20, y: 0 }}
                         animate={{ opacity: 1, x: 0, y: 0 }}
                         exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                        className="fixed bottom-8 right-8 z-[100] max-w-sm w-full"
+                        className="fixed top-8 right-8 z-[100] max-w-sm w-full"
                     >
                         <div className={`p-4 rounded-xl border shadow-2xl backdrop-blur-xl ${visibleAction.type === 'success'
                                 ? 'bg-bg/90 border-emerald-500/20 shadow-emerald-500/5'

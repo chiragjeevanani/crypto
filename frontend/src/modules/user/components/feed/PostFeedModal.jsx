@@ -25,11 +25,13 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
 
     const {
         toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost,
-        voteCampaignSubmission, deletePost, toggleFollow, loadComments, addComment, commentsByPostId, commentsLoading
+        voteCampaignSubmission, deletePost, toggleFollow, loadComments, addComment, commentsByPostId, commentsLoading,
+        globalMute, setGlobalMute
     } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
-    const { profile } = useUserStore()
+    const { user, profile } = useUserStore()
     const navigate = useNavigate()
+    const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
     const creatorInitial = (post.creator?.username || 'U').charAt(0)
     const splat = splats[post.id]
     const earnings = earningsByPostId?.[post.id] ?? post.earnings ?? 0
@@ -97,7 +99,6 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
         if (gift.price >= 5) triggerCoinRain()
     }
 
-    const [isMuted, setIsMuted] = useState(false)
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
 
@@ -140,8 +141,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
 
     const toggleMute = (e) => {
         if (e) e.stopPropagation()
-        const nextMuted = !isMuted
-        setIsMuted(nextMuted)
+        const nextMuted = !globalMute
+        setGlobalMute(nextMuted)
 
         if (audioRef.current) {
             audioRef.current.muted = nextMuted
@@ -168,11 +169,11 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
         const video = videoRef.current
         const audio = audioRef.current
 
-        if (active) {
+        if (active && !isLanguageModalOpen) {
             const playMedia = async () => {
                 try {
                     if (video) {
-                        video.muted = isMuted
+                        video.muted = globalMute
                         // Ensure video is ready to play
                         if (video.readyState >= 2) {
                             if (isCurrent) await video.play()
@@ -183,7 +184,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         }
                     }
                     if (audio) {
-                        audio.muted = isMuted
+                        audio.muted = globalMute
                         if (audio.readyState >= 2) {
                             if (isCurrent) await audio.play()
                         } else {
@@ -193,8 +194,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         }
                     }
                 } catch (err) {
-                    if (err.name === 'NotAllowedError' && !isMuted && isCurrent) {
-                        setIsMuted(true)
+                    if (err.name === 'NotAllowedError' && !globalMute && isCurrent) {
+                        setGlobalMute(true)
                     }
                 }
             }
@@ -223,7 +224,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                 audio.oncanplay = null
             }
         }
-    }, [active, post.id, isMuted])
+    }, [active, post.id, globalMute, isLanguageModalOpen])
 
 
 
@@ -241,7 +242,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         className="w-full h-full object-cover cursor-pointer"
                         style={{ filter: post.filter || 'none' }}
                         loop
-                        muted={isMuted}
+                        muted={globalMute}
                         playsInline
                         preload={active ? "auto" : shouldPreload ? "metadata" : "none"}
                         poster={post.media?.poster || optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
@@ -267,7 +268,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                             className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
                         >
                             <div className="bg-black/40 p-4 rounded-full text-white">
-                                {isMuted ? <VolumeX size={32} /> : <Volume2 size={32} />}
+                                {globalMute ? <VolumeX size={32} /> : <Volume2 size={32} />}
                             </div>
                         </motion.div>
                     )}
@@ -466,10 +467,10 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         className="flex flex-col items-center gap-1 cursor-pointer mt-1"
                     >
                         <div className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center">
-                            {isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+                            {globalMute ? <VolumeX size={22} /> : <Volume2 size={22} />}
                         </div>
                         <span className="text-[11px] font-semibold">
-                            {isMuted ? 'Unmute' : 'Mute'}
+                            {globalMute ? 'Unmute' : 'Mute'}
                         </span>
                     </button>
                 </div>
@@ -573,6 +574,21 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                                     <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center p-0.5 shadow-sm">
                                         <Check size={9} className="text-white" strokeWidth={5} />
                                     </div>
+                                )}
+                                {!isSelfPost && post.creator && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleFollow(post.creator?.id || post.creator?._id);
+                                        }}
+                                        className="ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-white/50 text-white active:scale-95 transition-transform"
+                                        style={{
+                                            background: post.creator?.isFollowing ? 'rgba(255,255,255,0.15)' : 'var(--color-primary)',
+                                            borderColor: post.creator?.isFollowing ? 'rgba(255,255,255,0.3)' : 'transparent',
+                                        }}
+                                    >
+                                        {post.creator?.isFollowing ? 'Following' : 'Follow'}
+                                    </button>
                                 )}
                             </div>
                             <span className="text-[11px] text-white/70 truncate max-w-[140px]">
@@ -755,7 +771,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         src={post.musicData.audioUrl}
                         type="audio/mpeg"
                         loop
-                        muted={isMuted}
+                        muted={globalMute}
                         preload="none"
                         onPlay={(e) => {
                             if (post.musicStartTime) e.target.currentTime = post.musicStartTime

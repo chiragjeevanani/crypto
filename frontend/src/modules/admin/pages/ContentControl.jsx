@@ -16,15 +16,12 @@ import {
 } from 'lucide-react';
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
 import { useAdminStore } from '../store/useAdminStore';
-import { addPostCategory, getPostCategories, removePostCategory } from '../../../shared/postCategories';
 
 export default function ContentControl() {
     const navigate = useNavigate();
     const { posts, loadPosts, handlePostApproval, notify } = useAdminStore();
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
-    const [categories, setCategories] = useState(getPostCategories());
-    const [newCategory, setNewCategory] = useState('');
 
     const stats = useMemo(() => {
         const pending = posts.filter(p => String(p.status || '').toLowerCase() === 'pending' || !p.status).length;
@@ -65,36 +62,6 @@ export default function ContentControl() {
         loadPosts();
     }, [loadPosts]);
 
-    useEffect(() => {
-        const sync = () => setCategories(getPostCategories())
-        const onStorage = (event) => {
-            if (event.key === 'KnQ Reels_post_categories_v2') sync()
-        }
-        window.addEventListener('post-categories-updated', sync)
-        window.addEventListener('storage', onStorage)
-        return () => {
-            window.removeEventListener('post-categories-updated', sync)
-            window.removeEventListener('storage', onStorage)
-        }
-    }, [])
-
-    const handleAddCategory = () => {
-        const input = newCategory.trim()
-        if (!input) {
-            notify('error', 'Enter category name first.')
-            return
-        }
-        const next = addPostCategory(input)
-        setCategories(next)
-        setNewCategory('')
-        notify('success', `Category "${input}" created.`)
-    }
-
-    const handleRemoveCategory = (name) => {
-        const next = removePostCategory(name)
-        setCategories(next)
-        notify('success', `Category "${name}" removed.`)
-    }
     return (
         <div className="space-y-10 pb-20">
             <AdminPageHeader
@@ -175,34 +142,6 @@ export default function ContentControl() {
                     color="indigo-500" 
                     onClick={() => setStatusFilter(statusFilter === 'approved' ? 'all' : 'approved')}
                 />
-            </div>
-
-            <div className="bg-surface border border-surface rounded-xl p-4">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-text">Post Categories</p>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="text"
-                            value={newCategory}
-                            onChange={(e) => setNewCategory(e.target.value)}
-                            placeholder="Create category (e.g. Music)"
-                            className="px-3 py-1.5 rounded-lg text-xs bg-bg border border-surface outline-none text-text"
-                        />
-                        <button onClick={handleAddCategory} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary text-black">
-                            <Plus className="w-3.5 h-3.5" /> Add
-                        </button>
-                    </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {categories.map((cat) => (
-                        <div key={cat.id || cat.name || cat} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-bg border border-surface">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-text">{cat.name || cat}</span>
-                            <button onClick={() => handleRemoveCategory(cat.name || cat)} className="text-rose-500">
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    ))}
-                </div>
             </div>
 
             <AdminDataTable

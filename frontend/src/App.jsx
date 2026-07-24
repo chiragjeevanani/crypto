@@ -13,7 +13,9 @@ import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPag
 import { useUserStore } from './modules/user/store/useUserStore'
 import { useWalletStore } from './modules/user/store/useWalletStore'
 import { useFeedStore } from './modules/user/store/useFeedStore'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Bell, X } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import ErrorBoundary from './modules/user/components/shared/ErrorBoundary'
 import { usePushNotifications } from './hooks/usePushNotifications'
@@ -115,12 +117,14 @@ export default function App() {
     initializeAuth()
   }, [initializeAuth, pathToken])
 
+  const [pushToast, setPushToast] = useState(null)
+
   // Call push notification hook
   const token = useUserStore(state => state.token)
   usePushNotifications(token, (message) => {
     console.log("Push Notification: ", message);
-    // You can integrate your own toast library here
-    alert("New Notification: " + message);
+    setPushToast(message);
+    setTimeout(() => setPushToast(null), 5000);
   });
 
   useEffect(() => {
@@ -133,6 +137,38 @@ export default function App() {
 
     return (
       <>
+        <AnimatePresence>
+            {pushToast && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    className="fixed top-8 right-8 z-[9999] max-w-sm w-full"
+                >
+                    <div className="p-4 rounded-xl border shadow-2xl backdrop-blur-xl bg-bg/90 border-primary/20 shadow-primary/5">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                <Bell className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-primary">
+                                    Notification
+                                </h4>
+                                <p className="text-[11px] font-medium text-text mt-1 leading-relaxed">
+                                    {pushToast}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setPushToast(null)}
+                                className="p-1 hover:bg-surface rounded-md transition-colors text-muted"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
         <GlobalModal />
         <SocketHandler />
         <CallScreen />

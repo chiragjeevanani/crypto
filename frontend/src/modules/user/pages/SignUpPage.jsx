@@ -101,6 +101,7 @@ export default function SignUpPage() {
     const [step, setStep] = useState(() => searchParams.get('verify') === 'true' ? 2 : 1);
     const [registeredEmail, setRegisteredEmail] = useState(() => searchParams.get('email') || '');
     const [otp, setOtp] = useState('');
+    const [resendMsg, setResendMsg] = useState('');
     const verifyEmail = useUserStore(state => state.verifyEmail);
 
 
@@ -190,6 +191,7 @@ export default function SignUpPage() {
         country: '',
         state: '',
         agreedToTerms: '',
+        referralCode: '',
     });
 
     // Fetch countries on mount
@@ -333,31 +335,34 @@ export default function SignUpPage() {
             if (msg.toLowerCase().includes('email already registered')) {
                 setFieldErrors(prev => ({ ...prev, email: 'Email already registered' }));
             } else if (msg.toLowerCase().includes('phone') || msg.toLowerCase().includes('digit')) {
-                // Route any phone-related backend error to the phone field (shows under input, not after button)
                 setFieldErrors(prev => ({ ...prev, phone: msg }));
+            } else if (msg.toLowerCase().includes('referral')) {
+                setFieldErrors(prev => ({ ...prev, referralCode: msg }));
             }
         }
     };
 
     const handleVerify = async (e) => {
         e.preventDefault();
+        setResendMsg('');
         if (otp.length !== 4) return;
         try {
             await verifyEmail(registeredEmail, otp);
             sessionStorage.removeItem(FORM_STORAGE_KEY);
-            alert("Email verified successfully! You can now sign in.");
-            navigate('/signin');
+            navigate('/signin', { state: { message: 'Email verified successfully! You can now sign in.' } });
         } catch (err) {
             // Error is handled by store and displayed via authError
         }
     };
 
     const handleResendOtp = async () => {
+        setResendMsg('');
+        setAuthError('');
         try {
             await authService.resendVerification(registeredEmail);
-            alert("A new OTP has been sent to your email.");
+            setResendMsg("A new OTP has been sent to your email.");
         } catch (err) {
-            alert(err.message || "Failed to resend OTP");
+            setAuthError(err.message || "Failed to resend OTP");
         }
     };
 
@@ -371,8 +376,8 @@ export default function SignUpPage() {
             >
                 <div className="w-full p-8">
                     <div className="text-center mb-8">
-                        <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4">
-                            <ShieldCheck className="text-white w-8 h-8" />
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4 overflow-hidden">
+                            <img src="/knqlogo.jpeg" alt="KnQ Logo" className="w-full h-full object-cover" />
                         </div>
                         <h1 className="text-2xl font-bold tracking-tight text-text">
                             {step === 1 ? "Create Account" : "Verify Email"}
@@ -721,10 +726,13 @@ export default function SignUpPage() {
                                     type="text"
                                     value={formData.referralCode}
                                     onChange={(e) => handleChange('referralCode', e.target.value.toUpperCase())}
-                                    className="w-full bg-bg border border-surface rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text uppercase placeholder:normal-case"
+                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text uppercase placeholder:normal-case ${fieldErrors.referralCode ? 'border-red-500' : 'border-surface'}`}
                                     placeholder="e.g. USER1234"
                                 />
                             </div>
+                            {fieldErrors.referralCode && (
+                                <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.referralCode}</p>
+                            )}
                         </div>
 
                         <div className="space-y-1">
@@ -796,7 +804,8 @@ export default function SignUpPage() {
                                         </>
                                     )}
                                 </button>
-                                {authError && <p className="text-xs text-red-500 text-center mt-2">{authError}</p>}
+                                {authError && <p className="text-xs text-red-500 text-center mt-2 font-medium">{authError}</p>}
+                                {resendMsg && <p className="text-xs text-green-500 text-center mt-2 font-medium">{resendMsg}</p>}
                                 
                                 <div className="flex flex-col items-center gap-3 mt-4">
                                     <button
@@ -823,13 +832,6 @@ export default function SignUpPage() {
                             Already registered? <Link to="/signin" className="text-primary underline">Sign in</Link>
                         </p>
                     )}
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[10px] text-muted font-medium">
-                        <Link to="/terms-conditions" className="hover:text-primary transition-colors">Terms & Conditions</Link>
-                        <span>•</span>
-                        <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-                        <span>•</span>
-                        <Link to="/support" className="hover:text-primary transition-colors">Support Center</Link>
-                    </div>
                 </div>
             </motion.div>
 

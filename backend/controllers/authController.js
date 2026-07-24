@@ -172,6 +172,8 @@ const registerUser = async (req, res) => {
       const referrer = await User.findOne({ referralCode: String(signupReferralCode).toUpperCase() });
       if (referrer) {
         referrerId = referrer._id;
+      } else {
+        return res.status(400).json({ success: false, message: "Invalid referral code" });
       }
     }
 

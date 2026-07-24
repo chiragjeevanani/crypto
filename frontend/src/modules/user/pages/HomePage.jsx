@@ -25,7 +25,8 @@ export default function HomePage() {
         posts, postsLoading, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
         reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal
     } = useFeedStore()
-    const { profile } = useUserStore()
+    const { user, profile } = useUserStore()
+    const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
     useEffect(() => { 
@@ -480,7 +481,7 @@ export default function HomePage() {
                                                             loop
                                                             preload="metadata"
                                                             poster={post.media?.thumbnail || post.media?.poster}
-                                                            onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                            onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                             onMouseLeave={(e) => {
                                                                 e.target.pause()
                                                                 e.target.currentTime = 0
@@ -528,7 +529,7 @@ export default function HomePage() {
                                                     loop
                                                     preload="none"
                                                     poster={post.media?.thumbnail || post.media?.poster}
-                                                    onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                    onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                     onMouseLeave={(e) => {
                                                         e.target.pause()
                                                         e.target.currentTime = 0
@@ -570,7 +571,7 @@ export default function HomePage() {
                                                 loop
                                                 preload="none"
                                                 poster={post.media?.thumbnail || post.media?.poster}
-                                                onMouseEnter={(e) => e.target.play().catch(() => {})}
+                                                onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                 onMouseLeave={(e) => {
                                                     e.target.pause()
                                                     e.target.currentTime = 0
