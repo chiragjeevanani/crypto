@@ -458,7 +458,7 @@ export default function UserProfilePage() {
                                                 muted
                                                 playsInline
                                                 loop
-                                                preload="none"
+                                                preload="metadata"
                                                 poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.thumbnail, { width: 480, quality: '50' })}
                                                 crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"

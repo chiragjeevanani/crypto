@@ -31,7 +31,8 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     const { 
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
-        savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost
+        savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost,
+        globalMute: isMuted, setGlobalMute: setIsMuted
     } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const navigate = useNavigate()
@@ -44,7 +45,6 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     const postComments = commentsByPostId[post.id] ?? []
     const isSelfPost = post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id)
 
-    const [isMuted, setIsMuted] = useState(false) // Initially unmute as requested
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const [isReportMenuOpen, setIsReportMenuOpen] = useState(false)
@@ -81,6 +81,11 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     const videoRef = useRef(null)
     const audioRef = useRef(null)
     const containerRef = useRef(null)
+
+    useEffect(() => {
+        if (videoRef.current) videoRef.current.muted = isMuted;
+        if (audioRef.current) audioRef.current.muted = isMuted;
+    }, [isMuted]);
 
     const toggleMute = (e) => {
         e.stopPropagation()

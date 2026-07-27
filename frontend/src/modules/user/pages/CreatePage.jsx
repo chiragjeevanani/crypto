@@ -2148,12 +2148,16 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
         setRenderProgress(40);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.save();
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((editorSettings.rotation * Math.PI) / 180);
         ctx.filter = getCombinedFilter();
-        ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+        const drawWidth = img.width * scale;
+        const drawHeight = img.height * scale;
+        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
         ctx.restore();
 
         setRenderProgress(70);
@@ -2301,12 +2305,16 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             const elapsedInClip = (Date.now() - startTime) / 1000;
             const globalTime = clipStartTimeInGlobalTimeline + elapsedInClip;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((editorSettings.rotation * Math.PI) / 180);
             ctx.filter = getCombinedFilter();
-            ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
+            ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
             ctx.restore();
             
             if (overlayText && globalTime >= textStartTime && globalTime <= textEndTime) {
@@ -2361,12 +2369,18 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           while ((Date.now() - startRenderTime) / 1000 < clipDuration && !renderVideo.ended) {
             const globalTime = clipStartTimeInGlobalTimeline + renderVideo.currentTime;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((editorSettings.rotation * Math.PI) / 180);
             ctx.filter = getCombinedFilter();
-            ctx.drawImage(renderVideo, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+            const mediaWidth = renderVideo.videoWidth || 720;
+            const mediaHeight = renderVideo.videoHeight || 1280;
+            const scale = Math.min(canvas.width / mediaWidth, canvas.height / mediaHeight);
+            const drawWidth = mediaWidth * scale;
+            const drawHeight = mediaHeight * scale;
+            ctx.drawImage(renderVideo, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
             ctx.restore();
 
             if (overlayText && globalTime >= textStartTime && globalTime <= textEndTime) {

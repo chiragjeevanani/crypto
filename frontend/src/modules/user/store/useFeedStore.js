@@ -4,6 +4,7 @@ import { followService } from '../services/followService'
 import { savedPostService } from '../services/savedPostService'
 import { userCampaignService } from '../services/campaignService'
 import { notificationService } from '../services/notificationService'
+import { reelFeedService } from '../services/reelFeedService'
 import { useUserStore } from './useUserStore'
 
 const getStoredCurrencySymbol = () => {
@@ -127,7 +128,6 @@ export const useFeedStore = create((set, get) => ({
         }
 
         try {
-            const { reelFeedService } = await import('../services/reelFeedService');
             const res = await reelFeedService.getFeed(interval, page, 10);
             const items = (res.items || []).filter(p => p.type === 'campaign' || p.creator);
             const hasMore = res.hasMore !== undefined ? res.hasMore : true;
