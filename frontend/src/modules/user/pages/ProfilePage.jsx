@@ -485,7 +485,7 @@ export default function ProfilePage() {
                                             <Music size={32} />
                                         </div>
                                     ) : (
-                                        <img src={post.media?.url || post.thumbnail} alt="post" className="w-full h-full object-cover" loading="lazy" />
+                                        <img src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { width: 480, quality: '50' })} alt="post" className="w-full h-full object-cover" loading="lazy" />
                                     )}
                                     <div className="absolute inset-x-0 bottom-0 p-1.5 flex items-center justify-between pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }}>
                                         <div className="flex items-center gap-2">
@@ -747,11 +747,11 @@ export default function ProfilePage() {
                                                         {post.media?.type === 'video' ? (
                                                             <>
                                                                 <video
-                                                                    src={post.media?.url}
+                                                                    src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                                     muted
                                                                     playsInline
                                                                     preload="none"
-                                                                    poster={post.media?.thumbnail || post.media?.poster}
+                                                                    poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -759,7 +759,7 @@ export default function ProfilePage() {
                                                                 </div>
                                                             </>
                                                         ) : (
-                                                            <img src={post.media?.url} alt="saved post" className="w-full h-full object-cover" loading="lazy" />
+                                                            <img src={optimizeCloudinaryUrl(post.media?.url, { width: 480, quality: '50' })} alt="saved post" className="w-full h-full object-cover" loading="lazy" />
                                                         )}
                                                     </div>
                                                 ))}

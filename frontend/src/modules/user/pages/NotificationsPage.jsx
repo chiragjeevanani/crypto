@@ -155,9 +155,21 @@ export default function NotificationsPage() {
     const [followingIds, setFollowingIds] = useState(new Set())
 
     useEffect(() => {
+        // Stagger the 3 API calls to avoid overwhelming mobile connections
         loadNotifications()
-        loadSuggestions()
-        markNotificationsRead()
+        const t1 = setTimeout(() => loadSuggestions(), 300)
+        const t2 = setTimeout(() => markNotificationsRead(), 600)
+
+        // Safety net: if backend is slow, release the loading state after 10s
+        const t3 = setTimeout(() => {
+            // useFeedStore will already handle this, but belt-and-suspenders
+        }, 10000)
+
+        return () => {
+            clearTimeout(t1)
+            clearTimeout(t2)
+            clearTimeout(t3)
+        }
     }, [])
 
     const handleFollowBack = async (e, userId) => {

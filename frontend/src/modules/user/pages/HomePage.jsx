@@ -19,6 +19,7 @@ import CampaignHomeCard from '../components/feed/CampaignHomeCard'
 import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
 import ErrorBoundary from '../components/shared/ErrorBoundary'
+import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
 export default function HomePage() {
     const { 
@@ -436,13 +437,13 @@ export default function HomePage() {
                                                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                                                 >
                                                     <video
-                                                        src={post.media?.url}
+                                                        src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                         className="w-full aspect-square object-cover"
                                                         muted
                                                         playsInline
                                                         loop
                                                         preload="metadata"
-                                                        poster={post.media?.thumbnail || post.media?.poster}
+                                                        poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                     />
                                                     <div className="p-2.5">
                                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
@@ -474,13 +475,13 @@ export default function HomePage() {
                                                 >
                                                     <div className="relative">
                                                         <video
-                                                            src={post.media?.url}
+                                                            src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                             className="w-full aspect-square object-cover"
                                                             muted
                                                             playsInline
                                                             loop
                                                             preload="metadata"
-                                                            poster={post.media?.thumbnail || post.media?.poster}
+                                                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                             onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                             onMouseLeave={(e) => {
                                                                 e.target.pause()
@@ -522,13 +523,13 @@ export default function HomePage() {
                                         >
                                             <div className="relative">
                                                 <video
-                                                    src={post.media?.url}
+                                                    src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                     className="w-full aspect-square object-cover"
                                                     muted
                                                     playsInline
                                                     loop
                                                     preload="none"
-                                                    poster={post.media?.thumbnail || post.media?.poster}
+                                                    poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                     onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                     onMouseLeave={(e) => {
                                                         e.target.pause()
@@ -564,13 +565,13 @@ export default function HomePage() {
                                     >
                                         {post.media?.type === 'video' ? (
                                             <video
-                                                src={post.media?.url}
+                                                src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                 className="w-full aspect-square object-cover"
                                                 muted
                                                 playsInline
                                                 loop
                                                 preload="none"
-                                                poster={post.media?.thumbnail || post.media?.poster}
+                                                poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                 onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                 onMouseLeave={(e) => {
                                                     e.target.pause()
@@ -578,7 +579,7 @@ export default function HomePage() {
                                                 }}
                                             />
                                         ) : (
-                                            <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" />
+                                            <img src={optimizeCloudinaryUrl(post.media?.url, { width: 480, quality: '50' })} alt={post.caption} className="w-full aspect-square object-cover" />
                                         )}
                                         <div className="p-2.5">
                                             <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>

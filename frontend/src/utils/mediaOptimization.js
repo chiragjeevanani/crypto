@@ -9,21 +9,33 @@ export function optimizeCloudinaryUrl(url, options = {}) {
 
     let cleanUrl = url;
     
-    // If the backend accidentally attached localhost but we are on a live server, strip it.
+    // Strip localhost:PORT completely if we are on a live server/different host
     if (cleanUrl.includes('localhost:') && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
-        const apiUploadIndex = cleanUrl.indexOf('/api/uploads/');
-        if (apiUploadIndex !== -1) {
-            cleanUrl = cleanUrl.substring(apiUploadIndex);
+        const portMatch = cleanUrl.match(/localhost:\d+/);
+        if (portMatch) {
+            const hostString = portMatch[0];
+            const index = cleanUrl.indexOf(hostString);
+            if (index !== -1) {
+                cleanUrl = cleanUrl.substring(index + hostString.length);
+            }
         } else {
-            const uploadIndex = cleanUrl.indexOf('/uploads/');
-            if (uploadIndex !== -1) {
-                cleanUrl = cleanUrl.substring(uploadIndex);
+            const apiUploadIndex = cleanUrl.indexOf('/api/uploads/');
+            if (apiUploadIndex !== -1) {
+                cleanUrl = cleanUrl.substring(apiUploadIndex);
+            } else {
+                const uploadIndex = cleanUrl.indexOf('/uploads/');
+                if (uploadIndex !== -1) {
+                    cleanUrl = cleanUrl.substring(uploadIndex);
+                }
             }
         }
     }
 
     // Resolve absolute path from Vite env
-    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    let API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    if (API_BASE.includes('localhost') && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+        API_BASE = API_BASE.replace('localhost', window.location.hostname);
+    }
     const baseUrl = API_BASE.replace(/\/api$/, '');
 
     if (cleanUrl.startsWith('/api/uploads/')) {

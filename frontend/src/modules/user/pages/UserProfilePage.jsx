@@ -454,12 +454,12 @@ export default function UserProfilePage() {
                                     {post.media?.type === 'video' ? (
                                         <>
                                             <video
-                                                src={post.media?.url || post.thumbnail}
+                                                src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
                                                 muted
                                                 playsInline
                                                 loop
                                                 preload="none"
-                                                poster={post.media?.thumbnail || post.thumbnail}
+                                                poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.thumbnail, { width: 480, quality: '50' })}
                                                 crossOrigin="anonymous"
                                                 className="w-full h-full object-cover"
                                             />
@@ -471,7 +471,7 @@ export default function UserProfilePage() {
                                         </>
                                     ) : (
                                         <img
-                                            src={post.media?.url || post.thumbnail}
+                                            src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { width: 480, quality: '50' })}
                                             alt="post"
                                             className="w-full h-full object-cover"
                                             loading="lazy"

@@ -9,15 +9,44 @@ const getAuthHeaders = () => {
 };
 
 export const postService = {
-  async createPost(formData) {
-    const response = await fetch(USER_POSTS, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: formData
+  /**
+   * Upload a post with progress tracking.
+   * @param {FormData} formData
+   * @param {function(number):void} [onProgress] - called with 0-100 during upload
+   * @returns {Promise<object>}
+   */
+  async createPost(formData, onProgress) {
+    const token = getStoredToken();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      // 5-minute timeout: enough for large video uploads on slow mobile connections
+      xhr.timeout = 5 * 60 * 1000;
+
+      if (typeof onProgress === "function") {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            onProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch (_) {}
+        if (xhr.status >= 200 && xhr.status < 300 && data.success !== false) {
+          resolve(data);
+        } else {
+          reject(new Error(data?.message || `Upload failed (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload. Please check your connection."));
+      xhr.ontimeout = () => reject(new Error("Upload timed out. Please try again on a stable connection."));
+
+      xhr.open("POST", USER_POSTS);
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.send(formData);
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === false) throw new Error(data?.message || "Failed to create post");
-    return data;
   },
 
   async getPosts(params = {}) {

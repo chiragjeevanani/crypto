@@ -86,11 +86,11 @@ function compressVideo(filePath) {
     ffmpeg(filePath)
       .outputOptions([
         "-vcodec libx264",
-        "-crf 30",              // Higher CRF = smaller file (30 is good for 360p reels)
+        "-crf 30",              // Higher CRF = smaller file (30 is good for 480p reels)
         "-preset superfast",
         "-acodec aac",
-        "-b:a 96k",             // Reduced audio bitrate for mobile (was 128k)
-        "-vf scale=w=640:h=360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2" // 360p with letterbox
+        "-b:a 96k",             // Reduced audio bitrate for mobile
+        "-vf scale=w=854:h=480:force_original_aspect_ratio=decrease,pad=854:480:(ow-iw)/2:(oh-ih)/2" // 480p with letterbox
       ])
       .output(tempPath)
       .on("end", async () => {
@@ -100,7 +100,7 @@ function compressVideo(filePath) {
           }
           fs.renameSync(tempPath, filePath);
 
-          // Generate poster thumbnail (non-blocking — won't fail the upload)
+          // Generate poster thumbnail (non-blocking)
           const thumbPath = await generateVideoThumbnail(filePath);
 
           resolve({
@@ -114,12 +114,33 @@ function compressVideo(filePath) {
       })
       .on("error", (err) => {
         if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
+          try { fs.unlinkSync(tempPath); } catch (_) {}
         }
         reject(err);
       })
       .run();
   });
+}
+
+/**
+ * Run video compression in the background without blocking the HTTP response.
+ * The file on disk is usable immediately (before compression); after compression
+ * the file is replaced in-place with the smaller version.
+ */
+function compressVideoBackground(file) {
+  compressVideo(file.path)
+    .then((result) => {
+      console.log(`[MediaOptimizer] Background video compression done: ${file.filename}`);
+      // Update in-memory file object so any future references get the thumbnail
+      if (result.thumbPath) {
+        file.thumbPath = result.thumbPath;
+        file.thumbFilename = path.basename(result.thumbPath);
+      }
+      file.mimetype = result.mimetype;
+    })
+    .catch((err) => {
+      console.warn(`[MediaOptimizer] Background video compression failed for ${file.filename}: ${err.message}`);
+    });
 }
 
 
@@ -166,6 +187,9 @@ function compressAudio(filePath) {
 
 /**
  * Helper to process a single file object from multer.
+ * Images are compressed synchronously (fast — just sharp).
+ * Videos are compressed in the background so the HTTP response is not blocked.
+ * Audio is compressed synchronously (usually small files).
  */
 async function processFile(file) {
   if (!file || !file.path) return;
@@ -186,26 +210,22 @@ async function processFile(file) {
         console.log(`[MediaOptimizer] Converted image to WebP ${file.filename}: ${originalSize} -> ${file.size} bytes`);
       }
     } else if (/^video\//.test(mimetype)) {
-      const result = await compressVideo(file.path);
-      const stats = fs.statSync(file.path);
-      file.size = stats.size;
-      file.mimetype = result.mimetype; // Ensure it reports as video/mp4
-      // Attach thumbnail path so upload routes can include it in the response
-      if (result.thumbPath) {
-        file.thumbPath = result.thumbPath;
-        file.thumbFilename = path.basename(result.thumbPath);
-      }
-      console.log(`[MediaOptimizer] Compressed video to 360p ${file.filename}: ${originalSize} -> ${file.size} bytes`);
+      // IMPORTANT: Do NOT await — start compression in background and respond immediately.
+      // This prevents mobile clients from timing out waiting for ffmpeg to finish.
+      console.log(`[MediaOptimizer] Starting background video compression for ${file.filename} (${originalSize} bytes)`);
+      compressVideoBackground(file);
+      // Mark as video/mp4 immediately so the controller stores the correct type
+      file.mimetype = "video/mp4";
     } else if (/^audio\//.test(mimetype)) {
       const result = await compressAudio(file.path);
       const stats = fs.statSync(file.path);
       file.size = stats.size;
-      file.mimetype = result.mimetype; // Ensure it reports as audio/mpeg
+      file.mimetype = result.mimetype;
       console.log(`[MediaOptimizer] Compressed audio ${file.filename}: ${originalSize} -> ${file.size} bytes`);
     }
   } catch (err) {
-    console.error(`[MediaOptimizer] Failed to compress ${file.filename || file.path}:`, err.message);
-    // Non-blocking: if compression fails, we just keep the original file
+    console.error(`[MediaOptimizer] Failed to process ${file.filename || file.path}:`, err.message);
+    // Non-blocking: keep original file if processing fails
   }
 }
 

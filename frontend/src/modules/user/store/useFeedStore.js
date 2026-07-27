@@ -441,14 +441,18 @@ export const useFeedStore = create((set, get) => ({
     // ─── Notification Actions (DB-backed) ────────────────────────────────────
     loadNotifications: async () => {
         set({ notificationsLoading: true })
+        // Safety timeout: release loading spinner after 12s even if fetch never resolves
+        const timeout = setTimeout(() => set({ notificationsLoading: false }), 12000)
         try {
             const res = await notificationService.getNotifications()
+            clearTimeout(timeout)
             set({
                 notifications: res.notifications || [],
                 unreadNotifications: res.unreadCount || 0,
                 notificationsLoading: false
             })
         } catch (err) {
+            clearTimeout(timeout)
             console.warn('[Notifications] Failed to load:', err.message)
             set({ notificationsLoading: false })
         }
@@ -505,10 +509,14 @@ export const useFeedStore = create((set, get) => ({
     // ─── Suggestions (Who to Follow) ─────────────────────────────────────────
     loadSuggestions: async () => {
         set({ suggestionsLoading: true })
+        // Safety timeout: release loading spinner after 10s
+        const timeout = setTimeout(() => set({ suggestionsLoading: false }), 10000)
         try {
             const res = await notificationService.getSuggestions()
+            clearTimeout(timeout)
             set({ suggestions: res.suggestions || [], suggestionsLoading: false })
         } catch (err) {
+            clearTimeout(timeout)
             console.warn('[Suggestions] Failed to load:', err.message)
             set({ suggestionsLoading: false })
         }

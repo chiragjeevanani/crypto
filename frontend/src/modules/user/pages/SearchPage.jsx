@@ -7,6 +7,7 @@ import { useUserStore } from '../store/useUserStore'
 import { useAdminStore } from '../../admin/store/useAdminStore'
 import { SearchShimmer } from '../components/common/SearchShimmer'
 import Avatar from '../components/shared/Avatar'
+import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
 export default function SearchPage() {
     const navigate = useNavigate()
@@ -211,13 +212,13 @@ export default function SearchPage() {
                                 >
                                     {isVideo ? (
                                         <video
-                                            src={post.media?.url}
+                                            src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                             className="w-full aspect-square object-cover"
                                             muted
                                             playsInline
                                             loop
                                             preload="none"
-                                            poster={post.media?.thumbnail || post.media?.poster}
+                                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                             onMouseEnter={(e) => e.target.play().catch(() => {})}
                                             onMouseLeave={(e) => {
                                                 e.target.pause()
@@ -225,7 +226,7 @@ export default function SearchPage() {
                                             }}
                                         />
                                     ) : (
-                                        <img src={post.media?.url} alt={post.caption} className="w-full aspect-square object-cover" loading="lazy" />
+                                        <img src={optimizeCloudinaryUrl(post.media?.url, { width: 480, quality: '50' })} alt={post.caption} className="w-full aspect-square object-cover" loading="lazy" />
                                     )}
                                     <div className="p-2.5">
                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
@@ -263,16 +264,16 @@ export default function SearchPage() {
                                     <div className="relative aspect-square">
                                         {isVideo ? (
                                             <video
-                                                src={post.media?.url}
+                                                src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                 className="w-full h-full object-cover"
                                                 muted
                                                 playsInline
                                                 loop
                                                 preload="none"
-                                                poster={post.media?.thumbnail || post.media?.poster}
+                                                poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                             />
                                         ) : (
-                                            <img src={post.media?.url} alt={post.caption} className="w-full h-full object-cover" loading="lazy" />
+                                            <img src={optimizeCloudinaryUrl(post.media?.url, { width: 480, quality: '50' })} alt={post.caption} className="w-full h-full object-cover" loading="lazy" />
                                         )}
                                         {post.isBusiness && (
                                             <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-blue-500/90 text-white text-[8px] font-bold uppercase rounded">Ad</div>

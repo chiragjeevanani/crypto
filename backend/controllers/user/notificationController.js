@@ -12,19 +12,23 @@ exports.getNotifications = async (req, res) => {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit || 20)));
     const skip = (page - 1) * limit;
 
+    // Only show notifications from the last 90 days to reduce query size
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const filter = {
+      $or: [{ recipientId }, { isGlobal: true }],
+      createdAt: { $gte: cutoff }
+    };
+
     const [notifications, total, unreadCount] = await Promise.all([
-      Notification.find({
-        $or: [{ recipientId }, { isGlobal: true }]
-      })
+      Notification.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate("senderId", "name handle avatar")
+        .maxTimeMS(8000)
         .lean(),
-      Notification.countDocuments({
-        $or: [{ recipientId }, { isGlobal: true }]
-      }),
-      Notification.countDocuments({ recipientId, isRead: false })
+      Notification.countDocuments(filter).maxTimeMS(5000),
+      Notification.countDocuments({ recipientId, isRead: false }).maxTimeMS(5000)
     ]);
     
 
@@ -116,6 +120,7 @@ exports.getSuggestions = async (req, res) => {
 
     const currentUser = await User.findById(currentUserId)
       .select("following dismissedSuggestions")
+      .maxTimeMS(5000)
       .lean();
 
     if (!currentUser) {
@@ -126,9 +131,13 @@ exports.getSuggestions = async (req, res) => {
     const dismissed = (currentUser.dismissedSuggestions || []).map((id) => id.toString());
     const excluded = new Set([...alreadyFollowing, ...dismissed, currentUserId.toString()]);
 
+    // Limit to max 20 followings to avoid expensive fan-out queries
+    const followingSlice = (currentUser.following || []).slice(0, 20);
+
     // Get users that your followings follow
-    const followingsDetails = await User.find({ _id: { $in: currentUser.following } })
+    const followingsDetails = await User.find({ _id: { $in: followingSlice } })
       .select("following")
+      .maxTimeMS(5000)
       .lean();
 
     const candidateMap = new Map();
@@ -150,6 +159,7 @@ exports.getSuggestions = async (req, res) => {
     // Also add popular users if not enough suggestions
     let suggestionUsers = await User.find({ _id: { $in: sortedIds } })
       .select("name handle avatar followers")
+      .maxTimeMS(5000)
       .lean();
 
     if (suggestionUsers.length < 5) {
@@ -159,6 +169,7 @@ exports.getSuggestions = async (req, res) => {
         .sort({ followers: -1 })
         .limit(5 - suggestionUsers.length)
         .select("name handle avatar followers")
+        .maxTimeMS(5000)
         .lean();
       suggestionUsers = [...suggestionUsers, ...extraUsers];
     }
