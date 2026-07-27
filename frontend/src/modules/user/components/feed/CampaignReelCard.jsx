@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Volume2, VolumeX } from 'lucide-react'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
+import { useFeedStore } from '../../store/useFeedStore'
 
 export default function CampaignReelCard({ campaign, active }) {
     const navigate = useNavigate()
@@ -22,7 +23,7 @@ export default function CampaignReelCard({ campaign, active }) {
     const isVideo = campaign.bannerType === 'video' || 
                    /\.(mp4|webm|mov|ogg)$/i.test(bannerUrlRaw);
 
-    const [isMuted, setIsMuted] = useState(true)
+    const { globalMute: isMuted, setGlobalMute: setIsMuted } = useFeedStore()
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const videoRef = useRef(null)
     const audioRef = useRef(null)

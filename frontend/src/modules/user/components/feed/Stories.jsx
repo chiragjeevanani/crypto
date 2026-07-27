@@ -11,6 +11,7 @@ import { videoService } from '../../services/videoService';
 import { Loader2 } from 'lucide-react';
 import Avatar from '../shared/Avatar';
 import MusicSelectionModal from './MusicSelectionModal';
+import { useFeedStore } from '../../store/useFeedStore';
 
 const STORY_AUDIO_TRACKS = [
     { id: '1', title: 'Trending Now' },
@@ -47,7 +48,7 @@ export default function Stories() {
     const viewerAudioRef = useRef(null);
     const lastAudioId = useRef(null);
     const previewAudioRef = useRef(null);
-    const [isMuted, setIsMuted] = useState(false);
+    const { globalMute: isMuted, setGlobalMute: setIsMuted } = useFeedStore();
     const [isCreatingStory, setIsCreatingStory] = useState(false);
     const [storyMedia, setStoryMedia] = useState(null);
     const [storyFile, setStoryFile] = useState(null);

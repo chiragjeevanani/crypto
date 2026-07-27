@@ -470,7 +470,7 @@ export default function ProfilePage() {
                                             src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
                                             muted
                                             playsInline
-                                            preload="none"
+                                            preload="metadata"
                                             poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.thumbnail, { width: 480, quality: '50' })}
                                             className="w-full h-full object-cover"
                                             />
@@ -750,7 +750,7 @@ export default function ProfilePage() {
                                                                     src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
                                                                     muted
                                                                     playsInline
-                                                                    preload="none"
+                                                                    preload="metadata"
                                                                     poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                                     className="w-full h-full object-cover"
                                                                 />

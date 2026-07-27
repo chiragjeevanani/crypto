@@ -528,7 +528,7 @@ export default function HomePage() {
                                                     muted
                                                     playsInline
                                                     loop
-                                                    preload="none"
+                                                    preload="metadata"
                                                     poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                     onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                     onMouseLeave={(e) => {
@@ -570,7 +570,7 @@ export default function HomePage() {
                                                 muted
                                                 playsInline
                                                 loop
-                                                preload="none"
+                                                preload="metadata"
                                                 poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                                                 onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                 onMouseLeave={(e) => {
