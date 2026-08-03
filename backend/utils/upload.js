@@ -19,9 +19,15 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = /^image\//.test(file.mimetype) || /^video\//.test(file.mimetype) || /^audio\//.test(file.mimetype);
-  if (allowed) cb(null, true);
-  else cb(new Error("Only image, video, and audio files are allowed"), false);
+  console.log(`[Multer Upload] fileFilter - originalname: "${file.originalname}", mimetype: "${file.mimetype}"`);
+  const isAllowedMime = /^image\//.test(file.mimetype) || /^video\//.test(file.mimetype) || /^audio\//.test(file.mimetype);
+  const isAllowedExt = /\.(jpe?g|png|gif|webp|mp4|webm|mov|ogg|mp3|wav)$/i.test(file.originalname);
+  
+  if (isAllowedMime || isAllowedExt) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Only image, video, and audio files are allowed (received mimetype: ${file.mimetype}, name: ${file.originalname})`), false);
+  }
 };
 
 const mediaOptimizer = require("./mediaOptimizer");

@@ -344,7 +344,7 @@ const buyCollectible = async (req, res) => {
         date: new Date()
       });
       if (buyer.email) {
-        await sendCertificateEmail(buyer.email, pdfBuffer, auction.title);
+        sendCertificateEmail(buyer.email, pdfBuffer, auction.title);
       }
     } catch (certErr) {
       console.error("Certificate Generation/Email Failed:", certErr);
@@ -439,7 +439,7 @@ const buyPostNFT = async (req, res) => {
         date: new Date()
       });
       if (buyer.email) {
-        await sendCertificateEmail(buyer.email, pdfBuffer, post.caption || post.title || "NFT Post");
+        sendCertificateEmail(buyer.email, pdfBuffer, post.caption || post.title || "NFT Post");
       }
     } catch (certErr) {
       console.error("Certificate Generation/Email Failed:", certErr);
@@ -709,7 +709,7 @@ const buyResaleNFT = async (req, res) => {
         date: new Date()
       });
       if (buyer.email) {
-        await sendCertificateEmail(buyer.email, pdfBuffer, auction.title || post.title || post.caption || "NFT Post");
+        sendCertificateEmail(buyer.email, pdfBuffer, auction.title || post.title || post.caption || "NFT Post");
       }
     } catch (certErr) {
       console.error("Certificate Generation/Email Failed:", certErr);

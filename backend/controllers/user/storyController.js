@@ -78,7 +78,11 @@ exports.createStory = async (req, res) => {
     }
 
     mediaUrl = `/uploads/${file.filename}`;
-    if (file.mimetype.startsWith("video/")) mediaType = "video";
+    // Detect media type from mimetype first, then fall back to file extension
+    // (browsers sometimes send 'text/plain' for canvas-recorded videos)
+    const isVideoMime = file.mimetype.startsWith("video/");
+    const isVideoExt = /\.(mp4|webm|mov|mkv|avi|ogg)$/i.test(file.originalname || file.filename || "");
+    if (isVideoMime || isVideoExt) mediaType = "video";
 
     const caption = typeof body.caption === "string" ? body.caption.trim() : "";
     const musicTrackId = typeof body.musicTrackId === "string" ? body.musicTrackId.trim() : "none";

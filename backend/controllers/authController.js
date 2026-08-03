@@ -222,7 +222,7 @@ const registerUser = async (req, res) => {
       { $set: { emailVerificationOtp: hashedOtp, emailVerificationExpires: Date.now() + 10 * 60 * 1000 } }
     );
     
-    await sendVerificationEmail(user.email, otp);
+    sendVerificationEmail(user.email, otp);
 
     return res.status(201).json({
       success: true,
@@ -271,7 +271,7 @@ const loginUser = async (req, res) => {
         { $set: { emailVerificationOtp: hashedOtp, emailVerificationExpires: Date.now() + 10 * 60 * 1000 } }
       );
       
-      await sendVerificationEmail(user.email, otp);
+      sendVerificationEmail(user.email, otp);
       
       return res.status(403).json({ 
         success: false, 
@@ -487,7 +487,7 @@ const forgotPassword = async (req, res) => {
       { $set: { resetPasswordOtp: hashedOtp, resetPasswordExpires: Date.now() + 10 * 60 * 1000 } }
     );
 
-    await sendOtpEmail(user.email, otp);
+    sendOtpEmail(user.email, otp);
 
     return res.status(200).json({ success: true, message: "OTP has been sent." });
   } catch (error) {
@@ -599,7 +599,7 @@ const resendVerificationOtp = async (req, res) => {
       { $set: { emailVerificationOtp: hashedOtp, emailVerificationExpires: Date.now() + 10 * 60 * 1000 } }
     );
     
-    await sendVerificationEmail(user.email, otp);
+    sendVerificationEmail(user.email, otp);
 
     return res.status(200).json({ success: true, message: "A new OTP has been sent." });
   } catch (error) {

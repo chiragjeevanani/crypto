@@ -46,6 +46,7 @@ export default function Stories() {
 
     const [musicList, setMusicList] = useState([]);
     const viewerAudioRef = useRef(null);
+    const viewerVideoRef = useRef(null);
     const lastAudioId = useRef(null);
     const previewAudioRef = useRef(null);
     const { globalMute: isMuted, setGlobalMute: setIsMuted } = useFeedStore();
@@ -103,14 +104,27 @@ export default function Stories() {
     const startStoryCamera = async (facingMode = storyFacingMode) => {
         stopStoryCamera();
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: facingMode,
-                    width: { ideal: 720 },
-                    height: { ideal: 1280 },
-                },
-                audio: true // Need audio for video recording
-            });
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 720 },
+                        height: { ideal: 1280 },
+                    },
+                    audio: true // Need audio for video recording
+                });
+            } catch (audioErr) {
+                console.warn('Could not get audio track, falling back to video-only:', audioErr);
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 720 },
+                        height: { ideal: 1280 },
+                    },
+                    audio: false
+                });
+            }
             storyCameraStreamRef.current = stream;
             if (storyCameraVideoRef.current) {
                 storyCameraVideoRef.current.srcObject = stream;
@@ -161,12 +175,50 @@ export default function Stories() {
         }, 'image/jpeg', 0.92);
     };
 
+    const storyMirrorCanvasRef = useRef(null);
+    const storyMirrorRafRef = useRef(null);
+
     const startStoryRecording = () => {
         if (!storyCameraStreamRef.current) return;
         storyRecordedChunksRef.current = [];
-        const stream = storyCameraStreamRef.current;
+
+        const isFrontCamera = storyFacingMode === 'user';
+        let recordStream = storyCameraStreamRef.current;
+
+        // For front camera: record from a mirrored canvas so the output matches
+        // the preview (which is CSS-mirrored). This also avoids 90° rotation on mobile.
+        let mirrorCanvas = null;
+        let mirrorCtx = null;
+        if (isFrontCamera && storyCameraVideoRef.current) {
+            const sourceVideo = storyCameraVideoRef.current;
+            mirrorCanvas = document.createElement('canvas');
+            mirrorCanvas.width = sourceVideo.videoWidth || 720;
+            mirrorCanvas.height = sourceVideo.videoHeight || 1280;
+            mirrorCtx = mirrorCanvas.getContext('2d');
+            storyMirrorCanvasRef.current = mirrorCanvas;
+
+            const drawFrame = () => {
+                if (!mirrorCtx || !sourceVideo || sourceVideo.readyState < 2) {
+                    storyMirrorRafRef.current = requestAnimationFrame(drawFrame);
+                    return;
+                }
+                mirrorCtx.save();
+                mirrorCtx.translate(mirrorCanvas.width, 0);
+                mirrorCtx.scale(-1, 1);
+                mirrorCtx.drawImage(sourceVideo, 0, 0, mirrorCanvas.width, mirrorCanvas.height);
+                mirrorCtx.restore();
+                storyMirrorRafRef.current = requestAnimationFrame(drawFrame);
+            };
+            storyMirrorRafRef.current = requestAnimationFrame(drawFrame);
+
+            // Combine mirrored canvas video track with original audio tracks
+            const canvasVideoTrack = mirrorCanvas.captureStream(30).getVideoTracks()[0];
+            const audioTracks = storyCameraStreamRef.current.getAudioTracks();
+            recordStream = new MediaStream([canvasVideoTrack, ...audioTracks]);
+        }
+
         let selectedType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t)) || '';
-        const recorder = new MediaRecorder(stream, selectedType ? { mimeType: selectedType } : {});
+        const recorder = new MediaRecorder(recordStream, selectedType ? { mimeType: selectedType } : {});
         storyMediaRecorderRef.current = recorder;
 
         recorder.ondataavailable = (e) => {
@@ -176,6 +228,13 @@ export default function Stories() {
         };
 
         recorder.onstop = () => {
+            // Stop mirror canvas animation
+            if (storyMirrorRafRef.current) {
+                cancelAnimationFrame(storyMirrorRafRef.current);
+                storyMirrorRafRef.current = null;
+            }
+            storyMirrorCanvasRef.current = null;
+
             const blob = new Blob(storyRecordedChunksRef.current, { type: selectedType || 'video/mp4' });
             const file = new File([blob], 'story-video.mp4', { type: blob.type });
             setOriginalFile(file);
@@ -212,9 +271,12 @@ export default function Stories() {
     // Auto-start camera when opening the story creator without media
 
     useEffect(() => {
-        if (isCreatingStory && !storyMedia) {
-            setIsCameraMode(true);
-            startStoryCamera();
+        if (isCreatingStory) {
+            setIsMuted(true);
+            if (!storyMedia) {
+                setIsCameraMode(true);
+                startStoryCamera();
+            }
         } else if (!isCreatingStory) {
             setIsCameraMode(false);
             stopStoryCamera();
@@ -236,6 +298,17 @@ export default function Stories() {
             }
         }
     }, [selectedStory, activeStoryIndex, isPlayingViewer]);
+
+    // Control story viewer video playback via isPlayingViewer
+    useEffect(() => {
+        const video = viewerVideoRef.current;
+        if (!video) return;
+        if (isPlayingViewer) {
+            video.play().catch(() => {});
+        } else {
+            video.pause();
+        }
+    }, [isPlayingViewer, selectedStory, activeStoryIndex]);
 
 
 
@@ -338,7 +411,12 @@ export default function Stories() {
                         stories: userStories.map((s) => ({
                             id: s.id,
                             mediaUrl: s.media?.url || s.mediaUrl,
-                            mediaType: s.media?.type || s.mediaType || 'image',
+                            mediaType: (() => {
+                                const t = s.media?.type || s.mediaType || 'image';
+                                const url = s.media?.url || s.mediaUrl || '';
+                                if (t === 'image' && /\.(mp4|webm|mov|mkv|ogg)($|\?)/i.test(url)) return 'video';
+                                return t;
+                            })(),
                             caption: s.caption || '',
                             captionStyle: s.captionStyle || null,
                             musicData: s.musicData || null,
@@ -393,7 +471,13 @@ export default function Stories() {
                 stories: userStories.map((s) => ({
                     id: s.id,
                     mediaUrl: s.media?.url || s.mediaUrl,
-                    mediaType: s.media?.type || s.mediaType || 'image',
+                    mediaType: (() => {
+                        const t = s.media?.type || s.mediaType || 'image';
+                        const url = s.media?.url || s.mediaUrl || '';
+                        // Fallback: detect video by URL extension if type is wrong
+                        if (t === 'image' && /\.(mp4|webm|mov|mkv|ogg)($|\?)/i.test(url)) return 'video';
+                        return t;
+                    })(),
                     caption: s.caption || '',
                     captionStyle: s.captionStyle || null,
                     musicData: s.musicData || null,
@@ -653,12 +737,18 @@ export default function Stories() {
                                         {selectedStory.stories[activeStoryIndex].mediaType === 'video' ? (
                                             <video
                                                 key={`story-video-${selectedStory.stories[activeStoryIndex].id}`}
-                                                src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { isVideo: true, width: 720, quality: '60' })}
+                                                ref={viewerVideoRef}
+                                                src={selectedStory.stories[activeStoryIndex].mediaUrl || ''}
                                                 className="w-full h-full object-cover"
                                                 autoPlay
                                                 muted={isMuted || !!selectedStory.stories[activeStoryIndex].musicData}
                                                 loop
                                                 playsInline
+                                                onLoadedData={(e) => {
+                                                    if (isPlayingViewer) {
+                                                        e.target.play().catch(() => {});
+                                                    }
+                                                }}
                                                 style={{
                                                     filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
                                                     transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
@@ -896,8 +986,9 @@ export default function Stories() {
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 50 }}
-                        className="fixed inset-0 z-[100] bg-black flex flex-col"
+                        className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-lg flex items-center justify-center p-0 sm:p-4"
                     >
+                        <div className="relative w-full h-full sm:max-w-[450px] sm:h-[90vh] bg-zinc-950 sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col">
                         {/* Header Controls */}
                         <div className="flex items-center justify-between p-4 z-10 w-full absolute top-0 left-0">
                             <button 
@@ -913,11 +1004,22 @@ export default function Stories() {
                                 <X size={24} />
                             </button>
                             <div className="flex gap-4">
-                                <button onClick={() => setShowMusicPicker(!showMusicPicker)} className={`w-10 h-10 ${storyMusic ? 'bg-primary' : 'bg-black/40'} rounded-full flex items-center justify-center text-white backdrop-blur-md`}>
+                                <button 
+                                    onClick={() => {
+                                        setShowMusicPicker(!showMusicPicker);
+                                        setShowFilters(false);
+                                        setIsTextMode(false);
+                                    }} 
+                                    className={`w-10 h-10 ${storyMusic ? 'bg-primary' : 'bg-black/40'} rounded-full flex items-center justify-center text-white backdrop-blur-md`}
+                                >
                                     <Music size={20} />
                                 </button>
                                 <button 
-                                    onClick={() => setShowFilters(!showFilters)} 
+                                    onClick={() => {
+                                        setShowFilters(!showFilters);
+                                        setIsTextMode(false);
+                                        setShowMusicPicker(false);
+                                    }} 
                                     className={`w-10 h-10 ${showFilters ? 'bg-primary' : 'bg-black/40'} rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors`}
                                 >
                                     <Sparkles size={20} />
@@ -927,7 +1029,11 @@ export default function Stories() {
                                         isTextMode ? 'bg-primary' : 'bg-black/40'
                                     }`}
                                     type="button"
-                                    onClick={() => setIsTextMode((prev) => !prev)}
+                                    onClick={() => {
+                                        setIsTextMode(!isTextMode);
+                                        setShowFilters(false);
+                                        setShowMusicPicker(false);
+                                    }}
                                 >
                                     <Type size={20} />
                                 </button>
@@ -940,7 +1046,14 @@ export default function Stories() {
                             className="flex-1 relative rounded-3xl overflow-hidden bg-zinc-950 mt-16 mx-2 mb-2"
                         >
                             {storyMedia ? (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
+                                <div 
+                                    onClick={() => {
+                                        setShowFilters(false);
+                                        setIsTextMode(false);
+                                        setShowMusicPicker(false);
+                                    }}
+                                    className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden"
+                                >
                                     {storyMusic && (
                                         <audio
                                             key={`preview-audio-${storyMusic.id || storyMusic._id}`}
@@ -1082,6 +1195,7 @@ export default function Stories() {
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 text-black px-4 py-3 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-2xl skew-y-[-2deg] z-[50] cursor-move touch-none"
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
                                         <Music size={14} />
@@ -1128,6 +1242,7 @@ export default function Stories() {
                                         touchAction: 'none'
                                     }}
                                     className="p-3 rounded-2xl shadow-2xl cursor-grab active:cursor-grabbing group"
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <textarea
                                         ref={captionRef}
@@ -1310,7 +1425,7 @@ export default function Stories() {
                                 )}
                                 <input
                                     type="file"
-                                    accept="image/*,video/*"
+                                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
@@ -1463,6 +1578,7 @@ export default function Stories() {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

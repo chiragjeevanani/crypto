@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, Scissors, Columns2, Rows2, RotateCw, Volume2, VolumeX, FastForward, Timer, Music, SlidersHorizontal } from 'lucide-react';
+import { Play, Pause, Scissors, Columns2, Rows2, RotateCw, Volume2, VolumeX, FastForward, Timer, Music, SlidersHorizontal, X } from 'lucide-react';
 import MusicSelectionModal from '../feed/MusicSelectionModal';
 
-const VideoEditor = ({ file, onSave }) => {
+const VideoEditor = ({ file, onClose, onSave }) => {
     const videoRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [startTime, setStartTime] = useState(0);
@@ -98,6 +98,14 @@ const VideoEditor = ({ file, onSave }) => {
     return (
         <div className="flex flex-col h-full bg-black text-white">
             <div className="relative flex-1 bg-zinc-900 overflow-hidden flex items-center justify-center p-4">
+                {/* Back button */}
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="absolute top-6 left-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/60 active:scale-95 transition-all z-30"
+                >
+                    <X size={22} />
+                </button>
                 <div 
                     className={`w-full max-w-sm rounded-3xl overflow-hidden aspect-[9/16] relative bg-black shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 transition-all duration-500 ${layout === 'side-by-side' ? 'flex' : layout === 'top-bottom' ? 'flex flex-col' : ''}`}
                     style={{ transform: `rotate(${rotation}deg)` }}
