@@ -158,6 +158,11 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
     }
 
     useEffect(() => {
+        if (videoRef.current) videoRef.current.muted = globalMute
+        if (audioRef.current) audioRef.current.muted = globalMute
+    }, [globalMute])
+
+    useEffect(() => {
         if (active) {
             const recordView = useFeedStore.getState().recordView
             if (recordView) recordView(post.id)

@@ -438,12 +438,12 @@ export default function HomePage() {
                                                 >
                                                     <video
                                                         src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 480, quality: '50' })}
-                                                        className="w-full aspect-square object-cover"
+                                                        className="w-full aspect-square object-cover bg-black/10"
                                                         muted
                                                         playsInline
                                                         loop
-                                                        preload="metadata"
-                                                        poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
+                                                        preload="auto"
+                                                        poster={post.media?.thumbnail || post.media?.poster ? optimizeCloudinaryUrl(post.media.thumbnail || post.media.poster, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url)}#t=0.1`}
                                                     />
                                                     <div className="p-2.5">
                                                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>
@@ -480,8 +480,8 @@ export default function HomePage() {
                                                             muted
                                                             playsInline
                                                             loop
-                                                            preload="metadata"
-                                                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
+                                                            preload="auto"
+                                                            poster={post.media?.thumbnail || post.media?.poster ? optimizeCloudinaryUrl(post.media.thumbnail || post.media.poster, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url)}#t=0.1`}
                                                             onMouseEnter={(e) => { if (!isLanguageModalOpen) e.target.play().catch(() => {}) }}
                                                             onMouseLeave={(e) => {
                                                                 e.target.pause()

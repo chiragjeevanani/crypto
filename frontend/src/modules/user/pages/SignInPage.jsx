@@ -50,7 +50,7 @@ export default function SignInPage() {
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4 overflow-hidden">
                             <img src="/knqlogo.jpeg" alt="KnQ Logo" className="w-full h-full object-cover" />
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight text-text">Sign In</h1>
+                        <h1 className="text-[2.2rem] font-bold tracking-tight text-text">Sign In</h1>
                     </div>
 
                     {successMsg && (
@@ -123,7 +123,7 @@ export default function SignInPage() {
                         </button>
                         {authError && <p className="text-xs text-red-400">{authError}</p>}
                     </form>
-                    <p className="mt-6 text-center text-[10px] text-muted">
+                    <p className="mt-6 text-center text-[13px] text-muted">
                         Don&rsquo;t have an account? <Link to="/signup" className="text-primary underline">Sign up</Link>
                     </p>
                 </div>

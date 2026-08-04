@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, memo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import Instacam from 'instacam';
 import {
@@ -6399,20 +6400,23 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       )}
 
 
-      {isEditingText && (
-        <div className="absolute inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-md transition-all duration-300">
-          <div className="flex items-center justify-between px-5 pt-8">
+      {isEditingText && createPortal(
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-black/90 backdrop-blur-md transition-all duration-300">
+          <div 
+            className="flex items-center justify-between px-5"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}
+          >
             <button
               type="button"
               onClick={() => setIsEditingText(false)}
-              className="text-[16px] font-medium text-white/80"
+              className="text-[16px] font-semibold text-white/80 active:scale-95 transition-transform"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => setIsEditingText(false)}
-              className="rounded-[6px] bg-white px-4 py-1.5 text-[14px] font-bold text-black"
+              className="rounded-full bg-white px-5 py-2 text-[14px] font-bold text-black shadow-lg active:scale-95 transition-transform"
             >
               Done
             </button>
@@ -6518,7 +6522,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Rendering Overlay */}
       {isRendering && (

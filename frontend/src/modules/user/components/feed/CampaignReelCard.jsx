@@ -47,6 +47,11 @@ export default function CampaignReelCard({ campaign, active }) {
     }
 
     useEffect(() => {
+        if (videoRef.current) videoRef.current.muted = isMuted
+        if (audioRef.current) audioRef.current.muted = isMuted
+    }, [isMuted])
+
+    useEffect(() => {
         let isCurrent = true
         const video = videoRef.current
         const audio = audioRef.current
@@ -87,7 +92,7 @@ export default function CampaignReelCard({ campaign, active }) {
                             <video 
                                 key={`vid-${campaign.id}`}
                                 ref={videoRef}
-                                src={`${optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 720, quality: '60' })}${resolvedBannerUrl.includes('?') ? '&' : '?'}v=${Date.now()}`} 
+                                src={optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 720, quality: '60' })} 
                                 className="w-full h-full object-cover cursor-pointer" 
                                 muted={isMuted} 
                                 playsInline 

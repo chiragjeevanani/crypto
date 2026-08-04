@@ -470,9 +470,9 @@ export default function ProfilePage() {
                                             src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
                                             muted
                                             playsInline
-                                            preload="metadata"
-                                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.thumbnail, { width: 480, quality: '50' })}
-                                            className="w-full h-full object-cover"
+                                            preload="auto"
+                                            poster={post.media?.thumbnail || post.thumbnail ? optimizeCloudinaryUrl(post.media.thumbnail || post.thumbnail, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url || post.thumbnail)}#t=0.1`}
+                                            className="w-full h-full object-cover bg-black/10"
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>

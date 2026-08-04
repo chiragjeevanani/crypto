@@ -379,7 +379,7 @@ export default function SignUpPage() {
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-4 overflow-hidden">
                             <img src="/knqlogo.jpeg" alt="KnQ Logo" className="w-full h-full object-cover" />
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight text-text">
+                        <h1 className="text-[2.2rem] font-bold tracking-tight text-text">
                             {step === 1 ? "Create Account" : "Verify Email"}
                         </h1>
                         {step === 2 && (
@@ -828,7 +828,7 @@ export default function SignUpPage() {
                     </AnimatePresence>
 
                     {step === 1 && (
-                        <p className="mt-6 text-center text-[10px] text-muted">
+                        <p className="mt-6 text-center text-[13px] text-muted">
                             Already registered? <Link to="/signin" className="text-primary underline">Sign in</Link>
                         </p>
                     )}
