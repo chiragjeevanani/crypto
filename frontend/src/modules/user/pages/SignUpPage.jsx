@@ -295,7 +295,7 @@ export default function SignUpPage() {
         // Only require state if there are states available for this country
         const stateRequired = states.length > 0;
         const stateErr = (stateRequired && !formData.state) ? 'State is required' : '';
-        const agreedErr = !formData.agreedToTerms ? 'You must agree to the Terms and Privacy Policy' : '';
+        const agreedErr = !formData.agreedToTerms ? 'You must agree to the Terms, Privacy Policy, and Child Safety Standards' : '';
 
         setFieldErrors({
             name: nameErr,
@@ -744,7 +744,7 @@ export default function SignUpPage() {
                                     className="w-4 h-4 mt-0.5 rounded border-surface text-primary focus:ring-primary/20 cursor-pointer accent-primary"
                                 />
                                 <span className="text-[11px] text-muted font-medium group-hover:text-text transition-colors">
-                                    I agree to the <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('terms'); }}>Terms & Conditions</button> and <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('privacy'); }}>Privacy Policy</button>
+                                    I agree to the <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('terms'); }}>Terms & Conditions</button>, <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('privacy'); }}>Privacy Policy</button>, and <Link to="/child-safety" target="_blank" className="text-primary hover:underline" onClick={e => e.stopPropagation()}>Child Safety Standards</Link>
                                 </span>
                             </label>
                             {fieldErrors.agreedToTerms && (

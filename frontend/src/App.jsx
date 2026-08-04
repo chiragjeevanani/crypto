@@ -8,6 +8,7 @@ import ProfilePage from './modules/user/pages/ProfilePage'
 import UserProfilePage from './modules/user/pages/UserProfilePage'
 import TermsConditionsPage from './modules/user/pages/TermsConditionsPage'
 import PrivacyPolicyPage from './modules/user/pages/PrivacyPolicyPage'
+import ChildSafetyPolicyPage from './modules/user/pages/ChildSafetyPolicyPage'
 import SupportPage from './modules/user/pages/SupportPage'
 import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPage'
 import { useUserStore } from './modules/user/store/useUserStore'
@@ -182,6 +183,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/terms-conditions" element={<TermsConditionsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/child-safety" element={<ChildSafetyPolicyPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/logout" element={<LogoutPage />} />
           {/* redirect legacy login to admin login */}
