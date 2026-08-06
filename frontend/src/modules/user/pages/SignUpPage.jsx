@@ -367,11 +367,11 @@ export default function SignUpPage() {
     };
 
     return (
-        <div className="h-full w-full overflow-y-auto bg-bg flex flex-col py-8 px-4 selection:bg-primary/30 pb-safe">
+        <div className="min-h-screen w-full overflow-y-auto bg-bg flex flex-col items-center py-6 px-4 selection:bg-primary/30">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-[480px] m-auto bg-surface border rounded-2xl shadow-2xl relative"
+                className="w-full max-w-[480px] my-auto bg-surface border rounded-2xl shadow-2xl relative"
                 style={{ borderColor: 'var(--color-border)' }}
             >
                 <div className="w-full p-8">

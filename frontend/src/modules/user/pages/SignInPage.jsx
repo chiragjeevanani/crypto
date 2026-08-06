@@ -37,11 +37,11 @@ export default function SignInPage() {
     };
 
     return (
-        <div className="h-full w-full overflow-y-auto bg-bg flex flex-col justify-center py-8 px-4 selection:bg-primary/30 pb-safe">
+        <div className="min-h-screen w-full overflow-y-auto bg-bg flex flex-col items-center py-6 px-4 selection:bg-primary/30">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-[440px] m-auto bg-surface border rounded-2xl overflow-hidden shadow-2xl"
+                className="w-full max-w-[440px] my-auto bg-surface border rounded-2xl overflow-hidden shadow-2xl"
                 style={{ borderColor: 'var(--color-border)' }}
             >
                 {/* form side */}
