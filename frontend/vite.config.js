@@ -12,5 +12,17 @@ export default defineConfig({
   ],
   server: {
     port: 5174,
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          agora: ['agora-rtc-sdk-ng', 'agora-rtc-react'],
+          firebase: ['firebase/app', 'firebase/messaging'],
+          gsap: ['gsap'],
+          'framer-motion': ['framer-motion'],
+        },
+      },
+    },
+  },
 });

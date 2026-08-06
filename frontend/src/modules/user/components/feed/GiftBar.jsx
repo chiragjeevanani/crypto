@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { Gift, HelpCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
+import { useShallow } from 'zustand/react/shallow'
 import GiftButton from './GiftButton'
 import { usePlatformSettings } from '../../hooks/usePlatformSettings'
 import { useWalletStore } from '../../store/useWalletStore'
@@ -12,10 +13,13 @@ import HeartRainAnimation from './HeartRainAnimation'
 
 const EMPTY_COUNTS = {}
 
-export default function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
+function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
     const { maxGiftsPerMinute } = usePlatformSettings()
-    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts, giftsLoading } = useWalletStore()
-    const { profile } = useUserStore()
+    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts, giftsLoading } = useWalletStore(useShallow((s) => ({
+        giftSpendWallet: s.giftSpendWallet, setGiftSpendWallet: s.setGiftSpendWallet,
+        inrWallet: s.inrWallet, cryptoWallet: s.cryptoWallet, gifts: s.gifts, giftsLoading: s.giftsLoading,
+    })))
+    const profile = useUserStore((s) => s.profile)
     const giftCountsRaw = useFeedStore((s) => s.giftCountsByPostId?.[postId])
     const giftCounts = giftCountsRaw || EMPTY_COUNTS
     const currencySymbol = profile?.currencySymbol || '₹'
@@ -175,3 +179,5 @@ export default function GiftBar({ postId, onGift, compact = false, showCounts = 
         </div>
     )
 }
+
+export default memo(GiftBar)

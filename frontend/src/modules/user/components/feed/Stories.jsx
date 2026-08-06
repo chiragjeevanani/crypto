@@ -799,11 +799,11 @@ export default function Stories() {
                                         {idx === activeStoryIndex && (
                                             <motion.div
                                                 key={idx}
-                                                initial={{ width: '0%' }}
-                                                animate={{ width: '100%' }}
+                                                initial={{ scaleX: 0 }}
+                                                animate={{ scaleX: 1 }}
                                                 transition={{ duration: 5, ease: 'linear' }}
                                                 onAnimationComplete={goToNextStory}
-                                                className="h-full bg-white"
+                                                className="h-full w-full bg-white origin-left"
                                             />
                                         )}
                                     </div>

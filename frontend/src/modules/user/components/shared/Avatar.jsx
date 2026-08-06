@@ -34,9 +34,11 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
     return (
         <div className={`relative flex-shrink-0 ${className}`}>
             <div className={`${sizeClasses[size] || size} rounded-full overflow-hidden bg-surface2/30`}>
-                <img 
-                    src={imgSrc} 
+                <img
+                    src={imgSrc}
                     alt={alt}
+                    loading="lazy"
+                    decoding="async"
                     className={`w-full h-full object-cover transition-opacity duration-200`}
                     onError={handleError}
                     {...props}

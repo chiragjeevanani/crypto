@@ -1,66 +1,77 @@
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AppShell from './modules/user/layouts/AppShell'
 import HomePage from './modules/user/pages/HomePage'
-import TasksPage from './modules/user/pages/TasksPage'
-import CreatePage from './modules/user/pages/CreatePage'
-import WalletPage from './modules/user/pages/WalletPage'
-import ProfilePage from './modules/user/pages/ProfilePage'
-import UserProfilePage from './modules/user/pages/UserProfilePage'
-import TermsConditionsPage from './modules/user/pages/TermsConditionsPage'
-import PrivacyPolicyPage from './modules/user/pages/PrivacyPolicyPage'
-import ChildSafetyPolicyPage from './modules/user/pages/ChildSafetyPolicyPage'
-import SupportPage from './modules/user/pages/SupportPage'
-import CommunityGuidelinesPage from './modules/user/pages/CommunityGuidelinesPage'
 import { useUserStore } from './modules/user/store/useUserStore'
 import { useWalletStore } from './modules/user/store/useWalletStore'
 import { useFeedStore } from './modules/user/store/useFeedStore'
-import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, X } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import ErrorBoundary from './modules/user/components/shared/ErrorBoundary'
 import { usePushNotifications } from './hooks/usePushNotifications'
 
-// Admin Modules
-import AdminLayout from './modules/admin/layouts/AdminLayout'
-import AdminDashboard from './modules/admin/pages/AdminDashboard'
-import CampaignManagement from './modules/admin/pages/CampaignManagement'
-import ContentControl from './modules/admin/pages/ContentControl'
-import ContentDetailPage from './modules/admin/pages/ContentDetailPage'
-import CategoryManagementPage from './modules/admin/pages/CategoryManagementPage'
-import FinancialManagement from './modules/admin/pages/FinancialManagement'
-import GiftListPage from './modules/admin/pages/GiftListPage'
-import UserManagement from './modules/admin/pages/UserManagement'
-import AuditLogs from './modules/admin/pages/AuditLogs'
-import NFTModeration from './modules/admin/pages/NFTModeration'
-import VotingManagement from './modules/admin/pages/VotingManagement'
+// Rarely-visited user pages — code-split out of the initial bundle
+const TasksPage = lazy(() => import('./modules/user/pages/TasksPage'))
+const CreatePage = lazy(() => import('./modules/user/pages/CreatePage'))
+const WalletPage = lazy(() => import('./modules/user/pages/WalletPage'))
+const ProfilePage = lazy(() => import('./modules/user/pages/ProfilePage'))
+const UserProfilePage = lazy(() => import('./modules/user/pages/UserProfilePage'))
+const TermsConditionsPage = lazy(() => import('./modules/user/pages/TermsConditionsPage'))
+const PrivacyPolicyPage = lazy(() => import('./modules/user/pages/PrivacyPolicyPage'))
+const ChildSafetyPolicyPage = lazy(() => import('./modules/user/pages/ChildSafetyPolicyPage'))
+const SupportPage = lazy(() => import('./modules/user/pages/SupportPage'))
+const CommunityGuidelinesPage = lazy(() => import('./modules/user/pages/CommunityGuidelinesPage'))
+const CampaignsPage = lazy(() => import('./modules/user/pages/CampaignsPage'))
+const CampaignDetailPage = lazy(() => import('./modules/user/pages/CampaignDetailPage'))
+const SearchPage = lazy(() => import('./modules/user/pages/SearchPage'))
+const MessagingPage = lazy(() => import('./modules/user/pages/messaging/MessagingPage'))
+const NotificationsPage = lazy(() => import('./modules/user/pages/NotificationsPage'))
 
-import PlatformSettings from './modules/admin/pages/PlatformSettings'
-import FinancialRules from './modules/admin/pages/FinancialRules'
-import NetworkConfig from './modules/admin/pages/NetworkConfig'
-import LegalSupportSettings from './modules/admin/pages/LegalSupportSettings'
-import WalletOverview from './modules/admin/pages/WalletOverview'
-import EditUser from './modules/admin/pages/EditUser'
-import UserDetailPage from './modules/admin/pages/UserDetailPage'
-import EditSettlement from './modules/admin/pages/EditSettlement'
-import EditCampaign from './modules/admin/pages/EditCampaign'
-import GiftTrash from './modules/admin/pages/GiftTrash'
-import CreateGift from './modules/admin/pages/CreateGift'
-import CampaignCreatePage from './modules/admin/pages/CampaignCreatePage'
-import AdvertiserPanel from './modules/admin/pages/AdvertiserPanel'
-import AdminProfilePage from './modules/admin/pages/AdminProfilePage'
-import MusicManagement from './modules/admin/pages/MusicManagement'
-import GiftHistory from './modules/admin/pages/GiftHistory'
-import WalletTransactions from './modules/admin/pages/WalletTransactions'
-import PromotionSettingsPage from './modules/admin/pages/PromotionSettingsPage'
-import ReportsManagement from './modules/admin/pages/ReportsManagement'
-import KycManagement from './modules/admin/pages/KycManagement'
-import TrendingDealsManagement from './modules/admin/pages/TrendingDealsManagement'
+// Admin Modules — a regular user never visits these, so keep them out of the main bundle entirely
+const AdminLayout = lazy(() => import('./modules/admin/layouts/AdminLayout'))
+const AdminDashboard = lazy(() => import('./modules/admin/pages/AdminDashboard'))
+const CampaignManagement = lazy(() => import('./modules/admin/pages/CampaignManagement'))
+const ContentControl = lazy(() => import('./modules/admin/pages/ContentControl'))
+const ContentDetailPage = lazy(() => import('./modules/admin/pages/ContentDetailPage'))
+const CategoryManagementPage = lazy(() => import('./modules/admin/pages/CategoryManagementPage'))
+const FinancialManagement = lazy(() => import('./modules/admin/pages/FinancialManagement'))
+const GiftListPage = lazy(() => import('./modules/admin/pages/GiftListPage'))
+const UserManagement = lazy(() => import('./modules/admin/pages/UserManagement'))
+const AuditLogs = lazy(() => import('./modules/admin/pages/AuditLogs'))
+const NFTModeration = lazy(() => import('./modules/admin/pages/NFTModeration'))
+const VotingManagement = lazy(() => import('./modules/admin/pages/VotingManagement'))
+
+const PlatformSettings = lazy(() => import('./modules/admin/pages/PlatformSettings'))
+const FinancialRules = lazy(() => import('./modules/admin/pages/FinancialRules'))
+const NetworkConfig = lazy(() => import('./modules/admin/pages/NetworkConfig'))
+const LegalSupportSettings = lazy(() => import('./modules/admin/pages/LegalSupportSettings'))
+const WalletOverview = lazy(() => import('./modules/admin/pages/WalletOverview'))
+const EditUser = lazy(() => import('./modules/admin/pages/EditUser'))
+const UserDetailPage = lazy(() => import('./modules/admin/pages/UserDetailPage'))
+const EditSettlement = lazy(() => import('./modules/admin/pages/EditSettlement'))
+const EditCampaign = lazy(() => import('./modules/admin/pages/EditCampaign'))
+const GiftTrash = lazy(() => import('./modules/admin/pages/GiftTrash'))
+const CreateGift = lazy(() => import('./modules/admin/pages/CreateGift'))
+const CampaignCreatePage = lazy(() => import('./modules/admin/pages/CampaignCreatePage'))
+const AdvertiserPanel = lazy(() => import('./modules/admin/pages/AdvertiserPanel'))
+const AdminProfilePage = lazy(() => import('./modules/admin/pages/AdminProfilePage'))
+const MusicManagement = lazy(() => import('./modules/admin/pages/MusicManagement'))
+const GiftHistory = lazy(() => import('./modules/admin/pages/GiftHistory'))
+const WalletTransactions = lazy(() => import('./modules/admin/pages/WalletTransactions'))
+const PromotionSettingsPage = lazy(() => import('./modules/admin/pages/PromotionSettingsPage'))
+const ReportsManagement = lazy(() => import('./modules/admin/pages/ReportsManagement'))
+const KycManagement = lazy(() => import('./modules/admin/pages/KycManagement'))
+const TrendingDealsManagement = lazy(() => import('./modules/admin/pages/TrendingDealsManagement'))
+const AdminAuctionManagement = lazy(() => import('./modules/admin/pages/AdminAuctionManagement'))
+const LocationManagement = lazy(() => import('./modules/admin/pages/LocationManagement'))
+const UserCreatePage = lazy(() => import('./modules/admin/pages/UserCreatePage'))
+
 // Public transparency pages
-import TransparencyPortal from './modules/public/pages/TransparencyPortal'
-import WinnerAnnouncements from './modules/public/pages/WinnerAnnouncements'
-import VotingStats from './modules/public/pages/VotingStats'
-import PublicAuditLogs from './modules/public/pages/PublicAuditLogs'
+const TransparencyPortal = lazy(() => import('./modules/public/pages/TransparencyPortal'))
+const WinnerAnnouncements = lazy(() => import('./modules/public/pages/WinnerAnnouncements'))
+const VotingStats = lazy(() => import('./modules/public/pages/VotingStats'))
+const PublicAuditLogs = lazy(() => import('./modules/public/pages/PublicAuditLogs'))
 
 // Auth Modules
 import LoginPage from './modules/auth/pages/LoginPage' // admin login
@@ -68,30 +79,31 @@ import LogoutPage from './modules/auth/pages/LogoutPage'
 import ForgotPasswordPage from './modules/user/pages/ForgotPasswordPage'
 import ProtectedRoute from './modules/auth/components/ProtectedRoute'
 import RootRoute from './modules/auth/components/RootRoute'
-import UserCreatePage from './modules/admin/pages/UserCreatePage'
 
 // user module auth
 import SignInPage from './modules/user/pages/SignInPage'
 import SignUpPage from './modules/user/pages/SignUpPage'
-import CampaignsPage from './modules/user/pages/CampaignsPage'
-import CampaignDetailPage from './modules/user/pages/CampaignDetailPage'
-import SearchPage from './modules/user/pages/SearchPage'
-import MessagingPage from './modules/user/pages/messaging/MessagingPage'
-import NotificationsPage from './modules/user/pages/NotificationsPage'
 import GlobalModal from './modules/user/components/common/GlobalModal'
 import SocketHandler from './modules/user/components/common/SocketHandler'
-import CallScreen from './modules/user/components/messaging/CallScreen'
-import AuctionListingPage from './modules/auction/pages/AuctionListingPage'
-import AuctionDetailPage from './modules/auction/pages/AuctionDetailPage'
-import CreateAuctionPage from './modules/auction/pages/CreateAuctionPage'
-import AdminAuctionManagement from './modules/admin/pages/AdminAuctionManagement'
-import LocationManagement from './modules/admin/pages/LocationManagement'
+// CallScreen pulls in the heavy agora-rtc-sdk-ng — keep it in its own async chunk
+const CallScreen = lazy(() => import('./modules/user/components/messaging/CallScreen'))
+const AuctionListingPage = lazy(() => import('./modules/auction/pages/AuctionListingPage'))
+const AuctionDetailPage = lazy(() => import('./modules/auction/pages/AuctionDetailPage'))
+const CreateAuctionPage = lazy(() => import('./modules/auction/pages/CreateAuctionPage'))
 
 // Web3 NFT Pages
-import NFTMarketplacePage from './modules/nft/pages/NFTMarketplacePage'
-import NFTDetailPage from './modules/nft/pages/NFTDetailPage'
-import MyNFTsPage from './modules/nft/pages/MyNFTsPage'
-import ClaimNFTPage from './modules/nft/pages/ClaimNFTPage'
+const NFTMarketplacePage = lazy(() => import('./modules/nft/pages/NFTMarketplacePage'))
+const NFTDetailPage = lazy(() => import('./modules/nft/pages/NFTDetailPage'))
+const MyNFTsPage = lazy(() => import('./modules/nft/pages/MyNFTsPage'))
+const ClaimNFTPage = lazy(() => import('./modules/nft/pages/ClaimNFTPage'))
+
+function RouteLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="w-8 h-8 rounded-full border-2 border-white/20 animate-spin" style={{ borderTopColor: 'var(--color-primary, #f59e0b)' }} />
+    </div>
+  )
+}
 
 export default function App() {
   const { darkMode, initializeAuth, isAuthenticated, authChecked } = useUserStore(useShallow(state => ({
@@ -122,11 +134,12 @@ export default function App() {
 
   // Call push notification hook
   const token = useUserStore(state => state.token)
-  usePushNotifications(token, (message) => {
+  const handlePushMessage = useCallback((message) => {
     console.log("Push Notification: ", message);
     setPushToast(message);
     setTimeout(() => setPushToast(null), 5000);
-  });
+  }, []);
+  usePushNotifications(token, handlePushMessage);
 
   useEffect(() => {
     if (authChecked && isAuthenticated) {
@@ -172,8 +185,11 @@ export default function App() {
         </AnimatePresence>
         <GlobalModal />
         <SocketHandler />
-        <CallScreen />
+        <Suspense fallback={null}>
+          <CallScreen />
+        </Suspense>
         <ErrorBoundary>
+          <Suspense fallback={<RouteLoader />}>
           <Routes>
           <Route path="/admin/login" element={<LoginPage />} />
           {/* root: show home for logged-in User, admin for admin, else user sign-in (no admin here) */}
@@ -208,7 +224,7 @@ export default function App() {
               <Route path="auctions" element={<AuctionListingPage />} />
               <Route path="auctions/:id" element={<AuctionDetailPage />} />
               <Route path="auctions/create" element={<CreateAuctionPage />} />
-              
+
               {/* Web3 NFT Routes */}
               <Route path="nfts" element={<NFTMarketplacePage />} />
               <Route path="nfts/:tokenId" element={<NFTDetailPage />} />
@@ -274,6 +290,7 @@ export default function App() {
             <Route path="logs" element={<PublicAuditLogs />} />
           </Route>
         </Routes>
+          </Suspense>
       </ErrorBoundary>
   </>
 

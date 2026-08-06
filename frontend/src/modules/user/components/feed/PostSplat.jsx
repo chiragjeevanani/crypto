@@ -26,23 +26,23 @@ export default function PostSplat({ type, onComplete }) {
         <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden rounded-2xl">
             <AnimatePresence>
                 {phase === 'fly' && (
-                    <motion.div
-                        key="projectile"
-                        initial={{ bottom: -20, left: '50%', scale: 0.5, opacity: 0 }}
-                        animate={{ bottom: '50%', left: '50%', scale: 1.2, opacity: 1 }}
-                        exit={{ scale: 2, opacity: 0 }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
-                        className="absolute"
-                        style={{ transform: 'translate(-50%, 50%)' }}
-                    >
-                        {type === 'egg' ? (
-                            <div className="w-8 h-10 bg-white border-2 border-zinc-200 rounded-full shadow-lg" />
-                        ) : type === 'tomato' ? (
-                            <div className="w-10 h-10 bg-red-500 rounded-full shadow-lg border-2 border-red-600" />
-                        ) : (
-                            <div className="text-4xl text-amber-500 drop-shadow-lg">💛</div>
-                        )}
-                    </motion.div>
+                    <div className="absolute left-1/2 bottom-1/2" style={{ transform: 'translate(-50%, 50%)' }}>
+                        <motion.div
+                            key="projectile"
+                            initial={{ y: 80, scale: 0.5, opacity: 0 }}
+                            animate={{ y: 0, scale: 1.2, opacity: 1 }}
+                            exit={{ scale: 2, opacity: 0 }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
+                        >
+                            {type === 'egg' ? (
+                                <div className="w-8 h-10 bg-white border-2 border-zinc-200 rounded-full shadow-lg" />
+                            ) : type === 'tomato' ? (
+                                <div className="w-10 h-10 bg-red-500 rounded-full shadow-lg border-2 border-red-600" />
+                            ) : (
+                                <div className="text-4xl text-amber-500 drop-shadow-lg">💛</div>
+                            )}
+                        </motion.div>
+                    </div>
                 )}
 
                 {phase === 'splat' && (

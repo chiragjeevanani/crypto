@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Search, Bell, Wallet, User, MessageCircle, Gavel } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 import { useAuctionStore } from '../../auction/store/useAuctionStore'
 import { searchService } from '../services/searchService'
 import { useFeedStore } from '../store/useFeedStore'
@@ -22,10 +23,16 @@ import ErrorBoundary from '../components/shared/ErrorBoundary'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
 export default function HomePage() {
-    const { 
+    const {
         posts, postsLoading, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
         reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal
-    } = useFeedStore()
+    } = useFeedStore(useShallow((s) => ({
+        posts: s.posts, postsLoading: s.postsLoading, notifications: s.notifications,
+        unreadNotifications: s.unreadNotifications, loadNotifications: s.loadNotifications,
+        markNotificationsRead: s.markNotificationsRead, loadPosts: s.loadPosts, fetchSinglePost: s.fetchSinglePost,
+        reelFeed: s.reelFeed, reelFeedLoading: s.reelFeedLoading, reelFeedError: s.reelFeedError,
+        loadReelFeed: s.loadReelFeed, unreadTotal: s.unreadTotal,
+    })))
     const { user, profile } = useUserStore()
     const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
@@ -181,13 +188,13 @@ export default function HomePage() {
         if (idx >= 0) setActivePostIndex(idx)
     }, [isExplore, currentPostId, filteredExplore])
 
-    const handleOpenFromFeed = (postId) => {
+    const handleOpenFromFeed = useCallback((postId) => {
         const post = posts.find((p) => p.id === postId)
         if (post?.media?.type === 'video') {
             // Navigate into reels tab when a video is tapped from home feed
             navigate(`/home?view=reels&post=${postId}`)
         }
-    }
+    }, [posts, navigate])
 
     return (
         <div>

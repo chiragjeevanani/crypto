@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Heart, MessageCircle, Share2, TrendingUp, Bookmark, Volume2, VolumeX, Sparkles, Music, Eye, Check, MoreHorizontal, AlertCircle, X, Trash2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { useShallow } from 'zustand/react/shallow'
 import PostCard from './PostCard'
 import CampaignReelCard from './CampaignReelCard'
 import { useFeedStore } from '../../store/useFeedStore'
@@ -27,8 +28,18 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
         toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost,
         voteCampaignSubmission, deletePost, toggleFollow, loadComments, addComment, commentsByPostId, commentsLoading,
         globalMute, setGlobalMute
-    } = useFeedStore()
-    const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
+    } = useFeedStore(useShallow((s) => ({
+        toggleLike: s.toggleLike, sendGift: s.sendGift, splats: s.splats, clearSplat: s.clearSplat,
+        earningsByPostId: s.earningsByPostId, savedPostIds: s.savedPostIds, toggleSavePost: s.toggleSavePost,
+        voteCampaignSubmission: s.voteCampaignSubmission, deletePost: s.deletePost, toggleFollow: s.toggleFollow,
+        loadComments: s.loadComments, addComment: s.addComment, commentsByPostId: s.commentsByPostId,
+        commentsLoading: s.commentsLoading, globalMute: s.globalMute, setGlobalMute: s.setGlobalMute,
+    })))
+    const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore(useShallow((s) => ({
+        addGiftEarning: s.addGiftEarning,
+        spendGiftFromSelectedWallet: s.spendGiftFromSelectedWallet,
+        performGift: s.performGift,
+    })))
     const { user, profile } = useUserStore()
     const navigate = useNavigate()
     const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
@@ -801,7 +812,12 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
 const ReelPost = memo(ReelPostInner)
 
 export default function PostFeedModal({ posts = [], startIndex = null, onClose, forceReels = false, onNftAction }) {
-    const { loadReelFeed, reelFeedPage, reelFeedHasMore, reelFeedLoadingMore } = useFeedStore()
+    const { loadReelFeed, reelFeedPage, reelFeedHasMore, reelFeedLoadingMore } = useFeedStore(useShallow((s) => ({
+        loadReelFeed: s.loadReelFeed,
+        reelFeedPage: s.reelFeedPage,
+        reelFeedHasMore: s.reelFeedHasMore,
+        reelFeedLoadingMore: s.reelFeedLoadingMore,
+    })))
     const containerRef = useRef(null)
     const postRefs = useRef({})
     const [activeReelIndex, setActiveReelIndex] = useState(null)
