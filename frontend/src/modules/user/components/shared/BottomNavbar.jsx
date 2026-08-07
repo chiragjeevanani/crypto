@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Home, Wallet, Plus, User, PlayCircle, Gem } from 'lucide-react'
@@ -17,6 +18,35 @@ export default function BottomNavbar() {
     const { unreadNotifications } = useFeedStore()
     const searchParams = new URLSearchParams(location.search)
     const view = searchParams.get('view')
+    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
+
+    useEffect(() => {
+        const handleFocusIn = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                setIsKeyboardOpen(true)
+            }
+        }
+
+        const handleFocusOut = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                setTimeout(() => {
+                    const activeTag = document.activeElement?.tagName
+                    if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && !document.activeElement?.isContentEditable) {
+                        setIsKeyboardOpen(false)
+                    }
+                }, 50)
+            }
+        }
+
+        window.addEventListener('focusin', handleFocusIn)
+        window.addEventListener('focusout', handleFocusOut)
+        return () => {
+            window.removeEventListener('focusin', handleFocusIn)
+            window.removeEventListener('focusout', handleFocusOut)
+        }
+    }, [])
+
+    if (isKeyboardOpen) return null;
 
     const isHomeActive = location.pathname === '/home' && !view
     const isReelsActive = location.pathname === '/home' && view === 'reels'

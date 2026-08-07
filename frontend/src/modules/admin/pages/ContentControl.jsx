@@ -13,6 +13,8 @@ import {
     Activity,
     Plus,
     Trash2,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { AdminPageHeader, AdminStatCard, AdminDataTable } from '../components/shared';
 import { useAdminStore } from '../store/useAdminStore';
@@ -22,6 +24,12 @@ export default function ContentControl() {
     const { posts, loadPosts, handlePostApproval, notify } = useAdminStore();
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, typeFilter]);
 
     const stats = useMemo(() => {
         const pending = posts.filter(p => String(p.status || '').toLowerCase() === 'pending' || !p.status).length;
@@ -47,6 +55,13 @@ export default function ContentControl() {
         }
         return result;
     }, [posts, statusFilter, typeFilter]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredPosts.length / itemsPerPage));
+
+    const paginatedPosts = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredPosts.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredPosts, currentPage, itemsPerPage]);
 
     const bulkApprove = async () => {
         const queue = filteredPosts.filter((post) => !['approved', 'rejected'].includes(String(post.status || '').toLowerCase()));
@@ -147,7 +162,7 @@ export default function ContentControl() {
             <AdminDataTable
                 title="Quarantined Content Ledger"
                 columns={["Content", "Author", "Reason", "Status", "Actions"]}
-                data={filteredPosts.map(post => ({
+                data={paginatedPosts.map(post => ({
                     id: post.id,
                     cells: [
                         <div className="flex items-center gap-3">
@@ -246,6 +261,32 @@ export default function ContentControl() {
                     ]
                 }))}
             />
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between p-4 bg-surface border border-surface rounded-xl mt-4">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">
+                    Displaying {filteredPosts.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(filteredPosts.length, currentPage * itemsPerPage)} of {filteredPosts.length} Nodes
+                </p>
+                <div className="flex gap-2">
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        className="p-2 bg-bg border border-surface rounded-lg text-text disabled:opacity-20 hover:bg-surface2 transition-all cursor-pointer"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center px-4 bg-bg border border-surface rounded-lg text-[10px] font-bold text-text uppercase">
+                        Page {currentPage} / {totalPages}
+                    </div>
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        className="p-2 bg-bg border border-surface rounded-lg text-text disabled:opacity-20 hover:bg-surface2 transition-all cursor-pointer"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

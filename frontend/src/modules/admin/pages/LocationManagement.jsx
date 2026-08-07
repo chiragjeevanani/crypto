@@ -11,7 +11,9 @@ import {
     Search, 
     ArrowLeft,
     Save,
-    X
+    X,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminStore } from '../store/useAdminStore';
@@ -203,6 +205,12 @@ export default function LocationManagement() {
     const [expandedCode, setExpandedCode] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [confirmState, setConfirmState] = useState({ open: false, code: null });
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
 
     const [form, setForm] = useState({
         name: '',
@@ -259,6 +267,9 @@ export default function LocationManagement() {
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         c.code.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const totalPages = Math.max(1, Math.ceil(filteredCountries.length / itemsPerPage));
+    const paginatedCountries = filteredCountries.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
         <div className="space-y-8 pb-20">
@@ -408,8 +419,8 @@ export default function LocationManagement() {
                         </div>
 
                         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                            {filteredCountries.length > 0 ? (
-                                filteredCountries.map(country => (
+                            {paginatedCountries.length > 0 ? (
+                                paginatedCountries.map(country => (
                                     <CountryCard 
                                         key={country.code}
                                         country={country}
@@ -429,6 +440,32 @@ export default function LocationManagement() {
                                     <p className="text-xs font-black text-muted uppercase tracking-[0.3em] opacity-40">No matching nodes discovered</p>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Pagination */}
+                        <div className="flex items-center justify-between p-4 bg-surface border border-surface rounded-xl mt-6">
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">
+                                Displaying {filteredCountries.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(filteredCountries.length, currentPage * itemsPerPage)} of {filteredCountries.length} Nodes
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    className="p-2 bg-bg border border-surface rounded-lg text-text disabled:opacity-20 hover:bg-surface2 transition-all cursor-pointer"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <div className="flex items-center px-4 bg-bg border border-surface rounded-lg text-[10px] font-bold text-text uppercase">
+                                    Page {currentPage} / {totalPages}
+                                </div>
+                                <button
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    className="p-2 bg-bg border border-surface rounded-lg text-text disabled:opacity-20 hover:bg-surface2 transition-all cursor-pointer"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -4,6 +4,7 @@ import { useFeedStore } from '../../store/useFeedStore'
 import { useCallStore } from '../../store/useCallStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { getSocket } from '../../../../socket'
+import { messageService } from '../../../../services/messageService'
 
 export default function SocketHandler() {
     const { profile, isAuthenticated, authChecked, logout, updateReferralCount } = useUserStore()
@@ -95,6 +96,17 @@ export default function SocketHandler() {
             useWalletStore.getState().loadTransactions()
         }
 
+        const onNewMessageAlert = (payload) => {
+            console.log('[Socket] New message alert received:', payload)
+            if (payload && typeof payload.unreadCount === 'number') {
+                useFeedStore.getState().setUnreadMessagesTotal(payload.unreadCount)
+            } else {
+                messageService.getUnreadTotal().then((count) => {
+                    useFeedStore.getState().setUnreadMessagesTotal(count)
+                }).catch(console.error)
+            }
+        }
+
         socket.on('connect', onReconnect)
         socket.on('reconnect', onReconnect)
         socket.on('notification', onNotification)
@@ -103,6 +115,7 @@ export default function SocketHandler() {
         socket.on('force_logout', onForceLogout)
         socket.on('referral_count_update', onReferralCountUpdate)
         socket.on('withdrawal_update', onWithdrawalUpdate)
+        socket.on('new_message_alert', onNewMessageAlert)
         
         socket.on('incoming_call', onIncomingCall)
         socket.on('call_accepted', onCallAccepted)
@@ -118,6 +131,7 @@ export default function SocketHandler() {
             socket.off('force_logout', onForceLogout)
             socket.off('referral_count_update', onReferralCountUpdate)
             socket.off('withdrawal_update', onWithdrawalUpdate)
+            socket.off('new_message_alert', onNewMessageAlert)
             
             socket.off('incoming_call', onIncomingCall)
             socket.off('call_accepted', onCallAccepted)

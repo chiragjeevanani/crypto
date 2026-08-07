@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gavel, CheckCircle, XCircle, Eye, ExternalLink, Clock, X, Play, CreditCard, History } from 'lucide-react';
+import { Gavel, CheckCircle, XCircle, Eye, ExternalLink, Clock, X, Play, CreditCard, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AdminPageHeader, AdminDataTable, ConfirmModal } from '../components/shared';
 import { auctionService } from '../../auction/services/auctionService';
 import { useFeedStore } from '../../user/store/useFeedStore';
@@ -263,6 +263,18 @@ export default function AdminAuctionManagement() {
     const [filterStatus, setFilterStatus] = useState('pending');
     const [selectedAuction, setSelectedAuction] = useState(null);
     const [confirmState, setConfirmState] = useState({ open: false, id: null, action: null });
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterStatus]);
+
+    const totalPages = Math.max(1, Math.ceil(auctions.length / itemsPerPage));
+    const paginatedAuctions = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return auctions.slice(startIndex, startIndex + itemsPerPage);
+    }, [auctions, currentPage, itemsPerPage]);
 
     const loadAuctions = async () => {
         setLoading(true);
@@ -387,7 +399,7 @@ export default function AdminAuctionManagement() {
             <AdminDataTable 
                 title="Auction Ledger"
                 columns={["Media", "Title", "Creator", "Base/Live Price", "Leading Bidder", "Timeline", "Actions"]}
-                data={auctions.map(auction => ({
+                data={paginatedAuctions.map(auction => ({
                     id: auction._id,
                     cells: [
                         <div className="w-12 h-12 rounded-lg bg-black overflow-hidden border border-surface relative flex items-center justify-center">
@@ -473,6 +485,32 @@ export default function AdminAuctionManagement() {
                     ]
                 }))}
             />
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between p-4 bg-surface border border-surface rounded-xl mt-4">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">
+                    Displaying {auctions.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(auctions.length, currentPage * itemsPerPage)} of {auctions.length} Nodes
+                </p>
+                <div className="flex gap-2">
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        className="p-2 bg-bg border border-surface rounded-lg text-text disabled:opacity-20 hover:bg-surface2 transition-all cursor-pointer"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center px-4 bg-bg border border-surface rounded-lg text-[10px] font-bold text-text uppercase">
+                        Page {currentPage} / {totalPages}
+                    </div>
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        className="p-2 bg-bg border border-surface rounded-lg text-text disabled:opacity-20 hover:bg-surface2 transition-all cursor-pointer"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
 
             {auctions.length === 0 && !loading && (
                 <div className="py-20 text-center bg-surface/30 border border-dashed border-surface rounded-2xl">

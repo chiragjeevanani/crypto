@@ -25,21 +25,29 @@ import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 export default function HomePage() {
     const {
         posts, postsLoading, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
-        reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal
+        reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal, setUnreadMessagesTotal
     } = useFeedStore(useShallow((s) => ({
         posts: s.posts, postsLoading: s.postsLoading, notifications: s.notifications,
         unreadNotifications: s.unreadNotifications, loadNotifications: s.loadNotifications,
         markNotificationsRead: s.markNotificationsRead, loadPosts: s.loadPosts, fetchSinglePost: s.fetchSinglePost,
         reelFeed: s.reelFeed, reelFeedLoading: s.reelFeedLoading, reelFeedError: s.reelFeedError,
-        loadReelFeed: s.loadReelFeed, unreadTotal: s.unreadTotal,
+        loadReelFeed: s.loadReelFeed, unreadTotal: s.unreadMessagesTotal, setUnreadMessagesTotal: s.setUnreadMessagesTotal,
     })))
     const { user, profile } = useUserStore()
     const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
+
     useEffect(() => { 
         loadPosts() 
-    }, [loadPosts])
+        loadNotifications()
+    }, [loadPosts, loadNotifications])
+
+    useEffect(() => {
+        messageService.getUnreadTotal()
+            .then(setUnreadMessagesTotal)
+            .catch(console.error)
+    }, [setUnreadMessagesTotal])
     const [searchParams] = useSearchParams()
     const [query, setQuery] = useState('')
     const [postFilter, setPostFilter] = useState('all')
