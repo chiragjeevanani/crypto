@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { X, Moon, Sun, Settings, Shield, FileText, Phone, ChevronRight, ArrowLeft, Clock3, Play, Bookmark, Send, Eye, EyeOff, Heart, MessageCircle, Music, Globe } from 'lucide-react'
@@ -45,6 +45,8 @@ export default function ProfilePage() {
     const [connectionsOpen, setConnectionsOpen] = useState(null)
     const [editAvatar, setEditAvatar] = useState(null)
     const [editAvatarFile, setEditAvatarFile] = useState(null)
+    const [showAvatarSourcePicker, setShowAvatarSourcePicker] = useState(false)
+    const fileInputRef = useRef(null)
     const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
     const [passwordMsg, setPasswordMsg] = useState('')
     const [screenTimeLabel, setScreenTimeLabel] = useState('0m')
@@ -592,24 +594,107 @@ export default function ProfilePage() {
                                             className={`w-full h-full object-cover ${(!editAvatar && !profile.avatar) ? 'opacity-60' : ''}`} 
                                         />
                                     </div>
-                                    <label className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer" style={{ background: 'var(--color-primary)', color: '#fff' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (typeof window.flutter_inappwebview !== 'undefined') {
+                                                setShowAvatarSourcePicker(true);
+                                            } else {
+                                                fileInputRef.current?.click();
+                                            }
+                                        }}
+                                        className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer border-none outline-none"
+                                        style={{ background: 'var(--color-primary)', color: '#fff' }}
+                                    >
                                         Change Profile Photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0]
-                                                if (!file) return
-                                                if (editAvatar && editAvatar.startsWith('blob:')) {
-                                                    URL.revokeObjectURL(editAvatar)
-                                                }
-                                                setEditAvatarFile(file)
-                                                setEditAvatar(URL.createObjectURL(file))
-                                            }}
-                                        />
-                                    </label>
+                                    </button>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (!file) return
+                                            if (editAvatar && editAvatar.startsWith('blob:')) {
+                                                URL.revokeObjectURL(editAvatar)
+                                            }
+                                            setEditAvatarFile(file)
+                                            setEditAvatar(URL.createObjectURL(file))
+                                        }}
+                                    />
                                 </div>
+
+                                <AnimatePresence>
+                                    {showAvatarSourcePicker && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            className="fixed inset-0 z-[110] bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+                                            onClick={() => setShowAvatarSourcePicker(false)}
+                                        >
+                                            <motion.div
+                                                initial={{ y: 50, opacity: 0 }}
+                                                animate={{ y: 0, opacity: 1 }}
+                                                exit={{ y: 50, opacity: 0 }}
+                                                className="w-full max-w-sm rounded-3xl p-6 text-center border shadow-2xl flex flex-col gap-3"
+                                                style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <h3 className="font-bold text-base mb-2" style={{ color: 'var(--color-text)' }}>Select Photo Source</h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        setShowAvatarSourcePicker(false);
+                                                        try {
+                                                            const result = await window.flutter_inappwebview.callHandler('openCamera');
+                                                            if (result && result.success && result.base64) {
+                                                                const byteCharacters = atob(result.base64);
+                                                                const byteNumbers = new Array(byteCharacters.length);
+                                                                for (let i = 0; i < byteCharacters.length; i++) {
+                                                                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                                                }
+                                                                const byteArray = new Uint8Array(byteNumbers);
+                                                                const blob = new Blob([byteArray], { type: result.mimeType || 'image/jpeg' });
+                                                                const file = new File([blob], result.fileName || 'camera-photo.jpg', { type: result.mimeType || 'image/jpeg' });
+                                                                
+                                                                if (editAvatar && editAvatar.startsWith('blob:')) {
+                                                                    URL.revokeObjectURL(editAvatar);
+                                                                }
+                                                                setEditAvatarFile(file);
+                                                                setEditAvatar(URL.createObjectURL(file));
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Flutter camera picker error:', err);
+                                                        }
+                                                    }}
+                                                    className="w-full py-3 bg-amber-500 text-white rounded-xl font-semibold text-sm active:scale-95 transition-transform"
+                                                >
+                                                    Take Photo (Camera)
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowAvatarSourcePicker(false);
+                                                        fileInputRef.current?.click();
+                                                    }}
+                                                    className="w-full py-3 rounded-xl font-semibold text-sm active:scale-95 transition-transform"
+                                                    style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                                                >
+                                                    Choose from Library (Files)
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowAvatarSourcePicker(false)}
+                                                    className="w-full py-3 rounded-xl font-bold text-sm text-zinc-400 active:scale-95 transition-transform mt-2"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </motion.div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                                 <div>
                                     <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-sub)' }}>Display Name</label>
                                     <input {...register('username')} className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />

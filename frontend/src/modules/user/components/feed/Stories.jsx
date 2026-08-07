@@ -205,27 +205,27 @@ export default function Stories() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [storyMedia]);
 
-    const startStoryCamera = async (facingMode = storyFacingMode) => {
+    const startStoryCamera = async (facingMode = storyFacingMode, mode = captureMode) => {
         stopStoryCamera();
         try {
             let stream;
+            const videoConstraints = {
+                facingMode: facingMode,
+                width: { ideal: 1080 },
+                height: { ideal: 1920 },
+                aspectRatio: { ideal: 0.5625 }
+            };
+            const requestAudio = mode === 'video';
+
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: facingMode,
-                        width: { ideal: 720 },
-                        height: { ideal: 1280 },
-                    },
-                    audio: true // Need audio for video recording
+                    video: videoConstraints,
+                    audio: requestAudio
                 });
             } catch (audioErr) {
-                console.warn('Could not get audio track, falling back to video-only:', audioErr);
+                console.warn('Could not get stream with audio, falling back to video-only:', audioErr);
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: facingMode,
-                        width: { ideal: 720 },
-                        height: { ideal: 1280 },
-                    },
+                    video: videoConstraints,
                     audio: false
                 });
             }
@@ -252,7 +252,7 @@ export default function Stories() {
     const flipStoryCamera = async () => {
         const next = storyFacingMode === 'user' ? 'environment' : 'user';
         setStoryFacingMode(next);
-        await startStoryCamera(next);
+        await startStoryCamera(next, captureMode);
     };
 
     const captureStoryPhoto = () => {
@@ -276,7 +276,7 @@ export default function Stories() {
             const url = URL.createObjectURL(file);
             setStoryMedia(url);
             setIsVideoPreview(false);
-            setIsEditorOpen(false);
+            setIsEditorOpen(true);
             setUploadError('');
             stopStoryCamera();
             setIsCameraMode(false);
@@ -350,7 +350,7 @@ export default function Stories() {
             const url = URL.createObjectURL(blob);
             setStoryMedia(url);
             setIsVideoPreview(true);
-            setIsEditorOpen(false);
+            setIsEditorOpen(true);
             setUploadError('');
             
             // Clean up stream *after* processing so that MediaRecorder doesn't break
@@ -387,7 +387,7 @@ export default function Stories() {
             setIsMuted(true);
             if (!storyMedia) {
                 setIsCameraMode(true);
-                startStoryCamera();
+                startStoryCamera(storyFacingMode, captureMode);
             }
         } else if (!isCreatingStory) {
             setIsCameraMode(false);
@@ -395,6 +395,14 @@ export default function Stories() {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isCreatingStory, storyMedia]);
+
+    // Restart camera when switching capture modes to toggle mic audio tracks
+    useEffect(() => {
+        if (isCameraMode && isCreatingStory && !storyMedia) {
+            startStoryCamera(storyFacingMode, captureMode);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [captureMode]);
 
 
     // Set audio track time on story change
@@ -1426,7 +1434,7 @@ export default function Stories() {
                                         autoPlay
                                         muted
                                         playsInline
-                                        style={{ transform: storyFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                                        style={{ transform: `${storyFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'} scale(1.25)` }}
                                     />
                                     {/* Flip camera button */}
                                     <button
@@ -1749,7 +1757,7 @@ export default function Stories() {
                                 )}
                                 <input
                                     type="file"
-                                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                                    accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];

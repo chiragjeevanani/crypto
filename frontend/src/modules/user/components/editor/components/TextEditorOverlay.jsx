@@ -14,6 +14,8 @@ const TextEditorOverlay = ({ initialText = '', initialStyleIndex = 0, initialAli
             textareaRef.current.focus();
             // Move cursor to end
             textareaRef.current.setSelectionRange(text.length, text.length);
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
         }
     }, []);
 
@@ -72,18 +74,26 @@ const TextEditorOverlay = ({ initialText = '', initialStyleIndex = 0, initialAli
             </div>
 
             {/* Input Area */}
-            <div className="flex-1 flex flex-col items-center justify-center relative">
+            <div className="flex-1 flex flex-col items-center justify-center relative w-full max-w-[90%] mx-auto">
                 <textarea
                     ref={textareaRef}
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => {
+                        setText(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
                     placeholder="Type something..."
-                    className="w-full bg-transparent outline-none resize-none placeholder:text-white/20 transition-all duration-300 min-h-[100px]"
+                    className="w-full bg-transparent outline-none resize-none placeholder:text-white/20 transition-all duration-300 overflow-hidden"
                     style={{
                         ...currentStyle,
                         fontSize: '36px',
                         textAlign: alignment,
                         lineHeight: '1.2',
+                        height: 'auto',
+                        minHeight: '60px',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word',
                     }}
                 />
             </div>

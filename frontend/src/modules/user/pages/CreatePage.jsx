@@ -1141,6 +1141,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
     // Restore video from IndexedDB on mount
     const restoreVideo = async () => {
+      let hasVideo = false;
       try {
         const cachedSequence = await getSequenceFromCache();
         if (cachedSequence && cachedSequence.length > 0) {
@@ -1152,6 +1153,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             setVideoDuration(hydratedSequence.reduce((a,c) => a+c.duration, 0));
             setVideoFile(hydratedSequence[0].file);
             setPreviewUrl(hydratedSequence[0].url);
+            hasVideo = true;
             return;
         }
 
@@ -1159,10 +1161,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         if (cachedVideo) {
             setVideoFile(cachedVideo);
             setPreviewUrl(URL.createObjectURL(cachedVideo));
+            hasVideo = true;
         }
       } catch (err) {
         console.error("Error restoring from cache:", err);
       } finally {
+        // If no cached video was found, reset stale stageStack to camera
+        // to prevent blank preview/editor screens on page refresh.
+        if (!hasVideo) {
+          setStageStack(['camera']);
+          setRecordStatus('idle');
+          setRecordedSeconds(0);
+          localStorage.removeItem('create_stageStack');
+          localStorage.removeItem('create_recordStatus');
+          localStorage.removeItem('create_recordedSeconds');
+        }
         // Give React a moment to process the state updates above before triggering the safety check
         setTimeout(() => {
           setIsRestoring(false);
@@ -2576,6 +2589,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             captionLanguage: postState.captionLanguage,
             isAgeRestricted: postState.audienceControls,
             location: postState.location,
+            taggedUsers: postState.taggedUsers || [],
             music: (selectedSound && selectedSound._id && selectedSound._id !== 'sound-original') ? {
                 _id: selectedSound._id,
                 title: selectedSound.title,
@@ -3072,6 +3086,25 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     popStage();
   };
 
+  const handleSelectTag = (username) => {
+    setPostState((currentState) => {
+      const currentTags = currentState.taggedUsers || [];
+      const exists = currentTags.includes(username);
+      let newTags;
+      if (exists) {
+        newTags = currentTags.filter(u => u !== username);
+      } else {
+        newTags = [...currentTags, username];
+      }
+      return {
+        ...currentState,
+        taggedUsers: newTags,
+      };
+    });
+    setMentionSearchQuery('');
+    popStage();
+  };
+
   const handleEditorTabClick = (tabId) => {
     setEditorTab(tabId);
 
@@ -3367,17 +3400,20 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
       {recordStatus !== 'recorded' && (
         <div className={themedModeTabsClass}>
-          {['photo', 'camera'].map((mode) => (
+          {[
+            { id: 'photo', label: 'Post' },
+            { id: 'camera', label: 'Reel' }
+          ].map((mode) => (
             <button
-              key={mode}
+              key={mode.id}
               type="button"
-              onClick={() => setCaptureMode(mode)}
+              onClick={() => setCaptureMode(mode.id)}
               className={`relative capitalize ${
-                captureMode === mode ? 'text-white' : ''
+                captureMode === mode.id ? 'text-white' : ''
               }`}
             >
-              {mode}
-              {captureMode === mode && (
+              {mode.label}
+              {captureMode === mode.id && (
                 <span className="absolute left-1/2 top-[calc(100%+8px)] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white" />
               )}
             </button>
@@ -3411,7 +3447,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               width: 100% !important;
               height: 100% !important;
               object-fit: cover !important;
-              ${facingMode === 'user' ? 'transform: scaleX(-1) !important;' : ''}
+              transform: ${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'} scale(1.25) !important;
             }
           `}
         </style>
@@ -3642,7 +3678,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   }
                 }}
                 style={{
-                  transform: `rotate(${editorSettings.rotation}deg)`,
+                  transform: `rotate(${editorSettings.rotation}deg) ${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'}`,
                   filter: getCombinedFilter()
                 }}
               />
@@ -4235,12 +4271,22 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           <video 
               ref={previewVideoRef}
               src={previewUrl} 
-              className="h-full w-full object-cover transition-all duration-500" 
+              className="h-full w-full object-cover transition-all duration-500 cursor-pointer" 
               loop 
+              autoPlay
               muted={isVideoMuted}
               playsInline
+              onClick={() => {
+                  if (previewVideoRef.current) {
+                      if (previewVideoRef.current.paused) {
+                          previewVideoRef.current.play().catch(err => console.warn("Video preview play failed:", err));
+                      } else {
+                          previewVideoRef.current.pause();
+                      }
+                  }
+              }}
               style={{ 
-                  transform: `rotate(${editorSettings.rotation}deg)`,
+                  transform: `rotate(${editorSettings.rotation}deg) ${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'}`,
                   transformOrigin: 'center center',
                   filter: getCombinedFilter()
               }}
@@ -4616,13 +4662,18 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             }}
             className="flex w-full items-center justify-between rounded-[10px] bg-white px-4 py-4 active:opacity-80"
           >
-            <div className="flex items-center gap-3">
-              <span className="text-black/45">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className="text-black/45 shrink-0">
                 <BiAt size={18} />
               </span>
-              <span className="text-[15px]">Tag people</span>
+              <span className="text-[15px] font-medium text-black">Tag people</span>
+              {postState.taggedUsers && postState.taggedUsers.length > 0 && (
+                <span className="text-[13px] text-[#fe2c55] font-semibold truncate max-w-[180px]">
+                  ({postState.taggedUsers.join(', ')})
+                </span>
+              )}
             </div>
-            <BiChevronRight size={18} className="text-black/35" />
+            <BiChevronRight size={18} className="text-black/35 shrink-0" />
           </button>
         </div>
 
@@ -4974,7 +5025,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 <button
                   key={u.id || u._id}
                   type="button"
-                  onClick={() => handle && handleSelectMention(handle)}
+                  onClick={() => handle && (isTagging ? handleSelectTag(handle) : handleSelectMention(handle))}
                   className="flex w-full items-center gap-3 px-4 py-3 active:bg-black/[0.03]"
                 >
                   <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black/5">
@@ -4990,6 +5041,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     <span className="truncate text-[15px] font-semibold">@{handle || 'user'}</span>
                     <span className="truncate text-[13px] text-black/45">{displayName}</span>
                   </div>
+                  {isTagging && (postState.taggedUsers || []).includes(handle) && (
+                    <div className="h-5 w-5 rounded-full bg-[#fe2c55] flex items-center justify-center text-white shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                  )}
                 </button>
                 );
               })}
@@ -5075,6 +5133,20 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   );
 
   const renderActiveStage = () => {
+    // While IndexedDB is being read, show a dark loading screen to prevent
+    // a blank white flash when the stageStack references preview/editor
+    // but previewUrl hasn't loaded yet.
+    if (isRestoring) {
+      return (
+        <div className="flex flex-1 items-center justify-center bg-black">
+          <div
+            className="w-10 h-10 rounded-full border-4 border-white/10 animate-spin"
+            style={{ borderTopColor: '#fe2c55' }}
+          />
+        </div>
+      );
+    }
+
     const currentStage = (Array.isArray(stageStack) && stageStack.length > 0) 
       ? stageStack[stageStack.length - 1] 
       : 'camera';

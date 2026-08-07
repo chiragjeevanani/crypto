@@ -272,37 +272,66 @@ const ImageEditor = ({ file, onClose, onSave }) => {
         // Drawing Layer Merge
         if (drawingCanvasRef.current) {
             const drawingCanvas = drawingCanvasRef.current.getCanvas();
-            ctx.drawImage(drawingCanvas, 0, 0, pixelCrop.width, pixelCrop.height);
+            const sx = (cropBox.x / 100) * drawingCanvas.width;
+            const sy = (cropBox.y / 100) * drawingCanvas.height;
+            const sWidth = (cropBox.w / 100) * drawingCanvas.width;
+            const sHeight = (cropBox.h / 100) * drawingCanvas.height;
+            
+            ctx.drawImage(
+                drawingCanvas,
+                sx,
+                sy,
+                sWidth,
+                sHeight,
+                0,
+                0,
+                pixelCrop.width,
+                pixelCrop.height
+            );
         }
 
         // Text Layer Merge
+        const displayedWidth = imgRef.current?.clientWidth || 1;
+        const displayedHeight = imgRef.current?.clientHeight || 1;
+        const displayCropX = (cropBox.x / 100) * displayedWidth;
+        const displayCropY = (cropBox.y / 100) * displayedHeight;
+        const displayCropW = (cropBox.w / 100) * displayedWidth;
+        const scaleFactor = pixelCrop.width / (displayCropW || 1);
+
         texts.forEach(text => {
             const style = TEXT_STYLES[text.styleIndex || 0].style;
-            ctx.font = `bold ${text.fontSize}px sans-serif`;
+            const finalFontSize = (text.fontSize || 24) * scaleFactor;
+            ctx.font = `bold ${finalFontSize}px ${style.fontFamily || 'sans-serif'}`;
             ctx.textAlign = text.alignment || 'center';
             
+            // Map text position relative to cropped container
+            const relX = text.x - displayCropX;
+            const relY = text.y - displayCropY;
+            const textX = relX * scaleFactor;
+            const textY = relY * scaleFactor;
+
             const lines = text.content.split('\n');
-            const lineHeight = text.fontSize * 1.2;
+            const lineHeight = finalFontSize * 1.2;
             
             lines.forEach((line, index) => {
                 const textWidth = ctx.measureText(line).width;
-                const canvasX = text.alignment === 'left' ? text.x : 
-                               text.alignment === 'right' ? text.x + textWidth : 
-                               text.x + (textWidth / 2);
-                const canvasY = text.y + (index * lineHeight);
+                const canvasX = text.alignment === 'left' ? textX : 
+                               text.alignment === 'right' ? textX + textWidth : 
+                               textX + (textWidth / 2);
+                const canvasY = textY + (index * lineHeight);
 
                 // Draw styled background if exists
                 if (style.backgroundColor && style.backgroundColor !== 'transparent') {
                     ctx.fillStyle = style.backgroundColor;
-                    const padding = 12;
-                    const radius = style.borderRadius ? parseInt(style.borderRadius) : 0;
+                    const padding = 12 * scaleFactor;
+                    const radius = style.borderRadius ? parseInt(style.borderRadius) * scaleFactor : 0;
                     
-                    const bgX = text.alignment === 'left' ? text.x - padding : 
-                               text.alignment === 'right' ? text.x - textWidth - padding : 
-                               text.x - (textWidth / 2) - padding;
-                    const bgY = canvasY - text.fontSize;
+                    const bgX = text.alignment === 'left' ? textX - padding : 
+                               text.alignment === 'right' ? textX - textWidth - padding : 
+                               textX - (textWidth / 2) - padding;
+                    const bgY = canvasY - finalFontSize;
                     const bgW = textWidth + padding * 2;
-                    const bgH = text.fontSize + padding;
+                    const bgH = finalFontSize + padding;
 
                     ctx.beginPath();
                     ctx.moveTo(bgX + radius, bgY);
@@ -321,7 +350,7 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                 // Draw text with shadow if exists
                 if (style.textShadow) {
                     ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                    ctx.shadowBlur = 4;
+                    ctx.shadowBlur = 4 * scaleFactor;
                 }
 
                 ctx.fillStyle = style.color || 'white';
@@ -371,7 +400,7 @@ const ImageEditor = ({ file, onClose, onSave }) => {
             const newText = {
                 id: Date.now(),
                 ...textData,
-                x: 100, y: 150,
+                x: 50, y: 100, // Safe default starting point relative to parent container
                 fontSize: 32,
                 scale: 1,
                 rotate: 0
@@ -380,6 +409,10 @@ const ImageEditor = ({ file, onClose, onSave }) => {
         }
         setEditingText(null);
         setActiveTool(null);
+    };
+
+    const handleUpdateTextPosition = (id, x, y) => {
+        setTexts(prev => prev.map(t => t.id === id ? { ...t, x, y } : t));
     };
 
     const activeFilterCSS = FILTERS.find(f => f.id === selectedFilter)?.filter || 'none';
@@ -495,22 +528,23 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                                 );
                             })}
                         </div>
-                    </div>
-                    
-                    {/* Layer 1: Drawing */}
-                    <DrawingCanvas 
-                        ref={drawingCanvasRef}
-                        isActive={activeTool === 'draw'}
-                        color="white"
-                    />
 
-                    {/* Layer 2: Text */}
-                    <TextLayer 
-                        texts={texts}
-                        activeId={activeTextId}
-                        onSelectText={setActiveTextId}
-                        onEditText={(text) => setEditingText(text)}
-                    />
+                        {/* Layer 1: Drawing */}
+                        <DrawingCanvas 
+                            ref={drawingCanvasRef}
+                            isActive={activeTool === 'draw'}
+                            color="white"
+                        />
+
+                        {/* Layer 2: Text */}
+                        <TextLayer 
+                            texts={texts}
+                            activeId={activeTextId}
+                            onSelectText={setActiveTextId}
+                            onEditText={(text) => setEditingText(text)}
+                            onUpdateTextPosition={handleUpdateTextPosition}
+                        />
+                    </div>
                 </div>
             </div>
 
