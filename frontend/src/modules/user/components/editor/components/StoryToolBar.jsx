@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Type, PenTool, Hash, Music, Save, Download, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const StoryToolBar = ({ activeTool, onSelectTool, onClose, onSave, onClearDrawing }) => {
+const StoryToolBar = ({ activeTool, onSelectTool, onClose, onSave, onClearDrawing, onDownload }) => {
     return (
         <motion.div
             initial={{ y: -50, opacity: 0 }}
@@ -52,6 +52,7 @@ const StoryToolBar = ({ activeTool, onSelectTool, onClose, onSave, onClearDrawin
                     <SlidersHorizontal size={20} />
                 </button>
                 <button 
+                    onClick={onDownload}
                     className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 flex items-center justify-center active:scale-95"
                 >
                     <Download size={20} />

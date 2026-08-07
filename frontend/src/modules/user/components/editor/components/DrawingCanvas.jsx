@@ -46,6 +46,38 @@ const DrawingCanvas = forwardRef(({ color = '#ffffff', brushSize = 5, isActive =
 
     const startDrawing = (e) => {
         if (!isActive) return;
+
+        const canvas = canvasRef.current;
+        if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            if (canvas.width > 0 && canvas.height > 0) {
+                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+            }
+
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = brushSize;
+            ctxRef.current = ctx;
+
+            if (tempCanvas.width > 0 && tempCanvas.height > 0) {
+                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+            }
+        } else if (!ctxRef.current) {
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = brushSize;
+            ctxRef.current = ctx;
+        }
+
         const { offsetX, offsetY } = getCoordinates(e);
         ctxRef.current.beginPath();
         ctxRef.current.moveTo(offsetX, offsetY);

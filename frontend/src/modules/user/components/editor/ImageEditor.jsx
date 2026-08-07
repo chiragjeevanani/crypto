@@ -17,8 +17,11 @@ const ImageEditor = ({ file, onClose, onSave }) => {
     const aspectMap = {
         '9/16': 9 / 16,
         '1:1': 1,
+        '1/1': 1,
         '4:5': 4 / 5,
-        '16:9': 16 / 9
+        '4/5': 4 / 5,
+        '16:9': 16 / 9,
+        '16/9': 16 / 9
     };
     
     const getAspectValue = useCallback((selectedAspectStr) => {
@@ -196,9 +199,35 @@ const ImageEditor = ({ file, onClose, onSave }) => {
             const image = new Image();
             image.addEventListener('load', () => resolve(image));
             image.addEventListener('error', (error) => reject(error));
-            image.setAttribute('crossOrigin', 'anonymous');
+            if (url && !url.startsWith('blob:')) {
+                image.setAttribute('crossOrigin', 'anonymous');
+            }
             image.src = url;
         });
+
+    const handleDownload = async () => {
+        const img = imgRef.current;
+        if (!img) return;
+        const oW = img.naturalWidth || img.clientWidth;
+        const oH = img.naturalHeight || img.clientHeight;
+        const pixelCrop = {
+            x: Math.round((cropBox.x / 100) * oW),
+            y: Math.round((cropBox.y / 100) * oH),
+            width: Math.round((cropBox.w / 100) * oW),
+            height: Math.round((cropBox.h / 100) * oH),
+        };
+        const editedFile = await getCroppedImg(imageSrc, pixelCrop, rotation, selectedFilter, texts);
+        if (!editedFile) return;
+
+        const downloadUrl = URL.createObjectURL(editedFile);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `story_${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+    };
 
     const getCroppedImg = async (imageSrc, pixelCrop, rotation, filterId, texts) => {
         const image = await createImage(imageSrc);
@@ -361,7 +390,6 @@ const ImageEditor = ({ file, onClose, onSave }) => {
             onPointerUp={handlePointerUp}
             className="flex flex-col h-full bg-black text-white relative overflow-hidden"
         >
-            {/* Immersive Tool Bar */}
             <StoryToolBar 
                 activeTool={activeTool}
                 onSelectTool={(tool) => {
@@ -370,11 +398,11 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                 }}
                 onClose={onClose}
                 onClearDrawing={() => drawingCanvasRef.current?.clear()}
+                onDownload={handleDownload}
             />
 
-            {/* Aspect Ratio Controls */}
             {!activeTool && (
-                <div className="absolute top-24 left-0 right-0 flex justify-center gap-2 z-40">
+                <div className="absolute top-24 left-0 right-0 flex justify-start sm:justify-center gap-2 z-40 overflow-x-auto no-scrollbar px-4 w-full flex-nowrap shrink-0">
                     {[
                         { label: 'Original', value: 'original' },
                         { label: 'Free', value: 'free' },
@@ -395,7 +423,7 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                                 e.stopPropagation();
                                 handleAspectChange(ratio.value);
                             }}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-lg backdrop-blur-md ${aspect === ratio.value ? 'bg-white text-black scale-105' : 'bg-black/60 text-white border border-white/20 hover:bg-black/80'}`}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-lg backdrop-blur-md shrink-0 ${aspect === ratio.value ? 'bg-white text-black scale-105' : 'bg-black/60 text-white border border-white/20 hover:bg-black/80'}`}
                         >
                             {ratio.label}
                         </button>
@@ -426,7 +454,8 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                                 boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)',
                                 cursor: 'move',
                                 touchAction: 'none',
-                                zIndex: 10
+                                zIndex: 10,
+                                pointerEvents: activeTool ? 'none' : 'auto'
                             }}
                             onPointerDown={(e) => handlePointerDown(e, 'drag')}
                         >
@@ -485,12 +514,12 @@ const ImageEditor = ({ file, onClose, onSave }) => {
                 </div>
             </div>
 
-            {/* Tool Specific Selectors */}
             {activeTool === 'filters' && (
                 <FilterSelector 
                     selectedFilter={selectedFilter}
                     onSelectFilter={setSelectedFilter}
                     imageSrc={imageSrc}
+                    onClose={() => setActiveTool(null)}
                 />
             )}
 

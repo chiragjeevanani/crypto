@@ -1,8 +1,12 @@
 import React from 'react';
-import { ChevronRight, ArrowRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useUserStore } from '../../../store/useUserStore';
 
 const StoryBottomActions = ({ onApply }) => {
+    const { profile } = useUserStore();
+    const avatarUrl = profile?.avatar || "/person.png";
+
     return (
         <motion.div
             initial={{ y: 50, opacity: 0 }}
@@ -12,11 +16,14 @@ const StoryBottomActions = ({ onApply }) => {
             <div className="flex items-center gap-2 group cursor-pointer active:scale-95 transition-transform">
                 <div className="w-12 h-12 rounded-full border-2 border-primary p-0.5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600">
                     <div className="w-full h-full rounded-full bg-zinc-900 border-2 border-black flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
                             <img 
-                                src="https://ui-avatars.com/api/?name=User&background=333&color=fff" 
+                                src={avatarUrl} 
                                 alt="Your Story" 
                                 className="w-full h-full rounded-full object-cover"
+                                onError={(e) => {
+                                    e.target.src = "/person.png";
+                                }}
                             />
                         </div>
                     </div>

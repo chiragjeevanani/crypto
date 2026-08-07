@@ -20,6 +20,14 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
         }
     }, [search])
 
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+        };
+    }, []);
+
     const fetchMusic = async (query) => {
         setLoading(true)
         try {

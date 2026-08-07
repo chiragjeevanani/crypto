@@ -32,12 +32,13 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
         toggleLike, sendGift, toggleFollow, addComment, loadComments, 
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
         savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost,
-        globalMute: isMuted, setGlobalMute: setIsMuted
+        globalMute: isMuted, setGlobalMute: setIsMuted, isStoryOpen
     } = useFeedStore()
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
     const navigate = useNavigate()
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
+    const [isIntersecting, setIsIntersecting] = useState(false)
     const [giftError, setGiftError] = useState('')
     const [commentsOpen, setCommentsOpen] = useState(false)
     const [shareOpen, setShareOpen] = useState(false)
@@ -82,6 +83,11 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     const audioRef = useRef(null)
     const containerRef = useRef(null)
 
+    const isMutedRef = useRef(isMuted)
+    useEffect(() => {
+        isMutedRef.current = isMuted
+    }, [isMuted])
+
     useEffect(() => {
         if (videoRef.current) videoRef.current.muted = isMuted;
         if (audioRef.current) audioRef.current.muted = isMuted;
@@ -106,62 +112,69 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
     }
 
     useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    const recordView = useFeedStore.getState().recordView
-                    if (recordView && !post.isOwned) recordView(post.id)
+        if (isIntersecting && !isStoryOpen) {
+            const recordView = useFeedStore.getState().recordView
+            if (recordView && !post.isOwned) recordView(post.id)
 
-                    const playMedia = async () => {
-                        try {
-                            if (videoRef.current) {
-                                videoRef.current.muted = isMuted;
-                                // Handle buffering
-                                if (videoRef.current.readyState >= 2) {
-                                    await videoRef.current.play();
-                                } else {
-                                    videoRef.current.oncanplay = async () => {
-                                        await videoRef.current?.play();
-                                    };
-                                }
-                            }
-                            if (audioRef.current) {
-                                audioRef.current.muted = isMuted;
-                                if (post.musicStartTime) audioRef.current.currentTime = post.musicStartTime;
-                                if (audioRef.current.readyState >= 2) {
-                                    await audioRef.current.play();
-                                } else {
-                                    audioRef.current.oncanplay = async () => {
-                                        await audioRef.current?.play();
-                                    };
-                                }
-                            }
-                        } catch (err) {
-                            if (err.name === 'NotAllowedError' && !isMuted) {
-                                setIsMuted(true);
-                                videoRef.current?.play().catch(() => {});
-                                audioRef.current?.play().catch(() => {});
-                            }
-                        }
-                    };
-                    playMedia();
-                } else {
+            const playMedia = async () => {
+                try {
                     if (videoRef.current) {
-                        videoRef.current.pause()
-                        videoRef.current.oncanplay = null
+                        videoRef.current.muted = isMutedRef.current;
+                        if (videoRef.current.readyState >= 2) {
+                            await videoRef.current.play();
+                        } else {
+                            videoRef.current.oncanplay = async () => {
+                                if (isIntersecting && !isStoryOpen) {
+                                    await videoRef.current?.play();
+                                }
+                            };
+                        }
                     }
                     if (audioRef.current) {
-                        audioRef.current.pause()
-                        audioRef.current.oncanplay = null
+                        audioRef.current.muted = isMutedRef.current;
+                        if (post.musicStartTime) audioRef.current.currentTime = post.musicStartTime;
+                        if (audioRef.current.readyState >= 2) {
+                            await audioRef.current.play();
+                        } else {
+                            audioRef.current.oncanplay = async () => {
+                                if (isIntersecting && !isStoryOpen) {
+                                    await audioRef.current?.play();
+                                }
+                            };
+                        }
+                    }
+                } catch (err) {
+                    if (err.name === 'NotAllowedError' && !isMutedRef.current) {
+                        setIsMuted(true);
+                        videoRef.current?.play().catch(() => {});
+                        audioRef.current?.play().catch(() => {});
                     }
                 }
+            };
+            playMedia();
+        } else {
+            if (videoRef.current) {
+                videoRef.current.pause()
+                videoRef.current.oncanplay = null
+            }
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current.oncanplay = null
+            }
+        }
+    }, [isIntersecting, isStoryOpen, post.id, post.musicStartTime])
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsIntersecting(entry.isIntersecting)
             },
             { threshold: 0.3 }
         )
 
         if (containerRef.current) observer.observe(containerRef.current)
         return () => observer.disconnect()
-    }, [post.id, post.musicStartTime])
+    }, [post.id])
 
     useEffect(() => {
         if (commentsOpen && post.id) loadComments(post.id)

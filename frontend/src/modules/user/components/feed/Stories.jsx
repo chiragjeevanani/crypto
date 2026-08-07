@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, X, Music, Check, Camera, Image as ImageIcon, Type, Sparkles, Volume2, VolumeX, Play, Pause, ArrowRight, MoreVertical, Download, Trash2 } from 'lucide-react';
+import { Plus, X, Music, Check, Camera, Image as ImageIcon, Type, Sparkles, Volume2, VolumeX, Play, Pause, ArrowRight, MoreVertical, Download, Trash2, Scissors } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { storyService } from '../../services/storyService';
 import { musicService } from '../../services/musicService';
@@ -49,7 +49,8 @@ export default function Stories() {
     const viewerVideoRef = useRef(null);
     const lastAudioId = useRef(null);
     const previewAudioRef = useRef(null);
-    const { globalMute: isMuted, setGlobalMute: setIsMuted } = useFeedStore();
+    const previewVideoRef = useRef(null);
+    const { globalMute: isMuted, setGlobalMute: setIsMuted, setIsStoryOpen } = useFeedStore();
     const [isCreatingStory, setIsCreatingStory] = useState(false);
     const [storyMedia, setStoryMedia] = useState(null);
     const [storyFile, setStoryFile] = useState(null);
@@ -59,7 +60,7 @@ export default function Stories() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [storyCaption, setStoryCaption] = useState('');
     const [storyMusicStartTime, setStoryMusicStartTime] = useState(0);
-    const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+    const [isPlayingPreview, setIsPlayingPreview] = useState(true);
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [storyFilter, setStoryFilter] = useState('none');
@@ -80,6 +81,109 @@ export default function Stories() {
     const [originalFile, setOriginalFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+    const [captionBgMode, setCaptionBgMode] = useState('solid'); // 'transparent', 'semi', 'solid'
+    const [isDraggingCaption, setIsDraggingCaption] = useState(false);
+    const dragOffsetRef = useRef({ x: 0, y: 0 });
+    
+    const [isDraggingMusic, setIsDraggingMusic] = useState(false);
+    const musicDragOffsetRef = useRef({ x: 0, y: 0 });
+
+    const handleMusicPointerDown = (e) => {
+        e.stopPropagation();
+        const bounds = e.currentTarget.getBoundingClientRect();
+        musicDragOffsetRef.current = {
+            x: e.clientX - (bounds.left + bounds.width / 2),
+            y: e.clientY - (bounds.top + bounds.height / 2)
+        };
+        setIsDraggingMusic(true);
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+
+    const handleMusicPointerMove = (e) => {
+        if (!isDraggingMusic) return;
+        const canvasBounds = storyCanvasRef.current?.getBoundingClientRect();
+        if (!canvasBounds) return;
+
+        const x = (e.clientX - musicDragOffsetRef.current.x - canvasBounds.left) / canvasBounds.width;
+        const y = (e.clientY - musicDragOffsetRef.current.y - canvasBounds.top) / canvasBounds.height;
+
+        setMusicPos({
+            x: Math.min(Math.max(x, 0.05), 0.95),
+            y: Math.min(Math.max(y, 0.05), 0.95)
+        });
+    };
+
+    const handleMusicPointerUp = (e) => {
+        setIsDraggingMusic(false);
+        e.currentTarget.releasePointerCapture(e.pointerId);
+    };
+
+    const getCaptionBgStyle = () => {
+        if (captionBgMode === 'transparent') return 'transparent';
+        if (captionBgMode === 'semi') {
+            const hex = captionBgColor || '#000000';
+            const r = parseInt(hex.slice(1, 3), 16) || 0;
+            const g = parseInt(hex.slice(3, 5), 16) || 0;
+            const b = parseInt(hex.slice(5, 7), 16) || 0;
+            return `rgba(${r}, ${g}, ${b}, 0.6)`;
+        }
+        return captionBgColor;
+    };
+
+    const handleCaptionPointerDown = (e) => {
+        e.stopPropagation();
+        const bounds = e.currentTarget.getBoundingClientRect();
+        dragOffsetRef.current = {
+            x: e.clientX - (bounds.left + bounds.width / 2),
+            y: e.clientY - (bounds.top + bounds.height / 2)
+        };
+        setIsDraggingCaption(true);
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+
+    const handleCaptionPointerMove = (e) => {
+        if (!isDraggingCaption) return;
+        const canvasBounds = storyCanvasRef.current?.getBoundingClientRect();
+        if (!canvasBounds) return;
+
+        const x = (e.clientX - dragOffsetRef.current.x - canvasBounds.left) / canvasBounds.width;
+        const y = (e.clientY - dragOffsetRef.current.y - canvasBounds.top) / canvasBounds.height;
+
+        setCaptionPos({
+            x: Math.min(Math.max(x, 0.05), 0.95),
+            y: Math.min(Math.max(y, 0.05), 0.95)
+        });
+    };
+
+    const handleCaptionPointerUp = (e) => {
+        setIsDraggingCaption(false);
+        e.currentTarget.releasePointerCapture(e.pointerId);
+    };
+
+    // Auto resize textarea height when typing
+    useEffect(() => {
+        if (captionRef.current) {
+            captionRef.current.style.height = 'auto';
+            captionRef.current.style.height = captionRef.current.scrollHeight + 'px';
+        }
+    }, [storyCaption, isTextMode]);
+
+    useEffect(() => {
+        if (storyMedia) {
+            setIsPlayingPreview(true);
+            if (previewVideoRef.current) {
+                previewVideoRef.current.currentTime = 0;
+                previewVideoRef.current.play().catch(() => {});
+            }
+        }
+    }, [storyMedia]);
+
+    useEffect(() => {
+        setIsStoryOpen(isCreatingStory || selectedStory !== null);
+        return () => {
+            setIsStoryOpen(false);
+        };
+    }, [isCreatingStory, selectedStory, setIsStoryOpen]);
 
     // Live camera states
     const [isCameraMode, setIsCameraMode] = useState(false);
@@ -168,7 +272,11 @@ export default function Stories() {
             if (!blob) return;
             const file = new File([blob], 'story-photo.jpg', { type: 'image/jpeg' });
             setOriginalFile(file);
-            setIsEditorOpen(true);
+            setStoryFile(file);
+            const url = URL.createObjectURL(file);
+            setStoryMedia(url);
+            setIsVideoPreview(false);
+            setIsEditorOpen(false);
             setUploadError('');
             stopStoryCamera();
             setIsCameraMode(false);
@@ -238,7 +346,11 @@ export default function Stories() {
             const blob = new Blob(storyRecordedChunksRef.current, { type: selectedType || 'video/mp4' });
             const file = new File([blob], 'story-video.mp4', { type: blob.type });
             setOriginalFile(file);
-            setIsEditorOpen(true);
+            setStoryFile(file);
+            const url = URL.createObjectURL(blob);
+            setStoryMedia(url);
+            setIsVideoPreview(true);
+            setIsEditorOpen(false);
             setUploadError('');
             
             // Clean up stream *after* processing so that MediaRecorder doesn't break
@@ -285,19 +397,25 @@ export default function Stories() {
     }, [isCreatingStory, storyMedia]);
 
 
+    // Set audio track time on story change
     useEffect(() => {
         const currentStory = selectedStory?.stories?.[activeStoryIndex];
         if (currentStory && currentStory.musicData && viewerAudioRef.current) {
-            const audio = viewerAudioRef.current;
-            const targetTime = currentStory.musicStartTime || 0;
-            
-            // Re-sync if it's a new audio source or new story
-            audio.currentTime = targetTime;
+            viewerAudioRef.current.currentTime = currentStory.musicStartTime || 0;
+        }
+    }, [activeStoryIndex, selectedStory]);
+
+    // Control play/pause for audio
+    useEffect(() => {
+        const audio = viewerAudioRef.current;
+        if (audio) {
             if (isPlayingViewer) {
                 audio.play().catch(() => {});
+            } else {
+                audio.pause();
             }
         }
-    }, [selectedStory, activeStoryIndex, isPlayingViewer]);
+    }, [isPlayingViewer, activeStoryIndex, selectedStory]);
 
     // Control story viewer video playback via isPlayingViewer
     useEffect(() => {
@@ -309,6 +427,16 @@ export default function Stories() {
             video.pause();
         }
     }, [isPlayingViewer, selectedStory, activeStoryIndex]);
+
+    useEffect(() => {
+        if (isMoreMenuOpen || isDeleting) {
+            setIsPlayingViewer(false);
+        } else {
+            if (selectedStory) {
+                setIsPlayingViewer(true);
+            }
+        }
+    }, [isMoreMenuOpen, isDeleting, selectedStory]);
 
 
 
@@ -525,13 +653,64 @@ export default function Stories() {
         isDraggingImageRef.current = false;
     };
 
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1080;
+                    const MAX_HEIGHT = 1920;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            const compressedFile = new File([blob], file.name, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(compressedFile);
+                        } else {
+                            resolve(file);
+                        }
+                    }, 'image/jpeg', 0.82);
+                };
+            };
+        });
+    };
+
     const handleCreateStory = async () => {
         if (!storyFile || isSubmitting) return;
         setIsSubmitting(true);
         setUploadError('');
         try {
+            let fileToUpload = storyFile;
+            if (storyFile.type.startsWith('image/')) {
+                fileToUpload = await compressImage(storyFile);
+            }
             await storyService.createStory({
-                file: storyFile,
+                file: fileToUpload,
                 caption: storyCaption,
                 musicId: storyMusic?._id || storyMusic?.id,
                 musicTrackId: storyMusic?.title || 'none',
@@ -550,27 +729,36 @@ export default function Stories() {
                 music: storyMusic,
             });
             await loadStories();
-            setIsCreatingStory(false);
-            setStoryMedia(null);
-            setStoryMusic(null);
-            setStoryFile(null);
-            setStoryCaption('');
-            if (captionRef.current) captionRef.current.innerText = '';
-            setStoryMusicStartTime(0);
-            setStoryFilter('none');
-            setShowFilters(false);
-            setIsVideoPreview(false);
-            setIsTextMode(false);
-            setCaptionPos({ x: 0.5, y: 0.8 });
-            setMusicPos({ x: 0.5, y: 0.25 });
-            setImageScale(1);
-            setImagePosition({ x: 0, y: 0 });
-            setStoryAspect('9/16');
+            resetStoryCreatorState();
         } catch (err) {
             setUploadError(err?.message || 'Failed to share. Try again.');
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const resetStoryCreatorState = () => {
+        setIsCreatingStory(false);
+        if (storyMedia && storyMedia.startsWith('blob:')) {
+            URL.revokeObjectURL(storyMedia);
+        }
+        setStoryMedia(null);
+        setStoryMusic(null);
+        setStoryFile(null);
+        setOriginalFile(null);
+        setStoryCaption('');
+        if (captionRef.current) captionRef.current.innerText = '';
+        setStoryMusicStartTime(0);
+        setStoryFilter('none');
+        setShowFilters(false);
+        setIsVideoPreview(false);
+        setIsTextMode(false);
+        setCaptionPos({ x: 0.5, y: 0.8 });
+        setMusicPos({ x: 0.5, y: 0.25 });
+        setImageScale(1);
+        setImagePosition({ x: 0, y: 0 });
+        setStoryAspect('9/16');
+        setCaptionBgMode('solid');
     };
 
     const handleDeleteStory = async () => {
@@ -595,25 +783,57 @@ export default function Stories() {
     const handleDownload = async () => {
         const current = selectedStory?.stories?.[activeStoryIndex];
         if (!current?.mediaUrl) return;
+        
+        let downloadUrl = current.mediaUrl;
+        setIsMoreMenuOpen(false);
+
+        // If it's a Cloudinary URL, inject 'fl_attachment' to trigger download directly in browser (bypasses CORS)
+        if (downloadUrl.includes('cloudinary.com') && downloadUrl.includes('/upload/')) {
+            try {
+                const formattedUrl = downloadUrl.replace('/upload/', '/upload/fl_attachment/');
+                const a = document.createElement('a');
+                a.href = formattedUrl;
+                a.target = '_blank';
+                a.click();
+                return;
+            } catch (err) {
+                console.error('Cloudinary download redirect failed', err);
+            }
+        }
+
         try {
-            const response = await fetch(current.mediaUrl);
+            const response = await fetch(downloadUrl);
+            if (!response.ok) throw new Error('Network response was not ok');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `story-${current.id}.${current.mediaType === 'video' ? 'mp4' : 'jpg'}`;
+            a.download = `story-${current.id || Date.now()}.${current.mediaType === 'video' ? 'mp4' : 'jpg'}`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            setIsMoreMenuOpen(false);
         } catch (err) {
-            console.error('Download failed', err);
+            console.error('Download fetch failed, attempting fallback direct link', err);
+            try {
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.download = `story-${current.id || Date.now()}.${current.mediaType === 'video' ? 'mp4' : 'jpg'}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (fallbackErr) {
+                console.error('All download attempts failed', fallbackErr);
+                alert('Download failed. Please try again.');
+            }
         }
     };
 
     const goToNextStory = () => {
         if (!selectedStory?.stories || !selectedStory.stories.length) return;
+        setIsPlayingViewer(true);
         if (activeStoryIndex < selectedStory.stories.length - 1) {
             setActiveStoryIndex((prev) => prev + 1);
         } else {
@@ -624,6 +844,7 @@ export default function Stories() {
 
     const goToPrevStory = () => {
         if (!selectedStory?.stories || !selectedStory.stories.length) return;
+        setIsPlayingViewer(true);
         if (activeStoryIndex > 0) {
             setActiveStoryIndex((prev) => prev - 1);
         } else {
@@ -759,7 +980,7 @@ export default function Stories() {
                                                 key={`story-img-${selectedStory.stories[activeStoryIndex].id}`}
                                                 src={optimizeCloudinaryUrl(selectedStory.stories[activeStoryIndex].mediaUrl || '', { width: 1080, quality: '80' })}
                                                 alt="Story Content"
-                                                className="w-full h-full object-cover"
+                                                className={`w-full h-full ${(selectedStory.stories[activeStoryIndex].aspectRatio || '9/16') === '9/16' ? 'object-cover' : 'object-contain'}`}
                                                 style={{
                                                     filter: FILTERS.find(f => f.name.toLowerCase() === (selectedStory.stories[activeStoryIndex].filter || 'none').toLowerCase())?.value || 'none',
                                                     transform: `scale(${selectedStory.stories[activeStoryIndex].mediaScale || 1}) translate(${(selectedStory.stories[activeStoryIndex].mediaPosition?.x || 0)}%, ${(selectedStory.stories[activeStoryIndex].mediaPosition?.y || 0)}%)`,
@@ -797,14 +1018,26 @@ export default function Stories() {
                                         className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"
                                     >
                                         {idx === activeStoryIndex && (
-                                            <motion.div
-                                                key={idx}
-                                                initial={{ width: '0%' }}
-                                                animate={{ width: '100%' }}
-                                                transition={{ duration: 5, ease: 'linear' }}
-                                                onAnimationComplete={goToNextStory}
-                                                className="h-full bg-white"
-                                            />
+                                            <>
+                                                <style>{`
+                                                    @keyframes storyProgress {
+                                                        from { width: 0%; }
+                                                        to { width: 100%; }
+                                                    }
+                                                `}</style>
+                                                <div
+                                                    key={idx}
+                                                    className="h-full bg-white"
+                                                    style={{
+                                                        animationName: 'storyProgress',
+                                                        animationDuration: '5s',
+                                                        animationTimingFunction: 'linear',
+                                                        animationPlayState: isPlayingViewer ? 'running' : 'paused',
+                                                        animationFillMode: 'forwards'
+                                                    }}
+                                                    onAnimationEnd={goToNextStory}
+                                                />
+                                            </>
                                         )}
                                     </div>
                                 ))}
@@ -894,16 +1127,16 @@ export default function Stories() {
                                         onClick={() => setIsMoreMenuOpen(false)}
                                     >
                                         <div 
-                                            className="w-full bg-surface2 rounded-t-3xl overflow-hidden pb-8"
+                                            className="w-full bg-zinc-900 rounded-t-3xl overflow-hidden pb-8 border-t border-white/10"
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            <div className="w-12 h-1 bg-muted/20 rounded-full mx-auto my-3" />
+                                            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-3" />
                                             <div className="flex flex-col">
                                                 <button
                                                     onClick={handleDownload}
                                                     className="w-full py-4 px-6 flex items-center gap-4 hover:bg-white/5 text-white border-b border-white/5 active:bg-white/10"
                                                 >
-                                                    <Download size={20} />
+                                                    <Download size={20} className="text-zinc-400" />
                                                     <span className="font-semibold text-sm">Download Content</span>
                                                 </button>
                                                 {selectedStory.user?.isMe && (
@@ -920,7 +1153,7 @@ export default function Stories() {
                                                 )}
                                                 <button
                                                     onClick={() => setIsMoreMenuOpen(false)}
-                                                    className="w-full py-4 px-6 flex items-center justify-center font-bold text-sm text-muted uppercase tracking-widest mt-2"
+                                                    className="w-full py-4 px-6 flex items-center justify-center font-bold text-sm text-zinc-400 hover:text-white uppercase tracking-widest mt-2"
                                                 >
                                                     Cancel
                                                 </button>
@@ -943,14 +1176,14 @@ export default function Stories() {
                                         <motion.div
                                             initial={{ scale: 0.9, opacity: 0 }}
                                             animate={{ scale: 1, opacity: 1 }}
-                                            className="bg-surface2 w-full max-w-sm rounded-3xl p-6 text-center"
+                                            className="bg-zinc-900 w-full max-w-sm rounded-3xl p-6 text-center border border-white/10"
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <div className="w-16 h-16 bg-red-400/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
                                                 <Trash2 size={32} />
                                             </div>
                                             <h3 className="text-white font-bold text-lg mb-2">Delete Story?</h3>
-                                            <p className="text-muted text-sm mb-6">This action cannot be undone. Your story will be permanently removed.</p>
+                                            <p className="text-zinc-400 text-sm mb-6">This action cannot be undone. Your story will be permanently removed.</p>
                                             <div className="flex flex-col gap-3">
                                                 <button
                                                     onClick={handleDeleteStory}
@@ -960,7 +1193,7 @@ export default function Stories() {
                                                 </button>
                                                 <button
                                                     onClick={() => setIsDeleting(false)}
-                                                    className="w-full py-3 bg-white/5 text-muted rounded-xl font-bold text-sm hover:bg-white/10 transition-colors"
+                                                    className="w-full py-3 bg-white/10 text-white hover:bg-white/20 rounded-xl font-bold text-sm transition-colors"
                                                 >
                                                     Cancel
                                                 </button>
@@ -996,7 +1229,7 @@ export default function Stories() {
                                     if (storyMedia) {
                                         setShowDiscardConfirm(true);
                                     } else {
-                                        setIsCreatingStory(false);
+                                        resetStoryCreatorState();
                                     }
                                 }} 
                                 className="w-10 h-10 bg-black/40 rounded-full flex items-center justify-center text-white backdrop-blur-md"
@@ -1037,8 +1270,65 @@ export default function Stories() {
                                 >
                                     <Type size={20} />
                                 </button>
+                                {storyMedia && (
+                                    <button
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-white backdrop-blur-md ${
+                                            isEditorOpen ? 'bg-primary' : 'bg-black/40'
+                                        }`}
+                                        type="button"
+                                        onClick={() => {
+                                            setIsEditorOpen(true);
+                                            setShowFilters(false);
+                                            setShowMusicPicker(false);
+                                            setIsTextMode(false);
+                                        }}
+                                    >
+                                        <Scissors size={20} />
+                                    </button>
+                                )}
                             </div>
                         </div>
+
+                        {/* Top Text Editing Toolbar */}
+                        {isCreatingStory && isTextMode && (
+                            <div className="absolute top-20 left-0 right-0 flex justify-center items-center gap-6 z-50 bg-black/70 py-2.5 px-4 backdrop-blur-md border-b border-white/10">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-white/70 font-semibold">Text</span>
+                                    <input
+                                        type="color"
+                                        value={captionTextColor}
+                                        onChange={(e) => setCaptionTextColor(e.target.value)}
+                                        className="w-8 h-8 rounded-full overflow-hidden border border-white/20 p-0 bg-transparent cursor-pointer"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (captionBgMode === 'transparent') setCaptionBgMode('semi');
+                                        else if (captionBgMode === 'semi') setCaptionBgMode('solid');
+                                        else setCaptionBgMode('transparent');
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 flex items-center gap-1.5 text-white hover:bg-white/20 transition-all font-bold text-xs"
+                                    title="Toggle background style"
+                                >
+                                    <span>Bg Mode:</span>
+                                    {captionBgMode === 'transparent' && <span className="font-normal opacity-50">None</span>}
+                                    {captionBgMode === 'semi' && <span className="px-1 py-0.5 bg-white/30 text-white rounded text-[10px]">A (Semi)</span>}
+                                    {captionBgMode === 'solid' && <span className="px-1 py-0.5 bg-white text-black rounded text-[10px]">A (Solid)</span>}
+                                </button>
+                                {captionBgMode !== 'transparent' && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-white/70 font-semibold">Bg Color</span>
+                                        <input
+                                            type="color"
+                                            value={captionBgColor}
+                                            onChange={(e) => setCaptionBgColor(e.target.value)}
+                                            className="w-8 h-8 rounded-full overflow-hidden border border-white/20 p-0 bg-transparent cursor-pointer"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Story Content Area */}
                         <div
@@ -1072,13 +1362,40 @@ export default function Stories() {
                                         }}
                                     >
                                         {isVideoPreview ? (
-                                            <video
-                                                src={storyMedia}
-                                                className="w-full h-full object-cover"
-                                                autoPlay
-                                                muted
-                                                loop
-                                            />
+                                            <div 
+                                                className="w-full h-full relative cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (previewVideoRef.current) {
+                                                        if (isPlayingPreview) {
+                                                            previewVideoRef.current.pause();
+                                                            setIsPlayingPreview(false);
+                                                        } else {
+                                                            previewVideoRef.current.play().catch(() => {});
+                                                            setIsPlayingPreview(true);
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <video
+                                                    ref={previewVideoRef}
+                                                    src={storyMedia}
+                                                    className="w-full h-full object-cover pointer-events-none"
+                                                    autoPlay
+                                                    muted
+                                                    loop
+                                                    style={{
+                                                        filter: FILTERS.find(f => f.name.toLowerCase() === storyFilter.toLowerCase())?.value || 'none',
+                                                    }}
+                                                />
+                                                {!isPlayingPreview && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/35 pointer-events-none z-10">
+                                                        <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 active:scale-95 transition-transform">
+                                                            <Play size={24} className="text-white translate-x-0.5" fill="currentColor" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
                                             <div 
                                                 onPointerDown={handleImagePointerDown}
@@ -1089,7 +1406,7 @@ export default function Stories() {
                                             >
                                                 <img
                                                     src={storyMedia}
-                                                    className="w-full h-full object-cover pointer-events-none select-none"
+                                                    className={`w-full h-full ${storyAspect === '9/16' ? 'object-cover' : 'object-contain'} pointer-events-none select-none`}
                                                     alt="Preview"
                                                     style={{
                                                         filter: FILTERS.find(f => f.name.toLowerCase() === storyFilter.toLowerCase())?.value || 'none',
@@ -1177,27 +1494,25 @@ export default function Stories() {
                                 </div>
                             )}
 
-                            {/* Music Sticker Overlay */}
+                            {/* Music Sticker Overlay using pointer events */}
                             {storyMusic && (
-                                <motion.div
-                                    drag
-                                    dragMomentum={false}
-                                    onDragEnd={(_, info) => {
-                                        const bounds = storyCanvasRef.current?.getBoundingClientRect();
-                                        if (!bounds) return;
-                                        const x = (info.point.x - bounds.left) / bounds.width;
-                                        const y = (info.point.y - bounds.top) / bounds.height;
-                                        setMusicPos({
-                                            x: Math.min(Math.max(x, 0.05), 0.95),
-                                            y: Math.min(Math.max(y, 0.05), 0.95),
-                                        });
+                                <div
+                                    onPointerDown={handleMusicPointerDown}
+                                    onPointerMove={handleMusicPointerMove}
+                                    onPointerUp={handleMusicPointerUp}
+                                    onPointerCancel={handleMusicPointerUp}
+                                    style={{
+                                        position: 'absolute',
+                                        left: `${musicPos.x * 100}%`,
+                                        top: `${musicPos.y * 100}%`,
+                                        transform: 'translate(-50%, -50%)',
+                                        zIndex: 50,
+                                        touchAction: 'none'
                                     }}
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/90 text-black px-4 py-3 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-2xl skew-y-[-2deg] z-[50] cursor-move touch-none"
+                                    className="bg-white/90 text-black px-4 py-3 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-2xl skew-y-[-2deg] cursor-move select-none"
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
+                                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg animate-pulse">
                                         <Music size={14} />
                                     </div>
                                     <div className="flex-1 min-w-0 pointer-events-none">
@@ -1212,89 +1527,74 @@ export default function Stories() {
                                             </div>
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
                             )}
 
-                            {/* Draggable, editable caption (no separate input field) */}
-                            {isTextMode && (
-                                <motion.div
-                                    drag
-                                    dragMomentum={false}
-                                    onDragEnd={(_, info) => {
-                                        const bounds = storyCanvasRef.current?.getBoundingClientRect();
-                                        if (!bounds) return;
-                                        const x = (info.point.x - bounds.left) / bounds.width;
-                                        const y = (info.point.y - bounds.top) / bounds.height;
-                                        setCaptionPos({
-                                            x: Math.min(Math.max(x, 0.05), 0.95),
-                                            y: Math.min(Math.max(y, 0.05), 0.95),
-                                        });
-                                    }}
+                            {/* Draggable, editable caption using pointer events */}
+                            {(isTextMode || storyCaption.trim() !== '') && (
+                                <div
+                                    onPointerDown={handleCaptionPointerDown}
+                                    onPointerMove={handleCaptionPointerMove}
+                                    onPointerUp={handleCaptionPointerUp}
+                                    onPointerCancel={handleCaptionPointerUp}
                                     style={{
                                         position: 'absolute',
                                         left: `${captionPos.x * 100}%`,
                                         top: `${captionPos.y * 100}%`,
                                         transform: 'translate(-50%, -50%)',
-                                        backgroundColor: captionBgColor,
+                                        backgroundColor: getCaptionBgStyle(),
                                         minWidth: '150px',
                                         maxWidth: '80%',
                                         zIndex: 100,
                                         touchAction: 'none'
                                     }}
-                                    className="p-3 rounded-2xl shadow-2xl cursor-grab active:cursor-grabbing group"
-                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-3 rounded-2xl shadow-2xl cursor-grab active:cursor-grabbing group select-none"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isTextMode) {
+                                            setIsTextMode(true);
+                                            setShowFilters(false);
+                                            setShowMusicPicker(false);
+                                        }
+                                    }}
                                 >
-                                    <textarea
-                                        ref={captionRef}
-                                        placeholder="Type your text"
-                                        value={storyCaption}
-                                        onChange={(e) => {
-                                            setStoryCaption(e.target.value);
-                                            e.target.style.height = 'auto';
-                                            e.target.style.height = e.target.scrollHeight + 'px';
-                                        }}
-                                        className="w-full bg-transparent outline-none border-none resize-none text-center font-bold text-lg placeholder:text-white/40 overflow-hidden leading-tight"
-                                        style={{
-                                            color: captionTextColor,
-                                            height: 'auto',
-                                            minHeight: '1.5em',
-                                            display: 'block',
-                                            width: '100%',
-                                        }}
-                                        rows={1}
-                                        autoFocus
-                                    />
+                                    {isTextMode ? (
+                                        <textarea
+                                            ref={captionRef}
+                                            placeholder="Type your text"
+                                            value={storyCaption}
+                                            onChange={(e) => {
+                                                setStoryCaption(e.target.value);
+                                                e.target.style.height = 'auto';
+                                                e.target.style.height = e.target.scrollHeight + 'px';
+                                            }}
+                                            className="w-full bg-transparent outline-none border-none resize-none text-center font-bold text-lg placeholder:text-white/40 overflow-hidden leading-tight pointer-events-auto"
+                                            style={{
+                                                color: captionTextColor,
+                                                minHeight: '1.5em',
+                                                display: 'block',
+                                                width: '100%',
+                                            }}
+                                            rows={1}
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <div 
+                                            className="w-full text-center font-bold text-lg break-words whitespace-pre-wrap leading-tight pointer-events-none"
+                                            style={{ color: captionTextColor }}
+                                        >
+                                            {storyCaption}
+                                        </div>
+                                    )}
                                     {/* Drag handle */}
                                     <div className="absolute -top-3 -right-3 w-6 h-6 bg-white rounded-full flex items-center justify-center text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Plus size={14} className="rotate-45" />
                                     </div>
-                                </motion.div>
+                                </div>
                             )}
 
-                            {/* Text + Filter + Color controls */}
+                            {/* Filter controls */}
                             <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2 z-10">
-                                {isTextMode && (
-                                    <div className="flex items-center justify-between gap-2 mt-1">
-                                        <label className="flex items-center gap-1 text-[10px] text-white/70">
-                                            <span>Text</span>
-                                            <input
-                                                type="color"
-                                                value={captionTextColor}
-                                                onChange={(e) => setCaptionTextColor(e.target.value)}
-                                                className="w-6 h-6 rounded-full overflow-hidden border-none p-0 bg-transparent"
-                                            />
-                                        </label>
-                                        <label className="flex items-center gap-1 text-[10px] text-white/70">
-                                            <span>Background</span>
-                                            <input
-                                                type="color"
-                                                value={captionBgColor}
-                                                onChange={(e) => setCaptionBgColor(e.target.value)}
-                                                className="w-6 h-6 rounded-full overflow-hidden border-none p-0 bg-transparent"
-                                            />
-                                        </label>
-                                    </div>
-                                )}
                                 {storyMedia && !isVideoPreview && (
                                     <div className="flex flex-col gap-1.5 mb-2">
                                         <div className="flex items-center gap-3">
@@ -1363,12 +1663,25 @@ export default function Stories() {
                                                     <div 
                                                         className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${storyFilter === f.name.toLowerCase() ? 'border-primary ring-2 ring-primary/20' : 'border-white/10'}`}
                                                     >
-                                                        <img 
-                                                            src={storyMedia || "https://i.pravatar.cc/150"} 
-                                                            className="w-full h-full object-cover"
-                                                            style={{ filter: f.value }}
-                                                            alt=""
-                                                        />
+                                                        {storyMedia && isVideoPreview ? (
+                                                            <video 
+                                                                src={storyMedia} 
+                                                                className="w-full h-full object-cover"
+                                                                style={{ filter: f.value }}
+                                                                muted
+                                                                playsInline
+                                                            />
+                                                        ) : (
+                                                            <img 
+                                                                src={storyMedia || "/person.png"} 
+                                                                className="w-full h-full object-cover"
+                                                                style={{ filter: f.value }}
+                                                                alt=""
+                                                                onError={(e) => {
+                                                                    e.target.src = "/person.png";
+                                                                }}
+                                                            />
+                                                        )}
                                                     </div>
                                                     <span className={`text-[9px] font-bold ${storyFilter === f.name.toLowerCase() ? 'text-primary' : 'text-white/60'}`}>
                                                         {f.name}
@@ -1419,7 +1732,18 @@ export default function Stories() {
 
                             <label className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-white/20 bg-white/10 text-white cursor-pointer relative overflow-hidden shrink-0">
                                 {storyMedia ? (
-                                    <img src={storyMedia} className="w-full h-full object-cover" alt="Preview" />
+                                    isVideoPreview ? (
+                                        <video src={storyMedia} className="w-full h-full object-cover" muted playsInline />
+                                    ) : (
+                                        <img 
+                                            src={storyMedia} 
+                                            className="w-full h-full object-cover" 
+                                            alt="Preview" 
+                                            onError={(e) => {
+                                                e.target.src = "/person.png";
+                                            }}
+                                        />
+                                    )
                                 ) : (
                                     <ImageIcon size={24} />
                                 )}
@@ -1430,8 +1754,17 @@ export default function Stories() {
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
+                                            if (storyMedia && storyMedia.startsWith('blob:')) {
+                                                URL.revokeObjectURL(storyMedia);
+                                            }
+                                            const url = URL.createObjectURL(file);
+                                            setStoryMedia(url);
+                                            setStoryFile(file);
                                             setOriginalFile(file);
-                                            setIsEditorOpen(true);
+                                            setIsVideoPreview(file.type.startsWith('video/'));
+                                            setImageScale(1);
+                                            setImagePosition({ x: 0, y: 0 });
+                                            setUploadError('');
                                         }
                                         e.target.value = '';
                                     }}
@@ -1553,15 +1886,8 @@ export default function Stories() {
                                         <div className="flex flex-col gap-3">
                                             <button
                                                 onClick={() => {
-                                                    setStoryMedia(null);
-                                                    setStoryFile(null);
-                                                    setStoryMusic(null);
-                                                    setStoryCaption('');
-                                                    setIsVideoPreview(false);
-                                                    setImageScale(1);
-                                                    setImagePosition({ x: 0, y: 0 });
+                                                    resetStoryCreatorState();
                                                     setShowDiscardConfirm(false);
-                                                    setIsCreatingStory(false);
                                                 }}
                                                 className="w-full py-4 bg-red-500/10 text-red-500 rounded-xl font-bold text-sm hover:bg-red-500/20 transition-colors"
                                             >

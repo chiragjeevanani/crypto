@@ -80,6 +80,9 @@ export const useFeedStore = create((set, get) => ({
     globalMute: false,
     setGlobalMute: (muted) => set({ globalMute: muted }),
 
+    isStoryOpen: false,
+    setIsStoryOpen: (open) => set({ isStoryOpen: open }),
+
     savedPostIds: new Set(),
     viewedPostIds: new Set(),
     reelFeed: [],

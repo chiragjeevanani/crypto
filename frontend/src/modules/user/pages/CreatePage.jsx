@@ -5830,14 +5830,14 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         type="file" 
         ref={overlayInputRef} 
         className="hidden" 
-        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/3gpp,video/x-msvideo" 
+        accept=".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.mp4,.webm,.mov,.3gp,.avi" 
         onChange={handleOverlaySelect} 
       />
       <input 
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
-        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,video/mp4,video/webm,video/quicktime,video/3gpp,video/x-msvideo" 
+        accept=".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.mp4,.webm,.mov,.3gp,.avi" 
         onChange={handleFileChange} 
       />
 

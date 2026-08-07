@@ -221,7 +221,7 @@ const VideoEditor = ({ file, onClose, onSave }) => {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                              <div className="p-1.5 bg-primary/10 rounded-lg"><Scissors size={14} className="text-primary" /></div>
-                             <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Precision Trim</span>
+                             <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider">Trim Video</span>
                         </div>
                         <div className="px-3 py-1 bg-zinc-900 rounded-full border border-white/5 font-mono text-[11px] text-primary">
                             {startTime.toFixed(1)}s — {endTime.toFixed(1)}s
@@ -265,10 +265,10 @@ const VideoEditor = ({ file, onClose, onSave }) => {
                 {/* Layout & More */}
                 <div className="space-y-4">
                      <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                             <div className="p-1.5 bg-zinc-900 rounded-lg"><Columns2 size={14} className="text-zinc-400" /></div>
-                             <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Composition</span>
-                         </div>
+                          <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-zinc-900 rounded-lg"><Columns2 size={14} className="text-zinc-400" /></div>
+                              <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider">Video Layout</span>
+                          </div>
                          {layout !== 'single' && !secondVideo && (
                              <div className="flex flex-col gap-2">
                                  {error && (
@@ -276,9 +276,9 @@ const VideoEditor = ({ file, onClose, onSave }) => {
                                          {error}
                                      </div>
                                  )}
-                                 <label className="text-[10px] font-bold text-primary cursor-pointer hover:text-primary/80 transition-colors flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10 w-fit">
-                                     <FastForward size={12} /> Add Fusion Multi-Cam
-                                     <input 
+                                  <label className="text-[10px] font-bold text-primary cursor-pointer hover:text-primary/80 transition-colors flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10 w-fit">
+                                      <FastForward size={12} /> Add Second Video
+                                      <input 
                                          type="file" 
                                          accept="video/*" 
                                          className="hidden" 
@@ -307,7 +307,7 @@ const VideoEditor = ({ file, onClose, onSave }) => {
                                  }}
                                  className="text-[10px] font-bold text-red-500 hover:text-red-400 transition-colors flex items-center gap-1 bg-red-500/5 px-3 py-1.5 rounded-full border border-red-500/10"
                              >
-                                 Reset Multi-Cam
+                                 Remove Second Video
                              </button>
                          )}
                      </div>
@@ -334,7 +334,7 @@ const VideoEditor = ({ file, onClose, onSave }) => {
                      {layout !== 'single' && (
                          <div className="space-y-3 pt-2">
                              <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
-                                 <span className="flex items-center gap-2"><SlidersHorizontal size={14} className="text-primary" /> Adjusted {layout === 'side-by-side' ? 'Width' : 'Height'} Split</span>
+                                 <span className="flex items-center gap-2"><SlidersHorizontal size={14} className="text-primary" /> Adjust Split Position</span>
                                  <span className="text-white font-mono">{splitRatio}% / {100 - splitRatio}%</span>
                              </div>
                              <input
@@ -351,9 +351,9 @@ const VideoEditor = ({ file, onClose, onSave }) => {
                 <div className="flex gap-4 pt-4">
                     <button
                         onClick={handleApply}
-                        className="flex-1 py-5 px-6 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(var(--color-primary-rgb),0.3)] active:scale-[0.98] transition-all hover:brightness-110"
+                        className="flex-1 py-4 px-6 bg-primary text-white rounded-xl font-bold text-sm uppercase tracking-wider active:scale-[0.98] transition-all hover:brightness-110"
                     >
-                        Initialize Final Render
+                        Done
                     </button>
                 </div>
             </div>
