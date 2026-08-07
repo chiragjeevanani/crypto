@@ -636,6 +636,7 @@ const CreatePage = () => {
   const canvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
   const instacamRef = useRef(null);
+  const cameraInitIdRef = useRef(0);
   const pressStartTimeRef = useRef(0);
   const isPressingRef = useRef(false);
   const lastTouchTimeRef = useRef(0);
@@ -1556,12 +1557,18 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     }
     
     return () => {
-      if (streamRef.current) stopCamera();
+      // Always tear down, even if the stream hasn't attached yet (e.g. React
+      // StrictMode's mount -> cleanup -> mount fires before getUserMedia resolves).
+      stopCamera();
     };
   }, [stage]);
 
   const startCamera = async (overrideMode) => {
     if (!canvasContainerRef.current) return;
+
+    // Invalidate any still-pending initialization (e.g. from a StrictMode double-invoke
+    // or a rapid stage change) so its done/fail callbacks become no-ops when they land.
+    const initId = ++cameraInitIdRef.current;
 
     // Dynamically create a fresh canvas inside the container to prevent Instacam wrapper leaks/crashes
     canvasContainerRef.current.innerHTML = '';
@@ -1610,6 +1617,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         mode: isUser ? 'front' : 'back',
         autostart: true,
         done: async () => {
+          // A newer startCamera()/stopCamera() call superseded this one; bail out
+          // so a stale getUserMedia resolution doesn't clobber the active camera.
+          if (cameraInitIdRef.current !== initId) return;
           console.log('Instacam ready');
           // Get the stream for recording
           if (canvasRef.current) {
@@ -1642,6 +1652,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           }
         },
         fail: (err) => {
+          if (cameraInitIdRef.current !== initId) return;
           console.error('Instacam failed:', err);
           showToast('Camera access denied');
         }
@@ -1655,6 +1666,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   };
 
   const stopCamera = () => {
+    // Invalidate any in-flight startCamera() so its done/fail callbacks no-op.
+    cameraInitIdRef.current++;
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         try { track.stop(); } catch (e) {}
@@ -3434,7 +3448,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     const progressPercent = (recordedSeconds / maxDurationSeconds) * 100;
 
     return (
-      <div className={`relative flex-1 min-h-0 w-full overflow-hidden ${isDarkMode ? 'bg-black text-white' : 'bg-[var(--theme-page-bg)] text-white'}`}>
+      <div className="relative flex-1 min-h-0 w-full overflow-hidden bg-black text-white">
         <style>
           {`
             [data-instacam] {
@@ -5849,7 +5863,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
   return (
     <div 
-      className={`theme-create-page relative w-full overflow-hidden select-none ${isDarkMode ? 'bg-black' : 'bg-[var(--theme-page-bg)]'} h-[100dvh] md:h-[85vh] md:max-h-[850px] md:w-[480px] md:mx-auto md:mt-6 md:rounded-2xl md:border md:border-white/10 md:shadow-2xl flex flex-col`}
+      className="theme-create-page relative w-full overflow-hidden select-none bg-black h-[100dvh] md:h-[85vh] md:max-h-[850px] md:w-[480px] md:mx-auto md:mt-6 md:rounded-2xl md:border md:border-white/10 md:shadow-2xl flex flex-col"
       style={{ touchAction: 'none' }}
     >
       {renderActiveStage()}
