@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, UserPlus, Check, Volume2, VolumeX, BriefcaseBusiness, TrendingUp, Sparkles, Send, AlertCircle, ShieldAlert, X, Camera, MessagesSquare, Music, Vote, Eye, ChevronRight, Link2, Trash2 } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 import { useFeedStore } from '../../store/useFeedStore'
 import { useWalletStore } from '../../store/useWalletStore'
 import { useUserStore, getStoredToken } from '../../store/useUserStore'
@@ -25,16 +26,29 @@ function getColor(id) {
     return AVATAR_COLORS[idx] || '#f59e0b'
 }
 
-export default function PostCard({ post, onOpen, onDeleteSuccess }) {
+function PostCard({ post, onOpen, onDeleteSuccess }) {
     if (!post) return null
     if (post.postType !== 'campaign_card' && !post.creator) return null
-    const { 
-        toggleLike, sendGift, toggleFollow, addComment, loadComments, 
+    const {
+        toggleLike, sendGift, toggleFollow, addComment, loadComments,
         commentsByPostId, commentsLoading, sharePost, splats, clearSplat,
         savedPostIds, toggleSavePost, voteCampaignSubmission, deletePost,
         globalMute: isMuted, setGlobalMute: setIsMuted, isStoryOpen
-    } = useFeedStore()
-    const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore()
+    } = useFeedStore(useShallow((s) => ({
+        toggleLike: s.toggleLike, sendGift: s.sendGift, toggleFollow: s.toggleFollow,
+        addComment: s.addComment, loadComments: s.loadComments,
+        commentsByPostId: s.commentsByPostId, commentsLoading: s.commentsLoading,
+        sharePost: s.sharePost, splats: s.splats, clearSplat: s.clearSplat,
+        savedPostIds: s.savedPostIds, toggleSavePost: s.toggleSavePost,
+        voteCampaignSubmission: s.voteCampaignSubmission, deletePost: s.deletePost,
+        globalMute: s.globalMute, setGlobalMute: s.setGlobalMute,
+        isStoryOpen: s.isStoryOpen,
+    })))
+    const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore(useShallow((s) => ({
+        addGiftEarning: s.addGiftEarning,
+        spendGiftFromSelectedWallet: s.spendGiftFromSelectedWallet,
+        performGift: s.performGift,
+    })))
     const navigate = useNavigate()
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
@@ -1040,3 +1054,5 @@ export default function PostCard({ post, onOpen, onDeleteSuccess }) {
         </article>
     )
 }
+
+export default memo(PostCard)

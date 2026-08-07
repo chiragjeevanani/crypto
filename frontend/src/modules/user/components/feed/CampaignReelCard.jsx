@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Volume2, VolumeX } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import { useFeedStore } from '../../store/useFeedStore'
 
-export default function CampaignReelCard({ campaign, active }) {
+function CampaignReelCard({ campaign, active }) {
     const navigate = useNavigate()
     if (!campaign) return null
 
@@ -23,7 +24,10 @@ export default function CampaignReelCard({ campaign, active }) {
     const isVideo = campaign.bannerType === 'video' || 
                    /\.(mp4|webm|mov|ogg)$/i.test(bannerUrlRaw);
 
-    const { globalMute: isMuted, setGlobalMute: setIsMuted } = useFeedStore()
+    const { globalMute: isMuted, setGlobalMute: setIsMuted } = useFeedStore(useShallow((s) => ({
+        globalMute: s.globalMute,
+        setGlobalMute: s.setGlobalMute,
+    })))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
     const videoRef = useRef(null)
     const audioRef = useRef(null)
@@ -92,14 +96,13 @@ export default function CampaignReelCard({ campaign, active }) {
                             <video 
                                 key={`vid-${campaign.id}`}
                                 ref={videoRef}
-                                src={optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 720, quality: '60' })} 
-                                className="w-full h-full object-cover cursor-pointer" 
-                                muted={isMuted} 
-                                playsInline 
-                                loop 
-                                preload="auto"
+                                src={optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 720, quality: '60' })}
+                                className="w-full h-full object-cover cursor-pointer"
+                                muted={isMuted}
+                                playsInline
+                                loop
+                                preload={active ? "auto" : "none"}
                                 crossOrigin="anonymous"
-                                poster={optimizeCloudinaryUrl(resolvedBannerUrl, { isVideo: true, width: 480, quality: '50' })}
                                 onClick={toggleMute}
                             />
                         ) : (
@@ -188,3 +191,5 @@ export default function CampaignReelCard({ campaign, active }) {
         </div>
     )
 }
+
+export default memo(CampaignReelCard)
