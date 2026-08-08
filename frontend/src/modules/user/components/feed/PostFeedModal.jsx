@@ -959,13 +959,15 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                         paddingTop: isReelsMode ? 'calc(env(safe-area-inset-top, 0px) + 16px)' : 'calc(env(safe-area-inset-top, 0px) + 12px)'
                     }}
                 >
-                    <button
-                        onClick={onClose}
-                        className="w-10 h-10 flex items-center justify-center cursor-pointer pointer-events-auto"
-                        style={{ color: isReelsMode ? '#fff' : 'var(--color-text)' }}
-                    >
-                        <ArrowLeft size={isReelsMode ? 28 : 20} strokeWidth={isReelsMode ? 2.5 : 2} />
-                    </button>
+                    {!isReelsMode && (
+                        <button
+                            onClick={onClose}
+                            className="w-10 h-10 flex items-center justify-center cursor-pointer pointer-events-auto"
+                            style={{ color: 'var(--color-text)' }}
+                        >
+                            <ArrowLeft size={20} strokeWidth={2} />
+                        </button>
+                    )}
                     {!isReelsMode && (
                         <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                             Posts

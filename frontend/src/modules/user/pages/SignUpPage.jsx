@@ -154,6 +154,30 @@ export default function SignUpPage() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    
+    // Deep linking: redirect to native app or Play Store fallback when referral code is present on mobile
+    useEffect(() => {
+        const ref = searchParams.get('ref');
+        if (ref) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                const appUri = `knqreels://signup?ref=${ref.toUpperCase()}`;
+                const playStoreUrl = `https://play.google.com/store/apps/details?id=com.knqreels.app`;
+                
+                // Try launching the native app
+                window.location.href = appUri;
+                
+                // Fallback to Play Store after a short delay if app didn't open
+                const timer = setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        window.location.href = playStoreUrl;
+                    }
+                }, 2500);
+
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [searchParams]);
 
     const FORM_STORAGE_KEY = 'signup_form_draft_v1';
 

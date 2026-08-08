@@ -58,9 +58,16 @@ class ErrorBoundary extends React.Component {
                         </div>
                         <h3 className="font-bold text-sm">Something went wrong in this section</h3>
                     </div>
-                    <p className="text-xs text-rose-500/80 mb-4 leading-relaxed">
+                    <p className="text-xs text-rose-500/80 mb-2 leading-relaxed">
                         We encountered a problem while rendering this part of the app. It might be a temporary issue.
                     </p>
+                    {this.state.error && (
+                        <pre className="text-[10px] font-mono bg-white/60 p-2.5 rounded-lg mb-4 max-h-[150px] overflow-auto border border-rose-200/50 text-rose-800 leading-normal text-left">
+                            {this.state.error.message}
+                            {"\n\n"}
+                            {this.state.error.stack}
+                        </pre>
+                    )}
                     <div className="flex gap-2">
                         <button 
                             onClick={this.handleReset}
