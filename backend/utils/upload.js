@@ -31,6 +31,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const mediaOptimizer = require("./mediaOptimizer");
+const videoAssetPipeline = require("../middleware/videoAssetPipeline");
 
 const multerInstance = multer({
   storage,
@@ -63,4 +64,10 @@ const upload = createUpload(mediaOptimizer);
 // producing nondeterministic output and orphaned -temp files on failure.
 const uploadRaw = createUpload(null);
 
-module.exports = { upload, uploadRaw, createUpload, UPLOAD_DIR, MAX_FILE_SIZE };
+// New source-aware rendition-ladder pipeline for video (image/audio still go
+// through the same compressImageToWebP/compressAudio helpers mediaOptimizer
+// uses). Only /api/user/posts uses this in this pass — every other route
+// stays on the original `upload` above.
+const uploadHls = createUpload(videoAssetPipeline);
+
+module.exports = { upload, uploadRaw, uploadHls, createUpload, UPLOAD_DIR, MAX_FILE_SIZE };

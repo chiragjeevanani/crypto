@@ -19,7 +19,20 @@ const postSchema = new mongoose.Schema(
         default: "image"
       },
       url: { type: String, required: true },
-      aspectRatio: { type: String, default: "4/3" }
+      aspectRatio: { type: String, default: "4/3" },
+      // Additive fields for the source-aware rendition pipeline. Every
+      // existing post document simply lacks these (processingStatus reads as
+      // "ready" via a helper, since .lean() queries don't backfill schema
+      // defaults on read) and keeps working off `url` alone exactly as today.
+      processingStatus: { type: String, enum: ["processing", "ready", "failed"], default: "ready" },
+      hlsUrl: { type: String, default: "" },
+      thumbnailUrl: { type: String, default: "" },
+      assetDir: { type: String, default: "" },
+      qualities: { type: [String], default: [] },
+      width: { type: Number, default: 0 },
+      height: { type: Number, default: 0 },
+      duration: { type: Number, default: 0 },
+      processingError: { type: String, default: "" }
     },
     caption: { type: String, trim: true, default: "" },
     language: { type: String, trim: true, default: "English" },

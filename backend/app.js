@@ -53,6 +53,33 @@ app.get("/", (req, res) => {
   res.status(200).json({ message: "Backend is live", version: "1.0.1-debug" });
 });
 
+// New pipeline output (backend/uploads/videos/<assetId>/...) is genuinely
+// immutable once written — the asset dir is only ever created via an atomic
+// rename after all encoding finishes (see videoPipeline.js), never mutated
+// in place afterward — so it's safe to cache aggressively. Mounted before
+// the two catch-all mounts below so it takes precedence for that subpath;
+// those two are otherwise untouched and keep serving every legacy URL
+// exactly as before.
+const videoAssetsStatic = express.static(path.join(__dirname, "uploads", "videos"), {
+  etag: true,
+  lastModified: true,
+  acceptRanges: true,
+  index: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".m3u8")) {
+      res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+      res.setHeader("Cache-Control", "public, max-age=60");
+    } else if (filePath.endsWith(".m4s")) {
+      res.setHeader("Content-Type", "video/iso.segment");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
+});
+app.use("/uploads/videos", videoAssetsStatic);
+app.use("/api/uploads/videos", videoAssetsStatic);
+
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/api/test-ping", (req, res) => res.json({ success: true, message: "pong" }));

@@ -253,4 +253,12 @@ async function mediaOptimizer(req, res, next) {
   }
 }
 
+// Attached as named properties (not a separate module.exports shape) so every
+// existing `const mediaOptimizer = require("./mediaOptimizer")` call site —
+// which expects a callable middleware function — is completely unaffected.
+// The new video pipeline middleware reuses these for image/audio handling
+// instead of duplicating them.
+mediaOptimizer.compressImageToWebP = compressImageToWebP;
+mediaOptimizer.compressAudio = compressAudio;
+
 module.exports = mediaOptimizer;

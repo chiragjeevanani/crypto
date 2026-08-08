@@ -5,6 +5,70 @@ const Comment = require("../../models/Comment");
 const Campaign = require("../../models/Campaign");
 const Report = require("../../models/Report");
 const WalletTransaction = require("../../models/WalletTransaction");
+const MediaAsset = require("../../models/MediaAsset");
+const CampaignSubmission = require("../../models/CampaignSubmission");
+const fs = require("fs");
+const path = require("path");
+const { UPLOAD_DIR } = require("../../utils/upload");
+
+/**
+ * Deletes a post's rendition-ladder/HLS asset directory, but only when every
+ * safety check passes: the path shape is exactly what the pipeline produces
+ * and resolves inside uploads/videos (never trust a DB string blindly for
+ * fs paths), the post isn't a campaign submission (those share their file
+ * with CampaignSubmission.reel.url, which drives admin verification/payouts
+ * independently of the Post), no other Post references the same assetDir,
+ * and no CampaignSubmission references the asset. Any failed check, or any
+ * filesystem error, just retains the files and logs why — this must never
+ * turn a successful post deletion into a failed one. Legacy posts (no
+ * assetDir at all) are untouched, exactly as before this pipeline existed.
+ */
+async function deletePostVideoAssetsSafely(post) {
+  try {
+    const assetDir = post?.media?.assetDir;
+    if (!assetDir || typeof assetDir !== "string") return;
+
+    const match = assetDir.match(/^\/uploads\/videos\/([A-Za-z0-9._-]+)$/);
+    if (!match) {
+      console.warn(`[deletePost] skipping asset cleanup for ${post._id} — unexpected assetDir shape: ${assetDir}`);
+      return;
+    }
+    const assetId = match[1];
+    const videosRoot = path.resolve(UPLOAD_DIR, "videos");
+    const resolvedPath = path.resolve(videosRoot, assetId);
+    const relative = path.relative(videosRoot, resolvedPath);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      console.warn(`[deletePost] skipping asset cleanup for ${post._id} — path traversal guard tripped: ${assetDir}`);
+      return;
+    }
+
+    if (post.campaignSubmission) {
+      console.log(`[deletePost] retaining assets for ${post._id}: post has a campaignSubmission`);
+      return;
+    }
+
+    const otherPostCount = await Post.countDocuments({ "media.assetDir": assetDir, _id: { $ne: post._id } });
+    if (otherPostCount > 0) {
+      console.log(`[deletePost] retaining assets for ${post._id}: referenced by ${otherPostCount} other post(s)`);
+      return;
+    }
+
+    const escapedAssetId = assetId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const referencedByCampaign = await CampaignSubmission.countDocuments({
+      "reel.url": { $regex: escapedAssetId },
+    });
+    if (referencedByCampaign > 0) {
+      console.log(`[deletePost] retaining assets for ${post._id}: referenced by a CampaignSubmission`);
+      return;
+    }
+
+    await fs.promises.rm(resolvedPath, { recursive: true, force: true });
+    console.log(`[deletePost] removed video assets for ${post._id}: ${resolvedPath}`);
+  } catch (err) {
+    console.error(`[deletePost] asset cleanup failed for ${post?._id}:`, err.message);
+  }
+}
+exports.deletePostVideoAssetsSafely = deletePostVideoAssetsSafely;
 const { computeStatus, formatCampaignForUser } = require("../../utils/campaignHelpers");
 const { getBaseUrl, formatPostForUserFeed, populateCreator, resolveUrl } = require("../../utils/postHelpers");
 const { getAdminConfig } = require("../../utils/adminConfig");
@@ -23,11 +87,38 @@ exports.createPost = async (req, res) => {
     const file = req.file;
     let mediaUrl = "";
     let mediaType = "image";
+    let mediaExtra = {};
 
     if (file) {
       mediaUrl = `/uploads/${file.filename}`;
       if (file.mimetype.startsWith("video/")) mediaType = "video";
       else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+    }
+
+    // Video uploaded through uploadHls (postRoutes.js) — videoAssetPipeline
+    // middleware already created a MediaAsset and kicked off encoding in the
+    // background. It may have already finished (fast source) or still be
+    // running; either way this is the single place that decides what to
+    // write, so there's no ordering assumption between the two.
+    if (file?.assetId) {
+      const asset = await MediaAsset.findOne({ assetId: file.assetId }).lean();
+      if (asset?.status === "ready") {
+        mediaUrl = asset.url || mediaUrl;
+        mediaExtra = {
+          processingStatus: "ready",
+          hlsUrl: asset.hlsUrl || "",
+          thumbnailUrl: asset.thumbnailUrl || "",
+          assetDir: asset.assetDir || "",
+          qualities: asset.qualities || [],
+          width: asset.width || 0,
+          height: asset.height || 0,
+          duration: asset.duration || 0,
+        };
+      } else if (asset?.status === "failed") {
+        mediaExtra = { processingStatus: "failed", processingError: asset.error || "" };
+      } else {
+        mediaExtra = { processingStatus: "processing", assetDir: `/uploads/videos/${file.assetId}` };
+      }
     }
 
     let body = req.body || {};
@@ -94,7 +185,7 @@ exports.createPost = async (req, res) => {
 
     const postDoc = await Post.create({
       creator: userId,
-      media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3" },
+      media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3", ...mediaExtra },
       caption,
       category,
       subcategory,
@@ -693,7 +784,7 @@ exports.deletePost = async (req, res) => {
       return res.status(403).json({ success: false, message: "You are not authorized to delete this post" });
     }
 
-    // Post deletion (local file deletion can be added here if needed in the future)
+    await deletePostVideoAssetsSafely(post);
 
     await Post.deleteOne({ _id: postId });
     // Cleanup comments
