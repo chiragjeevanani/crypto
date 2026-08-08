@@ -6,6 +6,7 @@ export const NO_IMAGE_AVATAR = '/person.png';
 
 export default function Avatar({ src, alt = 'user', className = '', size = 'md', isPremium = false, ...props }) {
     const [imgSrc, setImgSrc] = useState(NO_IMAGE_AVATAR);
+    const [loaded, setLoaded] = useState(false);
 
     const sizeClasses = {
         'xs': 'w-6 h-6',
@@ -18,6 +19,7 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
 
     useEffect(() => {
         // Initially try the optimized version
+        setLoaded(false);
         if (src && src !== 'null' && src !== 'undefined') {
             setImgSrc(optimizeCloudinaryUrl(src));
         } else {
@@ -39,7 +41,9 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
                     alt={alt}
                     loading="lazy"
                     decoding="async"
-                    className={`w-full h-full object-cover transition-opacity duration-200`}
+                    className="w-full h-full object-cover transition-opacity duration-300"
+                    style={{ opacity: loaded ? 1 : 0 }}
+                    onLoad={() => setLoaded(true)}
                     onError={handleError}
                     {...props}
                 />

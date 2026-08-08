@@ -17,6 +17,7 @@ import SuggestedUserCard from '../components/feed/SuggestedUserCard'
 import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import SuggestedReelsSection from '../components/feed/SuggestedReelsSection'
 import CampaignHomeCard from '../components/feed/CampaignHomeCard'
+import LazyMount from '../components/shared/LazyMount'
 import { messageService } from '../../../services/messageService'
 import { getSocket } from '../../../socket'
 import ErrorBoundary from '../components/shared/ErrorBoundary'
@@ -350,14 +351,16 @@ export default function HomePage() {
 
                     {feedPosts.map((post, index) => (
                         <div key={post.id}>
-                            <ErrorBoundary>
-                                {post.postType === 'campaign_card' ? (
-                                    <CampaignHomeCard campaign={post.campaign} />
-                                ) : (
-                                    <PostCard post={post} onOpen={handleOpenFromFeed} />
-                                )}
-                            </ErrorBoundary>
-                            
+                            <LazyMount placeholder={<PostSkeleton />}>
+                                <ErrorBoundary>
+                                    {post.postType === 'campaign_card' ? (
+                                        <CampaignHomeCard campaign={post.campaign} />
+                                    ) : (
+                                        <PostCard post={post} onOpen={handleOpenFromFeed} />
+                                    )}
+                                </ErrorBoundary>
+                            </LazyMount>
+
                             {/* Suggested Users - shown after the 2nd post (index 1) or after the 1st if it is the only post */}
                             {((index === 1) || (index === 0 && feedPosts.length === 1)) && (
                                 <ErrorBoundary>

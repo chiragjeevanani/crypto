@@ -53,6 +53,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
     const [isIntersecting, setIsIntersecting] = useState(false)
+    const [mediaLoaded, setMediaLoaded] = useState(false)
     const [giftError, setGiftError] = useState('')
     const [commentsOpen, setCommentsOpen] = useState(false)
     const [shareOpen, setShareOpen] = useState(false)
@@ -484,13 +485,14 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <video
                             ref={videoRef}
                             src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none' }}
+                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                            style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none', opacity: mediaLoaded ? 1 : 0 }}
                             loop
                             playsInline
                             muted={isMuted}
                             preload="auto"
                             controlsList="nodownload"
+                            onLoadedData={() => setMediaLoaded(true)}
                             onContextMenu={(e) => e.preventDefault()}
                             poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
@@ -553,11 +555,13 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <img
                             src={optimizeCloudinaryUrl(post.media?.url, { width: 1080, quality: '80' })}
                             alt="post media"
-                            className="absolute inset-0 w-full h-full object-cover"
-                            style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none' }}
+                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                            style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none', opacity: mediaLoaded ? 1 : 0 }}
                             loading="lazy"
+                            decoding="async"
+                            onLoad={() => setMediaLoaded(true)}
                             onContextMenu={(e) => e.preventDefault()}
-                            onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
+                            onError={(e) => { setMediaLoaded(true); e.target.style.background = 'var(--color-surface2)' }}
                         />
                         <AnimatePresence>
                             {showMuteIndicator && (

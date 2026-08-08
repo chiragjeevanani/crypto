@@ -841,6 +841,14 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
         return Math.max(0, Math.min(posts.length - 1, startIndex))
     }, [isOpen, posts.length, startIndex])
 
+    // Bound how many reels stay mounted at once: as the user swipes through a long
+    // session, only the active reel and a couple of neighbors keep their video/DOM
+    // alive — everything further away collapses to a lightweight placeholder inside
+    // the same fixed-height wrapper, so memory/DOM cost no longer grows with scroll depth.
+    const RENDER_WINDOW = 2
+    const initialLoopIndex = posts.length > 1 ? posts.length + safeIndex : safeIndex
+    const effectiveActiveIndex = activeReelIndex ?? initialLoopIndex
+
     useEffect(() => {
         if (!isOpen) return undefined
         const prev = document.body.style.overflow
@@ -984,22 +992,27 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                     }}
                 >
                     <div className="mx-auto w-full md:max-w-[460px] lg:max-w-[520px]">
-                        {loopedPosts.map((post, index) => (
-                            <div
-                                key={`${post.id}-${index}`}
-                                ref={(node) => {
-                                    if (node) postRefs.current[index] = node
-                                }}
-                                className="snap-start snap-always shrink-0 w-full reels-item"
-                                data-index={index}
-                            >
-                                {isReelsMode
-                                    ? post?.type === 'campaign'
-                                        ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
-                                        : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && (index === activeReelIndex + 1)} onClose={onClose} onNftAction={onNftAction} />
-                                    : post && <PostCard post={post} onDeleteSuccess={onClose} />}
-                            </div>
-                        ))}
+                        {loopedPosts.map((post, index) => {
+                            const inRenderWindow = !isReelsMode || Math.abs(index - effectiveActiveIndex) <= RENDER_WINDOW
+                            return (
+                                <div
+                                    key={`${post.id}-${index}`}
+                                    ref={(node) => {
+                                        if (node) postRefs.current[index] = node
+                                    }}
+                                    className="snap-start snap-always shrink-0 w-full reels-item"
+                                    data-index={index}
+                                >
+                                    {!inRenderWindow ? (
+                                        <div className="w-full h-full bg-black" />
+                                    ) : isReelsMode
+                                        ? post?.type === 'campaign'
+                                            ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
+                                            : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && (index === activeReelIndex + 1)} onClose={onClose} onNftAction={onNftAction} />
+                                        : post && <PostCard post={post} onDeleteSuccess={onClose} />}
+                                </div>
+                            )
+                        })}
                     </div>
 
                 </div>
