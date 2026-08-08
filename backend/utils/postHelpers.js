@@ -21,6 +21,24 @@ const resolveUrl = (url, baseUrl) => {
 
 const mediaUrlFromPost = (post, baseUrl) => resolveUrl(post.media?.url, baseUrl);
 
+// Resolve a real poster image for feed thumbnails instead of pointing the
+// browser at the video file itself. Order: an explicitly stored thumbnail
+// (new pipeline) -> the legacy mediaOptimizer-generated "<name>.thumb.jpg"
+// sitting next to the video (same convention reelFeedController already
+// relies on) -> the video URL itself as a last resort, matching today's
+// behavior so nothing regresses if neither exists. A 404 on the guessed
+// path is harmless: the browser just shows no poster, same as an invalid
+// poster URL does today.
+const resolveVideoThumbnail = (post, baseUrl) => {
+  const explicit = resolveUrl(post.media?.thumbnailUrl, baseUrl);
+  if (explicit) return explicit;
+
+  const videoUrl = mediaUrlFromPost(post, baseUrl);
+  if (videoUrl) return videoUrl.replace(/\.[^/.]+$/, "") + ".thumb.jpg";
+
+  return videoUrl;
+};
+
 const thumbnailUrlFromPost = (post, baseUrl) => {
   const url = mediaUrlFromPost(post, baseUrl);
   if (post.media?.type === "video") {
@@ -96,7 +114,9 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
     media: {
       type: post.media?.type || "image",
       url: mediaUrlFromPost(post, baseUrl),
-      thumbnail: mediaUrlFromPost(post, baseUrl),
+      thumbnail: post.media?.type === "video"
+        ? resolveVideoThumbnail(post, baseUrl)
+        : mediaUrlFromPost(post, baseUrl),
       aspectRatio: post.media?.aspectRatio || "4/3"
     },
     caption: post.caption || "",
