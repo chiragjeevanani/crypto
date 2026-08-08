@@ -1550,123 +1550,105 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   }, [editorSettings.volume, stage]);
 
   useEffect(() => {
-    if (stage === 'camera' && !streamRef.current) {
+    let isMounted = true;
+    if (stage === 'camera') {
       startCamera();
-    } else if (stage !== 'camera' && streamRef.current) {
+    } else if (streamRef.current) {
       stopCamera();
     }
     
     return () => {
-      // Always tear down, even if the stream hasn't attached yet (e.g. React
-      // StrictMode's mount -> cleanup -> mount fires before getUserMedia resolves).
+      isMounted = false;
       stopCamera();
     };
-  }, [stage]);
+  }, [stage, facingMode]);
 
   const startCamera = async (overrideMode) => {
-    if (!canvasContainerRef.current) return;
-
-    // Invalidate any still-pending initialization (e.g. from a StrictMode double-invoke
-    // or a rapid stage change) so its done/fail callbacks become no-ops when they land.
-    const initId = ++cameraInitIdRef.current;
-
-    // Dynamically create a fresh canvas inside the container to prevent Instacam wrapper leaks/crashes
-    canvasContainerRef.current.innerHTML = '';
-    const canvas = document.createElement('canvas');
-    canvas.className = "h-full w-full object-cover transition-all duration-300";
-    canvas.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'none';
-    canvasContainerRef.current.appendChild(canvas);
-    canvasRef.current = canvas;
-
     const activeMode = overrideMode || facingMode;
     const isUser = activeMode === 'user';
 
-    // Intercept and optimize navigator.mediaDevices.getUserMedia for portrait wide-angle video
-    const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
-      // Check if mobile device or if the viewport is physically in portrait
+    const initId = ++cameraInitIdRef.current;
+
+    try {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerHeight > window.innerWidth;
       
-      const optimizedConstraints = {
-        ...constraints,
-        video: constraints.video ? {
+      const constraints = {
+        video: {
           facingMode: isUser ? 'user' : 'environment',
           width: { ideal: isMobile ? 1080 : 1920 },
           height: { ideal: isMobile ? 1920 : 1080 },
           aspectRatio: { ideal: isMobile ? 9 / 16 : 16 / 9 }
-        } : false
-      };
-      return originalGetUserMedia.call(navigator.mediaDevices, optimizedConstraints);
-    };
-
-    try {
-      if (instacamRef.current) {
-        instacamRef.current.stop();
-      }
-      
-      // Use standard high-definition 9:16 portrait resolution (720x1280)
-      // instead of viewport resolution to avoid digital crop/zoom by the browser.
-      const streamWidth = 720;
-      const streamHeight = 1280;
-      const streamRatio = 9 / 16;
-      
-      instacamRef.current = new Instacam(canvasRef.current, {
-        width: streamWidth,
-        height: streamHeight,
-        ratio: streamRatio,
-        mode: isUser ? 'front' : 'back',
-        autostart: true,
-        done: async () => {
-          // A newer startCamera()/stopCamera() call superseded this one; bail out
-          // so a stale getUserMedia resolution doesn't clobber the active camera.
-          if (cameraInitIdRef.current !== initId) return;
-          console.log('Instacam ready');
-          // Get the stream for recording
-          if (canvasRef.current) {
-            const videoStream = canvasRef.current.captureStream(30);
-            try {
-              // Request microphone audio stream
-              const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              // Combine video tracks from canvas and audio tracks from microphone
-              const combinedStream = new MediaStream([
-                ...videoStream.getVideoTracks(),
-                ...audioStream.getAudioTracks()
-              ]);
-              streamRef.current = combinedStream;
-              console.log('Successfully combined canvas video with microphone audio stream!');
-            } catch (audioErr) {
-              console.warn('Microphone access failed or denied, using video-only stream:', audioErr);
-              streamRef.current = videoStream;
-            }
-          }
-          
-          // Ensure the generated wrapper is full screen
-          if (canvasRef.current) {
-            const wrapper = canvasRef.current.parentElement;
-            if (wrapper && wrapper.hasAttribute('data-instacam')) {
-              wrapper.style.width = '100%';
-              wrapper.style.height = '100%';
-              wrapper.style.position = 'absolute';
-              wrapper.style.inset = '0';
-            }
-          }
         },
-        fail: (err) => {
-          if (cameraInitIdRef.current !== initId) return;
-          console.error('Instacam failed:', err);
-          showToast('Camera access denied');
+        audio: true
+      };
+
+      let mediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (micError) {
+        console.warn('Microphone failed or restricted, falling back to video stream:', micError);
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: isUser ? 'user' : 'environment',
+            width: { ideal: isMobile ? 1080 : 1920 },
+            height: { ideal: isMobile ? 1920 : 1080 },
+            aspectRatio: { ideal: isMobile ? 9 / 16 : 16 / 9 }
+          }
+        });
+      }
+
+      if (cameraInitIdRef.current !== initId) {
+        mediaStream.getTracks().forEach(track => {
+          try { track.stop(); } catch (e) {}
+        });
+        return;
+      }
+
+      streamRef.current = mediaStream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.play().catch(e => console.warn('Direct video stream playback error:', e));
+      }
+
+      if (canvasContainerRef.current) {
+        canvasContainerRef.current.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        canvas.className = "h-full w-full object-cover transition-all duration-300";
+        canvas.style.transform = isUser ? 'scaleX(-1)' : 'none';
+        canvasContainerRef.current.appendChild(canvas);
+        canvasRef.current = canvas;
+
+        if (instacamRef.current) {
+          try { instacamRef.current.stop(); } catch (e) {}
         }
-      });
+
+        try {
+          instacamRef.current = new Instacam(canvasRef.current, {
+            width: 720,
+            height: 1280,
+            ratio: 9 / 16,
+            mode: isUser ? 'front' : 'back',
+            autostart: true,
+            done: () => {
+              if (cameraInitIdRef.current !== initId) return;
+              console.log('Instacam camera preview ready');
+            },
+            fail: (err) => {
+              console.warn('Instacam canvas setup failed, active video element handling stream:', err);
+            }
+          });
+        } catch (instacamErr) {
+          console.warn('Instacam initialization failed:', instacamErr);
+        }
+      }
     } catch (err) {
-      console.error('Error starting Instacam:', err);
-    } finally {
-      // Restore original getUserMedia immediately after synchronous initialization
-      navigator.mediaDevices.getUserMedia = originalGetUserMedia;
+      console.error('Camera stream access failed:', err);
+      showToast('Camera access denied or unavailable');
     }
   };
 
   const stopCamera = () => {
-    // Invalidate any in-flight startCamera() so its done/fail callbacks no-op.
     cameraInitIdRef.current++;
 
     if (streamRef.current) {
@@ -1674,6 +1656,10 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         try { track.stop(); } catch (e) {}
       });
       streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
 
     if (instacamRef.current) {
@@ -1685,13 +1671,10 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       instacamRef.current = null;
     }
 
-    // Clean up DOM elements created by Instacam
     if (canvasContainerRef.current) {
       canvasContainerRef.current.innerHTML = '';
     }
     canvasRef.current = null;
-
-    streamRef.current = null;
   };
 
   // Update Instacam filters when selectedFilter changes
@@ -3466,14 +3449,14 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           `}
         </style>
         <div className="absolute inset-0 z-0">
-          <div ref={canvasContainerRef} className="h-full w-full relative" />
           <video 
             ref={videoRef} 
             autoPlay 
             muted 
             playsInline 
-            className="hidden"
+            className={`h-full w-full object-cover transition-transform duration-300 ${facingMode === 'user' ? '-scale-x-100' : ''}`}
           />
+          <div ref={canvasContainerRef} className="absolute inset-0 h-full w-full pointer-events-none" />
         </div>
         
         {/* Progress Bar */}
