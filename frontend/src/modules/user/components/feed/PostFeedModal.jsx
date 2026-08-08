@@ -18,6 +18,7 @@ import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import Avatar from '../shared/Avatar'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 import { postService } from '../../services/postService'
+import { useVideoSource } from '../../hooks/useVideoSource'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
@@ -242,6 +243,25 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
         }
     }, [active, post.id, globalMute, isLanguageModalOpen])
 
+    // "Far away" is already enforced by the ±2 render window in PostFeedModal
+    // (a placeholder div is swapped in instead of this component past that
+    // range) — so `enabled` doesn't need to re-gate on active/shouldPreload;
+    // doing so would tear down a reel's source the instant it stops being
+    // active, discarding whatever it already buffered while it WAS active
+    // and forcing a full reload on swiping back. Instead, every mounted
+    // instance keeps a source, and only the active one gets the unrestricted
+    // buffer — everything else (both the next reel and recently-left ones)
+    // gets the capped config, bounding total bandwidth across up to 4
+    // simultaneously-mounted-but-inactive reels while still allowing a fast
+    // resume in either direction.
+    useVideoSource({
+        videoRef,
+        hlsUrl: post.media?.type === 'video' ? post.media?.hlsUrl : '',
+        mp4Url: optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' }),
+        enabled: post.media?.type === 'video',
+        warmOnly: !active,
+    })
+
 
 
 
@@ -254,7 +274,6 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                     <video
                         key={`vid-${post.id}`}
                         ref={videoRef}
-                        src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
                         className="w-full h-full object-cover cursor-pointer"
                         style={{ filter: post.filter || 'none' }}
                         loop

@@ -21,6 +21,7 @@ export default defineConfig({
           firebase: ['firebase/app', 'firebase/messaging'],
           gsap: ['gsap'],
           'framer-motion': ['framer-motion'],
+          hls: ['hls.js'],
         },
       },
     },

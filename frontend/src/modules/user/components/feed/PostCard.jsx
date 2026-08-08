@@ -15,6 +15,7 @@ import { formatCount, formatCurrency, timeAgo } from '../../utils/formatCurrency
 import { playGiftSound } from '../../utils/giftSounds'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import { postService } from '../../services/postService'
+import { useVideoSource } from '../../hooks/useVideoSource'
 import Avatar from '../shared/Avatar'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 
@@ -195,6 +196,16 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
         if (containerRef.current) observer.observe(containerRef.current)
         return () => observer.disconnect()
     }, [post.id])
+
+    // Reuses the same isIntersecting signal that already drives play/pause —
+    // no competing visibility system. HLS when available (with an MP4
+    // fallback baked in), plain MP4 for legacy/still-processing posts either way.
+    useVideoSource({
+        videoRef,
+        hlsUrl: post.media?.type === 'video' ? post.media?.hlsUrl : '',
+        mp4Url: optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' }),
+        enabled: post.media?.type === 'video' && isIntersecting,
+    })
 
     useEffect(() => {
         if (commentsOpen && post.id) loadComments(post.id)
@@ -498,7 +509,6 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         />
                         <video
                             ref={videoRef}
-                            src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
                             className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
                             style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none', opacity: mediaLoaded ? 1 : 0 }}
                             loop
