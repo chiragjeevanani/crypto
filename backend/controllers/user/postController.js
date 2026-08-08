@@ -327,6 +327,23 @@ exports.getPosts = async (req, res) => {
 
       interleaved = injectCampaignCards(sortedList, activeCampaigns, 5);
 
+      // Pagination is strictly opt-in: no `page` param means the exact
+      // full-list response this endpoint has always returned (SearchPage.jsx
+      // and TasksPage.jsx call this with no params and expect that today).
+      const pageParam = Number.parseInt(req.query.page, 10);
+      if (Number.isInteger(pageParam) && pageParam >= 1) {
+        const pageSize = Math.max(1, Math.min(50, Number.parseInt(req.query.limit, 10) || 20));
+        const start = (pageParam - 1) * pageSize;
+        const pageItems = interleaved.slice(start, start + pageSize);
+        const hasMore = start + pageSize < interleaved.length;
+
+        if (!pageItems.length && pageParam === 1 && !req.query.creator) {
+          // Keep today's "no posts yet" welcome card on a genuinely empty feed.
+        } else {
+          return res.status(200).json({ success: true, posts: pageItems, page: pageParam, hasMore });
+        }
+      }
+
       if (!interleaved.length && !req.query.creator) {
         const demoPost = {
           id: "demo-post-1",

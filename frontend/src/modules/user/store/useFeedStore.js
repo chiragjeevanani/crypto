@@ -74,6 +74,10 @@ export const useFeedStore = create((set, get) => ({
     posts: [],
     postsLoading: false,
     postsError: null,
+    postsPaginated: false,
+    postsPage: 1,
+    postsHasMore: false,
+    postsLoadingMore: false,
     commentsByPostId: {},
     commentsLoading: {},
 
@@ -97,17 +101,49 @@ export const useFeedStore = create((set, get) => ({
         reelFeed: post.media?.type === 'video' ? [post, ...state.reelFeed] : state.reelFeed
     })),
 
-    loadPosts: async () => {
-        set({ postsLoading: true, postsError: null })
+    // `paginated: true` is an explicit opt-in used only by the Home Feed. Every other
+    // caller (ProfilePage, UserProfilePage, TaskDetailPage) keeps getting the exact
+    // same unpaginated, full-list request/response this always sent.
+    loadPosts: async ({ paginated = false } = {}) => {
+        set({ postsLoading: true, postsError: null, postsPaginated: paginated })
         try {
-            const res = await postService.getPosts()
+            const res = await postService.getPosts(paginated ? { page: 1 } : {})
             const list = (res?.posts || []).filter(p => p.postType === 'campaign_card' || p.creator)
             // Always reflect backend state, even if empty (no mock fallback)
-            set({ posts: list })
+            set({
+                posts: list,
+                postsPage: 1,
+                postsHasMore: paginated ? Boolean(res?.hasMore) : false,
+            })
         } catch (err) {
             set({ postsError: err?.message || 'Failed to load feed' })
         } finally {
             set({ postsLoading: false })
+        }
+    },
+
+    loadMorePosts: async () => {
+        const { postsPaginated, postsHasMore, postsLoadingMore, postsPage } = get()
+        if (!postsPaginated || !postsHasMore || postsLoadingMore) return
+        set({ postsLoadingMore: true })
+        try {
+            const nextPage = postsPage + 1
+            const res = await postService.getPosts({ page: nextPage })
+            const incoming = (res?.posts || []).filter(p => p.postType === 'campaign_card' || p.creator)
+            set((state) => {
+                const existingIds = new Set(state.posts.map((p) => p.id))
+                const deduped = incoming.filter((p) => !existingIds.has(p.id))
+                return {
+                    posts: [...state.posts, ...deduped],
+                    postsPage: nextPage,
+                    postsHasMore: Boolean(res?.hasMore),
+                }
+            })
+        } catch {
+            // Non-fatal: stop trying further pages this session, keep what's already loaded.
+            set({ postsHasMore: false })
+        } finally {
+            set({ postsLoadingMore: false })
         }
     },
 

@@ -25,10 +25,11 @@ import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
 export default function HomePage() {
     const {
-        posts, postsLoading, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
+        posts, postsLoading, postsHasMore, postsLoadingMore, loadMorePosts, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
         reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal, setUnreadMessagesTotal
     } = useFeedStore(useShallow((s) => ({
-        posts: s.posts, postsLoading: s.postsLoading, notifications: s.notifications,
+        posts: s.posts, postsLoading: s.postsLoading, postsHasMore: s.postsHasMore, postsLoadingMore: s.postsLoadingMore,
+        loadMorePosts: s.loadMorePosts, notifications: s.notifications,
         unreadNotifications: s.unreadNotifications, loadNotifications: s.loadNotifications,
         markNotificationsRead: s.markNotificationsRead, loadPosts: s.loadPosts, fetchSinglePost: s.fetchSinglePost,
         reelFeed: s.reelFeed, reelFeedLoading: s.reelFeedLoading, reelFeedError: s.reelFeedError,
@@ -38,9 +39,10 @@ export default function HomePage() {
     const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
+    const loadMoreSentinelRef = useRef(null)
 
-    useEffect(() => { 
-        loadPosts() 
+    useEffect(() => {
+        loadPosts({ paginated: true })
         loadNotifications()
     }, [loadPosts, loadNotifications])
 
@@ -79,6 +81,21 @@ export default function HomePage() {
         }
         return posts.filter((post) => post.postType === postFilter)
     }, [posts, postFilter])
+
+    // Infinite scroll: fetch the next page of the paginated home feed as the
+    // sentinel below the last post approaches the viewport.
+    useEffect(() => {
+        const node = loadMoreSentinelRef.current
+        if (!node || typeof IntersectionObserver === 'undefined') return undefined
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) loadMorePosts()
+            },
+            { rootMargin: '800px 0px' }
+        )
+        observer.observe(node)
+        return () => observer.disconnect()
+    }, [loadMorePosts, feedPosts.length])
 
     const videoPosts = useMemo(
         () => posts.filter((post) => post.media?.type === 'video' && post.postType !== 'nft' && !post.isNFT),
@@ -376,6 +393,13 @@ export default function HomePage() {
                             )}
                         </div>
                     ))}
+                    {postsHasMore && (
+                        <div ref={loadMoreSentinelRef} className="py-4 flex items-center justify-center">
+                            {postsLoadingMore && (
+                                <div className="w-5 h-5 rounded-full border-2 border-surface2 animate-spin" style={{ borderTopColor: 'var(--color-primary)' }} />
+                            )}
+                        </div>
+                    )}
                 </div>
             ) : isExplore ? (
                 <div className="px-4 pt-4 pb-6">
