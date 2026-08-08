@@ -138,6 +138,11 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         if (videoRef.current.readyState >= 2) {
                             await videoRef.current.play();
                         } else {
+                            // preload is "none" until intersecting, so nothing may be loading yet —
+                            // force the browser to start fetching now that preload="auto" is in effect.
+                            if (videoRef.current.networkState !== 2 /* NETWORK_LOADING */) {
+                                videoRef.current.load();
+                            }
                             videoRef.current.oncanplay = async () => {
                                 if (isIntersecting && !isStoryOpen) {
                                     await videoRef.current?.play();
@@ -482,6 +487,15 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                                 className="hidden"
                             />
                         )}
+                        <img
+                            src={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            style={{ filter: post.filter || 'none' }}
+                            loading="lazy"
+                            decoding="async"
+                        />
                         <video
                             ref={videoRef}
                             src={optimizeCloudinaryUrl(post.media?.url, { isVideo: true, width: 720, quality: '50' })}
@@ -490,7 +504,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                             loop
                             playsInline
                             muted={isMuted}
-                            preload="auto"
+                            preload={isIntersecting ? "auto" : "none"}
                             controlsList="nodownload"
                             onLoadedData={() => setMediaLoaded(true)}
                             onContextMenu={(e) => e.preventDefault()}
