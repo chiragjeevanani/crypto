@@ -3,7 +3,10 @@ const path = require("path");
 const { ffmpeg } = require("../utils/ffmpegSetup");
 const { probeVideo } = require("./videoProbe");
 const { selectRungs, computeDimensions, getProfile } = require("./videoLadder");
+const { buildMasterPlaylist } = require("./hlsPlaylist");
 const { videoJobQueue } = require("../utils/jobQueue");
+
+const HLS_SEGMENT_SECONDS = Math.max(1, Number(process.env.HLS_SEGMENT_SECONDS) || 2);
 
 // Computed directly (not imported from utils/upload.js) to avoid a circular
 // require: upload.js -> middleware/videoAssetPipeline.js -> this file.
@@ -21,6 +24,27 @@ function rmDirSafe(dir) {
   } catch (err) {
     console.error(`[videoPipeline] failed to clean up ${dir}:`, err.message);
   }
+}
+
+// ffmpeg's fmp4 HLS muxer writes -hls_segment_filename references into the
+// playlist as bare basenames automatically (seg-00000.m4s, ...), but writes
+// -hls_fmp4_init_filename verbatim into the #EXT-X-MAP URI — if that flag is
+// given an absolute path (needed so the actual init.mp4 file lands in the
+// right directory), the ABSOLUTE PATH ends up embedded in the playlist text,
+// which no HLS client can resolve. Fix up just that one line after encoding.
+function fixInitSegmentUri(playlistPath, initAbsolutePath) {
+  const content = fs.readFileSync(playlistPath, "utf8");
+  const fixed = content.split(initAbsolutePath).join("init.mp4");
+  if (fixed !== content) fs.writeFileSync(playlistPath, fixed);
+}
+
+function dirSizeBytes(dir) {
+  let total = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const entryPath = path.join(dir, entry.name);
+    total += entry.isDirectory() ? dirSizeBytes(entryPath) : fs.statSync(entryPath).size;
+  }
+  return total;
 }
 
 /**
@@ -53,8 +77,16 @@ function runFfmpegJob(buildCommand, label) {
   );
 }
 
-function buildRungCommand(sourcePath, outputPath, dims, profile, fps, hasAudio) {
-  const keyint = Math.max(2, Math.round(2 * (fps || 30)));
+/**
+ * Encodes one rung directly to HLS (fMP4 segments + its own variant
+ * playlist) rather than a plain MP4. `-x264-params keyint=...:scenecut=0`
+ * plus a matching `-force_key_frames` expression forces a keyframe exactly
+ * every HLS_SEGMENT_SECONDS regardless of scene content — this is what keeps
+ * segment boundaries aligned across every rung, which is what makes
+ * mid-playback quality switching seamless instead of glitchy.
+ */
+function buildHlsRungCommand(sourcePath, rungDir, dims, profile, fps, hasAudio) {
+  const keyint = Math.max(2, Math.round(HLS_SEGMENT_SECONDS * (fps || 30)));
   let command = ffmpeg(sourcePath)
     .videoCodec("libx264")
     .outputOptions([
@@ -67,8 +99,7 @@ function buildRungCommand(sourcePath, outputPath, dims, profile, fps, hasAudio) 
       "-profile:v", profile.profile,
       "-level", profile.level,
       "-x264-params", `keyint=${keyint}:min-keyint=${keyint}:scenecut=0`,
-      "-force_key_frames", "expr:gte(t,n_forced*2)",
-      "-movflags", "+faststart",
+      "-force_key_frames", `expr:gte(t,n_forced*${HLS_SEGMENT_SECONDS})`,
     ]);
 
   if (hasAudio) {
@@ -81,23 +112,49 @@ function buildRungCommand(sourcePath, outputPath, dims, profile, fps, hasAudio) 
     command = command.noAudio();
   }
 
-  return command.output(outputPath);
+  command = command.outputOptions([
+    "-f", "hls",
+    "-hls_time", String(HLS_SEGMENT_SECONDS),
+    "-hls_playlist_type", "vod",
+    "-hls_segment_type", "fmp4",
+    "-hls_fmp4_init_filename", path.join(rungDir, "init.mp4"),
+    "-hls_segment_filename", path.join(rungDir, "seg-%05d.m4s"),
+    "-hls_list_size", "0",
+  ]);
+
+  return command.output(path.join(rungDir, "playlist.m3u8"));
 }
 
-function buildPosterCommand(sourcePath, outputPath, seekSeconds) {
+// Poster comes from the ORIGINAL source (still available at this point —
+// the caller only deletes it after processVideoAsset returns successfully),
+// scaled to the highest rung's dimensions. Reading from the source avoids any
+// dependency on the HLS demuxer and gives the best available frame quality.
+function buildPosterCommand(sourcePath, outputPath, seekSeconds, dims) {
   return ffmpeg(sourcePath)
-    .outputOptions(["-ss", String(seekSeconds), "-frames:v", "1", "-q:v", "3"])
+    .outputOptions(["-ss", String(seekSeconds), "-frames:v", "1", "-vf", `scale=${dims.width}:${dims.height}`, "-q:v", "3"])
+    .output(outputPath);
+}
+
+// Stream-copy remux of the highest rung's HLS output into a single plain
+// MP4 — zero extra encode cost, zero extra generational quality loss. This
+// is the file legacy (non-HLS-aware) callers and media.url ultimately point
+// at. Needs an explicit protocol/extension whitelist because ffmpeg locks
+// those down by default for the concat/hls demuxer reading local files.
+function buildFallbackRemuxCommand(playlistPath, outputPath) {
+  return ffmpeg(playlistPath)
+    .inputOptions(["-protocol_whitelist", "file,crypto,data", "-allowed_extensions", "ALL"])
+    .outputOptions(["-c", "copy", "-movflags", "+faststart"])
     .output(outputPath);
 }
 
 /**
- * Encodes a source video into a source-aware rendition ladder (MP4 only —
- * HLS packaging is a later phase), a poster image, and a fallback MP4
- * (currently just a copy of the highest rung; phase 6 replaces this with a
- * stream-copy remux of the HLS output). Everything is built in a temp
- * directory and atomically renamed into place on success, so a URL is never
- * reachable mid-processing. Throws on failure and cleans up its own temp
- * directory — it does NOT touch the original uploaded file either way;
+ * Encodes a source video into a source-aware HLS rendition ladder (each rung
+ * as fMP4 segments + its own variant playlist), a hand-written master
+ * playlist, a poster image, and a fallback MP4 (a stream-copy remux of the
+ * highest rung's HLS output — zero extra encode cost). Everything is built
+ * in a temp directory and atomically renamed into place on success, so a URL
+ * is never reachable mid-processing. Throws on failure and cleans up its own
+ * temp directory — it does NOT touch the original uploaded file either way;
  * that decision belongs to the caller.
  */
 async function processVideoAsset({ assetId, sourcePath }) {
@@ -121,22 +178,25 @@ async function processVideoAsset({ assetId, sourcePath }) {
       const dims = computeDimensions(probe.displayWidth, probe.displayHeight, target);
       const rungLabel = typeof rung === "number" ? String(rung) : "source";
       const profile = getProfile(typeof rung === "number" ? rung : 360);
-      const outputFile = `v${rungLabel}.mp4`;
-      const outputPath = path.join(tmpDir, outputFile);
+      const rungDir = path.join(tmpDir, `v${rungLabel}`);
+      ensureDir(rungDir);
 
       const rungStarted = Date.now();
       await runFfmpegJob(
-        () => buildRungCommand(sourcePath, outputPath, dims, profile, probe.fps, probe.hasAudio),
+        () => buildHlsRungCommand(sourcePath, rungDir, dims, profile, probe.fps, probe.hasAudio),
         `encode-${assetId}-${rungLabel}`
       );
+      fixInitSegmentUri(path.join(rungDir, "playlist.m3u8"), path.join(rungDir, "init.mp4"));
 
       outputs.push({
         rung: rungLabel,
         width: dims.width,
         height: dims.height,
-        file: outputFile,
-        bytes: fs.statSync(outputPath).size,
+        dir: `v${rungLabel}`,
+        playlist: `v${rungLabel}/playlist.m3u8`,
+        bytes: dirSizeBytes(rungDir),
         encodeMs: Date.now() - rungStarted,
+        profile,
       });
     }
 
@@ -144,17 +204,24 @@ async function processVideoAsset({ assetId, sourcePath }) {
     const posterSeek = probe.duration > 1 ? 1 : 0;
     const posterPath = path.join(tmpDir, "poster.jpg");
     await runFfmpegJob(
-      () => buildPosterCommand(path.join(tmpDir, highest.file), posterPath, posterSeek),
+      () => buildPosterCommand(sourcePath, posterPath, posterSeek, { width: highest.width, height: highest.height }),
       `poster-${assetId}`
     );
 
+    const masterPlaylist = buildMasterPlaylist(outputs);
+    fs.writeFileSync(path.join(tmpDir, "master.m3u8"), masterPlaylist);
+
     const fallbackPath = path.join(tmpDir, "fallback.mp4");
-    fs.copyFileSync(path.join(tmpDir, highest.file), fallbackPath);
+    await runFfmpegJob(
+      () => buildFallbackRemuxCommand(path.join(tmpDir, highest.playlist), fallbackPath),
+      `fallback-remux-${assetId}`
+    );
 
     const meta = {
       assetId,
       processedAt: new Date().toISOString(),
       totalMs: Date.now() - startedAt,
+      segmentSeconds: HLS_SEGMENT_SECONDS,
       source: {
         width: probe.width,
         height: probe.height,
@@ -165,7 +232,8 @@ async function processVideoAsset({ assetId, sourcePath }) {
         fps: probe.fps,
         hasAudio: probe.hasAudio,
       },
-      outputs,
+      outputs: outputs.map(({ profile, ...rest }) => rest), // drop the profile object, keep it human-readable
+      fallbackBytes: fs.statSync(fallbackPath).size,
     };
     fs.writeFileSync(path.join(tmpDir, "meta.json"), JSON.stringify(meta, null, 2));
 
@@ -175,6 +243,7 @@ async function processVideoAsset({ assetId, sourcePath }) {
     return {
       assetDir: `/uploads/videos/${assetId}`,
       url: `/uploads/videos/${assetId}/fallback.mp4`,
+      hlsUrl: `/uploads/videos/${assetId}/master.m3u8`,
       thumbnailUrl: `/uploads/videos/${assetId}/poster.jpg`,
       qualities: outputs.map((o) => o.rung),
       width: probe.displayWidth,

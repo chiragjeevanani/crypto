@@ -117,7 +117,13 @@ function formatPostForUserFeed(post, baseUrl, creatorInfo, currentUserId, follow
       thumbnail: post.media?.type === "video"
         ? resolveVideoThumbnail(post, baseUrl)
         : mediaUrlFromPost(post, baseUrl),
-      aspectRatio: post.media?.aspectRatio || "4/3"
+      aspectRatio: post.media?.aspectRatio || "4/3",
+      // Additive: only meaningful for videos through the new rendition
+      // pipeline. Old posts simply lack hlsUrl/qualities, so the player
+      // (phase 7) falls back to the plain `url` above exactly as today.
+      processingStatus: post.media?.processingStatus || "ready",
+      hlsUrl: post.media?.hlsUrl ? resolveUrl(post.media.hlsUrl, baseUrl) : "",
+      qualities: post.media?.qualities || []
     },
     caption: post.caption || "",
     filter: post.filter || "none",
