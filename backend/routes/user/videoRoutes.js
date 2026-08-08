@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { upload } = require('../../utils/upload');
+const { uploadRaw } = require('../../utils/upload');
 const { processVideo } = require('../../services/videoProcessor');
 const path = require('path');
 const fs = require('fs');
 
-router.post('/process-video', upload.fields([{ name: 'video', maxCount: 1 }, { name: 'secondVideo', maxCount: 1 }]), async (req, res) => {
+// Uses uploadRaw (no mediaOptimizer) — processVideo() below reads this file
+// immediately, and mediaOptimizer running concurrently in the background used
+// to race that read (see upload.js).
+router.post('/process-video', uploadRaw.fields([{ name: 'video', maxCount: 1 }, { name: 'secondVideo', maxCount: 1 }]), async (req, res) => {
     try {
         const { trim, layout, rotation, splitRatio, music } = req.body;
         const video = req.files['video'] ? req.files['video'][0] : null;

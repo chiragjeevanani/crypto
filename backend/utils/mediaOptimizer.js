@@ -1,13 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");
-const ffmpeg = require("fluent-ffmpeg");
-const ffmpegPath = require("ffmpeg-static");
-
-// Configure ffmpeg static binary path
-if (ffmpegPath) {
-  ffmpeg.setFfmpegPath(ffmpegPath);
-}
+const { ffmpeg } = require("./ffmpegSetup");
 
 /**
  * Compresses and converts an image file to WebP format.

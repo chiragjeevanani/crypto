@@ -1,11 +1,6 @@
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('ffmpeg-static');
+const { ffmpeg } = require('../utils/ffmpegSetup');
 const path = require('path');
 const fs = require('fs');
-
-if (ffmpegPath) {
-    ffmpeg.setFfmpegPath(ffmpegPath);
-}
 
 const processVideo = async ({ file, secondFile, trim, layout, rotation, splitRatio = 50, music }) => {
     // Convert to forward slashes for FFmpeg compatibility on Windows
