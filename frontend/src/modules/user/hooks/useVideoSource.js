@@ -1,6 +1,43 @@
 import { useEffect, useRef } from 'react'
 
 const WARM_MAX_BUFFER_SECONDS = 2
+const SLOW_MAX_BUFFER_SECONDS = 10
+const DEFAULT_MAX_BUFFER_SECONDS = 30
+
+// navigator.connection is a hint, not a guarantee — unsupported on Safari/iOS
+// entirely, so every read here is feature-detected and treated as advisory.
+// Exported only for testing (pure, no DOM side effects) — internal otherwise.
+export function getNetworkHint() {
+  if (typeof navigator === 'undefined') return null
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+  if (!conn) return null
+  return { effectiveType: conn.effectiveType, saveData: Boolean(conn.saveData) }
+}
+
+export function isSlowConnection(hint) {
+  if (!hint) return false
+  if (hint.saveData) return true
+  return hint.effectiveType === 'slow-2g' || hint.effectiveType === '2g' || hint.effectiveType === '3g'
+}
+
+/**
+ * Buffer/quality config for a given priority + current network hint. Only
+ * ever affects the STARTING point (startLevel) and how far ahead hls.js
+ * buffers (maxBufferLength) — never autoLevelCapping based on network alone,
+ * so a slow-start connection can still climb to full quality once hls.js's
+ * own bandwidth estimation sees it's actually fast. Quality is never
+ * permanently locked by a network reading.
+ */
+export function computeBufferConfig(warm) {
+  const slow = isSlowConnection(getNetworkHint())
+  if (warm) {
+    return { maxBufferLength: WARM_MAX_BUFFER_SECONDS, maxMaxBufferLength: WARM_MAX_BUFFER_SECONDS, startLevel: 0, levelCap: 0 }
+  }
+  if (slow) {
+    return { maxBufferLength: SLOW_MAX_BUFFER_SECONDS, maxMaxBufferLength: SLOW_MAX_BUFFER_SECONDS, startLevel: 0, levelCap: -1 }
+  }
+  return { maxBufferLength: DEFAULT_MAX_BUFFER_SECONDS, maxMaxBufferLength: DEFAULT_MAX_BUFFER_SECONDS, startLevel: -1, levelCap: -1 }
+}
 
 /**
  * Feeds a <video> element's source without ever touching playback state.
@@ -21,16 +58,17 @@ const WARM_MAX_BUFFER_SECONDS = 2
  * - otherwise -> dynamically imports the hls.js "light" build (no
  *   subtitles/EME/alt-audio-track support — matches this pipeline's
  *   single-muxed-audio-track HLS output, never in the main bundle) and
- *   attaches it.
- * - warmOnly=true caps buffering (small maxBufferLength + a capped auto
- *   quality level) instead of the unrestricted default — the analogue of
- *   the old preload="metadata"/"auto" distinction, since the `preload`
- *   HTML attribute is inert once hls.js owns the media source. Changing
- *   `warmOnly` on an already-attached instance adjusts it LIVE (hls.js
- *   config mutation + autoLevelCapping) rather than tearing the instance
- *   down and reattaching — recreating it every time a reel becomes/stops
- *   being active would discard whatever it already buffered and force a
- *   full reload, defeating fast-forward/backward between nearby reels.
+ *   attaches it, with a buffer/starting-quality config from
+ *   computeBufferConfig() above (priority + a network hint).
+ * - warmOnly=true caps buffering hard (2s) regardless of network — the
+ *   analogue of the old preload="metadata"/"auto" distinction, since the
+ *   `preload` HTML attribute is inert once hls.js owns the media source.
+ *   Changing `warmOnly` on an already-attached instance adjusts it LIVE
+ *   (hls.js config mutation + autoLevelCapping) rather than tearing the
+ *   instance down and reattaching — recreating it every time a reel
+ *   becomes/stops being active would discard whatever it already buffered
+ *   and force a full reload, defeating fast-forward/backward between
+ *   nearby reels.
  * - Any fatal hls.js error gets one retry, then falls back to the plain
  *   MP4 (re-issuing play() only if playback was already in progress) —
  *   this must never throw past the hook or crash the reel viewer.
@@ -45,15 +83,10 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
   useEffect(() => {
     const hls = hlsRef.current
     if (!hls) return
-    if (warmOnly) {
-      hls.config.maxBufferLength = WARM_MAX_BUFFER_SECONDS
-      hls.config.maxMaxBufferLength = WARM_MAX_BUFFER_SECONDS
-      hls.autoLevelCapping = 0
-    } else {
-      hls.config.maxBufferLength = 30
-      hls.config.maxMaxBufferLength = 30
-      hls.autoLevelCapping = -1
-    }
+    const cfg = computeBufferConfig(warmOnly)
+    hls.config.maxBufferLength = cfg.maxBufferLength
+    hls.config.maxMaxBufferLength = cfg.maxMaxBufferLength
+    hls.autoLevelCapping = cfg.levelCap
   }, [warmOnly])
 
   useEffect(() => {
@@ -110,13 +143,13 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
       }
 
       destroyHls()
-      const startWarm = warmOnlyRef.current
-      const hls = new HlsCtor(
-        startWarm
-          ? { maxBufferLength: WARM_MAX_BUFFER_SECONDS, maxMaxBufferLength: WARM_MAX_BUFFER_SECONDS, startLevel: 0 }
-          : {}
-      )
-      if (startWarm) hls.autoLevelCapping = 0
+      const cfg = computeBufferConfig(warmOnlyRef.current)
+      const hls = new HlsCtor({
+        maxBufferLength: cfg.maxBufferLength,
+        maxMaxBufferLength: cfg.maxMaxBufferLength,
+        startLevel: cfg.startLevel,
+      })
+      hls.autoLevelCapping = cfg.levelCap
       hlsRef.current = hls
 
       let fatalRetried = false
