@@ -637,6 +637,15 @@ const CreatePage = () => {
   const overlayInputRef = useRef(null);
   const canvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
+  const [canvasContainerMounted, setCanvasContainerMounted] = useState(false);
+  const setCanvasContainerRef = useCallback((node) => {
+    canvasContainerRef.current = node;
+    if (node) {
+      setCanvasContainerMounted(true);
+    } else {
+      setCanvasContainerMounted(false);
+    }
+  }, []);
   const instacamRef = useRef(null);
   const cameraInitIdRef = useRef(0);
   const pressStartTimeRef = useRef(0);
@@ -654,7 +663,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     {
       id: 'instacam',
       label: 'Insta Filters',
-      filters: []
+      filters: Object.keys(FILTER_PRESETS)
     }
   ];
 
@@ -1539,6 +1548,36 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     return () => window.clearTimeout(timeoutId);
   }, [syncingSound]);
 
+  // Intercept getUserMedia to prevent telephoto lens selection on Android and standardize resolution
+  useEffect(() => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    
+    navigator.mediaDevices.getUserMedia = async function (constraints) {
+      if (constraints && constraints.video) {
+        let video = typeof constraints.video === 'object' ? { ...constraints.video } : {};
+        
+        if (video.facingMode) {
+          const mode = typeof video.facingMode === 'object' 
+            ? (video.facingMode.ideal || video.facingMode.exact || 'environment') 
+            : video.facingMode;
+          video.facingMode = { ideal: mode };
+        }
+        
+        video.width = { ideal: 1080 };
+        video.height = { ideal: 1920 };
+        video.aspectRatio = { ideal: 0.5625 };
+        
+        constraints.video = video;
+      }
+      return originalGetUserMedia(constraints);
+    };
+    
+    return () => {
+      navigator.mediaDevices.getUserMedia = originalGetUserMedia;
+    };
+  }, []);
+
   useEffect(() => {
     if (previewVideoRef.current) {
       const speedValue = parseFloat(selectedSpeed) || 1;
@@ -1554,7 +1593,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
   useEffect(() => {
     let isMounted = true;
-    if (stage === 'camera') {
+    if (stage === 'camera' && canvasContainerMounted) {
       startCamera();
     } else if (streamRef.current) {
       stopCamera();
@@ -1564,7 +1603,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       isMounted = false;
       stopCamera();
     };
-  }, [stage, facingMode]);
+  }, [stage, facingMode, canvasContainerMounted]);
 
   const startCamera = async (overrideMode) => {
     const activeMode = overrideMode || facingMode;
@@ -3465,7 +3504,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             playsInline 
             className={`h-full w-full object-cover transition-transform duration-300 ${facingMode === 'user' ? '-scale-x-100' : ''}`}
           />
-          <div ref={canvasContainerRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+          <div ref={setCanvasContainerRef} className="absolute inset-0 h-full w-full pointer-events-none" />
         </div>
         
         {/* Progress Bar */}
@@ -5951,14 +5990,12 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         type="file" 
         ref={overlayInputRef} 
         className="hidden" 
-        accept=".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.mp4,.webm,.mov,.3gp,.avi" 
         onChange={handleOverlaySelect} 
       />
       <input 
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
-        accept=".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.mp4,.webm,.mov,.3gp,.avi" 
         onChange={handleFileChange} 
       />
 
