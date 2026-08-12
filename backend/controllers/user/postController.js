@@ -130,6 +130,24 @@ exports.createPost = async (req, res) => {
         console.error("Failed to parse body.postData:", err);
       }
     }
+
+    let customThumbnailUrl = "";
+    if (body.coverImage && body.coverImage.startsWith("data:image/")) {
+      try {
+        const matches = body.coverImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const buffer = Buffer.from(matches[2], 'base64');
+          const ext = matches[1].split('/')[1] || 'jpg';
+          const filename = `cover-${Date.now()}-${Math.floor(Math.random() * 1000)}.${ext}`;
+          const filePath = path.join(__dirname, "..", "..", "uploads", filename);
+          fs.writeFileSync(filePath, buffer);
+          customThumbnailUrl = `/uploads/${filename}`;
+        }
+      } catch (err) {
+        console.error("Failed to save custom cover image:", err);
+      }
+    }
+
     const caption = typeof body.caption === "string" ? body.caption.trim() : "";
     const language = typeof body.language === "string" ? body.language.trim() : (typeof req.body.language === "string" ? req.body.language.trim() : "English");
     const category = typeof body.category === "string" ? body.category.trim() : "General";
@@ -185,7 +203,13 @@ exports.createPost = async (req, res) => {
 
     const postDoc = await Post.create({
       creator: userId,
-      media: { type: mediaType, url: mediaUrl, aspectRatio: body.aspectRatio || "4/3", ...mediaExtra },
+      media: { 
+        type: mediaType, 
+        url: mediaUrl, 
+        aspectRatio: body.aspectRatio || "4/3", 
+        ...mediaExtra,
+        thumbnailUrl: customThumbnailUrl || mediaExtra.thumbnailUrl || "" 
+      },
       caption,
       category,
       subcategory,

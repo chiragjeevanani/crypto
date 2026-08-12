@@ -16,7 +16,12 @@ export const useAppContent = () => {
         hashtagSuggestions: [],
         linkOptions: [],
         shareTargets: [],
-        sideTools: [],
+        sideTools: [
+          { id: 'flip', label: 'Flip' },
+          { id: 'speed', label: 'Speed' },
+          { id: 'timer', label: 'Timer' },
+          { id: 'filters', label: 'Filters' }
+        ],
         previewTools: [],
         editorActions: [],
         editorPrimaryTabs: []

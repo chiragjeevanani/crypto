@@ -29,6 +29,7 @@ import {
   BiRedo,
   BiPause,
   BiSlider,
+  BiVideoOff,
 } from 'react-icons/bi';
 import {
   IoCameraReverseOutline,
@@ -79,6 +80,7 @@ const createInitialPostState = () => ({
   ctaType: 'Shop Now',
   redirectType: 'whatsapp',
   whatsappNumber: '',
+  coverImage: '',
 });
 
 const formatElapsed = (value) => `00:${String(Math.max(0, Math.round(value))).padStart(2, '0')}`;
@@ -678,7 +680,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                       localStorage.removeItem('create_recordStatus');
                       localStorage.removeItem('create_recordedSeconds');
                       setTimeout(() => {
-                          navigate('/', { replace: true });
+                          window.location.href = '/';
                       }, 2500);
                   }
               } catch (err) {
@@ -697,7 +699,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           localStorage.removeItem('create_recordedSeconds');
           
           setTimeout(() => {
-              navigate('/', { replace: true });
+              window.location.href = '/';
           }, 1500);
       }
   }, [location.search, navigate]);
@@ -959,6 +961,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const [recordedVoiceBlob, setRecordedVoiceBlob] = useState(null);
   const [voiceRecorder, setVoiceRecorder] = useState(null);
   const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
+  const isPressingMicRef = useRef(false);
   const [mergedVideoBlob, setMergedVideoBlob] = useState(null);
   const [imageAdjustments, setImageAdjustments] = useState({
     brightness: 100,
@@ -1570,47 +1573,6 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     const initId = ++cameraInitIdRef.current;
 
     try {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerHeight > window.innerWidth;
-      
-      const constraints = {
-        video: {
-          facingMode: isUser ? 'user' : 'environment',
-          width: { ideal: isMobile ? 1080 : 1920 },
-          height: { ideal: isMobile ? 1920 : 1080 },
-          aspectRatio: { ideal: isMobile ? 9 / 16 : 16 / 9 }
-        },
-        audio: true
-      };
-
-      let mediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (micError) {
-        console.warn('Microphone failed or restricted, falling back to video stream:', micError);
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: isUser ? 'user' : 'environment',
-            width: { ideal: isMobile ? 1080 : 1920 },
-            height: { ideal: isMobile ? 1920 : 1080 },
-            aspectRatio: { ideal: isMobile ? 9 / 16 : 16 / 9 }
-          }
-        });
-      }
-
-      if (cameraInitIdRef.current !== initId) {
-        mediaStream.getTracks().forEach(track => {
-          try { track.stop(); } catch (e) {}
-        });
-        return;
-      }
-
-      streamRef.current = mediaStream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play().catch(e => console.warn('Direct video stream playback error:', e));
-      }
-
       if (canvasContainerRef.current) {
         canvasContainerRef.current.innerHTML = '';
         const canvas = document.createElement('canvas');
@@ -1619,28 +1581,60 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         canvasContainerRef.current.appendChild(canvas);
         canvasRef.current = canvas;
 
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => {
+            try { track.stop(); } catch (e) {}
+          });
+          streamRef.current = null;
+        }
         if (instacamRef.current) {
+          if (instacamRef.current.v) {
+            instacamRef.current.v.getTracks().forEach(track => {
+              try { track.stop(); } catch (e) {}
+            });
+          }
           try { instacamRef.current.stop(); } catch (e) {}
+          instacamRef.current = null;
         }
 
-        try {
-          instacamRef.current = new Instacam(canvasRef.current, {
-            width: 720,
-            height: 1280,
-            ratio: 9 / 16,
-            mode: isUser ? 'front' : 'back',
-            autostart: true,
-            done: () => {
-              if (cameraInitIdRef.current !== initId) return;
-              console.log('Instacam camera preview ready');
-            },
-            fail: (err) => {
-              console.warn('Instacam canvas setup failed, active video element handling stream:', err);
-            }
-          });
-        } catch (instacamErr) {
-          console.warn('Instacam initialization failed:', instacamErr);
-        }
+        const initInstacam = (withSound) => {
+          try {
+            instacamRef.current = new Instacam(canvasRef.current, {
+              width: 720,
+              height: 1280,
+              ratio: 9 / 16,
+              mode: isUser ? 'front' : 'back',
+              autostart: true,
+              sound: withSound,
+              done: () => {
+                if (cameraInitIdRef.current !== initId) return;
+                console.log(`Instacam camera preview ready (sound: ${withSound})`);
+                
+                if (instacamRef.current && instacamRef.current.v) {
+                  streamRef.current = instacamRef.current.v;
+                  
+                  if (videoRef.current) {
+                    videoRef.current.srcObject = instacamRef.current.v;
+                    videoRef.current.play().catch(e => console.warn('Direct video stream playback error:', e));
+                  }
+                }
+              },
+              fail: (err) => {
+                console.warn(`Instacam canvas setup failed (sound: ${withSound}):`, err);
+                if (withSound) {
+                  console.warn('Retrying camera stream without microphone...');
+                  initInstacam(false);
+                } else {
+                  showToast('Camera access denied or unavailable');
+                }
+              }
+            });
+          } catch (instacamErr) {
+            console.warn('Instacam initialization failed:', instacamErr);
+          }
+        };
+
+        initInstacam(true);
       }
     } catch (err) {
       console.error('Camera stream access failed:', err);
@@ -2007,7 +2001,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     ];
     let selectedType = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
 
-    const recorder = new MediaRecorder(streamRef.current, selectedType ? { mimeType: selectedType } : {});
+    let recordingStream = streamRef.current;
+    if (canvasRef.current && streamRef.current) {
+      try {
+        const canvasStream = canvasRef.current.captureStream(30);
+        const videoTrack = canvasStream.getVideoTracks()[0];
+        const audioTracks = streamRef.current.getAudioTracks();
+        if (videoTrack) {
+          recordingStream = new MediaStream([videoTrack, ...audioTracks]);
+        }
+      } catch (err) {
+        console.warn('Failed to capture canvas stream, falling back to raw camera stream:', err);
+      }
+    }
+
+    const recorder = new MediaRecorder(recordingStream, selectedType ? { mimeType: selectedType } : {});
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
@@ -2501,7 +2509,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     if (!file) return;
     
     const url = URL.createObjectURL(file);
-    const type = file.type.startsWith('video') ? 'video' : 'image';
+    const isVideo = file.type.startsWith('video') || /\.(mp4|webm|mov|3gp|avi)$/i.test(file.name);
+    const type = isVideo ? 'video' : 'image';
     
     setActiveOverlays(prev => [...prev, {
         id: Date.now(),
@@ -2587,6 +2596,15 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             isAgeRestricted: postState.audienceControls,
             location: postState.location,
             taggedUsers: postState.taggedUsers || [],
+            isBusiness: postState.isBusiness,
+            dailyBudget: postState.dailyBudget || 99,
+            duration: postState.durationDays || 10,
+            totalBudget: (postState.dailyBudget || 99) * (postState.durationDays || 10),
+            promoEnabled: postState.isBusiness ? 'true' : 'false',
+            ctaType: postState.ctaType || 'Shop Now',
+            redirectType: postState.redirectType || 'whatsapp',
+            whatsappNumber: postState.whatsappNumber || '',
+            coverImage: postState.coverImage || '',
             music: (selectedSound && selectedSound._id && selectedSound._id !== 'sound-original') ? {
                 _id: selectedSound._id,
                 title: selectedSound.title,
@@ -2673,8 +2691,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                                             if (verifyRes.success) {
                                                 showToast('Promotion payment successful! Your post has been submitted for admin review.');
                                                 setTimeout(() => {
-                                                    navigate('/');
-                                                    setRecordStatus('idle');
+                                                    window.location.href = '/';
                                                 }, 2500);
                                             }
                                         } catch (err) {
@@ -2724,14 +2741,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     localStorage.removeItem('create_recordedSeconds');
                     
                     setTimeout(() => {
-                        navigate('/');
-                        // Reset state
-                        setRecordStatus('idle');
-                        setVideoFile(null);
-                        setPreviewUrl(null);
-                        setOverlayText('');
-                        setActiveStickers([]);
-                        setSelectedFilter('Normal');
+                        window.location.href = '/';
                     }, 2500);
                     return;
                 }
@@ -2750,14 +2760,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             localStorage.removeItem('create_recordedSeconds');
             
             setTimeout(() => {
-                navigate('/');
-                // Reset state
-                setRecordStatus('idle');
-                setVideoFile(null);
-                setPreviewUrl(null);
-                setOverlayText('');
-                setActiveStickers([]);
-                setSelectedFilter('Normal');
+                window.location.href = '/';
             }, 1500);
         }
     } catch (error) {
@@ -2774,11 +2777,12 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     lastFocusTimeRef.current = Date.now();
     const file = e.target.files[0];
     if (file) {
-      if (file.type.startsWith('video/') || file.type.startsWith('image/')) {
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|3gp|avi)$/i.test(file.name);
+      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(file.name);
+      if (isVideo || isImage) {
         const url = URL.createObjectURL(file);
 
         if (stage === 'editor' || stage === 'preview') {
-            const isImage = file.type.startsWith('image/');
             const addClip = (actualDuration) => {
                 setVideoDuration(prev => prev + actualDuration);
                 setClipSequence(prev => [...prev, { file, url, duration: actualDuration, isImage }]);
@@ -2841,7 +2845,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         setVideoFile(file);
         setPreviewUrl(url);
 
-        if (file.type.startsWith('image/')) {
+        if (isImage) {
             setVideoDuration(15); // Default 15s duration for image clips
         }
 
@@ -3172,12 +3176,17 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             </span>
             {selectedSound?.title && !['Original sound', 'Original audio', 'Original Audio'].includes(selectedSound.title) && (
               <div 
-                onClick={(e) => {
+                onPointerDown={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   setSelectedSounds([]);
                   showToast('Sound removed');
                 }}
-                className="ml-1 p-1 hover:bg-white/10 rounded-full transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                className="ml-1 p-1 hover:bg-white/10 rounded-full transition-colors pointer-events-auto"
               >
                 <BiX size={16} className="text-white/60" />
               </div>
@@ -3444,7 +3453,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               width: 100% !important;
               height: 100% !important;
               object-fit: cover !important;
-              transform: ${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'} scale(1.25) !important;
+              transform: ${facingMode === 'user' ? 'scaleX(-1)' : 'none'} !important;
             }
           `}
         </style>
@@ -3714,15 +3723,32 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
                           setIsTextSelected(true);
                           setSelectedStickerId(null);
+                          setIsDraggingAny(true);
                           
                           const moveHandler = (moveEvent) => {
                             const dx = moveEvent.clientX - startX;
                             const dy = moveEvent.clientY - startY;
                             if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
                             setTextPos({ x: initialX + dx, y: initialY + dy });
+                            
+                            const screenHeight = window.innerHeight;
+                            if (moveEvent.clientY > screenHeight * 0.75) {
+                              setIsOverDeleteZone(true);
+                            } else {
+                              setIsOverDeleteZone(false);
+                            }
                           };
-                          const upHandler = () => {
-                            if (!hasMoved) setIsEditingText(true);
+                          const upHandler = (upEvent) => {
+                            const screenHeight = window.innerHeight;
+                            if (upEvent.clientY > screenHeight * 0.75) {
+                              setOverlayText('');
+                              showToast('Text deleted');
+                              setIsTextSelected(false);
+                            } else {
+                              if (!hasMoved) setIsEditingText(true);
+                            }
+                            setIsDraggingAny(false);
+                            setIsOverDeleteZone(false);
                             target.removeEventListener('pointermove', moveHandler);
                             target.removeEventListener('pointerup', upHandler);
                           };
@@ -3749,9 +3775,14 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                             <button
                                 onPointerDown={(e) => {
                                     e.stopPropagation();
+                                    e.preventDefault();
                                     setOverlayText('');
                                     setIsTextSelected(false);
                                     showToast('Text deleted');
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
                                 }}
                                 className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform z-40 border-2 border-white pointer-events-auto"
                             >
@@ -3787,6 +3818,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 let hasMoved = false;
 
                 setSelectedStickerId(sticker.id);
+                setIsDraggingAny(true);
                 
                 const moveHandler = (mE) => {
                   const dx = mE.clientX - startX;
@@ -3810,6 +3842,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     showToast('Sticker removed');
                     setSelectedStickerId(null);
                   }
+                  setIsDraggingAny(false);
                   setIsOverDeleteZone(false);
                   target.removeEventListener('pointermove', moveHandler);
                   target.removeEventListener('pointerup', upHandler);
@@ -3821,14 +3854,18 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             >
               {sticker.content}
               
-              {/* Delete Icon */}
               {selectedStickerId === sticker.id && (
                   <button
                     onPointerDown={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
                         setActiveStickers(prev => prev.filter(s => s.id !== sticker.id));
                         setSelectedStickerId(null);
                         showToast('Sticker deleted');
+                    }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
                     }}
                     className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform z-40 border-2 border-white pointer-events-auto"
                   >
@@ -4587,10 +4624,16 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               {(previewUrl || selectedMedia.image) && (
                 <button
                   type="button"
-                  onClick={() => {}}
+                  onClick={() => {
+                    if (!isPreviewImage) {
+                      setActiveSheet('select-cover');
+                    }
+                  }}
                   className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
                 >
-                  {isPreviewImage ? (
+                  {postState.coverImage ? (
+                    <img src={postState.coverImage} alt="Cover" className="h-full w-full object-cover" />
+                  ) : isPreviewImage ? (
                     <img src={previewUrl || selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
                   ) : (
                     <video src={previewUrl} className="h-full w-full object-cover" />
@@ -5019,12 +5062,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 const avatar = u.avatar || u.profilePicture;
 
                 return (
-                <button
-                  key={u.id || u._id}
-                  type="button"
-                  onClick={() => handle && (isTagging ? handleSelectTag(handle) : handleSelectMention(handle))}
-                  className="flex w-full items-center gap-3 px-4 py-3 active:bg-black/[0.03]"
-                >
+                  <button
+                    key={u.id || u._id}
+                    type="button"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      if (handle) {
+                        if (isTagging) {
+                          handleSelectTag(handle);
+                        } else {
+                          handleSelectMention(handle);
+                        }
+                      }
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 active:bg-black/[0.03]"
+                  >
                   <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black/5">
                     {avatar ? (
                       <img src={avatar} alt={handle} className="h-full w-full object-cover" />
@@ -6107,6 +6159,68 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         </BottomSheet>
       )}
 
+      {activeSheet === 'select-cover' && (
+        <BottomSheet title="Select Cover Thumbnail" onClose={() => setActiveSheet(null)}>
+          <div className="px-5 pb-8">
+            <p className="text-[13px] text-black/40 mb-4">Choose a frame from your video to use as the cover image</p>
+            {videoThumbnails.length > 0 ? (
+              <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[320px] p-1">
+                {videoThumbnails.map((thumb, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setPostState(prev => ({ ...prev, coverImage: thumb }));
+                      setActiveSheet(null);
+                      showToast('Cover thumbnail selected');
+                    }}
+                    className={`relative aspect-[3/4] overflow-hidden rounded-[8px] border-2 transition-all ${
+                      postState.coverImage === thumb ? 'border-[#fe2c55] scale-95 shadow-md' : 'border-transparent hover:border-black/10'
+                    }`}
+                  >
+                    <img src={thumb} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-black/30">
+                <BiVideoOff size={36} className="mb-2" />
+                <p className="text-[14px]">No frames generated. Defaulting to first frame.</p>
+              </div>
+            )}
+          </div>
+        </BottomSheet>
+      )}
+
+      {activeSheet === 'stickers-preview' && (
+        <BottomSheet title="Stickers" onClose={() => setActiveSheet(null)}>
+          <div className="px-5 pb-8">
+            <div className="grid grid-cols-5 gap-4 py-4 max-h-[300px] overflow-y-auto no-scrollbar">
+              {MOCK_STICKERS.map((stickerEmoji, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => {
+                    const newSticker = {
+                      id: `sticker-${Date.now()}-${index}`,
+                      content: stickerEmoji,
+                      x: 0,
+                      y: 0
+                    };
+                    setActiveStickers(prev => [...prev, newSticker]);
+                    setActiveSheet(null);
+                    showToast('Sticker added');
+                  }}
+                  className="flex h-14 w-14 items-center justify-center rounded-xl bg-black/5 text-[32px] hover:bg-black/10 active:scale-95 transition-transform"
+                >
+                  {stickerEmoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        </BottomSheet>
+      )}
+
       {activeSheet === 'add-link' && (
         <BottomSheet title="Add link" onClose={() => setActiveSheet(null)}>
           <div className="space-y-1 px-4 pb-2">
@@ -6382,8 +6496,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                         : 'border-black/5 bg-black/5 hover:bg-black/10'
                   }`}
                   onPointerDown={async (e) => {
+                    isPressingMicRef.current = true;
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        if (!isPressingMicRef.current) {
+                            stream.getTracks().forEach(t => t.stop());
+                            return;
+                        }
                         const recorder = new MediaRecorder(stream);
                         const chunks = [];
                         recorder.ondataavailable = (e) => chunks.push(e.data);
@@ -6404,15 +6523,23 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     }
                   }}
                   onPointerUp={() => {
-                    if (voiceRecorder && isRecordingVoice) {
-                        voiceRecorder.stop();
+                    isPressingMicRef.current = false;
+                    if (voiceRecorder) {
+                        try { voiceRecorder.stop(); } catch(e) {}
+                        setVoiceRecorder(null);
                         setIsRecordingVoice(false);
                         showToast('Recording finished');
+                    } else if (isRecordingVoice) {
+                        setIsRecordingVoice(false);
                     }
                   }}
                   onPointerLeave={() => {
-                    if (voiceRecorder && isRecordingVoice) {
-                        voiceRecorder.stop();
+                    isPressingMicRef.current = false;
+                    if (voiceRecorder) {
+                        try { voiceRecorder.stop(); } catch(e) {}
+                        setVoiceRecorder(null);
+                        setIsRecordingVoice(false);
+                    } else if (isRecordingVoice) {
                         setIsRecordingVoice(false);
                     }
                   }}

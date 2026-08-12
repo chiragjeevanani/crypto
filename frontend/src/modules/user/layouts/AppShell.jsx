@@ -561,9 +561,11 @@ export default function AppShell() {
                 </div>
             </aside>
 
-            <div className="md:hidden">
-                <BottomNavbar />
-            </div>
+            {location.pathname !== '/create' && (
+                <div className="md:hidden">
+                    <BottomNavbar />
+                </div>
+            )}
 
             <CoinRain />
             <RoseShower />

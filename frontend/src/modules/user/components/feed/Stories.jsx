@@ -210,7 +210,7 @@ export default function Stories() {
         try {
             let stream;
             const videoConstraints = {
-                facingMode: facingMode,
+                facingMode: { ideal: facingMode },
                 width: { ideal: 1080 },
                 height: { ideal: 1920 },
                 aspectRatio: { ideal: 0.5625 }
@@ -1434,7 +1434,7 @@ export default function Stories() {
                                         autoPlay
                                         muted
                                         playsInline
-                                        style={{ transform: `${storyFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'} scale(1.25)` }}
+                                        style={{ transform: storyFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
                                     />
                                     {/* Flip camera button */}
                                     <button
