@@ -1592,102 +1592,73 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   }, [editorSettings.volume, stage]);
 
   useEffect(() => {
-    let isMounted = true;
-    if (stage === 'camera' && canvasContainerMounted) {
+    if (stage === 'camera') {
       startCamera();
     } else if (streamRef.current) {
       stopCamera();
     }
     
     return () => {
-      isMounted = false;
       stopCamera();
     };
-  }, [stage, facingMode, canvasContainerMounted]);
+  }, [stage, facingMode]);
 
   const startCamera = async (overrideMode) => {
     const activeMode = overrideMode || facingMode;
     const isUser = activeMode === 'user';
-
     const initId = ++cameraInitIdRef.current;
 
-    try {
-      if (canvasContainerRef.current) {
-        canvasContainerRef.current.innerHTML = '';
-        const canvas = document.createElement('canvas');
-        canvas.className = "h-full w-full object-cover transition-all duration-300";
-        canvas.style.transform = isUser ? 'scaleX(-1)' : 'none';
-        canvasContainerRef.current.appendChild(canvas);
-        canvasRef.current = canvas;
-
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
-          });
-          streamRef.current = null;
-        }
-        if (instacamRef.current) {
-          if (instacamRef.current.v) {
-            instacamRef.current.v.getTracks().forEach(track => {
-              try { track.stop(); } catch (e) {}
-            });
-          }
-          try { instacamRef.current.stop(); } catch (e) {}
-          instacamRef.current = null;
-        }
-
-        const initInstacam = (withSound) => {
-          try {
-            instacamRef.current = new Instacam(canvasRef.current, {
-              width: 720,
-              height: 1280,
-              ratio: 9 / 16,
-              mode: isUser ? 'front' : 'back',
-              autostart: true,
-              sound: withSound,
-              done: () => {
-                if (cameraInitIdRef.current !== initId) return;
-                console.log(`Instacam camera preview ready (sound: ${withSound})`);
-                
-                if (instacamRef.current && instacamRef.current.v) {
-                  streamRef.current = instacamRef.current.v;
-                  
-                  if (videoRef.current) {
-                    videoRef.current.srcObject = instacamRef.current.v;
-                    videoRef.current.play().catch(e => console.warn('Direct video stream playback error:', e));
-                  }
-                }
-              },
-              fail: (err) => {
-                console.warn(`Instacam canvas setup failed (sound: ${withSound}):`, err);
-                if (withSound) {
-                  console.warn('Retrying camera stream without microphone...');
-                  initInstacam(false);
-                } else {
-                  showToast('Camera access denied or unavailable');
-                }
-              }
-            });
-          } catch (instacamErr) {
-            console.warn('Instacam initialization failed:', instacamErr);
-          }
-        };
-
-        initInstacam(true);
-      }
-    } catch (err) {
-      console.error('Camera stream access failed:', err);
-      showToast('Camera access denied or unavailable');
+    // Stop any existing stream/tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => { try { track.stop(); } catch (e) {} });
+      streamRef.current = null;
     }
+    if (instacamRef.current) {
+      try { instacamRef.current.stop(); } catch (e) {}
+      instacamRef.current = null;
+    }
+
+    const tryStart = async (withAudio) => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: isUser ? 'user' : 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: withAudio,
+        });
+
+        if (cameraInitIdRef.current !== initId) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(e => console.warn('Video play error:', e));
+        }
+      } catch (err) {
+        if (withAudio) {
+          console.warn('Camera+mic failed, retrying without mic:', err);
+          await tryStart(false);
+        } else {
+          console.error('Camera access failed:', err);
+          showToast('Camera access denied or unavailable');
+        }
+      }
+    };
+
+    await tryStart(true);
   };
 
   const stopCamera = () => {
     cameraInitIdRef.current++;
 
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        try { track.stop(); } catch (e) {}
-      });
+      streamRef.current.getTracks().forEach(track => { try { track.stop(); } catch (e) {} });
       streamRef.current = null;
     }
 
@@ -1696,21 +1667,20 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     }
 
     if (instacamRef.current) {
-      try {
-        instacamRef.current.stop();
-      } catch (err) {
-        console.warn('Error stopping instacam:', err);
-      }
+      try { instacamRef.current.stop(); } catch (err) {}
       instacamRef.current = null;
     }
-
-    if (canvasContainerRef.current) {
-      canvasContainerRef.current.innerHTML = '';
-    }
-    canvasRef.current = null;
   };
 
-  // Update Instacam filters when selectedFilter changes
+  // Apply CSS filter to live video element when selectedFilter changes
+  useEffect(() => {
+    if (videoRef.current && stage === 'camera') {
+      const preset = FILTER_PRESETS[selectedFilter];
+      videoRef.current.style.filter = preset && preset !== 'none' ? preset : '';
+    }
+  }, [selectedFilter, stage]);
+
+  // Legacy Instacam filter block (no-op - kept for recorder canvas compat)
   useEffect(() => {
     if (instacamRef.current && stage === 'camera') {
       const preset = FILTER_PRESETS[selectedFilter];
@@ -1966,43 +1936,37 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     // Block camera capture while gallery file picker is open or was just closed within 1000ms
     if (isGalleryPickerOpen.current || (lastFocusTimeRef.current && Date.now() - lastFocusTimeRef.current < 1000)) return;
     if (captureMode === 'photo') {
-      if (canvasRef.current) {
-        const sourceCanvas = canvasRef.current;
+      const video = videoRef.current;
+      if (video && video.readyState >= 2) {
+        const captureCanvas = document.createElement('canvas');
+        captureCanvas.width = video.videoWidth || 1080;
+        captureCanvas.height = video.videoHeight || 1920;
+        const ctx = captureCanvas.getContext('2d');
         const isUserFacing = facingMode === 'user';
-
         if (isUserFacing) {
-          // Front camera: Instacam renders pixels mirrored. Create a corrected canvas before export.
-          const correctedCanvas = document.createElement('canvas');
-          correctedCanvas.width = sourceCanvas.width;
-          correctedCanvas.height = sourceCanvas.height;
-          const ctx = correctedCanvas.getContext('2d');
-          ctx.translate(correctedCanvas.width, 0);
+          // Mirror front-camera so captured photo is not flipped
+          ctx.translate(captureCanvas.width, 0);
           ctx.scale(-1, 1);
-          ctx.drawImage(sourceCanvas, 0, 0);
-          correctedCanvas.toBlob((blob) => {
-            if (blob) {
-              const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-              const url = URL.createObjectURL(blob);
-              setVideoFile(file);
-              setPreviewUrl(url);
-              setVideoDuration(15);
-              setRecordStatus('recorded');
-              pushStage('preview');
-            }
-          }, 'image/jpeg', 0.95);
-        } else {
-          sourceCanvas.toBlob((blob) => {
-            if (blob) {
-              const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-              const url = URL.createObjectURL(blob);
-              setVideoFile(file);
-              setPreviewUrl(url);
-              setVideoDuration(15);
-              setRecordStatus('recorded');
-              pushStage('preview');
-            }
-          }, 'image/jpeg', 0.95);
         }
+        // Apply active CSS filter to canvas snapshot
+        const preset = FILTER_PRESETS[selectedFilter];
+        if (preset && preset !== 'none') {
+          ctx.filter = preset;
+        }
+        ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+        captureCanvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            setVideoFile(file);
+            setPreviewUrl(url);
+            setVideoDuration(15);
+            setRecordStatus('recorded');
+            pushStage('preview');
+          }
+        }, 'image/jpeg', 0.95);
+      } else {
+        showToast('Camera not ready, try again');
       }
       return;
     }
@@ -2040,19 +2004,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     ];
     let selectedType = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
 
-    let recordingStream = streamRef.current;
-    if (canvasRef.current && streamRef.current) {
-      try {
-        const canvasStream = canvasRef.current.captureStream(30);
-        const videoTrack = canvasStream.getVideoTracks()[0];
-        const audioTracks = streamRef.current.getAudioTracks();
-        if (videoTrack) {
-          recordingStream = new MediaStream([videoTrack, ...audioTracks]);
-        }
-      } catch (err) {
-        console.warn('Failed to capture canvas stream, falling back to raw camera stream:', err);
-      }
-    }
+    const recordingStream = streamRef.current;
 
     const recorder = new MediaRecorder(recordingStream, selectedType ? { mimeType: selectedType } : {});
     mediaRecorderRef.current = recorder;
@@ -3480,31 +3432,18 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
     return (
       <div className="relative flex-1 min-h-0 w-full overflow-hidden bg-black text-white">
-        <style>
-          {`
-            [data-instacam] {
-              width: 100% !important;
-              height: 100% !important;
-              position: absolute !important;
-              inset: 0 !important;
-            }
-            [data-instacam] canvas {
-              width: 100% !important;
-              height: 100% !important;
-              object-fit: cover !important;
-              transform: ${facingMode === 'user' ? 'scaleX(-1)' : 'none'} !important;
-            }
-          `}
-        </style>
+
         <div className="absolute inset-0 z-0">
           <video 
             ref={videoRef} 
             autoPlay 
             muted 
             playsInline 
-            className={`h-full w-full object-cover transition-transform duration-300 ${facingMode === 'user' ? '-scale-x-100' : ''}`}
+            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+            className="h-full w-full object-cover"
           />
-          <div ref={setCanvasContainerRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+          {/* Canvas container kept for canvas-stream recording compat */}
+          <div ref={setCanvasContainerRef} className="absolute inset-0 h-full w-full pointer-events-none hidden" />
         </div>
         
         {/* Progress Bar */}
