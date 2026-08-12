@@ -861,6 +861,10 @@ export default function Stories() {
         }
     };
 
+    if (stories.length === 0) {
+        return null;
+    }
+
     return (
         <>
             <div

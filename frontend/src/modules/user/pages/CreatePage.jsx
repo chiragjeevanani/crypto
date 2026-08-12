@@ -56,6 +56,7 @@ import { followService } from '../services/followService';
 import audioService from '../../../services/audioService';
 import { useUserStore, getStoredToken } from '../store/useUserStore';
 import { useAdminStore } from '../../admin/store/useAdminStore';
+import { savedPostService } from '../services/savedPostService';
 const SOUND_FAVORITES_KEY = 'soundFavorites';
 
 
@@ -81,6 +82,7 @@ const createInitialPostState = () => ({
   redirectType: 'whatsapp',
   whatsappNumber: '',
   coverImage: '',
+  taggedUsers: [],
 });
 
 const formatElapsed = (value) => `00:${String(Math.max(0, Math.round(value))).padStart(2, '0')}`;
@@ -205,6 +207,59 @@ const clearVideoCache = async () => {
     console.error('Failed to clear video cache:', err);
   }
 };
+
+const clearAllCreateCache = async () => {
+  await clearVideoCache();
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('create_') || key === 'selectedSound' || key === 'selectedSounds') {
+      localStorage.removeItem(key);
+    }
+  });
+};
+
+// ─── Named Draft System ────────────────────────────────────────────────
+const DRAFT_STORE = 'drafts';
+
+const initDraftDB = () => new Promise((resolve, reject) => {
+  const request = indexedDB.open(DB_NAME, 2);
+  request.onupgradeneeded = (e) => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+    if (!db.objectStoreNames.contains(DRAFT_STORE)) db.createObjectStore(DRAFT_STORE, { keyPath: 'id' });
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const saveDraftToDB = async (draft) => {
+  const db = await initDraftDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DRAFT_STORE, 'readwrite');
+    tx.objectStore(DRAFT_STORE).put(draft);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+const listDraftsFromDB = async () => {
+  const db = await initDraftDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(DRAFT_STORE).objectStore(DRAFT_STORE).getAll();
+    request.onsuccess = () => resolve((request.result || []).sort((a, b) => b.savedAt - a.savedAt));
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const deleteDraftFromDB = async (draftId) => {
+  const db = await initDraftDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DRAFT_STORE, 'readwrite');
+    tx.objectStore(DRAFT_STORE).delete(draftId);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+};
+// ───────────────────────────────────────────────────────────────────────
 
 const overlayButtonClass =
   'w-9 h-9 rounded-full bg-black/30 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:opacity-70';
@@ -526,17 +581,29 @@ const DraggableOverlay = ({ overlay, index, setActiveOverlays, setIsDraggingAny,
             i === index ? { ...o, x: initialX + dx, y: initialY + dy } : o
           ));
 
-          const screenHeight = window.innerHeight;
-          if (moveEvent.clientY > screenHeight * 0.7) {
-            setIsOverDeleteZone(true);
-          } else {
-            setIsOverDeleteZone(false);
+          const container = target.closest('.relative');
+          if (container) {
+            const rect = container.getBoundingClientRect();
+            const relativeY = moveEvent.clientY - rect.top;
+            if (relativeY > rect.height * 0.75) {
+              setIsOverDeleteZone(true);
+            } else {
+              setIsOverDeleteZone(false);
+            }
           }
         };
         
         const upHandler = (upEvent) => {
-          const screenHeight = window.innerHeight;
-          if (upEvent.clientY > screenHeight * 0.7) {
+          const container = target.closest('.relative');
+          let shouldDelete = false;
+          if (container) {
+            const rect = container.getBoundingClientRect();
+            const relativeY = upEvent.clientY - rect.top;
+            if (relativeY > rect.height * 0.75) {
+              shouldDelete = true;
+            }
+          }
+          if (shouldDelete) {
             setActiveOverlays(prev => prev.filter((_, i) => i !== index));
             showToast('Overlay deleted');
           }
@@ -684,10 +751,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   });
                   if (verifyRes.success) {
                       showToast('Promotion payment successful! Your post has been submitted for admin review.');
-                      clearVideoCache();
-                      localStorage.removeItem('create_stageStack');
-                      localStorage.removeItem('create_recordStatus');
-                      localStorage.removeItem('create_recordedSeconds');
+                      clearAllCreateCache();
                       setTimeout(() => {
                           window.location.href = '/';
                       }, 2500);
@@ -702,10 +766,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           showToast('Payment cancelled. Post created as draft.');
           businessService.failPayment(postId, 'User cancelled').catch(console.error);
           
-          clearVideoCache();
-          localStorage.removeItem('create_stageStack');
-          localStorage.removeItem('create_recordStatus');
-          localStorage.removeItem('create_recordedSeconds');
+          clearAllCreateCache();
           
           setTimeout(() => {
               window.location.href = '/';
@@ -796,6 +857,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const stage = stageStack[stageStack.length - 1];
   stageRef.current = stage || 'camera';
   const [activeSheet, setActiveSheet] = useState(null);
+  const [savedDrafts, setSavedDrafts] = useState([]);
   const [activeCameraTool, setActiveCameraTool] = useState(null);
   const [recordStatus, setRecordStatus] = useState(() => {
     return localStorage.getItem('create_recordStatus') || 'idle';
@@ -963,7 +1025,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const [renderProgress, setRenderProgress] = useState(0);
   const [isUploading, setUploading] = useState(false);
   const [textStartTime, setTextStartTime] = useState(0);
-  const [textEndTime, setTextEndTime] = useState(5); // Default 5 seconds
+  const [textEndTime, setTextEndTime] = useState(9999); // Default to full video duration
+
   const [selectedStickerId, setSelectedStickerId] = useState(null);
   const [isTextSelected, setIsTextSelected] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -1141,16 +1204,48 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     };
   }, []);
 
-  useEffect(() => {
-    const fetchAudios = async () => {
-      try {
-        const audios = await audioService.getAllAudios();
-        setLibraryAudios(audios);
-      } catch (err) {
-        console.error('Failed to fetch audios:', err);
+  const fetchAndMergeAudios = async () => {
+    try {
+      const audios = await audioService.getAllAudios();
+      let finalAudios = [...audios];
+      if (profile?.id) {
+        try {
+          const savedRes = await savedPostService.getSavedPosts(profile.id);
+          if (savedRes?.success && Array.isArray(savedRes.savedPosts)) {
+            savedRes.savedPosts.forEach(post => {
+              if (post.musicData?.audioUrl) {
+                const alreadyExists = finalAudios.some(a => a.audioUrl === post.musicData.audioUrl);
+                if (!alreadyExists) {
+                  finalAudios.push({
+                    _id: post.musicData.id || `saved-${post.id}`,
+                    id: post.musicData.id || `saved-${post.id}`,
+                    title: post.musicData.title,
+                    artist: post.musicData.artist,
+                    url: post.musicData.audioUrl || "",
+                    audioUrl: post.musicData.audioUrl || "",
+                    cover: post.musicData.cover || post.musicData.image || "",
+                    thumbnail: post.musicData.cover || post.musicData.image || "",
+                    duration: post.musicData.duration || 30,
+                    isSaved: true
+                  });
+                } else {
+                  finalAudios = finalAudios.map(a => a.audioUrl === post.musicData.audioUrl ? { ...a, isSaved: true } : a);
+                }
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Failed to load saved posts for audios:', err);
+        }
       }
-    };
-    fetchAudios();
+      setLibraryAudios(finalAudios);
+    } catch (err) {
+      console.error('Failed to fetch audios:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAndMergeAudios();
 
     // Restore video from IndexedDB on mount
     const restoreVideo = async () => {
@@ -1262,7 +1357,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           video.src = previewUrl;
           video.muted = true;
           video.playsInline = true;
-          video.crossOrigin = 'anonymous';
+          if (previewUrl && (previewUrl.startsWith('http://') || previewUrl.startsWith('https://'))) {
+            video.crossOrigin = 'anonymous';
+          }
           
           await new Promise((resolve) => {
             video.onloadedmetadata = () => {
@@ -1564,9 +1661,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           video.facingMode = { ideal: mode };
         }
         
-        video.width = { ideal: 1080 };
-        video.height = { ideal: 1920 };
-        video.aspectRatio = { ideal: 0.5625 };
+        video.width = { ideal: 1920 };
+        video.height = { ideal: 1080 };
+        video.aspectRatio = { ideal: 1.7777777778 };
         
         constraints.video = video;
       }
@@ -1625,6 +1722,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             facingMode: { ideal: isUser ? 'user' : 'environment' },
             width: { ideal: 1920 },
             height: { ideal: 1080 },
+            aspectRatio: { ideal: 1.7777777778 },
           },
           audio: withAudio,
         });
@@ -1799,12 +1897,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           console.error("Failed to search music via API:", err);
         }
       } else {
-        try {
-          const audios = await audioService.getAllAudios();
-          setLibraryAudios(audios);
-        } catch (err) {
-          console.error('Failed to restore local audios:', err);
-        }
+        fetchAndMergeAudios();
       }
     }, 300);
 
@@ -2016,9 +2109,10 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const blob = new Blob(chunksRef.current, { type: selectedType || 'video/webm' });
+      const ext = selectedType.includes('mp4') ? 'mp4' : 'webm';
       const url = URL.createObjectURL(blob);
-      const file = new File([blob], 'recording.webm', { type: 'video/webm' });
+      const file = new File([blob], `recording.${ext}`, { type: selectedType || 'video/webm' });
       
       setVideoFile(file);
       setPreviewUrl(url);
@@ -2148,8 +2242,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         const ctx = canvas.getContext('2d');
 
         const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = clipSequence[0]?.url || previewUrl;
+        const urlToLoad = clipSequence[0]?.url || previewUrl;
+        if (urlToLoad && (urlToLoad.startsWith('http://') || urlToLoad.startsWith('https://'))) {
+          img.crossOrigin = 'anonymous';
+        }
+        img.src = urlToLoad;
         
         await new Promise((resolve, reject) => {
           img.onload = resolve;
@@ -2177,7 +2274,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           ctx.fillStyle = overlayColor;
           ctx.font = `${overlayFontSize * 2}px ${overlayFont}`;
           ctx.textAlign = 'center';
-          ctx.translate(canvas.width / 2 + textPos.x * 2, canvas.height / 2 + textPos.y * 2);
+          ctx.translate(canvas.width / 2 + textPos.x * 3.36, canvas.height / 2 + textPos.y * 3.36);
           ctx.rotate((textRotation * Math.PI) / 180);
           ctx.fillText(overlayText, 0, 0);
           ctx.restore();
@@ -2188,7 +2285,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           ctx.font = '120px serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.translate(canvas.width / 2 + sticker.x * 2, canvas.height / 2 + sticker.y * 2);
+          ctx.translate(canvas.width / 2 + sticker.x * 3.36, canvas.height / 2 + sticker.y * 3.36);
           ctx.fillText(sticker.content, 0, 0);
           ctx.restore();
         });
@@ -2236,7 +2333,6 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       const renderVideo = document.createElement('video');
       renderVideo.playsInline = true;
       renderVideo.muted = true;
-      renderVideo.crossOrigin = 'anonymous';
 
       // Setup Web Audio routing to capture video audio silently
       let audioTrack = null;
@@ -2294,15 +2390,25 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         ]).catch(() => {});
       }
 
-      for (let i = 0; i < clipSequence.length; i++) {
-        const clip = clipSequence[i];
-        setRenderProgress(Math.round((i / clipSequence.length) * 100));
+      const activeClips = clipSequence.length > 0 ? clipSequence : [{
+        id: 'single-video',
+        url: previewUrl,
+        file: videoFile,
+        duration: videoDuration || 15,
+        isImage: videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image')
+      }];
+
+      for (let i = 0; i < activeClips.length; i++) {
+        const clip = activeClips[i];
+        setRenderProgress(Math.round((i / activeClips.length) * 100));
         
         if (clip.isImage) {
           const startTime = Date.now();
           const durationMs = (clip.duration || 5) * 1000;
           const img = new Image();
-          img.crossOrigin = 'anonymous';
+          if (clip.url && (clip.url.startsWith('http://') || clip.url.startsWith('https://'))) {
+            img.crossOrigin = 'anonymous';
+          }
           img.src = clip.url;
           await new Promise((resolve, reject) => {
              img.onload = resolve;
@@ -2332,23 +2438,23 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 ctx.fillStyle = overlayColor;
                 ctx.font = `${overlayFontSize * 2}px ${overlayFont}`;
                 ctx.textAlign = 'center';
-                ctx.translate(canvas.width/2 + textPos.x * 2, canvas.height/2 + textPos.y * 2);
+                ctx.translate(canvas.width/2 + textPos.x * 3.36, canvas.height/2 + textPos.y * 3.36);
                 ctx.rotate((textRotation * Math.PI) / 180);
                 ctx.fillText(overlayText, 0, 0);
                 ctx.restore();
             }
-
+            
             activeStickers.forEach(sticker => {
                 ctx.save();
                 ctx.font = '120px serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.translate(canvas.width/2 + sticker.x * 2, canvas.height/2 + sticker.y * 2);
+                ctx.translate(canvas.width/2 + sticker.x * 3.36, canvas.height/2 + sticker.y * 3.36);
                 ctx.fillText(sticker.content, 0, 0);
                 ctx.restore();
             });
 
-            const totalDuration = clipSequence.reduce((acc, c) => acc + (c.duration || 5), 0);
+            const totalDuration = activeClips.reduce((acc, c) => acc + (c.duration || 5), 0);
             if (totalDuration > 0) {
               setRenderProgress(Math.min(99, Math.round((globalTime / totalDuration) * 100)));
             }
@@ -2356,6 +2462,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             await new Promise(r => setTimeout(r, 16));
           }
         } else {
+          if (clip.url && (clip.url.startsWith('http://') || clip.url.startsWith('https://'))) {
+            renderVideo.crossOrigin = 'anonymous';
+          } else {
+            renderVideo.removeAttribute('crossOrigin');
+          }
           renderVideo.src = clip.url;
           renderVideo.load();
           await new Promise((resolve) => {
@@ -2373,7 +2484,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           }
           
           const clipDuration = clip.duration || renderVideo.duration || 5;
-          const clipStartTimeInGlobalTimeline = clipSequence.slice(0, i).reduce((acc, c) => acc + (c.duration || 5), 0);
+          const clipStartTimeInGlobalTimeline = activeClips.slice(0, i).reduce((acc, c) => acc + (c.duration || 5), 0);
           const startRenderTime = Date.now();
           
           while ((Date.now() - startRenderTime) / 1000 < clipDuration && !renderVideo.ended) {
@@ -2384,6 +2495,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((editorSettings.rotation * Math.PI) / 180);
+            if (facingMode === 'user') {
+              ctx.scale(-1, 1);
+            }
             ctx.filter = getCombinedFilter();
             const mediaWidth = renderVideo.videoWidth || 720;
             const mediaHeight = renderVideo.videoHeight || 1280;
@@ -2398,7 +2512,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 ctx.fillStyle = overlayColor;
                 ctx.font = `${overlayFontSize * 2}px ${overlayFont}`;
                 ctx.textAlign = 'center';
-                ctx.translate(canvas.width/2 + textPos.x * 2, canvas.height/2 + textPos.y * 2);
+                ctx.translate(canvas.width/2 + textPos.x * 3.36, canvas.height/2 + textPos.y * 3.36);
                 ctx.rotate((textRotation * Math.PI) / 180);
                 ctx.fillText(overlayText, 0, 0);
                 ctx.restore();
@@ -2409,12 +2523,12 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 ctx.font = '120px serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.translate(canvas.width/2 + sticker.x * 2, canvas.height/2 + sticker.y * 2);
+                ctx.translate(canvas.width/2 + sticker.x * 3.36, canvas.height/2 + sticker.y * 3.36);
                 ctx.fillText(sticker.content, 0, 0);
                 ctx.restore();
             });
 
-            const totalDuration = clipSequence.reduce((acc, c) => acc + (c.duration || 5), 0);
+            const totalDuration = activeClips.reduce((acc, c) => acc + (c.duration || 5), 0);
             if (totalDuration > 0) {
               setRenderProgress(Math.min(99, Math.round((globalTime / totalDuration) * 100)));
             }
@@ -2519,8 +2633,92 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
 
 
-  const handleSaveDraftUi = () => {
-    showToast('Saved to drafts');
+  const handleSaveDraftUi = async () => {
+    const fileToSave = mergedVideoBlob || videoFile;
+    if (!fileToSave) {
+      showToast('Nothing to save — add a video first');
+      return;
+    }
+    try {
+      const draftId = `draft_${Date.now()}`;
+      const draft = {
+        id: draftId,
+        savedAt: Date.now(),
+        postState,
+        selectedSounds,
+        activeStickers,
+        activeOverlays,
+        overlayText,
+        overlayFont,
+        overlayColor,
+        overlayFontSize,
+        textPos,
+        textRotation,
+        stageStack: ['preview'], // restore into preview not camera
+        recordedSeconds,
+        videoFile: fileToSave,
+        coverPreview: postState.coverImage || null,
+        caption: postState.caption || '',
+      };
+      await saveDraftToDB(draft);
+      const drafts = await listDraftsFromDB();
+      setSavedDrafts(drafts);
+      showToast('✅ Saved to drafts');
+    } catch (err) {
+      console.error('Draft save failed:', err);
+      showToast('Failed to save draft');
+    }
+  };
+
+  const handleOpenDraftsSheet = async () => {
+    try {
+      const drafts = await listDraftsFromDB();
+      setSavedDrafts(drafts);
+    } catch (err) {
+      setSavedDrafts([]);
+    }
+    setActiveSheet('drafts-browser');
+  };
+
+  const handleLoadDraft = async (draft) => {
+    try {
+      // Restore state
+      setPostState(draft.postState || createInitialPostState());
+      setSelectedSounds(draft.selectedSounds || []);
+      setActiveStickers(draft.activeStickers || []);
+      setActiveOverlays(draft.activeOverlays || []);
+      setOverlayText(draft.overlayText || '');
+      setOverlayFont(draft.overlayFont || 'sans-serif');
+      setOverlayColor(draft.overlayColor || '#ffffff');
+      setOverlayFontSize(draft.overlayFontSize || 32);
+      setTextPos(draft.textPos || { x: 0.5, y: 0.5 });
+      setTextRotation(draft.textRotation || 0);
+      setRecordedSeconds(draft.recordedSeconds || 0);
+      // Restore video file
+      if (draft.videoFile) {
+        setVideoFile(draft.videoFile);
+        setPreviewUrl(URL.createObjectURL(draft.videoFile));
+      }
+      setStageStack(draft.stageStack || ['preview']);
+      setActiveSheet(null);
+      showToast('Draft loaded ✨');
+    } catch (err) {
+      console.error('Draft load failed:', err);
+      showToast('Failed to load draft');
+    }
+  };
+
+  const handleDeleteDraft = async (draftId, e) => {
+    e.stopPropagation();
+    try {
+      await deleteDraftFromDB(draftId);
+      const drafts = await listDraftsFromDB();
+      setSavedDrafts(drafts);
+      if (drafts.length === 0) setActiveSheet(null);
+      showToast('Draft deleted');
+    } catch (err) {
+      showToast('Failed to delete draft');
+    }
   };
 
   const handlePublishUi = async (termsAcceptedOverride = false) => {
@@ -2726,10 +2924,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                     setUploading(false);
                     
                     // Clear persistence cache
-                    clearVideoCache();
-                    localStorage.removeItem('create_stageStack');
-                    localStorage.removeItem('create_recordStatus');
-                    localStorage.removeItem('create_recordedSeconds');
+                    clearAllCreateCache();
                     
                     setTimeout(() => {
                         window.location.href = '/';
@@ -2744,15 +2939,12 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 showToast('Reel published successfully!');
             }
             
-            // Clear persistence cache
-            clearVideoCache();
-            localStorage.removeItem('create_stageStack');
-            localStorage.removeItem('create_recordStatus');
-            localStorage.removeItem('create_recordedSeconds');
-            
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 1500);
+             // Clear persistence cache
+             clearAllCreateCache();
+             
+             setTimeout(() => {
+                 window.location.href = '/';
+             }, 1500);
         }
     } catch (error) {
         console.error('Upload failed:', error);
@@ -3214,7 +3406,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   );
 
   const renderFiltersTray = () => (
-    <div className="mb-4 px-3 pb-3 pt-3">
+    <div className={themedFiltersTrayClass}>
 
       <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
         {activeFilterOptions.map((filterName) => (
@@ -3225,7 +3417,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             className="w-16 shrink-0 text-center text-white active:opacity-70"
           >
             <span
-              className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full border text-[10px] overflow-hidden ${
+              className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full border text-[10px] overflow-hidden bg-white/20 ${
                 selectedFilter === filterName
                   ? isDarkMode
                     ? 'border-white ring-2 ring-white/20'
@@ -3439,7 +3631,10 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             autoPlay 
             muted 
             playsInline 
-            style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+            style={{ 
+              transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+              filter: FILTER_PRESETS[selectedFilter] || 'none'
+            }}
             className="h-full w-full object-cover"
           />
           {/* Canvas container kept for canvas-stream recording compat */}
@@ -3709,16 +3904,28 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                             if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
                             setTextPos({ x: initialX + dx, y: initialY + dy });
                             
-                            const screenHeight = window.innerHeight;
-                            if (moveEvent.clientY > screenHeight * 0.75) {
-                              setIsOverDeleteZone(true);
-                            } else {
-                              setIsOverDeleteZone(false);
+                            const container = target.closest('.relative');
+                            if (container) {
+                              const rect = container.getBoundingClientRect();
+                              const relativeY = moveEvent.clientY - rect.top;
+                              if (relativeY > rect.height * 0.75) {
+                                setIsOverDeleteZone(true);
+                              } else {
+                                setIsOverDeleteZone(false);
+                              }
                             }
                           };
                           const upHandler = (upEvent) => {
-                            const screenHeight = window.innerHeight;
-                            if (upEvent.clientY > screenHeight * 0.75) {
+                            const container = target.closest('.relative');
+                            let shouldDelete = false;
+                            if (container) {
+                              const rect = container.getBoundingClientRect();
+                              const relativeY = upEvent.clientY - rect.top;
+                              if (relativeY > rect.height * 0.75) {
+                                shouldDelete = true;
+                              }
+                            }
+                            if (shouldDelete) {
                               setOverlayText('');
                               showToast('Text deleted');
                               setIsTextSelected(false);
@@ -3805,17 +4012,29 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
                   setActiveStickers(prev => prev.map(s => s.id === sticker.id ? { ...s, x: initialX + dx, y: initialY + dy } : s));
                   
-                  const screenHeight = window.innerHeight;
-                  if (mE.clientY > screenHeight * 0.75) {
-                    setIsOverDeleteZone(true);
-                  } else {
-                    setIsOverDeleteZone(false);
+                  const container = target.closest('.relative');
+                  if (container) {
+                    const rect = container.getBoundingClientRect();
+                    const relativeY = mE.clientY - rect.top;
+                    if (relativeY > rect.height * 0.75) {
+                      setIsOverDeleteZone(true);
+                    } else {
+                      setIsOverDeleteZone(false);
+                    }
                   }
                 };
                 
                 const upHandler = (uE) => {
-                  const screenHeight = window.innerHeight;
-                  if (uE.clientY > screenHeight * 0.75) {
+                  const container = target.closest('.relative');
+                  let shouldDelete = false;
+                  if (container) {
+                    const rect = container.getBoundingClientRect();
+                    const relativeY = uE.clientY - rect.top;
+                    if (relativeY > rect.height * 0.75) {
+                      shouldDelete = true;
+                    }
+                  }
+                  if (shouldDelete) {
                     setActiveStickers(prev => prev.filter(s => s.id !== sticker.id));
                     showToast('Sticker removed');
                     setSelectedStickerId(null);
@@ -3852,6 +4071,26 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               )}
             </div>
           ))}
+          
+          {/* Delete Zone inside Editor Stage */}
+          {isDraggingAny && (
+            <div 
+              className={`absolute bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center justify-center gap-1.5 transition-all duration-300 pointer-events-none ${
+                isOverDeleteZone ? 'scale-110' : 'scale-90 opacity-80'
+              }`}
+            >
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-300 ${
+                isOverDeleteZone ? 'border-red-500 bg-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'border-white bg-white/10 backdrop-blur-md'
+              }`}>
+                <BiTrash size={22} className={`transition-transform duration-300 ${isOverDeleteZone ? 'text-red-500 scale-110' : 'text-white'}`} />
+              </div>
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors duration-300 ${
+                isOverDeleteZone ? 'text-red-500' : 'text-white shadow-black drop-shadow-md'
+              }`}>
+                Drag to delete
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -4270,6 +4509,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         {previewUrl ? (
         ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || previewUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
           <img 
+            key={previewUrl}
             src={previewUrl} 
             className="h-full w-full object-contain transition-all duration-500" 
             alt="Preview"
@@ -4281,6 +4521,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           />
         ) : (
           <video 
+              key={previewUrl}
               ref={previewVideoRef}
               src={previewUrl} 
               className="h-full w-full object-cover transition-all duration-500 cursor-pointer" 
@@ -4345,17 +4586,29 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 }
                 setTextPos({ x: initialX + dx, y: initialY + dy });
                 
-                const screenHeight = window.innerHeight;
-                if (moveEvent.clientY > screenHeight * 0.7) {
-                  setIsOverDeleteZone(true);
-                } else {
-                  setIsOverDeleteZone(false);
+                const container = target.closest('.relative');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  const relativeY = moveEvent.clientY - rect.top;
+                  if (relativeY > rect.height * 0.75) {
+                    setIsOverDeleteZone(true);
+                  } else {
+                    setIsOverDeleteZone(false);
+                  }
                 }
               };
               
               const upHandler = (upEvent) => {
-                const screenHeight = window.innerHeight;
-                if (upEvent.clientY > screenHeight * 0.7) {
+                const container = target.closest('.relative');
+                let shouldDelete = false;
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  const relativeY = upEvent.clientY - rect.top;
+                  if (relativeY > rect.height * 0.75) {
+                    shouldDelete = true;
+                  }
+                }
+                if (shouldDelete) {
                   setOverlayText('');
                   showToast('Text deleted');
                 } else if (!hasMoved) {
@@ -4438,17 +4691,29 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 i === index ? { ...s, x: initialX + dx, y: initialY + dy } : s
               ));
 
-              const screenHeight = window.innerHeight;
-              if (moveEvent.clientY > screenHeight * 0.7) {
-                setIsOverDeleteZone(true);
-              } else {
-                setIsOverDeleteZone(false);
+              const container = target.closest('.relative');
+              if (container) {
+                const rect = container.getBoundingClientRect();
+                const relativeY = moveEvent.clientY - rect.top;
+                if (relativeY > rect.height * 0.75) {
+                  setIsOverDeleteZone(true);
+                } else {
+                  setIsOverDeleteZone(false);
+                }
               }
             };
             
             const upHandler = (upEvent) => {
-              const screenHeight = window.innerHeight;
-              if (upEvent.clientY > screenHeight * 0.7) {
+              const container = target.closest('.relative');
+              let shouldDelete = false;
+              if (container) {
+                const rect = container.getBoundingClientRect();
+                const relativeY = upEvent.clientY - rect.top;
+                if (relativeY > rect.height * 0.75) {
+                  shouldDelete = true;
+                }
+              }
+              if (shouldDelete) {
                 setActiveStickers(prev => prev.filter((_, i) => i !== index));
                 showToast('Sticker deleted');
               }
@@ -4968,14 +5233,26 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         </div>
 
         <div className="mt-4 border-t border-black/5 bg-white px-4 pt-4 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+4rem)] md:pb-3">
-          <div className="grid grid-cols-2 gap-3">
+          {/* Draft actions row */}
+          <div className="flex items-center gap-2 mb-3">
             <button
               type="button"
               onClick={handleSaveDraftUi}
-              className="rounded-[10px] border border-black/10 py-3 text-[15px] font-medium text-black active:opacity-80"
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-[10px] border border-black/10 py-2.5 text-[14px] font-medium text-black active:opacity-80"
             >
-              Drafts
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save Draft
             </button>
+            <button
+              type="button"
+              onClick={handleOpenDraftsSheet}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-[10px] border border-black/10 py-2.5 text-[14px] font-medium text-black active:opacity-80"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              My Drafts
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
             <button
               type="button"
               onClick={handlePublishUi}
@@ -5883,6 +6160,77 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       {activeSheet === 'music-library' && renderMusicLibrarySheet()}
       {activeSheet === 'choose-duration' && renderDurationSheet()}
       {activeSheet === 'exit-flow-confirmation' && renderExitFlowConfirmation()}
+      {activeSheet === 'drafts-browser' && (
+        <div className={sheetOverlayClass} onClick={() => setActiveSheet(null)}>
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] flex flex-col shadow-2xl pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[80vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="w-10 h-1.5 bg-black/20 rounded-full my-4 mx-auto" />
+            <div className="flex items-center justify-between px-5 pb-3 border-b border-black/5">
+              <h3 className="text-[17px] font-bold">My Drafts</h3>
+              <span className="text-[13px] text-black/40">{savedDrafts.length} saved</span>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {savedDrafts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-black/30">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3 opacity-40"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <p className="text-[15px] font-medium mb-1">No drafts yet</p>
+                  <p className="text-[13px] text-center">Tap "Save Draft" on the post details page to save your work for later.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {savedDrafts.map((draft) => {
+                    const date = new Date(draft.savedAt);
+                    const label = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    const previewUrl = draft.videoFile ? URL.createObjectURL(draft.videoFile) : null;
+                    return (
+                      <div
+                        key={draft.id}
+                        onClick={() => handleLoadDraft(draft)}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-black/8 bg-black/[0.02] active:bg-black/5 text-left w-full cursor-pointer select-none"
+                      >
+                        {/* Thumbnail */}
+                        <div className="w-14 h-[76px] rounded-lg overflow-hidden bg-black/10 shrink-0 relative">
+                          {previewUrl ? (
+                            <video src={previewUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black/30"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                            </div>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold text-black truncate">
+                            {draft.caption ? draft.caption : 'No caption'}
+                          </p>
+                          <p className="text-[12px] text-black/40 mt-0.5">{label}</p>
+                          {draft.postState?.category && (
+                            <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full bg-black/5 text-[11px] text-black/50 font-medium">
+                              {draft.postState.category}
+                            </span>
+                          )}
+                        </div>
+                        {/* Delete */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteDraft(draft.id, e)}
+                          className="w-8 h-8 flex items-center justify-center rounded-full text-black/30 hover:bg-red-50 hover:text-red-500 active:scale-95 transition-all shrink-0"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeSheet === 'nft-terms' && (
         <div className={sheetOverlayClass} onClick={() => setActiveSheet(null)}>
           <div
@@ -6138,7 +6486,33 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       {activeSheet === 'select-cover' && (
         <BottomSheet title="Select Cover Thumbnail" onClose={() => setActiveSheet(null)}>
           <div className="px-5 pb-8">
-            <p className="text-[13px] text-black/40 mb-4">Choose a frame from your video to use as the cover image</p>
+            <p className="text-[13px] text-black/40 mb-4">Choose a frame from your video or upload a custom cover image</p>
+            
+            {/* Custom Cover Upload Button */}
+            <div className="mb-5">
+              <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed border-black/10 rounded-xl p-4 hover:bg-black/[0.02] active:bg-black/5 transition-all">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setPostState(prev => ({ ...prev, coverImage: event.target.result }));
+                        setActiveSheet(null);
+                        showToast('Custom cover uploaded');
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black/55"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span className="text-[13px] font-semibold text-black/70">Upload custom thumbnail</span>
+              </label>
+            </div>
+
             {videoThumbnails.length > 0 ? (
               <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[320px] p-1">
                 {videoThumbnails.map((thumb, idx) => (
@@ -6472,6 +6846,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                         : 'border-black/5 bg-black/5 hover:bg-black/10'
                   }`}
                   onPointerDown={async (e) => {
+                    e.preventDefault();
                     isPressingMicRef.current = true;
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -6498,7 +6873,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                         showToast('Microphone access denied');
                     }
                   }}
-                  onPointerUp={() => {
+                  onPointerUp={(e) => {
+                    e.preventDefault();
                     isPressingMicRef.current = false;
                     if (voiceRecorder) {
                         try { voiceRecorder.stop(); } catch(e) {}
@@ -6509,16 +6885,55 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                         setIsRecordingVoice(false);
                     }
                   }}
-                  onPointerLeave={() => {
+                  onPointerLeave={(e) => {
+                    e.preventDefault();
                     isPressingMicRef.current = false;
                     if (voiceRecorder) {
                         try { voiceRecorder.stop(); } catch(e) {}
                         setVoiceRecorder(null);
                         setIsRecordingVoice(false);
+                        showToast('Recording finished');
                     } else if (isRecordingVoice) {
                         setIsRecordingVoice(false);
                     }
                   }}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (isRecordingVoice || voiceRecorder) {
+                      isPressingMicRef.current = false;
+                      if (voiceRecorder) {
+                          try { voiceRecorder.stop(); } catch(e) {}
+                          setVoiceRecorder(null);
+                          setIsRecordingVoice(false);
+                          showToast('Recording finished');
+                      } else if (isRecordingVoice) {
+                          setIsRecordingVoice(false);
+                      }
+                    } else {
+                      isPressingMicRef.current = true;
+                      try {
+                          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                          const recorder = new MediaRecorder(stream);
+                          const chunks = [];
+                          recorder.ondataavailable = (e) => chunks.push(e.data);
+                          recorder.onstop = () => {
+                              const blob = new Blob(chunks, { type: 'audio/webm' });
+                              setRecordedVoiceBlob(blob);
+                              const url = URL.createObjectURL(blob);
+                              setVoicePreviewUrl(url);
+                              stream.getTracks().forEach(t => t.stop());
+                          };
+                          recorder.start();
+                          setVoiceRecorder(recorder);
+                          setIsRecordingVoice(true);
+                          showToast('Recording... Tap to stop');
+                      } catch (err) {
+                          console.error("Mic access failed:", err);
+                          showToast('Microphone access denied');
+                      }
+                    }
+                  }}
+                  style={{ touchAction: 'none' }}
                 >
                   <BiMicrophone size={48} className={isRecordingVoice ? 'text-[#fe2c55]' : 'text-black/20'} />
                 </button>

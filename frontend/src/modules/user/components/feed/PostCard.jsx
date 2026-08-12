@@ -481,7 +481,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
 
             <div
                 ref={containerRef}
-                className={`w-full relative bg-black/5 ${post.media?.type === 'video' ? 'aspect-[9/16]' : post.media?.type !== 'audio' ? 'post-media-aspect' : ''} ${onOpen ? 'cursor-pointer' : ''}`}
+                className={`w-full relative bg-black/5 ${post.media?.type === 'video' ? 'aspect-[9/16] max-h-[70vh] md:max-h-[550px] mx-auto overflow-hidden bg-black' : post.media?.type !== 'audio' ? 'post-media-aspect' : ''} ${onOpen ? 'cursor-pointer' : ''}`}
                 onClick={() => onOpen?.(post.id)}
             >
                 {post.media?.type === 'video' ? (
@@ -499,7 +499,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                             />
                         )}
                         <img
-                            src={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
+                            src={optimizeCloudinaryUrl(post.media?.thumbnailUrl || post.media?.thumbnail || post.media?.poster || post.media?.url, { width: 480, quality: '50' })}
                             alt=""
                             aria-hidden="true"
                             className="absolute inset-0 w-full h-full object-cover"
@@ -518,7 +518,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                             controlsList="nodownload"
                             onLoadedData={() => setMediaLoaded(true)}
                             onContextMenu={(e) => e.preventDefault()}
-                            poster={optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.poster, { width: 480, quality: '50' })}
+                            poster={optimizeCloudinaryUrl(post.media?.thumbnailUrl || post.media?.thumbnail || post.media?.poster || post.media?.url, { width: 480, quality: '50' })}
                             onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
                         />
                         <AnimatePresence>
