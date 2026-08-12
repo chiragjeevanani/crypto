@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef, memo } from 'react';
+import React, { useEffect, useMemo, useState, useRef, memo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import Instacam from 'instacam';
