@@ -20,7 +20,7 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
     useEffect(() => {
         // Initially try the optimized version
         setLoaded(false);
-        if (src && src !== 'null' && src !== 'undefined') {
+        if (src && src !== 'null' && src !== 'undefined' && !src.includes('placeholder.com') && src !== '/person.png') {
             setImgSrc(optimizeCloudinaryUrl(src));
         } else {
             setImgSrc(NO_IMAGE_AVATAR);

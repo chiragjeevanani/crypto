@@ -17,6 +17,7 @@ export const useWalletStore = create((set, get) => ({
     giftEarnings: 0,
     taskEarnings: 0,
     nftEarnings: 0,
+    referralEarnings: 0,
     giftCount: 0,
     taskCount: 0,
     nftCount: 0,
@@ -54,6 +55,7 @@ export const useWalletStore = create((set, get) => ({
                 giftEarnings: Number(data?.giftEarnings || 0),
                 taskEarnings: Number(data?.taskEarnings || 0),
                 nftEarnings: Number(data?.nftEarnings || 0),
+                referralEarnings: Number(data?.referralEarnings || 0),
                 giftCount: Number(data?.giftCount || 0),
                 taskCount: Number(data?.taskCount || 0),
                 nftCount: Number(data?.nftCount || 0),
@@ -153,7 +155,9 @@ export const useWalletStore = create((set, get) => ({
                             : tx.type
                 
                 let title = titleMap[tx.type] || 'Wallet activity'
-                if (tx.type === 'gift_received' && tx.meta?.senderName) {
+                if (tx.referenceType === 'post') {
+                    title = tx.type === 'gift_received' ? 'Reel Post Reward' : 'Promotion Payment'
+                } else if (tx.type === 'gift_received' && tx.meta?.senderName) {
                     title = `Gift from ${tx.meta.senderName}`
                 } else if (tx.type === 'gift_sent' && tx.meta?.receiverName) {
                     title = `Gift to ${tx.meta.receiverName}`
@@ -186,6 +190,7 @@ export const useWalletStore = create((set, get) => ({
                     date: tx.createdAt || new Date().toISOString(),
                     status: tx.status === 'success' ? 'completed' : tx.status,
                     meta: tx.meta,
+                    referenceType: tx.referenceType
                 }
             })
             set({ transactions: mapped, transactionsLoading: false })

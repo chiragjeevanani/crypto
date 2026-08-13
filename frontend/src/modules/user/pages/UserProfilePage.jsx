@@ -448,47 +448,53 @@ export default function UserProfilePage() {
                 {/* Tab Content */}
                 <div className="min-h-[300px]">
                     {activeTab === 'Posts' && (
-                        <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                            {userPosts.map((post, idx) => (
-                                <div key={post.id} className="relative aspect-square cursor-pointer overflow-hidden" onClick={() => setActivePostIndex(idx)}>
-                                    {post.media?.type === 'video' ? (
-                                        <>
-                                            <video
-                                                src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
-                                                muted
-                                                playsInline
-                                                loop
-                                                preload="auto"
-                                                poster={post.media?.thumbnail || post.thumbnail ? optimizeCloudinaryUrl(post.media.thumbnail || post.thumbnail, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url || post.thumbnail)}#t=0.1`}
-                                                crossOrigin="anonymous"
-                                                className="w-full h-full object-cover bg-black/10"
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-                                                    <Play size={22} className="text-white" fill="white" />
+                        userPosts.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center text-muted">
+                                <p className="text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>No post available yet</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-0.5 p-0.5">
+                                {userPosts.map((post, idx) => (
+                                    <div key={post.id} className="relative aspect-square cursor-pointer overflow-hidden" onClick={() => setActivePostIndex(idx)}>
+                                        {post.media?.type === 'video' ? (
+                                            <>
+                                                <video
+                                                    src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
+                                                    muted
+                                                    playsInline
+                                                    loop
+                                                    preload="auto"
+                                                    poster={post.media?.thumbnail || post.thumbnail ? optimizeCloudinaryUrl(post.media.thumbnail || post.thumbnail, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url || post.thumbnail)}#t=0.1`}
+                                                    crossOrigin="anonymous"
+                                                    className="w-full h-full object-cover bg-black/10"
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                                                        <Play size={22} className="text-white" fill="white" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <img
-                                            src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { width: 480, quality: '50' })}
-                                            alt="post"
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    )}
-                                    {/* Views hidden for other users */}
-                                    <div className="absolute bottom-1 right-1">
-                                        <span
-                                            className="text-[9px] font-bold px-1 py-0.5 rounded-sm"
-                                            style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}
-                                        >
-                                            ₹{post.earnings ?? 0}
-                                        </span>
+                                            </>
+                                        ) : (
+                                            <img
+                                                src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { width: 480, quality: '50' })}
+                                                alt="post"
+                                                className="w-full h-full object-cover"
+                                                loading="lazy"
+                                            />
+                                        )}
+                                        {/* Views hidden for other users */}
+                                        <div className="absolute bottom-1 right-1">
+                                            <span
+                                                className="text-[9px] font-bold px-1 py-0.5 rounded-sm"
+                                                style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}
+                                            >
+                                                ₹{post.earnings ?? 0}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )
                     )}
                     {activeTab === 'NFTs' && (
                         <div className="px-4 py-4 flex flex-col gap-3">

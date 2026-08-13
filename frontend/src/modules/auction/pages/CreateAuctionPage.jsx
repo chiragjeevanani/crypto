@@ -26,6 +26,18 @@ export default function CreateAuctionPage() {
         royaltyPct: 10
     });
 
+    const fileInputRef = React.useRef(null);
+
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const getTodayDateTimeString = () => {
+        const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 16);
+        return localISOTime;
+    };
+
     // Initial load from localStorage
     React.useEffect(() => {
         const userId = profile?.id || 'guest';
@@ -78,6 +90,21 @@ export default function CreateAuctionPage() {
             pushNotification({ type: 'error', title: 'Missing Info', subtitle: 'Please fill all fields and upload media.' });
             return;
         }
+
+        const now = new Date();
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+
+        if (start < new Date(now.getTime() - 2 * 60 * 1000)) {
+            pushNotification({ type: 'error', title: 'Invalid Start Date', subtitle: 'Start date cannot be in the past.' });
+            return;
+        }
+
+        if (end <= start) {
+            pushNotification({ type: 'error', title: 'Invalid Dates', subtitle: 'End date must be after the start date.' });
+            return;
+        }
+
         setStep(2);
     };
 
@@ -145,6 +172,12 @@ export default function CreateAuctionPage() {
                         setLoading(false);
                     }
                 },
+                modal: {
+                    ondismiss: () => {
+                        pushNotification({ type: 'info', title: 'Payment Cancelled', subtitle: 'You closed the payment screen.' });
+                        setLoading(false);
+                    }
+                },
                 theme: { color: '#f59e0b' }
             };
 
@@ -184,14 +217,22 @@ export default function CreateAuctionPage() {
                         {/* Media Upload */}
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Media (Image/Video)</label>
-                            <label className="block aspect-video w-full rounded-2xl border-2 border-dashed border-border hover:border-primary/50 transition-all cursor-pointer overflow-hidden relative group"
+                            <div 
+                                onClick={handleUploadClick}
+                                className="block aspect-video w-full rounded-2xl border-2 border-dashed border-border hover:border-primary/50 transition-all cursor-pointer overflow-hidden relative group"
                                 style={{ background: 'var(--color-surface2)' }}
                             >
-                                <input type="file" onChange={handleFileChange} accept="image/*,video/*" className="hidden" />
+                                <input 
+                                    ref={fileInputRef}
+                                    type="file" 
+                                    onChange={handleFileChange} 
+                                    accept="image/*,video/*" 
+                                    className="hidden" 
+                                />
                                 {preview ? (
                                     <>
-                                        {media.type.startsWith('video') ? (
-                                            <video src={preview} className="w-full h-full object-cover" />
+                                        {media && media.type && media.type.startsWith('video') ? (
+                                            <video src={preview} controls muted autoPlay playsInline className="w-full h-full object-cover" />
                                         ) : (
                                             <img src={preview} className="w-full h-full object-cover" />
                                         )}
@@ -210,7 +251,7 @@ export default function CreateAuctionPage() {
                                         </div>
                                     </div>
                                 )}
-                            </label>
+                            </div>
                         </div>
 
                         {/* Details */}
@@ -222,6 +263,7 @@ export default function CreateAuctionPage() {
                                     placeholder="e.g. Rare NFT Collectible"
                                     value={formData.title}
                                     onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -242,15 +284,17 @@ export default function CreateAuctionPage() {
                                         placeholder="Min 100"
                                         value={formData.basePrice}
                                         onChange={(e) => setFormData({...formData, basePrice: e.target.value})}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">Start Date</label>
                                     <input 
                                         type="datetime-local"
-                                        className="w-full bg-surface2 border border-border rounded-xl py-3 px-4 text-[11px] font-bold outline-none focus:ring-1 focus:ring-primary/20"
+                                        min={getTodayDateTimeString()}
+                                        className="w-full bg-surface2 border border-border rounded-xl py-3 px-3.5 text-xs font-bold outline-none focus:ring-1 focus:ring-primary/20"
                                         value={formData.startDate}
                                         onChange={(e) => setFormData({...formData, startDate: e.target.value})}
                                     />
@@ -259,7 +303,8 @@ export default function CreateAuctionPage() {
                                     <label className="text-xs font-bold text-muted uppercase tracking-widest ml-1">End Date</label>
                                     <input 
                                         type="datetime-local"
-                                        className="w-full bg-surface2 border border-border rounded-xl py-3 px-4 text-[11px] font-bold outline-none focus:ring-1 focus:ring-primary/20"
+                                        min={formData.startDate || getTodayDateTimeString()}
+                                        className="w-full bg-surface2 border border-border rounded-xl py-3 px-3.5 text-xs font-bold outline-none focus:ring-1 focus:ring-primary/20"
                                         value={formData.endDate}
                                         onChange={(e) => setFormData({...formData, endDate: e.target.value})}
                                     />

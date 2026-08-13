@@ -122,7 +122,9 @@ function profileFromUser(user) {
 const storedUser = getStoredUser()
 
 export const useUserStore = create((set, get) => ({
-    darkMode: false,
+    darkMode: localStorage.getItem('knq_reels_dark_mode') !== null 
+        ? localStorage.getItem('knq_reels_dark_mode') === 'true' 
+        : false,
     isAuthenticated: Boolean(getStoredToken()),
     token: getStoredToken(),
     authChecked: false,
@@ -159,7 +161,11 @@ export const useUserStore = create((set, get) => ({
         }
     },
 
-    toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+    toggleDarkMode: () => set((state) => {
+        const nextMode = !state.darkMode
+        localStorage.setItem('knq_reels_dark_mode', String(nextMode))
+        return { darkMode: nextMode }
+    }),
     setAuthError: (message) => set({ authError: message || '' }),
 
     initializeAuth: async () => {

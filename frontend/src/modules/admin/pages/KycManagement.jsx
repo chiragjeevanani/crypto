@@ -2,11 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, X, Check, Eye, User, Calendar, FileText, ExternalLink, AlertCircle, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getStoredToken } from '../../user/store/useUserStore';
+import { useAdminStore } from '../store/useAdminStore';
 
 // Assuming admin uses a similar service structure
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+const getAssetUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (cleanPath.startsWith('/uploads') || cleanPath.startsWith('/avatars')) {
+        const baseUrl = API_BASE.replace('/api', '');
+        return `${baseUrl}${cleanPath}`;
+    }
+    return cleanPath;
+};
+
 const KycManagement = () => {
+    const loadModerationStats = useAdminStore(state => state.loadModerationStats);
     const [submissions, setSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -58,6 +71,7 @@ const KycManagement = () => {
             if (data.success) {
                 fetchSubmissions();
                 setSelectedKyc(null);
+                loadModerationStats();
             } else {
                 alert(data.message);
             }
@@ -138,7 +152,7 @@ const KycManagement = () => {
                         <div className="flex items-center gap-4 relative z-10">
                             <div className="w-14 h-14 rounded-2xl bg-bg flex items-center justify-center overflow-hidden border">
                                 {sub.userId?.avatar ? (
-                                    <img src={sub.userId.avatar} alt="" className="w-full h-full object-cover" />
+                                    <img src={getAssetUrl(sub.userId.avatar)} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                     <User size={24} className="text-muted/30" />
                                 )}
@@ -204,7 +218,7 @@ const KycManagement = () => {
                                     <div className="flex items-center gap-6">
                                         <div className="w-20 h-20 rounded-3xl bg-bg flex items-center justify-center border p-1">
                                             {selectedKyc.userId?.avatar ? (
-                                                <img src={selectedKyc.userId.avatar} alt="" className="w-full h-full object-cover rounded-[20px]" />
+                                                <img src={getAssetUrl(selectedKyc.userId.avatar)} alt="" className="w-full h-full object-cover rounded-[20px]" />
                                             ) : (
                                                 <User size={32} className="text-muted/30" />
                                             )}
@@ -294,9 +308,9 @@ const KycManagement = () => {
                                                 <div key={idx} className="group relative rounded-3xl border border-border/50 bg-bg/30 overflow-hidden aspect-[4/3]">
                                                     {doc.url ? (
                                                         <>
-                                                            <img src={doc.url} alt={doc.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                                            <img src={getAssetUrl(doc.url)} alt={doc.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                                                <a href={doc.url} target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-all">
+                                                                <a href={getAssetUrl(doc.url)} target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-all">
                                                                     <ExternalLink size={20} />
                                                                 </a>
                                                             </div>

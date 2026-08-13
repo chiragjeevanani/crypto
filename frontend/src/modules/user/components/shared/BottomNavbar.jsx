@@ -21,29 +21,17 @@ export default function BottomNavbar() {
     const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
 
     useEffect(() => {
-        const handleFocusIn = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (typeof window === 'undefined') return
+        const initialHeight = window.innerHeight
+        const handleResize = () => {
+            if (window.innerHeight < initialHeight - 150) {
                 setIsKeyboardOpen(true)
+            } else {
+                setIsKeyboardOpen(false)
             }
         }
-
-        const handleFocusOut = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-                setTimeout(() => {
-                    const activeTag = document.activeElement?.tagName
-                    if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && !document.activeElement?.isContentEditable) {
-                        setIsKeyboardOpen(false)
-                    }
-                }, 50)
-            }
-        }
-
-        window.addEventListener('focusin', handleFocusIn)
-        window.addEventListener('focusout', handleFocusOut)
-        return () => {
-            window.removeEventListener('focusin', handleFocusIn)
-            window.removeEventListener('focusout', handleFocusOut)
-        }
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
     }, [])
 
     if (isKeyboardOpen) return null;

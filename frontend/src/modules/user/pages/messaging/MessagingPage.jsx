@@ -59,7 +59,7 @@ export default function MessagingPage() {
     }
 
     return (
-        <div className="flex w-full overflow-hidden" style={{ background: 'var(--color-bg)', height: isMobile ? 'calc(100dvh - 64px)' : '100dvh' }}>
+        <div className="flex w-full overflow-hidden" style={{ background: 'var(--color-bg)', height: isMobile ? (showChatMobile ? '100dvh' : 'calc(100dvh - 56px)') : '100dvh' }}>
             {/* Desktop: Sidebar + Chat */}
             {!isMobile && (
                 <>
@@ -100,7 +100,7 @@ export default function MessagingPage() {
 
             {/* Mobile: Animated transition between List and Chat */}
             {isMobile && (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full overflow-hidden">
                     <AnimatePresence initial={false}>
                         {!showChatMobile ? (
                             <motion.div
@@ -123,7 +123,7 @@ export default function MessagingPage() {
                                 animate={{ x: 0 }}
                                 exit={{ x: '100%' }}
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                className="absolute inset-0 w-full h-full z-10"
+                                className="absolute inset-0 w-full h-full z-[80]"
                             >
                                 <ChatWindow 
                                     chat={selectedChat} 

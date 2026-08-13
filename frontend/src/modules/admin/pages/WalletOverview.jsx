@@ -24,6 +24,17 @@ const recentTransactions = [
     { id: 'TX-404', user: 'Merchant_X', type: 'NFT Sale Comm.', amount: 84.20, status: 'Settled', date: '3h ago' },
 ];
 
+const getAssetUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (cleanPath.startsWith('/uploads') || cleanPath.startsWith('/avatars')) {
+        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+        return `${baseUrl}${cleanPath}`;
+    }
+    return cleanPath;
+};
+
 export default function WalletOverview() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -149,6 +160,7 @@ export default function WalletOverview() {
                                 { id: '', label: 'All' },
                                 { id: 'recharge', label: 'Recharges' },
                                 { id: 'promotion', label: 'Promotions' },
+                                { id: 'nft', label: 'NFT Trades' },
                                 { id: 'withdrawal', label: 'Payouts' },
                             ].map((tab) => (
                                 <button
@@ -179,48 +191,59 @@ export default function WalletOverview() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-surface/50">
-                            {transactionsData.transactions.map((tx) => (
-                                <tr key={tx._id} className="group hover:bg-surface2/30 transition-colors">
-                                    <td className="py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-surface2 border border-surface overflow-hidden">
-                                                {tx.userId?.avatar ? (
-                                                    <img src={tx.userId.avatar} alt={tx.userId.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-muted">
-                                                        {tx.userId?.name.charAt(0)}
-                                                    </div>
-                                                )}
+                            {transactionsData.transactions.map((tx) => {
+                                const isDeposit = tx.type === 'deposit' || tx.type === 'gift_received';
+                                const displayAmount = tx.amount !== null && tx.amount !== undefined ? tx.amount : tx.coins;
+                                return (
+                                    <tr key={tx._id} className="group hover:bg-surface2/30 transition-colors">
+                                        <td className="py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-surface2 border border-surface overflow-hidden">
+                                                    {tx.userId?.avatar ? (
+                                                        <img src={getAssetUrl(tx.userId.avatar)} alt={tx.userId.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-muted">
+                                                            {tx.userId?.name ? tx.userId.name.charAt(0) : 'S'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-text group-hover:text-primary transition-colors">{tx.userId?.name || 'System Node'}</p>
+                                                    <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{tx.userId?.handle || 'SYSTEM'}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-text group-hover:text-primary transition-colors">{tx.userId?.name}</p>
-                                                <p className="text-[9px] text-muted font-medium uppercase tracking-wider">{tx.userId?.handle || 'System Node'}</p>
+                                        </td>
+                                        <td className="py-4 text-center">
+                                            <p className="text-[9px] font-mono text-muted uppercase tracking-widest">
+                                                {tx._id.slice(-8).toUpperCase()}
+                                            </p>
+                                        </td>
+                                        <td className="py-4 text-center">
+                                            <span className="px-2 py-0.5 rounded-md bg-surface2 border border-surface text-[8px] font-bold text-muted uppercase tracking-widest">
+                                                {tx.referenceType === 'payment_gateway' ? 'Recharge' : 
+                                                 tx.referenceType === 'post' ? 'Promotion' : 
+                                                 tx.referenceType === 'nft_purchase' ? 'NFT Buy' :
+                                                 tx.referenceType === 'nft_sale' ? 'NFT Sale' :
+                                                 tx.referenceType === 'nft_royalty' ? 'NFT Royalty' :
+                                                 tx.referenceType === 'auction_purchase' ? 'Auction Buy' :
+                                                 tx.referenceType === 'auction_sale' ? 'Auction Sale' :
+                                                 tx.type === 'withdrawal' ? 'Payout' : tx.type}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 text-center">
+                                            <p className={`text-xs font-black tracking-tight ${isDeposit ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {isDeposit ? '+' : '-'}{formatCurrency(displayAmount)}
+                                            </p>
+                                        </td>
+                                        <td className="py-4 text-right">
+                                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-bold uppercase tracking-widest">
+                                                <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                                                {tx.status}
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 text-center">
-                                        <p className="text-[9px] font-mono text-muted uppercase tracking-widest">
-                                            {tx._id.slice(-8).toUpperCase()}
-                                        </p>
-                                    </td>
-                                    <td className="py-4 text-center">
-                                        <span className="px-2 py-0.5 rounded-md bg-surface2 border border-surface text-[8px] font-bold text-muted uppercase tracking-widest">
-                                            {tx.referenceType === 'payment_gateway' ? 'Recharge' : tx.referenceType === 'post' ? 'Promotion' : tx.type}
-                                        </span>
-                                    </td>
-                                    <td className="py-4 text-center">
-                                        <p className={`text-xs font-black tracking-tight ${tx.amount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                            {tx.amount ? formatCurrency(tx.amount) : `${tx.coins} Coins`}
-                                        </p>
-                                    </td>
-                                    <td className="py-4 text-right">
-                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-bold uppercase tracking-widest">
-                                            <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                                            {tx.status}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                     {!isLoading && transactionsData.transactions.length === 0 && (

@@ -323,7 +323,7 @@ exports.toggleSuspicious = async (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, role, avatar, status } = req.body;
     
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "Name, email and password are required" });
@@ -342,6 +342,17 @@ exports.createUser = async (req, res) => {
     const referralCode = `${baseCode}${randomStr}`;
 
     const isPremium = role === "Premium" || role === "VIP User";
+    
+    let kycStatus = "unsubmitted";
+    let isSuspicious = false;
+    if (status === "Verified") {
+      kycStatus = "verified";
+    } else if (status === "Pending") {
+      kycStatus = "pending";
+    } else if (status === "Flagged") {
+      isSuspicious = true;
+    }
+
     const user = await User.create({
       name,
       email: email.toLowerCase(),
@@ -350,6 +361,9 @@ exports.createUser = async (req, res) => {
       isPremium,
       phone: phone || "",
       referralCode,
+      avatar: avatar || "",
+      kycStatus,
+      isSuspicious,
       isEmailVerified: true // Auto-verify admin created users
     });
 
@@ -372,6 +386,19 @@ exports.updateUser = async (req, res) => {
       updateData.isPremium = (updates.role === "Premium" || updates.role === "VIP User");
       if (updateData.isPremium) {
         updateData.role = "User";
+      }
+    }
+    if (updates.status !== undefined) {
+      if (updates.status === "Verified") {
+        updateData.kycStatus = "verified";
+        updateData.isSuspicious = false;
+        updateData.isBanned = false;
+      } else if (updates.status === "Pending") {
+        updateData.kycStatus = "pending";
+        updateData.isSuspicious = false;
+        updateData.isBanned = false;
+      } else if (updates.status === "Flagged") {
+        updateData.isSuspicious = true;
       }
     }
     const user = await User.findByIdAndUpdate(req.params.id, { $set: updateData }, { new: true });

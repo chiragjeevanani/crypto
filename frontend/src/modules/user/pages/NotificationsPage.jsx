@@ -14,6 +14,8 @@ const NotifIcon = ({ type }) => {
     if (type === 'follower_broadcast') return <span className="text-xl">💛</span>
     if (type === 'follow') return <UserPlus size={20} />
     if (type === 'recommendation') return <span className="text-xl">✨</span>
+    if (type === 'mention') return <span className="text-xl">@</span>
+    if (type === 'tag') return <span className="text-xl">🏷️</span>
     return <Bell size={20} />
 }
 

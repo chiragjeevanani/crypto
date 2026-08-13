@@ -45,7 +45,7 @@ export default function EditUser({ createMode = false }) {
                     joined: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
                     walletBalance: 0,
                     campaigns: 0,
-                    avatar: 'https://via.placeholder.com/100'
+                    avatar: '/person.png'
                 });
                 return;
             }
@@ -57,12 +57,12 @@ export default function EditUser({ createMode = false }) {
                         ...user,
                         fullName: user.name,
                         username: user.name,
-                        status: user.isBanned ? 'Flagged' : (user.kycVerified ? 'Verified' : 'Pending'),
+                        status: (user.isBanned || user.isSuspicious) ? 'Flagged' : (user.kycVerified ? 'Verified' : 'Pending'),
                         riskScore: user.isSuspicious ? 'High' : 'Low',
                         joined: user.joined,
                         walletBalance: user.walletBalance || 0,
                         campaigns: user.campaigns || 0,
-                        avatar: user.avatar || 'https://via.placeholder.com/100'
+                        avatar: user.avatar && !user.avatar.includes('placeholder.com') ? user.avatar : '/person.png'
                     });
                 } else {
                     navigate('/admin/users');
@@ -101,7 +101,9 @@ export default function EditUser({ createMode = false }) {
                     email: formData.email,
                     password: formData.password,
                     phone: formData.phone,
-                    role: formData.role === 'Standard' ? 'User' : formData.role
+                    role: formData.role === 'Standard' ? 'User' : formData.role,
+                    avatar: formData.avatar === '/person.png' ? '' : formData.avatar,
+                    status: formData.status
                 });
                 setShowSuccess(true);
                 setTimeout(() => {
@@ -114,7 +116,8 @@ export default function EditUser({ createMode = false }) {
                     email: formData.email,
                     phone: formData.phone,
                     role: formData.role === 'Standard' ? 'User' : formData.role,
-                    avatar: formData.avatar
+                    avatar: formData.avatar === '/person.png' ? '' : formData.avatar,
+                    status: formData.status
                 });
 
                 // Handle Suspicious Toggle
@@ -475,7 +478,11 @@ export default function EditUser({ createMode = false }) {
                             </div>
                             <div>
                                 <p className="text-[11px] font-bold uppercase tracking-wider text-text">Last Registry Sync</p>
-                                <p className="text-[10px] font-medium text-muted uppercase tracking-widest">24.02.2024 - 14:22:01</p>
+                                <p className="text-[10px] font-medium text-muted uppercase tracking-widest">
+                                    {formData?.updatedAt 
+                                        ? new Date(formData.updatedAt).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '.').replace(',', ' -')
+                                        : new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '.').replace(',', ' -')}
+                                </p>
                             </div>
                         </div>
                         <button type="button" className="px-4 py-2 bg-surface hover:bg-surface2 border border-surface rounded-lg text-[9px] font-bold uppercase tracking-widest text-muted transition-all">

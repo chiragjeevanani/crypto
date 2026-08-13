@@ -101,6 +101,7 @@ const postSchema = new mongoose.Schema(
       preview: { type: String, default: "" },
       startTime: { type: Number, default: 0 }
     },
+    taggedUsers: [{ type: String }],
     history: [
       {
         date: { type: Date, default: Date.now },

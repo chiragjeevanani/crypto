@@ -4,6 +4,7 @@ const User = require("../models/User");
 const AdminConfig = require("../models/AdminConfig");
 const CollectibleOwnership = require("../models/CollectibleOwnership");
 const NFTOffer = require("../models/NFTOffer");
+const WalletTransaction = require("../models/WalletTransaction");
 const { emitToUser } = require("../utils/socket");
 const { DEFAULTS } = require("../utils/adminConfig");
 const { UPLOAD_DIR } = require("../utils/upload");
@@ -18,11 +19,22 @@ const generateCollectibleId = async () => {
 };
 
 // ─── Helper: Extract Media ─────────────────────────────────────────────────────
-const getMediaUrl = (source) => {
-  if (source?.mediaUrl) return source.mediaUrl;
-  if (Array.isArray(source?.media) && source.media.length > 0) return source.media[0].url;
-  if (source?.media && !Array.isArray(source?.media) && source.media.url) return source.media.url;
-  return source?.thumbnail || "";
+const getMediaUrl = (source, req) => {
+  let url = "";
+  if (source?.mediaUrl) url = source.mediaUrl;
+  else if (Array.isArray(source?.media) && source.media.length > 0) url = source.media[0].url;
+  else if (source?.media && !Array.isArray(source?.media) && source.media.url) url = source.media.url;
+  else url = source?.thumbnail || "";
+
+  if (url && (url.startsWith("/uploads") || url.startsWith("/avatars"))) {
+    if (req) {
+      const protocol = req.protocol;
+      const host = req.get("host");
+      return `${protocol}://${host}${url}`;
+    }
+    return `http://localhost:5000${url}`;
+  }
+  return url;
 };
 
 const getMediaType = (source) => {
@@ -62,7 +74,7 @@ const getMyCollection = async (req, res) => {
         auctionId: o.auctionId?._id || o.postId?._id,
         title: source?.title || source?.caption || "Untitled Collectible",
         description: source?.description || source?.caption || "",
-        mediaUrl: getMediaUrl(source),
+        mediaUrl: getMediaUrl(source, req),
         mediaType: getMediaType(source),
         salePrice: o.salePrice,
         certificateUrl: o.certificateUrl,
@@ -111,7 +123,7 @@ const getUserCollection = async (req, res) => {
       return {
         collectibleId: o.collectibleId,
         title: source?.title || source?.caption || "Untitled Collectible",
-        mediaUrl: getMediaUrl(source),
+        mediaUrl: getMediaUrl(source, req),
         mediaType: getMediaType(source),
         salePrice: o.salePrice,
         isListedForSale: o.isListedForSale,
@@ -163,8 +175,8 @@ const getNFTDetail = async (req, res) => {
       auction: {
         title: auction.title,
         description: auction.description,
-        mediaUrl: auction.mediaUrl,
-        mediaType: auction.mediaType,
+        mediaUrl: getMediaUrl(auction, req),
+        mediaType: getMediaType(auction),
         highestBid: auction.highestBid,
         status: auction.status,
         creator: auction.creator,
@@ -215,8 +227,8 @@ const getMarketplace = async (req, res) => {
       auctionId: a._id,
       title: a.title,
       description: a.description,
-      mediaUrl: a.mediaUrl,
-      mediaType: a.mediaType,
+      mediaUrl: getMediaUrl(a, req),
+      mediaType: getMediaType(a),
       highestBid: a.highestBid,
       basePrice: a.basePrice,
       status: a.status,
@@ -313,13 +325,44 @@ const buyCollectible = async (req, res) => {
     }
 
     // Deduct coins from buyer
+    const buyerBefore = buyer.rechargeCoins;
     buyer.rechargeCoins -= price;
     await buyer.save();
 
     // Credit coins to creator (minus platform commission)
     const commissionPct = auction.commissionPct || 0;
     const creatorShare = Math.round(price * (100 - commissionPct) / 100);
+    const creatorUser = await User.findById(auction.creator);
+    const creatorBefore = creatorUser ? (creatorUser.earningCoins || 0) : 0;
     await User.findByIdAndUpdate(auction.creator, { $inc: { earningCoins: creatorShare } });
+
+    // Record transactions
+    await WalletTransaction.create([
+      {
+        userId: buyerId,
+        type: "withdrawal",
+        coins: price,
+        amount: price,
+        beforeBalance: buyerBefore,
+        afterBalance: buyer.rechargeCoins,
+        referenceId: auctionId,
+        referenceType: "auction_purchase",
+        status: "success",
+        meta: { title: "Claim Collectible" }
+      },
+      {
+        userId: auction.creator,
+        type: "deposit",
+        coins: creatorShare,
+        amount: creatorShare,
+        beforeBalance: creatorBefore,
+        afterBalance: creatorBefore + creatorShare,
+        referenceId: auctionId,
+        referenceType: "auction_sale",
+        status: "success",
+        meta: { title: "Collectible Auction Payout" }
+      }
+    ]);
 
     // Create ownership record
     const collectibleId = await generateCollectibleId();
@@ -403,6 +446,7 @@ const buyPostNFT = async (req, res) => {
     }
 
     // Deduct coins from buyer
+    const buyerBefore = buyer.rechargeCoins;
     buyer.rechargeCoins -= price;
     await buyer.save();
 
@@ -412,9 +456,44 @@ const buyPostNFT = async (req, res) => {
     // Credit coins to creator (minus platform commission)
     const commissionPct = 5; // Standard 5% commission, adjustable via PlatformSettings if needed
     const creatorShare = Math.round(price * (100 - commissionPct) / 100);
+    let creatorBefore = 0;
     if (post.creator && post.creator._id) {
+      creatorBefore = Number(post.creator.earningCoins || 0);
       await User.findByIdAndUpdate(post.creator._id, { $inc: { earningCoins: creatorShare } });
     }
+
+    // Record transactions
+    const walletTransactions = [
+      {
+        userId: buyerId,
+        type: "withdrawal",
+        coins: price,
+        amount: price,
+        beforeBalance: buyerBefore,
+        afterBalance: buyer.rechargeCoins,
+        referenceId: post._id,
+        referenceType: "nft_purchase",
+        status: "success",
+        meta: { title: `Buy NFT: ${post.caption || 'No Caption'}` }
+      }
+    ];
+
+    if (post.creator && post.creator._id) {
+      walletTransactions.push({
+        userId: post.creator._id,
+        type: "deposit",
+        coins: creatorShare,
+        amount: creatorShare,
+        beforeBalance: creatorBefore,
+        afterBalance: creatorBefore + creatorShare,
+        referenceId: post._id,
+        referenceType: "nft_sale",
+        status: "success",
+        meta: { title: `NFT Sale: ${post.caption || 'No Caption'}` }
+      });
+    }
+
+    await WalletTransaction.create(walletTransactions);
 
     // Create ownership record
     const collectibleId = await generateCollectibleId();
@@ -670,6 +749,7 @@ const buyResaleNFT = async (req, res) => {
     if (buyer.rechargeCoins < price) return res.status(400).json({ success: false, message: "Insufficient balance." });
 
     // Deduct from buyer
+    const buyerBefore = buyer.rechargeCoins;
     buyer.rechargeCoins -= price;
     await buyer.save();
 
@@ -681,14 +761,66 @@ const buyResaleNFT = async (req, res) => {
     
     // Simplification: platform takes 5% commission on resale, creator takes royalty
     const commission = price * 0.05;
-    const royalty = price * (royaltyPct / 100);
-    const sellerEarning = price - commission - royalty;
+    const royalty = Math.round(price * (royaltyPct / 100));
+    const sellerEarning = Math.round(price - commission - royalty);
 
+    const sellerUser = await User.findById(sellerId);
+    const sellerBefore = sellerUser ? (sellerUser.earningCoins || 0) : 0;
     await User.findByIdAndUpdate(sellerId, { $inc: { earningCoins: sellerEarning } });
-    if (creatorId) {
-      const actualCreatorId = creatorId._id || creatorId;
+
+    const actualCreatorId = creatorId ? (creatorId._id || creatorId) : null;
+    let creatorBefore = 0;
+    if (actualCreatorId) {
+      const creatorUser = await User.findById(actualCreatorId);
+      creatorBefore = creatorUser ? (creatorUser.earningCoins || 0) : 0;
       await User.findByIdAndUpdate(actualCreatorId, { $inc: { earningCoins: royalty } });
     }
+
+    // Record transactions
+    const title = auction.title || post.title || post.caption || "NFT Post";
+    const walletTransactions = [
+      {
+        userId: buyerId,
+        type: "withdrawal",
+        coins: price,
+        amount: price,
+        beforeBalance: buyerBefore,
+        afterBalance: buyer.rechargeCoins,
+        referenceId: post._id || auction._id || collectibleId,
+        referenceType: "nft_purchase",
+        status: "success",
+        meta: { title: `Buy Resale NFT: ${title}` }
+      },
+      {
+        userId: sellerId,
+        type: "deposit",
+        coins: sellerEarning,
+        amount: sellerEarning,
+        beforeBalance: sellerBefore,
+        afterBalance: sellerBefore + sellerEarning,
+        referenceId: post._id || auction._id || collectibleId,
+        referenceType: "nft_sale",
+        status: "success",
+        meta: { title: `Resale NFT Sold: ${title}` }
+      }
+    ];
+
+    if (actualCreatorId) {
+      walletTransactions.push({
+        userId: actualCreatorId,
+        type: "deposit",
+        coins: royalty,
+        amount: royalty,
+        beforeBalance: creatorBefore,
+        afterBalance: creatorBefore + royalty,
+        referenceId: post._id || auction._id || collectibleId,
+        referenceType: "nft_royalty",
+        status: "success",
+        meta: { title: `NFT Royalty: ${title}` }
+      });
+    }
+
+    await WalletTransaction.create(walletTransactions);
 
     // Update ownership
     ownership.isListedForSale = false;

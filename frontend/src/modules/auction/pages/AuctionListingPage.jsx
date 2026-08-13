@@ -5,6 +5,7 @@ import { Gavel, Clock, Trophy, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../../user/utils/formatCurrency';
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization';
 import Avatar from '../../user/components/shared/Avatar';
+import { useUserStore } from '../../user/store/useUserStore';
 
 const getAssetUrl = (path) => {
     if (!path) return '/default-avatar.png';
@@ -19,12 +20,17 @@ const getAssetUrl = (path) => {
 
 export default function AuctionListingPage() {
     const { auctions, fetchAuctions, loading } = useAuctionStore();
+    const { profile } = useUserStore();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('live');
 
     useEffect(() => {
-        fetchAuctions(activeTab);
-    }, [fetchAuctions, activeTab]);
+        if (activeTab === 'my') {
+            fetchAuctions('', profile?.id);
+        } else {
+            fetchAuctions(activeTab);
+        }
+    }, [fetchAuctions, activeTab, profile?.id]);
 
     if (loading && auctions.length === 0) {
         return (
@@ -77,6 +83,16 @@ export default function AuctionListingPage() {
                     }}
                 >
                     Ended Auctions
+                </button>
+                <button
+                    onClick={() => setActiveTab('my')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all duration-300 z-10 ${activeTab === 'my' ? 'shadow-md scale-100' : 'opacity-50 hover:opacity-100 scale-[0.98]'}`}
+                    style={{ 
+                        background: activeTab === 'my' ? 'var(--color-primary)' : 'transparent',
+                        color: activeTab === 'my' ? '#000' : 'var(--color-text)'
+                    }}
+                >
+                    My Auctions
                 </button>
             </div>
 

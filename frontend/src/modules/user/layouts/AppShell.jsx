@@ -388,7 +388,14 @@ export default function AppShell() {
 
             <main className={`app-shell-main relative flex flex-col flex-1 hide-scrollbar pb-safe ${location.pathname === '/create' ? 'overflow-hidden md:pb-0' : 'overflow-y-auto md:pb-6'} md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]`}>
                 <PullToRefresh disabled={location.pathname === '/create'}>
-                    <div className={`mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col ${(location.pathname === '/create' || location.pathname === '/' || location.pathname === '/home') ? 'pt-0' : 'pt-4'}`}>
+                    <div className={`mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col ${(
+                        location.pathname === '/create' || 
+                        location.pathname === '/' || 
+                        location.pathname === '/home' || 
+                        location.pathname.startsWith('/auctions') || 
+                        location.pathname.startsWith('/nfts') || 
+                        location.pathname.startsWith('/my-collection')
+                    ) ? 'pt-0' : 'pt-4'}`}>
                         <Outlet />
                     </div>
                 </PullToRefresh>
@@ -561,7 +568,7 @@ export default function AppShell() {
                 </div>
             </aside>
 
-            {location.pathname !== '/create' && (
+            {location.pathname !== '/create' && !location.pathname.startsWith('/auctions/create') && (
                 <div className="md:hidden">
                     <BottomNavbar />
                 </div>

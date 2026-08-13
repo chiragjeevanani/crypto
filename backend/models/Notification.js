@@ -18,11 +18,11 @@ const notificationSchema = new mongoose.Schema(
       default: false,
       index: true
     },
-    // gift | follow | recommendation | system | premium_gift | follower_broadcast
+    // gift | follow | recommendation | system | premium_gift | follower_broadcast | mention | tag
     type: {
       type: String,
       required: true,
-      enum: ["gift", "follow", "recommendation", "system", "premium_gift", "follower_broadcast"]
+      enum: ["gift", "follow", "recommendation", "system", "premium_gift", "follower_broadcast", "mention", "tag"]
     },
     title: {
       type: String,

@@ -774,6 +774,44 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       }
   }, [location.search, navigate]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sharePostId = params.get('sharePostId');
+    const shareMediaUrl = params.get('shareMediaUrl');
+    const shareMediaType = params.get('shareMediaType') || 'image';
+    const shareCreator = params.get('shareCreator') || '';
+    
+    if (sharePostId && shareMediaUrl) {
+      clearAllCreateCache();
+      setPreviewUrl(shareMediaUrl);
+      if (shareMediaType === 'image') {
+        setVideoFile(null);
+      } else {
+        setVideoFile({ type: 'video/mp4', name: 'shared_post.mp4' });
+      }
+      setStageStack(['preview']);
+      
+      const stickerText = `@${shareCreator}'s post`;
+      setActiveOverlays([
+        {
+          id: `share-post-${Date.now()}`,
+          type: 'text',
+          text: stickerText,
+          x: 100,
+          y: 200,
+          scale: 1.2,
+          rotation: 0,
+          font: 'Classic',
+          color: '#ffffff',
+          bgColor: 'rgba(0, 0, 0, 0.75)',
+          fontSize: 16,
+          isSharedPostCard: true,
+          sharedPostId: sharePostId
+        }
+      ]);
+    }
+  }, [location.search]);
+
   const CREATE_SOUND_LIBRARY = createFlow.sounds || [];
   const CREATE_LOCATION_CHIPS = createFlow.locations?.chips || [];
   const CREATE_LOCATION_RESULTS = createFlow.locations?.results || [];
@@ -987,12 +1025,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const budgetStep = isINR ? 50 : Math.max(1, Math.round(1 * exchangeRate));
 
   useEffect(() => {
-    if (postState.dailyBudget < minBudget) {
-      setPostState(s => ({ ...s, dailyBudget: minBudget }));
-    } else if (postState.dailyBudget > maxBudget && maxBudget > 0) {
-      setPostState(s => ({ ...s, dailyBudget: maxBudget }));
-    }
-  }, [minBudget, maxBudget, postState.dailyBudget]);
+    setPostState(s => ({ ...s, dailyBudget: minBudget }));
+  }, [minBudget]);
   const [tagInfoSeen, setTagInfoSeen] = useState(false);
   const [nftTermsText, setNftTermsText] = useState('');
   const [nftTermsAccepted, setNftTermsAccepted] = useState(false);
@@ -1034,6 +1068,8 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const [voiceRecorder, setVoiceRecorder] = useState(null);
   const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
   const isPressingMicRef = useRef(false);
+  const recordModeRef = useRef(null); // 'hold' or 'tap'
+  const micHoldTimeoutRef = useRef(null);
   const [mergedVideoBlob, setMergedVideoBlob] = useState(null);
   const [imageAdjustments, setImageAdjustments] = useState({
     brightness: 100,
@@ -1051,6 +1087,52 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     const base = selectedFilter === 'Normal' ? '' : (FILTER_PRESETS[selectedFilter] || '');
     const adj = `brightness(${imageAdjustments.brightness}%) contrast(${imageAdjustments.contrast}%) saturate(${imageAdjustments.saturate}%) hue-rotate(${imageAdjustments.hueRotate}deg) invert(${imageAdjustments.invert}%) grayscale(${imageAdjustments.grayscale}%) sepia(${imageAdjustments.sepia}%) blur(${imageAdjustments.blur}px) opacity(${imageAdjustments.opacity}%)`;
     return `${base} ${adj}`.trim() || 'none';
+  };
+
+  const startVoiceoverRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setRecordedVoiceBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setVoicePreviewUrl(url);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      
+      // Sync play the editor video
+      if (editorVideoRef.current) {
+        editorVideoRef.current.currentTime = 0;
+        editorVideoRef.current.play().catch(() => {});
+      }
+      
+      recorder.start();
+      setVoiceRecorder(recorder);
+      setIsRecordingVoice(true);
+      showToast('Recording...');
+    } catch (err) {
+      console.error("Mic access failed:", err);
+      showToast('Microphone access denied');
+      setIsRecordingVoice(false);
+      recordModeRef.current = null;
+    }
+  };
+
+  const stopVoiceoverRecording = () => {
+    if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+      try { voiceRecorder.stop(); } catch (e) {}
+    }
+    setVoiceRecorder(null);
+    setIsRecordingVoice(false);
+    
+    // Pause editor video
+    if (editorVideoRef.current) {
+      editorVideoRef.current.pause();
+    }
+    showToast('Recording finished');
   };
 
   // Play sound during recording
@@ -1249,6 +1331,11 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
     // Restore video from IndexedDB on mount
     const restoreVideo = async () => {
+      const qParams = new URLSearchParams(window.location.search);
+      if (qParams.get('sharePostId') && qParams.get('shareMediaUrl')) {
+        setIsRestoring(false);
+        return;
+      }
       let hasVideo = false;
       try {
         const cachedSequence = await getSequenceFromCache();
@@ -1943,12 +2030,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
     // If in editor or preview, show confirmation to discard entire video
     if (stage === 'editor' || stage === 'preview') {
-      if (videoFile || recordedSeconds > 0) {
-        setActiveSheet('exit-flow-confirmation');
+      if (stageStack.length > 1) {
+        if (videoFile || recordedSeconds > 0) {
+          setActiveSheet('exit-flow-confirmation');
+          return;
+        }
+        popStage();
+        return;
+      } else {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate('/');
+        }
         return;
       }
-      popStage();
-      return;
     }
 
     // Only show exit confirmation if we are at the camera stage and have content
@@ -2337,11 +2433,54 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       // Setup Web Audio routing to capture video audio silently
       let audioTrack = null;
       let audioCtx = null;
+      const audioElementsToPlay = [];
       try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const sourceNode = audioCtx.createMediaElementSource(renderVideo);
         const destNode = audioCtx.createMediaStreamDestination();
-        sourceNode.connect(destNode);
+        
+        // 1. Video Audio Source
+        try {
+          const sourceNode = audioCtx.createMediaElementSource(renderVideo);
+          const originalGainNode = audioCtx.createGain();
+          originalGainNode.gain.value = isVideoMuted ? 0 : 1;
+          sourceNode.connect(originalGainNode);
+          originalGainNode.connect(destNode);
+        } catch (e) {
+          console.warn("Failed to connect video audio source:", e);
+        }
+
+        // 2. Background Music Source (selectedSound)
+        const hasMusic = selectedSounds.length > 0 && selectedSound && selectedSound.id !== 'sound-original';
+        if (hasMusic) {
+          const bgAudio = new Audio(selectedSound.url || selectedSound.audioUrl);
+          bgAudio.crossOrigin = 'anonymous';
+          bgAudio.currentTime = selectedSound.clipStart || 0;
+          bgAudio.volume = 1.0;
+          
+          const bgSourceNode = audioCtx.createMediaElementSource(bgAudio);
+          const bgGainNode = audioCtx.createGain();
+          bgGainNode.gain.value = 1.0;
+          bgSourceNode.connect(bgGainNode);
+          bgGainNode.connect(destNode);
+          
+          audioElementsToPlay.push(bgAudio);
+        }
+
+        // 3. Voiceover Audio Source (recordedVoiceBlob)
+        if (recordedVoiceBlob) {
+          const voiceAudio = new Audio(URL.createObjectURL(recordedVoiceBlob));
+          voiceAudio.currentTime = 0;
+          voiceAudio.volume = 1.0;
+          
+          const voiceSourceNode = audioCtx.createMediaElementSource(voiceAudio);
+          const voiceGainNode = audioCtx.createGain();
+          voiceGainNode.gain.value = 1.0;
+          voiceSourceNode.connect(voiceGainNode);
+          voiceGainNode.connect(destNode);
+          
+          audioElementsToPlay.push(voiceAudio);
+        }
+
         audioTrack = destNode.stream.getAudioTracks()[0];
       } catch (err) {
         console.warn("Web Audio API failed, falling back to silent video:", err);
@@ -2381,7 +2520,21 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         setIsRendering(false);
       };
 
+      // Wait for audio elements to load
+      if (audioElementsToPlay.length > 0) {
+        await Promise.all(audioElementsToPlay.map(aud => {
+          return new Promise(resolve => {
+            aud.oncanplaythrough = resolve;
+            aud.onerror = resolve;
+            setTimeout(resolve, 1500);
+          });
+        }));
+      }
+
       recorder.start();
+      audioElementsToPlay.forEach(aud => {
+        aud.play().catch(e => console.warn('Overlay audio play failed:', e));
+      });
 
       if (audioCtx && audioCtx.state === 'suspended') {
         await Promise.race([
@@ -2459,7 +2612,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               setRenderProgress(Math.min(99, Math.round((globalTime / totalDuration) * 100)));
             }
 
-            await new Promise(r => setTimeout(r, 16));
+            const nextFrameTime = startTime + (elapsedInClip + 0.033) * 1000;
+            const waitTime = nextFrameTime - Date.now();
+            if (waitTime > 0) {
+              await new Promise(r => setTimeout(r, waitTime));
+            } else {
+              await new Promise(r => setTimeout(r, 1));
+            }
           }
         } else {
           if (clip.url && (clip.url.startsWith('http://') || clip.url.startsWith('https://'))) {
@@ -2539,6 +2698,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         }
       }
 
+      audioElementsToPlay.forEach(aud => aud.pause());
       recorder.stop();
       setRenderProgress(100);
       showToast('Export complete!');
@@ -2794,12 +2954,15 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             redirectType: postState.redirectType || 'whatsapp',
             whatsappNumber: postState.whatsappNumber || '',
             coverImage: postState.coverImage || '',
-            music: (selectedSound && selectedSound._id && selectedSound._id !== 'sound-original') ? {
-                _id: selectedSound._id,
-                title: selectedSound.title,
-                author: selectedSound.author,
-                url: selectedSound.url,
-                duration: typeof selectedSound.duration === 'string' ? parseDurationSeconds(selectedSound.duration) : (Number(selectedSound.duration) || 0)
+            music: (selectedSound && (selectedSound.id || selectedSound._id) && !['sound-original', 'sound-original-id'].includes(selectedSound.id || selectedSound._id)) ? {
+                id: selectedSound.id || selectedSound._id || "",
+                _id: selectedSound._id || selectedSound.id || "",
+                title: selectedSound.title || "Voiceover",
+                artist: selectedSound.artist || selectedSound.author || "Original Voiceover",
+                author: selectedSound.author || selectedSound.artist || "Original Voiceover",
+                url: selectedSound.url || "",
+                preview: selectedSound.url || "",
+                duration: typeof selectedSound.duration === 'string' ? parseDurationSeconds(selectedSound.duration) : (Number(selectedSound.duration) || Number(selectedSound.clipDuration) || 0)
             } : null,
             edits: {
                 ...editsData,
@@ -3809,7 +3972,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       <div className="flex-1 flex flex-col items-center justify-center px-4 min-h-0">
         <div className="relative aspect-[9/16] h-full max-h-[380px] overflow-hidden rounded-[16px] bg-black shadow-2xl border border-white/5">
           {previewUrl ? (
-            ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || previewUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
+            ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || (previewUrl && (previewUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) || new URLSearchParams(window.location.search).get('shareMediaType') === 'image'))) ? (
               <img 
                 src={clipSequence.length > 0 ? clipSequence[currentClipIndex].url : previewUrl} 
                 className="h-full w-full object-cover" 
@@ -4507,7 +4670,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     <div className={`flex flex-col flex-1 min-h-0 w-full overflow-hidden bg-black text-white`}>
       <div className="flex-1 relative overflow-hidden bg-[#0d0d0f] flex items-center justify-center">
         {previewUrl ? (
-        ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || previewUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) ? (
+        ((clipSequence.length > 0 && clipSequence[currentClipIndex]?.isImage) || videoFile?.type?.startsWith('image/') || (!videoFile && selectedMedia?.type === 'image') || (previewUrl && (previewUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) || new URLSearchParams(window.location.search).get('shareMediaType') === 'image'))) ? (
           <img 
             key={previewUrl}
             src={previewUrl} 
@@ -4835,7 +4998,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   );
 
   const renderPostStage = () => {
-    const isPreviewImage = videoFile?.type?.startsWith('image/') || mergedVideoBlob?.type?.startsWith('image/') || (!videoFile && !mergedVideoBlob && selectedMedia.type === 'image');
+    const isPreviewImage = videoFile?.type?.startsWith('image/') || mergedVideoBlob?.type?.startsWith('image/') || (!videoFile && !mergedVideoBlob && selectedMedia.type === 'image') || (new URLSearchParams(window.location.search).get('shareMediaType') === 'image');
     
     return (
       <div className="flex flex-1 min-h-0 w-full flex-col bg-white text-black">
@@ -4874,12 +5037,28 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   }}
                   className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
                 >
-                  {postState.coverImage ? (
-                    <img src={postState.coverImage} alt="Cover" className="h-full w-full object-cover" />
+                  {postState.coverImage && postState.coverImage !== 'null' && postState.coverImage !== 'undefined' ? (
+                    <img 
+                      src={postState.coverImage} 
+                      alt="Cover" 
+                      className="h-full w-full object-cover" 
+                      onError={(e) => { e.target.src = previewUrl || selectedMedia?.image || '/knqlogo.jpeg'; }}
+                    />
                   ) : isPreviewImage ? (
-                    <img src={previewUrl || selectedMedia.image} alt="Cover" className="h-full w-full object-cover" />
+                    <img 
+                      src={previewUrl || selectedMedia?.image || '/knqlogo.jpeg'} 
+                      alt="Cover" 
+                      className="h-full w-full object-cover" 
+                      onError={(e) => { e.target.src = '/knqlogo.jpeg'; }}
+                    />
                   ) : (
-                    <video src={previewUrl} className="h-full w-full object-cover" />
+                    <video 
+                      src={previewUrl} 
+                      className="h-full w-full object-cover" 
+                      playsInline 
+                      muted 
+                      preload="metadata" 
+                    />
                   )}
                   {!isPreviewImage && previewUrl && (
                     <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
@@ -5055,32 +5234,26 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 <div className={`rounded-2xl p-4 ${isDarkMode ? 'bg-[#17181c] border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
                   <div className="flex flex-col gap-4">
                     <div>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between py-1">
                         <label className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Daily Budget</label>
-                        <span className="font-bold">{currencySymbol}{postState.dailyBudget || minBudget}</span>
+                        <span className="text-[16px] font-bold text-[#fe2c55]">{currencySymbol}{minBudget}</span>
                       </div>
-                      <input 
-                        type="range"
-                        min={minBudget}
-                        max={maxBudget}
-                        step={budgetStep}
-                        value={postState.dailyBudget || minBudget}
-                        onChange={(e) => setPostState(s => ({ ...s, dailyBudget: parseInt(e.target.value) || minBudget }))}
-                        className="w-full accent-[#fe2c55]"
-                      />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className={`text-[13px] font-medium ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>Duration (Days)</label>
-                        <span className="font-bold">{postState.durationDays || 10} Days</span>
                       </div>
                       <input 
-                        type="range"
+                        type="number"
                         min={promoSettings.minDuration || 1}
                         max={promoSettings.maxDuration || 30}
                         value={postState.durationDays || 10}
-                        onChange={(e) => setPostState(s => ({ ...s, durationDays: parseInt(e.target.value) || 1 }))}
-                        className="w-full accent-[#fe2c55]"
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setPostState(s => ({ ...s, durationDays: isNaN(val) ? 0 : val }));
+                        }}
+                        className={`w-full rounded-xl px-4 py-2.5 text-[15px] font-bold outline-none border ${isDarkMode ? 'bg-[#2c2c2e] border-white/5 text-white' : 'bg-white border-gray-200 text-black'}`}
+                        placeholder="Enter days"
                       />
                     </div>
                     <div className="pt-3 border-t border-gray-200 dark:border-white/10 flex justify-between items-center">
@@ -5959,7 +6132,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
           {/* Pill Navigation */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-4">
-            {['For you', 'Trending', 'Saved', 'Original audio'].map((tab) => {
+            {['For you', 'Trending'].map((tab) => {
                const tabId = tab.toLowerCase().replace(' ', '-');
                const isActive = soundBrowserTab === tabId || (soundBrowserTab === 'recommended' && tab === 'For you');
                return (
@@ -5981,14 +6154,24 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         {/* List Area */}
         <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom,20px)] no-scrollbar">
           <div className="space-y-6">
-            {(soundBrowserTab === 'favorites' || soundBrowserTab === 'saved' ? favoriteSounds : libraryAudios)
-              .filter(s => {
-                if (soundBrowserTab === 'favorites' || soundBrowserTab === 'saved') {
-                  const query = musicSearchQuery.toLowerCase();
+            {(() => {
+              let list = libraryAudios;
+              if (soundBrowserTab === 'favorites' || soundBrowserTab === 'saved') {
+                list = favoriteSounds;
+              } else if (soundBrowserTab === 'trending') {
+                list = libraryAudios.filter(s => !s.title.toLowerCase().includes('original') && !s.artist.toLowerCase().includes('original'));
+              } else if (soundBrowserTab === 'original-audio') {
+                list = libraryAudios.filter(s => s.title.toLowerCase().includes('original') || s.artist.toLowerCase().includes('original'));
+              }
+              
+              return list.filter(s => {
+                const query = musicSearchQuery.toLowerCase().trim();
+                if (query) {
                   return s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query);
                 }
                 return true;
-              })
+              });
+            })()
               .map((soundItem) => (
               <div
                 key={soundItem._id || soundItem.id}
@@ -6812,6 +6995,9 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           title="Voiceover" 
           onClose={() => {
             if (isRecordingVoice && voiceRecorder) voiceRecorder.stop();
+            if (editorVideoRef.current) {
+              editorVideoRef.current.pause();
+            }
             setActiveSheet(null);
           }}
         >
@@ -6848,89 +7034,52 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   onPointerDown={async (e) => {
                     e.preventDefault();
                     isPressingMicRef.current = true;
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        if (!isPressingMicRef.current) {
-                            stream.getTracks().forEach(t => t.stop());
-                            return;
-                        }
-                        const recorder = new MediaRecorder(stream);
-                        const chunks = [];
-                        recorder.ondataavailable = (e) => chunks.push(e.data);
-                        recorder.onstop = () => {
-                            const blob = new Blob(chunks, { type: 'audio/webm' });
-                            setRecordedVoiceBlob(blob);
-                            const url = URL.createObjectURL(blob);
-                            setVoicePreviewUrl(url);
-                            stream.getTracks().forEach(t => t.stop());
-                        };
-                        recorder.start();
-                        setVoiceRecorder(recorder);
-                        setIsRecordingVoice(true);
-                        showToast('Recording...');
-                    } catch (err) {
-                        console.error("Mic access failed:", err);
-                        showToast('Microphone access denied');
-                    }
+                    if (isRecordingVoice) return;
+                    
+                    if (micHoldTimeoutRef.current) clearTimeout(micHoldTimeoutRef.current);
+                    
+                    micHoldTimeoutRef.current = setTimeout(async () => {
+                      if (isPressingMicRef.current) {
+                        recordModeRef.current = 'hold';
+                        await startVoiceoverRecording();
+                      }
+                    }, 300);
                   }}
                   onPointerUp={(e) => {
                     e.preventDefault();
                     isPressingMicRef.current = false;
-                    if (voiceRecorder) {
-                        try { voiceRecorder.stop(); } catch(e) {}
-                        setVoiceRecorder(null);
-                        setIsRecordingVoice(false);
-                        showToast('Recording finished');
-                    } else if (isRecordingVoice) {
-                        setIsRecordingVoice(false);
+                    if (micHoldTimeoutRef.current) clearTimeout(micHoldTimeoutRef.current);
+                    
+                    if (recordModeRef.current === 'hold') {
+                      stopVoiceoverRecording();
+                      recordModeRef.current = null;
                     }
                   }}
                   onPointerLeave={(e) => {
                     e.preventDefault();
                     isPressingMicRef.current = false;
-                    if (voiceRecorder) {
-                        try { voiceRecorder.stop(); } catch(e) {}
-                        setVoiceRecorder(null);
-                        setIsRecordingVoice(false);
-                        showToast('Recording finished');
-                    } else if (isRecordingVoice) {
-                        setIsRecordingVoice(false);
+                    if (micHoldTimeoutRef.current) clearTimeout(micHoldTimeoutRef.current);
+                    
+                    if (recordModeRef.current === 'hold') {
+                      stopVoiceoverRecording();
+                      recordModeRef.current = null;
                     }
                   }}
                   onClick={async (e) => {
                     e.preventDefault();
-                    if (isRecordingVoice || voiceRecorder) {
-                      isPressingMicRef.current = false;
-                      if (voiceRecorder) {
-                          try { voiceRecorder.stop(); } catch(e) {}
-                          setVoiceRecorder(null);
-                          setIsRecordingVoice(false);
-                          showToast('Recording finished');
-                      } else if (isRecordingVoice) {
-                          setIsRecordingVoice(false);
-                      }
+                    if (micHoldTimeoutRef.current) clearTimeout(micHoldTimeoutRef.current);
+                    
+                    if (recordModeRef.current === 'hold') {
+                      recordModeRef.current = null;
+                      return;
+                    }
+                    
+                    if (isRecordingVoice) {
+                      stopVoiceoverRecording();
+                      recordModeRef.current = null;
                     } else {
-                      isPressingMicRef.current = true;
-                      try {
-                          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                          const recorder = new MediaRecorder(stream);
-                          const chunks = [];
-                          recorder.ondataavailable = (e) => chunks.push(e.data);
-                          recorder.onstop = () => {
-                              const blob = new Blob(chunks, { type: 'audio/webm' });
-                              setRecordedVoiceBlob(blob);
-                              const url = URL.createObjectURL(blob);
-                              setVoicePreviewUrl(url);
-                              stream.getTracks().forEach(t => t.stop());
-                          };
-                          recorder.start();
-                          setVoiceRecorder(recorder);
-                          setIsRecordingVoice(true);
-                          showToast('Recording... Tap to stop');
-                      } catch (err) {
-                          console.error("Mic access failed:", err);
-                          showToast('Microphone access denied');
-                      }
+                      recordModeRef.current = 'tap';
+                      await startVoiceoverRecording();
                     }
                   }}
                   style={{ touchAction: 'none' }}
@@ -6943,11 +7092,20 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 {voicePreviewUrl && (
                     <button 
                         onClick={() => {
+                            if (editorVideoRef.current) {
+                              editorVideoRef.current.currentTime = 0;
+                              editorVideoRef.current.play().catch(err => console.error("Video preview failed:", err));
+                            }
                             const audio = new Audio(voicePreviewUrl);
                             audio.play().catch(e => {
                                 console.error("Preview play failed:", e);
                                 showToast('Playback failed');
                             });
+                            audio.onended = () => {
+                              if (editorVideoRef.current) {
+                                editorVideoRef.current.pause();
+                              }
+                            };
                         }}
                         className="flex flex-col items-center gap-2"
                     >
@@ -6961,13 +7119,12 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 {recordedVoiceBlob && (
                     <button 
                         onClick={() => {
-                            // Add to sounds or handle separately
                             const url = URL.createObjectURL(recordedVoiceBlob);
                             setSelectedSounds(prev => [...prev, {
                                 id: Date.now(),
                                 title: 'Voiceover',
                                 url: url,
-                                clipDuration: 15, // Should calculate from blob
+                                clipDuration: 15,
                                 clipStart: 0
                             }]);
                             setActiveSheet(null);

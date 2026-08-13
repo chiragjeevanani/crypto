@@ -101,6 +101,7 @@ exports.createPost = async (req, res) => {
     // running; either way this is the single place that decides what to
     // write, so there's no ordering assumption between the two.
     if (file?.assetId) {
+      mediaType = "video";
       const asset = await MediaAsset.findOne({ assetId: file.assetId }).lean();
       if (asset?.status === "ready") {
         mediaUrl = asset.url || mediaUrl;
@@ -232,6 +233,7 @@ exports.createPost = async (req, res) => {
       musicStartTime: Number(body.musicStartTime) || 0,
       music: musicData,
       language: language,
+      taggedUsers: Array.isArray(body.taggedUsers) ? body.taggedUsers : [],
       history: [{ action: isBusiness ? "Promotion Submission created" : (isNFT ? "NFT Submission created" : "Post created") }]
     });
 
@@ -279,6 +281,12 @@ exports.createPost = async (req, res) => {
         meta: { reason: "Reel Post Reward" }
       });
     }
+
+    if (postDoc.status === "approved") {
+      // Trigger notifications for mentions and tags asynchronously
+      sendPostMentionsAndTagsNotifications(postDoc, user).catch(err => console.error("Mention/Tag notification error:", err));
+    }
+
     const forFeed = formatPostForUserFeed(post, baseUrl, { ...user, _id: user?._id });
     return res.status(201).json({ success: true, post: forFeed });
   } catch (error) {
@@ -851,3 +859,135 @@ exports.processExpiredPromotions = async () => {
     console.error("[Jobs] Error processing expired promotions:", err.message);
   }
 };
+
+/**
+ * Parses mentions and tagged users from a post and creates/emits notifications.
+ */
+async function sendPostMentionsAndTagsNotifications(post, sender) {
+  try {
+    const caption = post.caption || "";
+    // Parse mentions
+    const mentionRegex = /(?:^|\s)@([a-zA-Z0-9_]+)/g;
+    const mentions = [];
+    let match;
+    while ((match = mentionRegex.exec(caption)) !== null) {
+      const username = match[1];
+      if (username && sender && username.toLowerCase() !== sender.handle?.toLowerCase() && !mentions.includes(username)) {
+        mentions.push(username);
+      }
+    }
+
+    // Tagged users
+    const tags = Array.isArray(post.taggedUsers) ? post.taggedUsers : [];
+    const uniqueTags = tags.filter(username => username && sender && username.toLowerCase() !== sender.handle?.toLowerCase());
+
+    const allUsernames = Array.from(new Set([...mentions, ...uniqueTags]));
+    if (allUsernames.length === 0) return;
+
+    // Find users by handles (case-insensitive search)
+    const matchedUsers = await User.find({
+      handle: { $in: allUsernames.map(u => new RegExp(`^${u}$`, "i")) }
+    }).select("_id name handle");
+
+    const userMap = new Map(matchedUsers.map(u => [u.handle.toLowerCase(), u]));
+
+    const { createNotification } = require("./notificationController");
+    const { emitToUser } = require("../../utils/socket");
+    const PushNotificationService = require("../../services/pushNotificationService");
+
+    // Send notifications for mentions
+    for (const mentionUsername of mentions) {
+      const targetUser = userMap.get(mentionUsername.toLowerCase());
+      if (targetUser) {
+        const title = "Mentioned You";
+        const subtitle = `@${sender.handle || 'user'} mentioned you in their post: "${caption.substring(0, 50)}${caption.length > 50 ? '...' : ''}"`;
+        
+        // 1. Create DB Notification
+        const notif = await createNotification({
+          recipientId: targetUser._id,
+          senderId: sender._id,
+          type: "mention",
+          title,
+          subtitle,
+          meta: { postId: post._id.toString() }
+        });
+
+        if (notif) {
+          // 2. Emit Socket
+          emitToUser(String(targetUser._id), "notification", {
+            id: notif._id.toString(),
+            type: "mention",
+            title,
+            subtitle,
+            createdAt: notif.createdAt,
+            isRead: false,
+            meta: notif.meta,
+            sender: {
+              id: sender._id.toString(),
+              name: sender.name,
+              handle: sender.handle,
+              avatar: sender.avatar
+            }
+          });
+
+          // 3. Send Push Notification
+          await PushNotificationService.sendToUser(targetUser._id, title, subtitle, {
+            type: 'mention',
+            postId: post._id.toString()
+          }).catch(err => console.error("FCM push failed for mention:", err));
+        }
+      }
+    }
+
+    // Send notifications for tags
+    for (const tagUsername of uniqueTags) {
+      const targetUser = userMap.get(tagUsername.toLowerCase());
+      if (targetUser) {
+        // Avoid duplicate notification if they were both mentioned and tagged
+        if (mentions.includes(tagUsername)) continue;
+
+        const title = "Tagged You";
+        const subtitle = `@${sender.handle || 'user'} tagged you in a post.`;
+        
+        // 1. Create DB Notification
+        const notif = await createNotification({
+          recipientId: targetUser._id,
+          senderId: sender._id,
+          type: "tag",
+          title,
+          subtitle,
+          meta: { postId: post._id.toString() }
+        });
+
+        if (notif) {
+          // 2. Emit Socket
+          emitToUser(String(targetUser._id), "notification", {
+            id: notif._id.toString(),
+            type: "tag",
+            title,
+            subtitle,
+            createdAt: notif.createdAt,
+            isRead: false,
+            meta: notif.meta,
+            sender: {
+              id: sender._id.toString(),
+              name: sender.name,
+              handle: sender.handle,
+              avatar: sender.avatar
+            }
+          });
+
+          // 3. Send Push Notification
+          await PushNotificationService.sendToUser(targetUser._id, title, subtitle, {
+            type: 'tag',
+            postId: post._id.toString()
+          }).catch(err => console.error("FCM push failed for tag:", err));
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error sending post mentions/tags notifications:", err);
+  }
+}
+
+exports.sendPostMentionsAndTagsNotifications = sendPostMentionsAndTagsNotifications;

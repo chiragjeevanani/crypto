@@ -143,6 +143,7 @@ export default function ProfilePage() {
 
     const [profileSaveError, setProfileSaveError] = useState('')
     const [profileSaving, setProfileSaving] = useState(false)
+    const [validationErrors, setValidationErrors] = useState({})
 
     // Delete Account State
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -191,6 +192,57 @@ export default function ProfilePage() {
 
     const onSavePersonalInfo = async (data) => {
         setProfileSaveError('')
+        const errors = {}
+
+        // Full Name validation
+        if (!data.fullName?.trim()) {
+            errors.fullName = 'Full Name is required.'
+        }
+
+        // Username validation
+        if (!data.username?.trim()) {
+            errors.username = 'User Name is required.'
+        }
+
+        // Handle validation
+        if (!data.handle?.trim()) {
+            errors.handle = 'Handle is required.'
+        } else {
+            const handleVal = data.handle.trim()
+            const cleanHandle = handleVal.startsWith('@') ? handleVal.slice(1) : handleVal
+            if (cleanHandle.length < 3) {
+                errors.handle = 'Handle must be at least 3 characters long.'
+            } else if (!/^[a-zA-Z0-9_]+$/.test(cleanHandle)) {
+                errors.handle = 'Handle can only contain alphanumeric characters and underscores.'
+            }
+        }
+
+        // Email validation
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+        if (!data.email?.trim()) {
+            errors.email = 'Email is required.'
+        } else if (!emailRegex.test(data.email.trim())) {
+            errors.email = 'Please enter a valid email address.'
+        }
+
+        // Phone validation
+        if (data.phone) {
+            const phoneRegex = /^\+?[0-9\s-()]+$/
+            if (!phoneRegex.test(data.phone)) {
+                errors.phone = 'Phone number must contain only digits.'
+            } else {
+                const cleanPhone = data.phone.replace(/\D/g, '')
+                if (cleanPhone.length < 6 || cleanPhone.length > 15) {
+                    errors.phone = 'Phone number must be between 6 and 15 digits.'
+                }
+            }
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setValidationErrors(errors)
+            return
+        }
+        setValidationErrors({})
         setProfileSaving(true)
         try {
             await updateProfile({
@@ -216,6 +268,13 @@ export default function ProfilePage() {
             setProfileSaving(false)
         }
     }
+
+    useEffect(() => {
+        if (!settingsOpen) {
+            setValidationErrors({})
+            setProfileSaveError('')
+        }
+    }, [settingsOpen])
 
     const [passwordChanging, setPasswordChanging] = useState(false);
     const [showPasswords, setShowPasswords] = useState({ current: false, next: false, confirm: false });
@@ -458,51 +517,57 @@ export default function ProfilePage() {
             <AnimatePresence mode="wait">
                 <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                     {activeTab === 'Posts' && (
-                        <div className="grid grid-cols-3 gap-0.5 p-0.5">
-                            {profilePosts.map((post) => (
-                                <div
-                                    key={post.id}
-                                    className="relative cursor-pointer overflow-hidden"
-                                    style={{ aspectRatio: '1' }}
-                                    onClick={() => setActivePostIndex(profilePosts.findIndex((item) => item.id === post.id))}
-                                >
-                                    {post.media?.type === 'video' ? (
-                                        <>
-                                            <video
-                                            src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
-                                            muted
-                                            playsInline
-                                            preload="auto"
-                                            poster={post.media?.thumbnail || post.thumbnail ? optimizeCloudinaryUrl(post.media.thumbnail || post.thumbnail, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url || post.thumbnail)}#t=0.1`}
-                                            className="w-full h-full object-cover bg-black/10"
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-                                                    <Play size={22} className="text-white" fill="white" />
+                        profilePosts.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center text-muted">
+                                <p className="text-sm font-semibold" style={{ color: 'var(--color-muted)' }}>No post available yet</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-0.5 p-0.5">
+                                {profilePosts.map((post) => (
+                                    <div
+                                        key={post.id}
+                                        className="relative cursor-pointer overflow-hidden"
+                                        style={{ aspectRatio: '1' }}
+                                        onClick={() => setActivePostIndex(profilePosts.findIndex((item) => item.id === post.id))}
+                                    >
+                                        {post.media?.type === 'video' ? (
+                                            <>
+                                                <video
+                                                src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { isVideo: true, width: 480, quality: '50' })}
+                                                muted
+                                                playsInline
+                                                preload="auto"
+                                                poster={post.media?.thumbnail || post.thumbnail ? optimizeCloudinaryUrl(post.media.thumbnail || post.thumbnail, { width: 480, quality: '50' }) : `${optimizeCloudinaryUrl(post.media?.url || post.thumbnail)}#t=0.1`}
+                                                className="w-full h-full object-cover bg-black/10"
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                                                        <Play size={22} className="text-white" fill="white" />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : post.media?.type === 'audio' ? (
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--color-surface2)] text-[var(--color-primary)]">
+                                                <Music size={32} />
+                                            </div>
+                                        ) : (
+                                            <img src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { width: 480, quality: '50' })} alt="post" className="w-full h-full object-cover" loading="lazy" />
+                                        )}
+                                        <div className="absolute inset-x-0 bottom-0 p-1.5 flex items-center justify-between pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }}>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-0.5">
+                                                    <Eye size={12} className="text-white fill-current opacity-90" />
+                                                    <span className="text-[10px] font-black text-white drop-shadow-md">{formatCount(post.views || 0)}</span>
                                                 </div>
                                             </div>
-                                        </>
-                                    ) : post.media?.type === 'audio' ? (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--color-surface2)] text-[var(--color-primary)]">
-                                            <Music size={32} />
                                         </div>
-                                    ) : (
-                                        <img src={optimizeCloudinaryUrl(post.media?.url || post.thumbnail, { width: 480, quality: '50' })} alt="post" className="w-full h-full object-cover" loading="lazy" />
-                                    )}
-                                    <div className="absolute inset-x-0 bottom-0 p-1.5 flex items-center justify-between pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-0.5">
-                                                <Eye size={12} className="text-white fill-current opacity-90" />
-                                                <span className="text-[10px] font-black text-white drop-shadow-md">{formatCount(post.views || 0)}</span>
-                                            </div>
+                                        <div className="absolute bottom-1 right-1">
+                                            <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>₹{post.earnings ?? 0}</span>
                                         </div>
                                     </div>
-                                    <div className="absolute bottom-1 right-1">
-                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.9)', color: '#fff' }}>₹{post.earnings ?? 0}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )
                     )}
 
                     {activeTab === 'NFTs' && (
@@ -854,13 +919,33 @@ export default function ProfilePage() {
                                 )}
 
                                 {settingsMode === 'detail' && settingsTab === 'Personal Information' && (
-                                    <form onSubmit={settingsForm.handleSubmit(onSavePersonalInfo)} className="space-y-3">
-                                        {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}
-                                        <input {...settingsForm.register('fullName')} placeholder="Full Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <input {...settingsForm.register('username')} placeholder="User Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <input {...settingsForm.register('handle')} placeholder="@handle" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <input {...settingsForm.register('email')} placeholder="Email" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
-                                        <input {...settingsForm.register('phone')} placeholder="Phone Number" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }} />
+                                     <form onSubmit={settingsForm.handleSubmit(onSavePersonalInfo)} className="space-y-3">
+                                         {profileSaveError && <p className="text-xs text-red-500">{profileSaveError}</p>}
+                                         
+                                         <div>
+                                             <input {...settingsForm.register('fullName')} placeholder="Full Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: validationErrors.fullName ? '1px solid var(--color-danger)' : '1px solid var(--color-border)' }} />
+                                             {validationErrors.fullName && <p className="text-[10px] text-red-500 mt-1 ml-1">{validationErrors.fullName}</p>}
+                                         </div>
+
+                                         <div>
+                                             <input {...settingsForm.register('username')} placeholder="User Name" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: validationErrors.username ? '1px solid var(--color-danger)' : '1px solid var(--color-border)' }} />
+                                             {validationErrors.username && <p className="text-[10px] text-red-500 mt-1 ml-1">{validationErrors.username}</p>}
+                                         </div>
+
+                                         <div>
+                                             <input {...settingsForm.register('handle')} placeholder="@handle" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: validationErrors.handle ? '1px solid var(--color-danger)' : '1px solid var(--color-border)' }} />
+                                             {validationErrors.handle && <p className="text-[10px] text-red-500 mt-1 ml-1">{validationErrors.handle}</p>}
+                                         </div>
+
+                                         <div>
+                                             <input {...settingsForm.register('email')} placeholder="Email" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: validationErrors.email ? '1px solid var(--color-danger)' : '1px solid var(--color-border)' }} />
+                                             {validationErrors.email && <p className="text-[10px] text-red-500 mt-1 ml-1">{validationErrors.email}</p>}
+                                         </div>
+
+                                         <div>
+                                             <input {...settingsForm.register('phone')} placeholder="Phone Number" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: validationErrors.phone ? '1px solid var(--color-danger)' : '1px solid var(--color-border)' }} />
+                                             {validationErrors.phone && <p className="text-[10px] text-red-500 mt-1 ml-1">{validationErrors.phone}</p>}
+                                         </div>
 
                                         {/* Read-only Country & Currency — set during registration, cannot be changed */}
                                         <div className="grid grid-cols-2 gap-2">
@@ -1021,14 +1106,16 @@ export default function ProfilePage() {
                                         </button>
                                     </div>
                                 )}
-                                <div className="pt-5 mt-5 border-t flex flex-col items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
-                                    <button onClick={() => setIsLogoutModalOpen(true)} className="w-full max-w-[200px] py-1.5 rounded-lg text-xs font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
-                                        Logout
-                                    </button>
-                                    <button onClick={() => setIsDeleteModalOpen(true)} className="w-full max-w-[200px] py-1.5 rounded-lg text-xs font-bold" style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
-                                        Delete Account
-                                    </button>
-                                </div>
+                                {settingsMode === 'menu' && (
+                                    <div className="pt-5 mt-5 border-t flex flex-col items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>
+                                        <button onClick={() => setIsLogoutModalOpen(true)} className="w-full max-w-[200px] py-1.5 rounded-lg text-xs font-bold" style={{ background: 'rgba(244,63,94,0.14)', color: 'var(--color-danger)', border: '1px solid rgba(244,63,94,0.25)' }}>
+                                            Logout
+                                        </button>
+                                        <button onClick={() => setIsDeleteModalOpen(true)} className="w-full max-w-[200px] py-1.5 rounded-lg text-xs font-bold" style={{ background: 'transparent', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
+                                            Delete Account
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     </motion.div>

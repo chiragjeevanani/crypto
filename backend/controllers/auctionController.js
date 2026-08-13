@@ -161,25 +161,44 @@ const createAuction = async (req, res) => {
  */
 const getAuctions = async (req, res) => {
     try {
+        processEndedAuctions().catch(err => console.error("Error processing ended auctions in getAuctions:", err));
         const { status, creatorId } = req.query;
         let query = {};
         
         const fiveDaysAgo = new Date();
         fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-        if (status === 'ended') {
-            query.status = "ended";
-            query.endDate = { $gte: fiveDaysAgo };
-        } else if (status) {
-            query.status = status;
+        if (creatorId) {
+            query.creator = creatorId;
+            if (status === 'ended') {
+                query.$or = [
+                    { status: "ended" },
+                    { status: "live", endDate: { $lte: new Date() } }
+                ];
+            } else if (status === 'live') {
+                query.status = "live";
+                query.endDate = { $gt: new Date() };
+            } else if (status) {
+                query.status = status;
+            }
         } else {
-            query.$or = [
-                { status: "live" },
-                { status: "ended", endDate: { $gte: fiveDaysAgo } }
-            ];
+            if (status === 'ended') {
+                query.$or = [
+                    { status: "ended" },
+                    { status: "live", endDate: { $lte: new Date() } }
+                ];
+            } else if (status === 'live') {
+                query.status = "live";
+                query.endDate = { $gt: new Date() };
+            } else if (status) {
+                query.status = status;
+            } else {
+                query.$or = [
+                    { status: "live", endDate: { $gt: new Date() } },
+                    { status: "ended", endDate: { $gte: fiveDaysAgo } }
+                ];
+            }
         }
-
-        if (creatorId) query.creator = creatorId;
 
         const auctions = await Auction.find(query)
             .populate("creator", "name handle avatar")
@@ -197,6 +216,7 @@ const getAuctions = async (req, res) => {
  */
 const getAuctionDetail = async (req, res) => {
     try {
+        processEndedAuctions().catch(err => console.error("Error processing ended auctions in getAuctionDetail:", err));
         const auction = await Auction.findById(req.params.id)
             .populate("creator", "name handle avatar countryCode")
             .populate("winner", "name handle avatar");
@@ -314,6 +334,12 @@ const updateStatus = async (req, res) => {
     }
 };
 
+const generateCollectibleId = async () => {
+    const year = new Date().getFullYear();
+    const count = await mongoose.model("CollectibleOwnership").countDocuments();
+    return `KNQ-${year}-${String(count + 1).padStart(4, "0")}`;
+};
+
 /**
  * Background / Manual: Process Ended Auctions
  * This should be called by an interval or cron job
@@ -327,14 +353,23 @@ const processEndedAuctions = async () => {
         });
 
         for (const auction of endedAuctions) {
-            const session = await mongoose.startSession();
-            session.startTransaction();
+            let session = null;
+            try {
+                session = await mongoose.startSession();
+                session.startTransaction();
+            } catch (txError) {
+                session = null;
+            }
             try {
                 auction.status = "ended";
                 
                 if (auction.winner && auction.highestBid > 0) {
-                    const winner = await User.findById(auction.winner).session(session);
-                    const creator = await User.findById(auction.creator).session(session);
+                    const winner = session
+                        ? await User.findById(auction.winner).session(session)
+                        : await User.findById(auction.winner);
+                    const creator = session
+                        ? await User.findById(auction.creator).session(session)
+                        : await User.findById(auction.creator);
                     
                     if (winner && creator) {
                         const commission = Math.round((auction.highestBid * auction.commissionPct) / 100);
@@ -347,25 +382,32 @@ const processEndedAuctions = async () => {
                         if (winner.rechargeCoins < 0) {
                             winner.rechargeCoins = 0;
                         }
-                        await winner.save({ session });
+                        if (session) {
+                            await winner.save({ session });
+                        } else {
+                            await winner.save();
+                        }
 
                         // Add to creator
                         creator.rechargeCoins += payout;
-                        await creator.save({ session });
+                        if (session) {
+                            await creator.save({ session });
+                        } else {
+                            await creator.save();
+                        }
 
                         // Record transactions
-                        await WalletTransaction.create([{
+                        const txDataWinner = {
                             userId: winner._id,
                             type: "withdrawal", 
                             coins: auction.highestBid,
                             beforeBalance: winner.rechargeCoins + auction.highestBid,
                             afterBalance: winner.rechargeCoins,
                             referenceId: auction._id,
-                            referenceType: "auction_purcase",
+                            referenceType: "auction_purchase",
                             status: "success"
-                        }], { session });
-
-                        await WalletTransaction.create([{
+                        };
+                        const txDataCreator = {
                             userId: creator._id,
                             type: "deposit",
                             coins: payout,
@@ -374,12 +416,45 @@ const processEndedAuctions = async () => {
                             referenceId: auction._id,
                             referenceType: "auction_sale",
                             status: "success"
-                        }], { session });
+                        };
+
+                        if (session) {
+                            await WalletTransaction.create([txDataWinner], { session });
+                            await WalletTransaction.create([txDataCreator], { session });
+                        } else {
+                            await WalletTransaction.create(txDataWinner);
+                            await WalletTransaction.create(txDataCreator);
+                        }
+
+                        // Automatically transfer collectible ownership to winner
+                        const CollectibleOwnership = mongoose.model("CollectibleOwnership");
+                        const collectibleId = await generateCollectibleId();
+                        const ownershipData = {
+                            auctionId: auction._id,
+                            collectibleId,
+                            fromUserId: auction.creator,
+                            toUserId: auction.winner,
+                            salePrice: auction.highestBid,
+                            transferType: "initial_sale"
+                        };
+
+                        if (session) {
+                            await CollectibleOwnership.create([ownershipData], { session });
+                        } else {
+                            await CollectibleOwnership.create(ownershipData);
+                        }
+
+                        // Update NFT status to settled
+                        auction.nftStatus = "settled";
                     }
                 }
 
-                await auction.save({ session });
-                await session.commitTransaction();
+                if (session) {
+                    await auction.save({ session });
+                    await session.commitTransaction();
+                } else {
+                    await auction.save();
+                }
                 
                 broadcastToRoom(`auction_${auction._id}`, "auction_ended", {
                     auctionId: auction._id,
@@ -387,14 +462,71 @@ const processEndedAuctions = async () => {
                     highestBid: auction.highestBid
                 });
             } catch (err) {
-                await session.abortTransaction();
+                if (session) {
+                    await session.abortTransaction();
+                }
                 console.error(`Failed to process auction ${auction._id}:`, err);
             } finally {
-                session.endSession();
+                if (session) {
+                    session.endSession();
+                }
             }
         }
     } catch (error) {
         console.error("Process Ended Auctions Global Error:", error);
+    }
+};
+
+const updateAuction = async (req, res) => {
+    try {
+        const auction = await Auction.findById(req.params.id);
+        if (!auction) {
+            return res.status(404).json({ success: false, message: "Auction not found." });
+        }
+        if (auction.creator.toString() !== req.user.userId) {
+            return res.status(403).json({ success: false, message: "Unauthorized." });
+        }
+        if (auction.status !== "pending" && auction.status !== "rejected") {
+            return res.status(400).json({ success: false, message: "Only pending or rejected auctions can be edited." });
+        }
+
+        const { title, description, basePrice, startDate, endDate, royaltyPct } = req.body;
+        if (title) auction.title = title;
+        if (description) auction.description = description;
+        if (basePrice) auction.basePrice = Number(basePrice);
+        if (startDate) auction.startDate = new Date(startDate);
+        if (endDate) auction.endDate = new Date(endDate);
+        if (royaltyPct !== undefined) auction.royaltyPct = Number(royaltyPct);
+
+        if (req.file) {
+            auction.mediaUrl = `/uploads/${req.file.filename}`;
+            auction.mediaType = req.file.mimetype.startsWith("video/") ? "video" : req.file.mimetype.startsWith("audio/") ? "audio" : "image";
+        }
+
+        await auction.save();
+        res.status(200).json({ success: true, message: "Auction updated successfully.", auction });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const deleteAuction = async (req, res) => {
+    try {
+        const auction = await Auction.findById(req.params.id);
+        if (!auction) {
+            return res.status(404).json({ success: false, message: "Auction not found." });
+        }
+        if (auction.creator.toString() !== req.user.userId) {
+            return res.status(403).json({ success: false, message: "Unauthorized." });
+        }
+        if (auction.status !== "pending" && auction.status !== "rejected") {
+            return res.status(400).json({ success: false, message: "Only pending or rejected auctions can be deleted." });
+        }
+
+        await Auction.findByIdAndDelete(req.params.id);
+        res.status(200).json({ success: true, message: "Auction deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -405,5 +537,7 @@ module.exports = {
     getAuctionDetail,
     placeBid,
     updateStatus,
-    processEndedAuctions
+    processEndedAuctions,
+    updateAuction,
+    deleteAuction
 };

@@ -160,7 +160,11 @@ const registerUser = async (req, res) => {
 
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
-      return res.status(409).json({ success: false, message: "Email already registered" });
+      if (existing.isEmailVerified) {
+        return res.status(409).json({ success: false, message: "Email already registered" });
+      } else {
+        await User.deleteOne({ _id: existing._id });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -392,13 +396,22 @@ const updateProfile = async (req, res) => {
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         if (key === "phone" && req.body[key]) {
-          const digits = String(req.body[key]).replace(/\D/g, "");
+          const rawPhone = String(req.body[key]);
+          if (!/^\+?[0-9\s-()]+$/.test(rawPhone)) {
+            return res.status(400).json({ success: false, message: "Phone number must contain only digits" });
+          }
+          const digits = rawPhone.replace(/\D/g, "");
           if (digits.length < 6 || digits.length > 15) {
-            return res.status(400).json({ success: false, message: "Invalid phone number" });
+            return res.status(400).json({ success: false, message: "Phone number must be between 6 and 15 digits" });
           }
           updates.phone = digits;
         } else if (key === "email") {
-          updates.email = typeof req.body[key] === "string" ? req.body[key].trim().toLowerCase() : req.body[key];
+          const email = typeof req.body[key] === "string" ? req.body[key].trim().toLowerCase() : "";
+          const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+          if (!email || !emailRegex.test(email)) {
+            return res.status(400).json({ success: false, message: "Invalid email address format" });
+          }
+          updates.email = email;
         } else if (key === "countryCode") {
           const locale = await resolveLocaleFromCountry(req.body[key]);
           updates.countryCode = locale.countryCode;
@@ -563,6 +576,34 @@ const verifyEmail = async (req, res) => {
       { _id: user._id },
       { $set: { isEmailVerified: true, emailVerificationOtp: null, emailVerificationExpires: null } }
     );
+
+    // Credit referral reward if user was referred
+    if (user.referredBy) {
+      const WalletTransaction = require("../models/WalletTransaction");
+      const existingTx = await WalletTransaction.findOne({
+        userId: user.referredBy,
+        referenceType: "referral_reward",
+        referenceId: user._id
+      });
+      
+      if (!existingTx) {
+        const REFERRAL_BONUS_COINS = 100;
+        await User.findByIdAndUpdate(user.referredBy, {
+          $inc: { earningCoins: REFERRAL_BONUS_COINS }
+        });
+        
+        await WalletTransaction.create({
+          userId: user.referredBy,
+          type: "deposit",
+          referenceType: "referral_reward",
+          referenceId: user._id,
+          coins: REFERRAL_BONUS_COINS,
+          amount: REFERRAL_BONUS_COINS,
+          status: "success",
+          description: `Referral reward for inviting ${user.name}`
+        });
+      }
+    }
 
     // Do not auto-login, just return success
     return res.status(200).json({

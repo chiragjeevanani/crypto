@@ -116,7 +116,7 @@ function PreviewModal({ auction, onClose, onApprove, onReject }) {
                                             <CreditCard size={12} /> Payout
                                         </h3>
                                         <div>
-                                            <p className="text-xs font-black text-text">-{auction.commissionPct}% Fee</p>
+                                            <p className="text-xs font-black text-text">{Math.abs(auction.commissionPct || 0)}% Fee</p>
                                             <p className="text-[8px] font-bold text-muted uppercase">GST: {auction.gstPct}%</p>
                                         </div>
                                     </div>

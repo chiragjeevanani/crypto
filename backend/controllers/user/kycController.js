@@ -13,6 +13,16 @@ const submitKyc = async (req, res) => {
       return res.status(400).json({ success: false, message: "Aadhar and PAN numbers are required" });
     }
 
+    const aadharRegex = /^\d{12}$/;
+    if (!aadharRegex.test(aadharNumber)) {
+      return res.status(400).json({ success: false, message: "Invalid Aadhar number format. Must be a 12-digit number." });
+    }
+
+    const panRegex = /^[A-Z]{5}\d{4}[A-Z]{1}$/;
+    if (!panRegex.test(panNumber.toUpperCase())) {
+      return res.status(400).json({ success: false, message: "Invalid PAN card number format. Must be in the correct format (e.g. ABCDE1234F)." });
+    }
+
     if (!documents || !documents.aadharFrontUrl || !documents.aadharBackUrl || !documents.panCardUrl) {
       return res.status(400).json({ success: false, message: "All document images are required" });
     }

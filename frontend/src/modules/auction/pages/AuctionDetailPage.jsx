@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuctionStore } from '../store/useAuctionStore';
-import { Clock, Gavel, Trophy, ArrowLeft, History, Info, Send, CreditCard, RefreshCw, Globe } from 'lucide-react';
-import { formatCurrency } from '../../user/utils/formatCurrency';
 import { useUserStore } from '../../user/store/useUserStore';
 import { useFeedStore } from '../../user/store/useFeedStore';
+import { auctionService } from '../services/auctionService';
+import { ArrowLeft, Clock, History, Award, Info, Send, Trophy, Heart } from 'lucide-react';
+import { formatCurrency } from '../../user/utils/formatCurrency';
 import Avatar from '../../user/components/shared/Avatar';
 import { WEB3_ENABLED, ipfsToHttp } from '../../../web3config';
 import axios from 'axios';
@@ -31,6 +32,98 @@ export default function AuctionDetailPage() {
     const [timeLeft, setTimeLeft] = useState('');
     const [placingBid, setPlacingBid] = useState(false);
     const [activeTab, setActiveTab] = useState('bids'); // 'bids' or 'details'
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({
+        title: '',
+        description: '',
+        basePrice: '',
+        startDate: '',
+        endDate: '',
+        royaltyPct: 10
+    });
+    const [editMedia, setEditMedia] = useState(null);
+    const [editPreview, setEditPreview] = useState(null);
+    const [updating, setUpdating] = useState(false);
+
+    const handleStartEdit = () => {
+        const formatForInput = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+
+        setEditForm({
+            title: currentAuction.title || '',
+            description: currentAuction.description || '',
+            basePrice: currentAuction.basePrice || '',
+            startDate: formatForInput(currentAuction.startDate),
+            endDate: formatForInput(currentAuction.endDate),
+            royaltyPct: currentAuction.royaltyPct || 10
+        });
+        setEditMedia(null);
+        setEditPreview(getAssetUrl(currentAuction.mediaUrl));
+        setIsEditing(true);
+    };
+
+    const handleDeleteAuction = async () => {
+        if (!window.confirm("Are you sure you want to delete this auction? This action cannot be undone.")) return;
+        try {
+            const res = await auctionService.deleteAuction(id);
+            if (res.success) {
+                pushNotification({ type: 'success', title: 'Deleted', subtitle: 'Auction deleted successfully.' });
+                navigate('/auctions');
+            } else {
+                pushNotification({ type: 'error', title: 'Error', subtitle: res.message });
+            }
+        } catch (err) {
+            pushNotification({ type: 'error', title: 'Error', subtitle: err.response?.data?.message || err.message });
+        }
+    };
+
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        const start = new Date(editForm.startDate);
+        const end = new Date(editForm.endDate);
+        const now = new Date();
+
+        if (start < new Date(now.getTime() - 2 * 60 * 1000)) {
+            pushNotification({ type: 'error', title: 'Invalid Start Date', subtitle: 'Start date cannot be in the past.' });
+            return;
+        }
+        if (end <= start) {
+            pushNotification({ type: 'error', title: 'Invalid Dates', subtitle: 'End date must be after the start date.' });
+            return;
+        }
+
+        setUpdating(true);
+        try {
+            const formData = new FormData();
+            if (editMedia) {
+                formData.append('media', editMedia);
+            }
+            formData.append('title', editForm.title);
+            formData.append('description', editForm.description);
+            formData.append('basePrice', editForm.basePrice);
+            formData.append('startDate', start.toISOString());
+            formData.append('endDate', end.toISOString());
+            formData.append('royaltyPct', editForm.royaltyPct);
+
+            const res = await auctionService.updateAuction(id, formData);
+            if (res.success) {
+                pushNotification({ type: 'success', title: 'Updated', subtitle: 'Auction updated successfully.' });
+                setIsEditing(false);
+                fetchAuctionDetail(id);
+            } else {
+                pushNotification({ type: 'error', title: 'Error', subtitle: res.message });
+            }
+        } catch (err) {
+            pushNotification({ type: 'error', title: 'Error', subtitle: err.response?.data?.message || err.message });
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     useEffect(() => {
         fetchAuctionDetail(id);
@@ -167,10 +260,10 @@ export default function AuctionDetailPage() {
                             <p className="text-[10px] font-bold text-muted uppercase">Participants</p>
                             <p className="font-bold">{new Set(bids.map(b => b.userId?._id)).size}</p>
                         </div>
-                        <div className="bg-surface2 p-3 rounded-2xl text-center">
-                            <p className="text-[10px] font-bold text-muted uppercase">Views</p>
-                            <p className="font-bold">1.2k</p>
-                        </div>
+                         <div className="bg-surface2 p-3 rounded-2xl text-center">
+                             <p className="text-[10px] font-bold text-muted uppercase">Views</p>
+                             <p className="font-bold">{currentAuction.views || 0}</p>
+                         </div>
                     </div>
 
                     {/* Tabs */}
@@ -278,7 +371,137 @@ export default function AuctionDetailPage() {
 
 
                 </div>
+            ) : currentAuction.status === 'ended' ? (
+                <div className="shrink-0 p-6 bg-surface border-t border-border text-center space-y-3">
+                    <Trophy size={40} className="mx-auto text-yellow-500 animate-bounce" />
+                    <div>
+                        <h3 className="text-lg font-black tracking-tight">AUCTION CLOSED</h3>
+                        <p className="text-sm font-bold text-muted">Winner: <span className="text-primary">@{currentAuction.winner?.handle || currentAuction.winner?.name || 'None'}</span></p>
+                    </div>
+                </div>
+            ) : (currentAuction.status === 'pending' || currentAuction.status === 'rejected') ? (
+                <div className="shrink-0 p-6 bg-surface border-t border-border flex flex-col gap-3">
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center mb-1">
+                        <p className="text-sm font-bold text-amber-500">
+                            {currentAuction.status === 'pending' ? 'This auction is pending admin approval.' : 'This auction was rejected by admin.'}
+                        </p>
+                        <p className="text-[10px] text-muted mt-1">You can edit or delete this auction until it goes live.</p>
+                    </div>
+                    {isCreator && (
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={handleStartEdit} 
+                                className="flex-1 py-3 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 text-xs uppercase cursor-pointer"
+                            >
+                                Edit Auction
+                            </button>
+                            <button 
+                                onClick={handleDeleteAuction} 
+                                className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 text-xs uppercase cursor-pointer"
+                            >
+                                Delete Auction
+                            </button>
+                        </div>
+                    )}
+                </div>
             ) : null}
+
+            {isEditing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-surface border border-border rounded-3xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto hide-scrollbar">
+                        <div className="flex justify-between items-center pb-2 border-b border-border">
+                            <h3 className="text-lg font-black">Edit Auction</h3>
+                            <button onClick={() => setIsEditing(false)} className="text-muted hover:text-text font-black text-sm uppercase">Close</button>
+                        </div>
+                        <form onSubmit={handleSaveEdit} className="space-y-4 text-left">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-muted uppercase">Auction Title</label>
+                                <input 
+                                    className="w-full bg-surface2 border border-border rounded-xl py-2.5 px-3 text-xs font-bold outline-none"
+                                    value={editForm.title}
+                                    onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-muted uppercase">Description</label>
+                                <textarea 
+                                    className="w-full bg-surface2 border border-border rounded-xl py-2.5 px-3 text-xs font-medium outline-none min-h-[80px] resize-none"
+                                    value={editForm.description}
+                                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-muted uppercase">Base Price (₹)</label>
+                                <input 
+                                    type="number"
+                                    className="w-full bg-surface2 border border-border rounded-xl py-2.5 px-3 text-xs font-bold outline-none"
+                                    value={editForm.basePrice}
+                                    onChange={(e) => setEditForm({...editForm, basePrice: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-2">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-muted uppercase">Start Date</label>
+                                    <input 
+                                        type="datetime-local"
+                                        className="w-full bg-surface2 border border-border rounded-xl py-2.5 px-3 text-xs font-bold outline-none"
+                                        value={editForm.startDate}
+                                        onChange={(e) => setEditForm({...editForm, startDate: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-muted uppercase">End Date</label>
+                                    <input 
+                                        type="datetime-local"
+                                        className="w-full bg-surface2 border border-border rounded-xl py-2.5 px-3 text-xs font-bold outline-none"
+                                        value={editForm.endDate}
+                                        onChange={(e) => setEditForm({...editForm, endDate: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-muted uppercase">Media (Optional Replacement)</label>
+                                <input 
+                                    type="file" 
+                                    accept="image/*,video/*" 
+                                    onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            setEditMedia(file);
+                                            setEditPreview(URL.createObjectURL(file));
+                                        }
+                                    }}
+                                    className="text-xs text-muted"
+                                />
+                                {editPreview && (
+                                    <div className="aspect-video w-full rounded-xl overflow-hidden bg-black mt-2">
+                                        {editMedia?.type.startsWith('video') || currentAuction.mediaType === 'video' && !editMedia ? (
+                                            <video src={editPreview} controls muted playsInline className="w-full h-full object-cover" />
+                                        ) : (
+                                            <img src={editPreview} className="w-full h-full object-cover" alt="" />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                disabled={updating}
+                                className="w-full py-3 bg-primary text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                            >
+                                {updating ? 'Saving Changes...' : 'Save Updates'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

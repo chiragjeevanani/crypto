@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2, Zap, Share2, X } from 'lucide-react'
+import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2, Zap, Share2, X, Users } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useWalletStore } from '../store/useWalletStore'
 import { useUserStore, getStoredToken } from '../store/useUserStore'
@@ -9,6 +9,17 @@ import { usePlatformSettings } from '../hooks/usePlatformSettings'
 import WalletStatCard from '../components/wallet/WalletStatCard'
 import TransactionItem from '../components/wallet/TransactionItem'
 import { loadRazorpayScript } from '../../../utils/razorpayLoader'
+
+const getAssetUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (cleanPath.startsWith('/uploads') || cleanPath.startsWith('/avatars')) {
+        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+        return `${baseUrl}${cleanPath}`;
+    }
+    return cleanPath;
+};
 
 function ShareModal({ isOpen, onClose, referralCode }) {
   const [copied, setCopied] = useState(false);
@@ -132,6 +143,7 @@ export default function WalletPage() {
         giftEarnings: state.giftEarnings,
         taskEarnings: state.taskEarnings,
         nftEarnings: state.nftEarnings,
+        referralEarnings: state.referralEarnings,
         transactions: state.transactions,
         payoutMethods: state.payoutMethods,
         loadWallet: state.loadWallet,
@@ -155,6 +167,7 @@ export default function WalletPage() {
     const currencyCode = profile?.currencyCode || 'INR'
     const platformSettings = usePlatformSettings()
     const [activeTab, setActiveTab] = useState('Transactions')
+    const tabsRef = useRef(null)
     const [withdrawAmount, setWithdrawAmount] = useState('')
     const [withdrawMethod, setWithdrawMethod] = useState('upi')
     const [withdrawUpiId, setWithdrawUpiId] = useState('')
@@ -188,12 +201,43 @@ export default function WalletPage() {
     const aadharBackInputRef = useRef(null)
     const panCardInputRef = useRef(null)
 
-    const handleKycClick = (type, ref) => {
-        if (window.flutter_inappwebview && typeof window.flutter_inappwebview.callHandler === 'function') {
-            setKycSourcePicker({ open: true, type, ref })
+    const [isSubmittingKyc, setIsSubmittingKyc] = useState(false)
+    const [aadharFrontPreview, setAadharFrontPreview] = useState(kyc.aadharFrontUrl ? getAssetUrl(kyc.aadharFrontUrl) : '')
+    const [aadharBackPreview, setAadharBackPreview] = useState(kyc.aadharBackUrl ? getAssetUrl(kyc.aadharBackUrl) : '')
+    const [panCardPreview, setPanCardPreview] = useState(kyc.panCardUrl ? getAssetUrl(kyc.panCardUrl) : '')
+
+    useEffect(() => {
+        if (kycAadharFront) {
+            const url = URL.createObjectURL(kycAadharFront)
+            setAadharFrontPreview(url)
+            return () => URL.revokeObjectURL(url)
         } else {
-            ref.current?.click()
+            setAadharFrontPreview(kyc.aadharFrontUrl ? getAssetUrl(kyc.aadharFrontUrl) : '')
         }
+    }, [kycAadharFront, kyc.aadharFrontUrl])
+
+    useEffect(() => {
+        if (kycAadharBack) {
+            const url = URL.createObjectURL(kycAadharBack)
+            setAadharBackPreview(url)
+            return () => URL.revokeObjectURL(url)
+        } else {
+            setAadharBackPreview(kyc.aadharBackUrl ? getAssetUrl(kyc.aadharBackUrl) : '')
+        }
+    }, [kycAadharBack, kyc.aadharBackUrl])
+
+    useEffect(() => {
+        if (panCardFile) {
+            const url = URL.createObjectURL(panCardFile)
+            setPanCardPreview(url)
+            return () => URL.revokeObjectURL(url)
+        } else {
+            setPanCardPreview(kyc.panCardUrl ? getAssetUrl(kyc.panCardUrl) : '')
+        }
+    }, [panCardFile, kyc.panCardUrl])
+
+    const handleKycClick = (type, ref) => {
+        ref.current?.click()
     }
 
     const captureKycCamera = async (type) => {
@@ -427,13 +471,16 @@ export default function WalletPage() {
     })
 
     const handleSubmitKYC = async () => {
+        if (isSubmittingKyc) return
         setKycMessage('')
-        if (!aadharNumber || aadharNumber.length !== 12) {
+        const aadharRegex = /^\d{12}$/
+        if (!aadharNumber || !aadharRegex.test(aadharNumber)) {
             setKycMessage('Please enter a valid 12-digit Aadhar number.')
             return
         }
-        if (!panNumber || panNumber.length !== 10) {
-            setKycMessage('Please enter a valid 10-digit PAN number.')
+        const panRegex = /^[A-Z]{5}\d{4}[A-Z]{1}$/
+        if (!panNumber || !panRegex.test(panNumber.toUpperCase())) {
+            setKycMessage('Please enter a valid PAN card number in the correct format (e.g. ABCDE1234F).')
             return
         }
         if (!kycAadharFront || !kycAadharBack) {
@@ -444,6 +491,7 @@ export default function WalletPage() {
             setKycMessage('Please upload your PAN card image.')
             return
         }
+        setIsSubmittingKyc(true)
         try {
             setKycMessage('Uploading documentation...')
             const aadharFront = await toDataUrl(kycAadharFront)
@@ -482,6 +530,8 @@ export default function WalletPage() {
         } catch (error) {
             console.error('KYC Submit error:', error)
             setKycMessage('KYC submission failed. Please check your connection.')
+        } finally {
+            setIsSubmittingKyc(false)
         }
     }
 
@@ -539,12 +589,6 @@ export default function WalletPage() {
                                     <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
                                     <span className="truncate">{Math.round(inrWallet * (walletRates.localRate || 1)).toLocaleString()}</span>
                                 </h2>
-                                <button
-                                    onClick={() => setActiveTab('Linked')}
-                                    className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all active:scale-95 uppercase tracking-widest"
-                                >
-                                    Top up
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -590,7 +634,12 @@ export default function WalletPage() {
                                         </div>
                                     ) : (
                                         <button
-                                            onClick={() => setActiveTab('Withdraw')}
+                                            onClick={() => {
+                                                setActiveTab('Withdraw')
+                                                setTimeout(() => {
+                                                    tabsRef.current?.scrollIntoView({ behavior: 'smooth' })
+                                                }, 100)
+                                            }}
                                             className="px-4 py-2 rounded-xl text-[10px] font-black bg-white text-emerald-700 hover:bg-emerald-50 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-black/5"
                                         >
                                             Withdraw
@@ -672,10 +721,11 @@ export default function WalletPage() {
             )}
 
             {/* Earnings breakdown */}
-            <div className="flex gap-2 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 <WalletStatCard label="Gifts" amount={((giftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gift} color="var(--color-danger)" small />
                 <WalletStatCard label="Tasks" amount={((taskEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={CheckSquare} color="var(--color-primary)" small />
                 <WalletStatCard label="NFTs" amount={((nftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gem} color="var(--color-purple)" small />
+                <WalletStatCard label="Referrals" amount={((referralEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Users} color="var(--color-warning)" small />
             </div>
 
             <div
@@ -707,7 +757,7 @@ export default function WalletPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-border/30 mb-8 overflow-x-auto no-scrollbar">
+            <div ref={tabsRef} className="flex border-b border-border/30 mb-8 overflow-x-auto no-scrollbar">
                 {TABS.map((tab) => {
                     const active = tab === activeTab
                     return (
@@ -831,7 +881,39 @@ export default function WalletPage() {
                                             </div>
                                         </div>
 
-                                        {kyc.status !== 'verified' && (
+                                        {kyc.status === 'pending' ? (
+                                            <div className="space-y-6">
+                                                <div className="p-6 rounded-3xl border text-center space-y-4" style={{ background: 'var(--color-surface2)', borderColor: 'var(--color-border)' }}>
+                                                    <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-amber-500 bg-amber-500/10">
+                                                        <Loader2 className="animate-spin" size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-black uppercase tracking-wider text-amber-500">Verification In Progress</h4>
+                                                        <p className="text-xs text-muted font-bold max-w-md mx-auto leading-relaxed mt-1">
+                                                            Our compliance team is currently verifying your government documents. This usually takes less than 24 hours.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 opacity-60 pointer-events-none">
+                                                    {aadharFrontPreview && (
+                                                        <div className="relative aspect-video rounded-3xl overflow-hidden border border-border bg-bg flex items-center justify-center min-h-[120px]">
+                                                            <img src={aadharFrontPreview} alt="Aadhar Front" className="absolute inset-0 w-full h-full object-cover" />
+                                                        </div>
+                                                    )}
+                                                    {aadharBackPreview && (
+                                                        <div className="relative aspect-video rounded-3xl overflow-hidden border border-border bg-bg flex items-center justify-center min-h-[120px]">
+                                                            <img src={aadharBackPreview} alt="Aadhar Back" className="absolute inset-0 w-full h-full object-cover" />
+                                                        </div>
+                                                    )}
+                                                    {panCardPreview && (
+                                                        <div className="relative aspect-video rounded-3xl overflow-hidden border border-border bg-bg flex items-center justify-center min-h-[120px]">
+                                                            <img src={panCardPreview} alt="PAN Card" className="absolute inset-0 w-full h-full object-cover" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : kyc.status !== 'verified' && (
                                             <div className="space-y-6">
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     <div className="space-y-2">
@@ -861,48 +943,81 @@ export default function WalletPage() {
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                     <div 
                                                         onClick={() => handleKycClick('aadharFront', aadharFrontInputRef)}
-                                                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group"
+                                                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[140px]"
                                                     >
-                                                        <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-3"><ShieldCheck size={20} /></div>
-                                                        <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                            {kycAadharFront?.name || kyc.aadharFrontName?.substring(0,10) || 'AADHAR FRONT'}
-                                                        </span>
+                                                        {aadharFrontPreview ? (
+                                                            <>
+                                                                <img src={aadharFrontPreview} alt="Aadhar Front" className="absolute inset-0 w-full h-full object-cover rounded-[22px]" />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[22px]">
+                                                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Change Photo</span>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-3"><ShieldCheck size={20} /></div>
+                                                                <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
+                                                                    {kycAadharFront?.name || kyc.aadharFrontName?.substring(0,10) || 'AADHAR FRONT'}
+                                                                </span>
+                                                            </>
+                                                        )}
                                                         <input 
                                                             type="file" 
                                                             ref={aadharFrontInputRef}
-                                                            accept="image/*,.pdf" 
+                                                            accept="image/*" 
                                                             onChange={(e) => setKycAadharFront(e.target.files?.[0] || null)} 
                                                             className="hidden" 
                                                         />
                                                     </div>
                                                     <div 
                                                         onClick={() => handleKycClick('aadharBack', aadharBackInputRef)}
-                                                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group"
+                                                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[140px]"
                                                     >
-                                                        <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all -rotate-3"><ShieldCheck size={20} /></div>
-                                                        <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                            {kycAadharBack?.name || kyc.aadharBackName?.substring(0,10) || 'AADHAR BACK'}
-                                                        </span>
+                                                        {aadharBackPreview ? (
+                                                            <>
+                                                                <img src={aadharBackPreview} alt="Aadhar Back" className="absolute inset-0 w-full h-full object-cover rounded-[22px]" />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[22px]">
+                                                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Change Photo</span>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all -rotate-3"><ShieldCheck size={20} /></div>
+                                                                <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
+                                                                    {kycAadharBack?.name || kyc.aadharBackName?.substring(0,10) || 'AADHAR BACK'}
+                                                                </span>
+                                                            </>
+                                                        )}
                                                         <input 
                                                             type="file" 
                                                             ref={aadharBackInputRef}
-                                                            accept="image/*,.pdf" 
+                                                            accept="image/*" 
                                                             onChange={(e) => setKycAadharBack(e.target.files?.[0] || null)} 
                                                             className="hidden" 
                                                         />
                                                     </div>
                                                     <div 
                                                         onClick={() => handleKycClick('panCard', panCardInputRef)}
-                                                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group"
+                                                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[140px]"
                                                     >
-                                                        <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-6"><ShieldCheck size={20} /></div>
-                                                        <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                            {panCardFile?.name || 'PAN CARD IMAGE'}
-                                                        </span>
+                                                        {panCardPreview ? (
+                                                            <>
+                                                                <img src={panCardPreview} alt="PAN Card" className="absolute inset-0 w-full h-full object-cover rounded-[22px]" />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[22px]">
+                                                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Change Photo</span>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-6"><ShieldCheck size={20} /></div>
+                                                                <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
+                                                                    {panCardFile?.name || 'PAN CARD IMAGE'}
+                                                                </span>
+                                                            </>
+                                                        )}
                                                         <input 
                                                             type="file" 
                                                             ref={panCardInputRef}
-                                                            accept="image/*,.pdf" 
+                                                            accept="image/*" 
                                                             onChange={(e) => setPanCardFile(e.target.files?.[0] || null)} 
                                                             className="hidden" 
                                                         />
@@ -911,9 +1026,10 @@ export default function WalletPage() {
                                                 
                                                 <button
                                                     onClick={handleSubmitKYC}
-                                                    className={`w-full py-4 rounded-[20px] text-[10px] font-black transition-all shadow-xl uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98] ${canSubmitKYC ? 'bg-primary text-black' : 'bg-surface2 text-muted'}`}
+                                                    disabled={!canSubmitKYC || isSubmittingKyc}
+                                                    className={`w-full py-4 rounded-[20px] text-[10px] font-black transition-all shadow-xl uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-[0.98] ${canSubmitKYC && !isSubmittingKyc ? 'bg-primary text-black' : 'bg-surface2 text-muted cursor-not-allowed'}`}
                                                 >
-                                                    {kycMessage === 'Uploading documentation...' || kycMessage.includes('submitted') ? 'PROCESSING...' : 'PROCEED TO VERIFICATION'}
+                                                    {isSubmittingKyc ? 'PROCESSING...' : 'PROCEED TO VERIFICATION'}
                                                 </button>
                                                 {kycMessage && <p className="text-[10px] text-center font-bold text-orange-500">{kycMessage}</p>}
                                             </div>

@@ -9,6 +9,7 @@ import { postService } from '../../services/postService'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 import LazyVideo from '../common/LazyVideo'
+import { renderCaptionWithLinks } from '../../utils/captionHelper'
 
 export default function ReelViewerModal({ posts = [], startIndex = null, onClose }) {
     const navigate = useNavigate()
@@ -217,7 +218,7 @@ export default function ReelViewerModal({ posts = [], startIndex = null, onClose
                                     </span>
                                 )}
                             </div>
-                            <p className="text-xs opacity-90 line-clamp-2 leading-relaxed">{post.caption}</p>
+                            <p className="text-xs opacity-90 line-clamp-2 leading-relaxed">{renderCaptionWithLinks(post.caption, navigate)}</p>
                         </div>
 
                         {/* Business CTA Bar - Screenshot Style */}

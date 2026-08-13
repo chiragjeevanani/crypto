@@ -227,16 +227,16 @@ export default function HomePage() {
             {/* Header */}
             {!isReels && (
                 <div
-                    className="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
+                    className="sticky top-0 z-50 flex items-center justify-between px-3 py-2.5"
                     style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
                 >
-                    <div className="flex items-center gap-2">
-                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover" />
-                        <span className="text-2xl font-extrabold" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                        <span className="text-lg font-black shrink-0 hidden min-[375px]:inline" style={{ color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
                             Reels
                         </span>
                     </div>
-                    <div className="relative flex items-center gap-2">
+                    <div className="relative flex items-center gap-1.5 shrink-0">
                         <button
                             onClick={() => navigate('/auctions')}
                             className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden relative"

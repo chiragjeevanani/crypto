@@ -485,8 +485,20 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await notificationService.getNotifications()
             clearTimeout(timeout)
+            
+            const uniqueNotifs = []
+            const seenIds = new Set()
+            const rawNotifs = res.notifications || []
+            rawNotifs.forEach(n => {
+                const id = n.id || n._id
+                if (id && !seenIds.has(id)) {
+                    seenIds.add(id)
+                    uniqueNotifs.push(n)
+                }
+            })
+
             set({
-                notifications: res.notifications || [],
+                notifications: uniqueNotifs,
                 unreadNotifications: res.unreadCount || 0,
                 notificationsLoading: false
             })
@@ -524,10 +536,15 @@ export const useFeedStore = create((set, get) => ({
     },
 
     // Called by SocketHandler when a live notification arrives
-    addLiveNotification: (notification) => set((state) => ({
-        notifications: [notification, ...state.notifications],
-        unreadNotifications: state.unreadNotifications + 1
-    })),
+    addLiveNotification: (notification) => set((state) => {
+        const id = notification.id || notification._id
+        const exists = state.notifications.some(n => (n.id || n._id) === id)
+        if (exists) return {}
+        return {
+            notifications: [notification, ...state.notifications],
+            unreadNotifications: state.unreadNotifications + 1
+        }
+    }),
 
     // Legacy alias for components that still call pushNotification
     pushNotification: (payload) => set((state) => {

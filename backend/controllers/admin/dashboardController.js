@@ -148,6 +148,8 @@ exports.getTransactions = async (req, res) => {
             } else if (type === "promotion") {
                 query.type = "deposit";
                 query.referenceType = "post";
+            } else if (type === "nft") {
+                query.referenceType = { $in: ["nft_purchase", "nft_sale", "nft_royalty", "auction_purchase", "auction_sale"] };
             } else {
                 query.type = type;
             }

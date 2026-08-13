@@ -18,6 +18,7 @@ import { postService } from '../../services/postService'
 import { useVideoSource } from '../../hooks/useVideoSource'
 import Avatar from '../shared/Avatar'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
+import { renderCaptionWithLinks } from '../../utils/captionHelper'
 
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
@@ -60,7 +61,9 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
     const [shareOpen, setShareOpen] = useState(false)
     const [commentDraft, setCommentDraft] = useState('')
     const postComments = commentsByPostId[post.id] ?? []
-    const isSelfPost = post.creator?.id && profile?.id && String(post.creator.id) === String(profile.id)
+    const creatorId = post.creator?._id || post.creator?.id;
+    const profileId = profile?._id || profile?.id;
+    const isSelfPost = creatorId && profileId && String(creatorId) === String(profileId);
 
     const isSaved = savedPostIds.has(String(post.id))
     const [showMuteIndicator, setShowMuteIndicator] = useState(false)
@@ -279,7 +282,15 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
             const text = encodeURIComponent(shareText)
             window.open(`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${text}`, '_blank', 'noopener,noreferrer')
         }
-        if (channel === 'instagram_story' || channel === 'instagram_dm') {
+        if (channel === 'instagram_story') {
+            const mediaUrl = post.media?.url || post.thumbnail || '';
+            const isVideo = post.media?.type === 'video' || post.videoUrl ? 'video' : 'image';
+            const creator = post.creator?.username || '';
+            navigate(`/create?sharePostId=${post.id}&shareMediaUrl=${encodeURIComponent(mediaUrl)}&shareMediaType=${isVideo}&shareCreator=${encodeURIComponent(creator)}`);
+            setShareOpen(false);
+            return;
+        }
+        if (channel === 'more') {
             if (typeof navigator !== 'undefined' && navigator.share) {
                 try {
                     await navigator.share({ title: 'KnQ Reels', text: shareText, url: shareLink })
@@ -292,13 +303,6 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                 } catch {
                     // keep UI functional even if clipboard fails
                 }
-            }
-        }
-        if (channel === 'more' && typeof navigator !== 'undefined' && navigator.share) {
-            try {
-                await navigator.share({ title: 'KnQ Reels', text: shareText, url: shareLink })
-            } catch {
-                // ignore cancellation
             }
         }
         setShareOpen(false)
@@ -763,7 +767,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
             <div className="px-4 lg:px-5 pb-4">
                 <p className="text-sm" style={{ color: 'var(--color-text)', lineHeight: '1.6' }}>
                     <span className="font-bold mr-2">{post.creator?.username || 'User'}</span>
-                    <span style={{ color: 'var(--color-sub)' }}>{post.caption}</span>
+                    <span style={{ color: 'var(--color-sub)' }}>{renderCaptionWithLinks(post.caption, navigate)}</span>
                 </p>
                 {post.musicData && (
                     <div className="mt-2.5 flex items-center gap-2 overflow-hidden px-1">
@@ -971,14 +975,6 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                                         >
                                             <Camera size={16} />
                                             Story
-                                        </button>
-                                        <button
-                                            onClick={() => handleShare('instagram_dm')}
-                                            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-semibold cursor-pointer"
-                                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                                        >
-                                            <MessagesSquare size={16} />
-                                            IG DM
                                         </button>
                                         <button
                                             onClick={() => handleShare('telegram')}

@@ -19,6 +19,7 @@ import Avatar from '../shared/Avatar'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 import { postService } from '../../services/postService'
 import { useVideoSource } from '../../hooks/useVideoSource'
+import { renderCaptionWithLinks } from '../../utils/captionHelper'
 
 import ReelFullSkeleton from './ReelFullSkeleton'
 
@@ -626,8 +627,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                                     </button>
                                 )}
                             </div>
-                            <span className="text-[11px] text-white/70 truncate max-w-[140px]">
-                                {post.caption || ''}
+                            <span className="text-[11px] text-white/70 truncate max-w-[240px]">
+                                {renderCaptionWithLinks(post.caption, navigate)}
                             </span>
                             {post.campaign && (
                                 <Link

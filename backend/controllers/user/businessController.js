@@ -202,7 +202,7 @@ exports.verifyPayment = async (req, res) => {
 
     await WalletTransaction.create({
       userId: post.creator,
-      type: "deposit", 
+      type: "withdrawal", 
       amount: post.promotion?.totalBudget || 499,
       coins: 0,
       beforeBalance: (user?.rechargeCoins || 0),
@@ -210,7 +210,7 @@ exports.verifyPayment = async (req, res) => {
       referenceId: post._id.toString(),
       referenceType: "post",
       status: "success",
-      meta: { reason: "Promotional Ad Budget", orderId: orderId, paymentId: paymentId }
+      meta: { reason: "Promotion Ad Budget Payment", orderId: orderId, paymentId: paymentId }
     });
 
     post.history.push({ action: "Payment verified, awaiting admin approval" });

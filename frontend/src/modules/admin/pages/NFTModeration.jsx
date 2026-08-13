@@ -147,7 +147,6 @@ export default function NFTModeration() {
     // Modals state
     const [rejectAsset, setRejectAsset] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
-    const [historyAsset, setHistoryAsset] = useState(null);
 
     React.useEffect(() => {
         loadData();
@@ -290,22 +289,7 @@ export default function NFTModeration() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3 mb-6">
-                                        <div className="p-2.5 bg-bg rounded-lg border border-surface">
-                                            <p className="text-[9px] text-muted mb-1 flex items-center gap-1 font-bold uppercase tracking-wider text-opacity-60">
-                                                <Hash className="w-2.5 h-2.5" /> Originality
-                                            </p>
-                                            <p className={`text-base font-bold tracking-tight ${parseFloat(nft.originalityScore) > 80 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                {nft.originalityScore}
-                                            </p>
-                                        </div>
-                                        <div className="p-2.5 bg-bg rounded-lg border border-surface cursor-pointer hover:border-primary/30 transition-all" onClick={() => setHistoryAsset(nft)}>
-                                            <p className="text-[9px] text-muted mb-1 flex items-center gap-1 font-bold uppercase tracking-wider text-opacity-60">
-                                                <History className="w-2.5 h-2.5" /> Lifecycle
-                                            </p>
-                                            <p className="text-[10px] font-bold text-primary mt-1.5 underline underline-offset-2">View Audit Log</p>
-                                        </div>
-                                    </div>
+
 
                                     {/* Additional info based on status */}
                                     {nft.status === 'rejected' && (
@@ -402,46 +386,7 @@ export default function NFTModeration() {
                     </motion.div>
                 )}
 
-                {/* History/Lifecycle Modal */}
-                {historyAsset && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
-                            className="bg-surface border border-surface rounded-xl p-6 w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]"
-                        >
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <h3 className="text-sm font-bold text-text uppercase tracking-widest flex items-center gap-2">
-                                        <History className="w-4 h-4 text-primary" /> Audit Ledger
-                                    </h3>
-                                    <p className="text-[10px] text-muted font-bold mt-1 uppercase tracking-wider">Asset: {historyAsset.id} - {historyAsset.name}</p>
-                                </div>
-                                <button onClick={() => setHistoryAsset(null)} className="p-2 bg-surface2 rounded-lg text-muted hover:text-text transition-all">
-                                    <XCircle className="w-4 h-4" />
-                                </button>
-                            </div>
 
-                            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                                {historyAsset.history.map((log, idx) => (
-                                    <div key={idx} className="relative pl-6 pb-4 border-l border-surface last:border-transparent last:pb-0 group">
-                                        <div className="absolute left-[-5px] top-1 w-2 h-2 rounded-full bg-primary/50 group-hover:bg-primary transition-colors ring-4 ring-surface" />
-                                        <p className="text-[10px] font-mono text-muted mb-1 uppercase bg-surface2 inline-block px-1.5 py-0.5 rounded border border-surface">{log.date}</p>
-                                        <p className="text-xs font-medium text-text leading-relaxed">{log.action}</p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="mt-6 pt-4 border-t border-surface/50 text-center">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-muted opacity-50 flex items-center justify-center gap-1.5">
-                                    <ShieldCheck className="w-3 h-3" /> End of cryptographically verified logs
-                                </p>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
             </AnimatePresence>
         </div>
     );

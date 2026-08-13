@@ -128,6 +128,18 @@ exports.updatePostStatus = async (req, res) => {
     // Notify User
     const Notification = require("../../models/Notification");
     const PushNotificationService = require("../../services/pushNotificationService");
+    const User = require("../../models/User");
+    if (approved) {
+      try {
+        const creatorUser = await User.findById(post.creator).select("name handle avatar");
+        if (creatorUser) {
+          const { sendPostMentionsAndTagsNotifications } = require("../user/postController");
+          sendPostMentionsAndTagsNotifications(post, creatorUser).catch(err => console.error("Mention/Tag notification error from moderation:", err));
+        }
+      } catch (err) {
+        console.error("Failed to trigger mention/tag notifications during moderation approval:", err);
+      }
+    }
     try {
         const title = approved 
             ? (post.isBusiness ? "Promotion Approved" : (post.isNFT ? "NFT Approved" : "Post Approved"))
