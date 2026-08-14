@@ -127,6 +127,7 @@ export default function WalletPage() {
         giftEarnings,
         taskEarnings,
         nftEarnings,
+        referralEarnings,
         transactions,
         payoutMethods,
         loadWallet,

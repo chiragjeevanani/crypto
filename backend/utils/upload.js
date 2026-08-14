@@ -36,7 +36,10 @@ const videoAssetPipeline = require("../middleware/videoAssetPipeline");
 const multerInstance = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE }
+  limits: { 
+    fileSize: MAX_FILE_SIZE,
+    fieldSize: 50 * 1024 * 1024 // 50MB limit to allow base64 cover images and large JSON payloads
+  }
 });
 
 // Builds a multer-method wrapper that runs `postProcess` (or nothing) after

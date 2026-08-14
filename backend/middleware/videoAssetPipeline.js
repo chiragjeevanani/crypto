@@ -91,8 +91,12 @@ async function videoAssetPipeline(req, res, next) {
     for (const file of files) {
       if (!file || !file.path) continue;
       const mimetype = file.mimetype;
+      const originalname = file.originalname || "";
+      const isImage = /^image\//.test(mimetype) || /\.(jpe?g|png|gif|webp)$/i.test(originalname);
+      const isVideo = /^video\//.test(mimetype) || /\.(mp4|webm|mov|mkv|avi)$/i.test(originalname);
+      const isAudio = /^audio\//.test(mimetype) || /\.(mp3|wav|ogg)$/i.test(originalname);
 
-      if (/^image\//.test(mimetype)) {
+      if (isImage) {
         if (mimetype !== "image/gif") {
           const newPath = await mediaOptimizer.compressImageToWebP(file.path);
           const stats = fs.statSync(newPath);
@@ -101,10 +105,10 @@ async function videoAssetPipeline(req, res, next) {
           file.mimetype = "image/webp";
           file.size = stats.size;
         }
-      } else if (/^video\//.test(mimetype)) {
+      } else if (isVideo) {
         runVideoJobInBackground(file);
         file.mimetype = "video/mp4";
-      } else if (/^audio\//.test(mimetype)) {
+      } else if (isAudio) {
         const result = await mediaOptimizer.compressAudio(file.path);
         const stats = fs.statSync(file.path);
         file.size = stats.size;

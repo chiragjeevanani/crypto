@@ -3,6 +3,7 @@ const Bid = require("../models/Bid");
 const Post = require("../models/Post");
 const User = require("../models/User");
 const WalletTransaction = require("../models/WalletTransaction");
+const CollectibleOwnership = require("../models/CollectibleOwnership");
 const { getAdminConfig } = require("../utils/adminConfig");
 const { broadcastToRoom, broadcastAll } = require("../utils/socket");
 const Razorpay = require("razorpay");
@@ -336,7 +337,7 @@ const updateStatus = async (req, res) => {
 
 const generateCollectibleId = async () => {
     const year = new Date().getFullYear();
-    const count = await mongoose.model("CollectibleOwnership").countDocuments();
+    const count = await CollectibleOwnership.countDocuments();
     return `KNQ-${year}-${String(count + 1).padStart(4, "0")}`;
 };
 
@@ -427,7 +428,6 @@ const processEndedAuctions = async () => {
                         }
 
                         // Automatically transfer collectible ownership to winner
-                        const CollectibleOwnership = mongoose.model("CollectibleOwnership");
                         const collectibleId = await generateCollectibleId();
                         const ownershipData = {
                             auctionId: auction._id,

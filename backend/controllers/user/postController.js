@@ -89,10 +89,24 @@ exports.createPost = async (req, res) => {
     let mediaType = "image";
     let mediaExtra = {};
 
+    const bodyMediaType = req.body?.mediaType || 
+      (req.body?.postData && (() => {
+        try {
+          const parsed = typeof req.body.postData === "string" ? JSON.parse(req.body.postData) : req.body.postData;
+          return parsed.mediaType;
+        } catch (_) {
+          return null;
+        }
+      })());
+
     if (file) {
       mediaUrl = `/uploads/${file.filename}`;
-      if (file.mimetype.startsWith("video/")) mediaType = "video";
-      else if (file.mimetype.startsWith("audio/")) mediaType = "audio";
+      const originalname = file.originalname || "";
+      const isVideo = (bodyMediaType === "video") || file.mimetype.startsWith("video/") || /\.(mp4|webm|mov|mkv|avi)$/i.test(originalname);
+      const isAudio = (bodyMediaType === "audio") || file.mimetype.startsWith("audio/") || /\.(mp3|wav|ogg)$/i.test(originalname);
+
+      if (isVideo) mediaType = "video";
+      else if (isAudio) mediaType = "audio";
     }
 
     // Video uploaded through uploadHls (postRoutes.js) — videoAssetPipeline

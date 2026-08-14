@@ -108,7 +108,7 @@ const getUserCollection = async (req, res) => {
     const ownerships = await CollectibleOwnership.find({ toUserId: userId })
       .populate({
         path: "auctionId",
-        select: "title description mediaUrl mediaType highestBid creator",
+        select: "title description mediaUrl mediaType highestBid status creator",
         populate: { path: "creator", select: "name handle avatar" }
       })
       .populate({
@@ -122,14 +122,18 @@ const getUserCollection = async (req, res) => {
       const source = o.auctionId || o.postId;
       return {
         collectibleId: o.collectibleId,
+        auctionId: o.auctionId?._id || o.postId?._id,
         title: source?.title || source?.caption || "Untitled Collectible",
+        description: source?.description || source?.caption || "",
         mediaUrl: getMediaUrl(source, req),
         mediaType: getMediaType(source),
         salePrice: o.salePrice,
+        certificateUrl: o.certificateUrl,
         isListedForSale: o.isListedForSale,
         resalePrice: o.resalePrice,
         acquiredAt: o.createdAt,
         creator: source?.creator || null,
+        status: source?.status || source?.nftStatus || "sold",
         totalCopies: o.totalCopies || source?.totalCopies || 1,
         copiesSold: source?.copiesSold || 0,
         copyNumber: o.copyNumber || 1
@@ -182,7 +186,7 @@ const getNFTDetail = async (req, res) => {
         creator: auction.creator,
         winner: auction.winner,
       },
-      currentOwner: currentOwnership?.toUserId || auction.winner || null,
+      currentOwner: currentOwnership?.toUserId || null,
       certificateUrl: currentOwnership?.certificateUrl || null,
     };
 

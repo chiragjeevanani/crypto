@@ -904,6 +904,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     return Number(localStorage.getItem('create_recordedSeconds')) || 0;
   });
   const [selectedDuration, setSelectedDuration] = useState('15s');
+  const [showFinalPostPreview, setShowFinalPostPreview] = useState(false);
   const [selectedSpeed, setSelectedSpeed] = useState('1x');
   const [activeCountdown, setActiveCountdown] = useState(null);
   const [selectedCountdown, setSelectedCountdown] = useState('3s');
@@ -2635,19 +2636,30 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
              setTimeout(resolve, 3000);
           });
           
-          renderVideo.currentTime = 0;
+          const duration = renderVideo.duration || 5;
+          let startTime = 0;
+          let endTime = duration;
+
+          // Only apply trimRange for single video flow
+          if (activeClips.length <= 1) {
+            startTime = (trimRange.start / 100) * duration;
+            endTime = (trimRange.end / 100) * duration;
+          }
+
+          const clipDuration = endTime - startTime;
+          const clipStartTimeInGlobalTimeline = activeClips.slice(0, i).reduce((acc, c) => acc + (c.duration || 5), 0);
+
+          renderVideo.currentTime = startTime;
           try {
              await renderVideo.play();
           } catch(e) {
              console.warn('Video play failed:', e);
           }
           
-          const clipDuration = clip.duration || renderVideo.duration || 5;
-          const clipStartTimeInGlobalTimeline = activeClips.slice(0, i).reduce((acc, c) => acc + (c.duration || 5), 0);
           const startRenderTime = Date.now();
           
-          while ((Date.now() - startRenderTime) / 1000 < clipDuration && !renderVideo.ended) {
-            const globalTime = clipStartTimeInGlobalTimeline + renderVideo.currentTime;
+          while ((Date.now() - startRenderTime) / 1000 < clipDuration && !renderVideo.ended && renderVideo.currentTime < endTime) {
+            const globalTime = clipStartTimeInGlobalTimeline + (renderVideo.currentTime - startTime);
 
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -3123,6 +3135,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
     lastFocusTimeRef.current = Date.now();
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 500 * 1024 * 1024) {
+        showToast('File is too large. Max size allowed is 500MB.');
+        e.target.value = '';
+        return;
+      }
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+
       const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|3gp|avi)$/i.test(file.name);
       const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(file.name);
       if (isVideo || isImage) {
@@ -3132,7 +3151,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             const addClip = (actualDuration) => {
                 setVideoDuration(prev => prev + actualDuration);
                 setClipSequence(prev => [...prev, { file, url, duration: actualDuration, isImage }]);
-                showToast('Clip added to sequence');
+                showToast(`Clip added (${fileSizeMB}MB). Max allowed: 500MB`);
 
                 if (isImage) {
                     setVideoThumbnails(prev => {
@@ -3193,6 +3212,26 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
         if (isImage) {
             setVideoDuration(15); // Default 15s duration for image clips
+            setTrimRange({ start: 0, end: 100 });
+            showToast(`Image loaded. Size: ${fileSizeMB}MB (Max allowed: 500MB)`);
+        } else {
+            const tempVideo = document.createElement('video');
+            tempVideo.src = url;
+            tempVideo.onloadedmetadata = () => {
+                let dur = tempVideo.duration;
+                if (!dur || dur === Infinity || isNaN(dur)) {
+                    dur = 15;
+                }
+                setVideoDuration(dur);
+                const maxLimit = parseInt(selectedDuration) || 15;
+                if (dur > maxLimit) {
+                    setTrimRange({ start: 0, end: (maxLimit / dur) * 100 });
+                    showToast(`Video is long, auto-cropping to first ${maxLimit}s. (Size: ${fileSizeMB}MB/500MB)`);
+                } else {
+                    setTrimRange({ start: 0, end: 100 });
+                    showToast(`Video loaded. Size: ${fileSizeMB}MB (Max allowed: 500MB)`);
+                }
+            };
         }
 
         // Direct to preview/editor since we skipped the custom gallery page
@@ -5028,44 +5067,56 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                 className="min-h-[110px] flex-1 resize-none border-none bg-transparent text-[15px] outline-none placeholder:text-black/35"
               />
               {(previewUrl || selectedMedia.image) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isPreviewImage) {
-                      setActiveSheet('select-cover');
-                    }
-                  }}
-                  className="relative h-[110px] w-[82px] shrink-0 overflow-hidden rounded-[6px] border border-black/10"
-                >
-                  {postState.coverImage && postState.coverImage !== 'null' && postState.coverImage !== 'undefined' ? (
-                    <img 
-                      src={postState.coverImage} 
-                      alt="Cover" 
-                      className="h-full w-full object-cover" 
-                      onError={(e) => { e.target.src = previewUrl || selectedMedia?.image || '/knqlogo.jpeg'; }}
-                    />
-                  ) : isPreviewImage ? (
-                    <img 
-                      src={previewUrl || selectedMedia?.image || '/knqlogo.jpeg'} 
-                      alt="Cover" 
-                      className="h-full w-full object-cover" 
-                      onError={(e) => { e.target.src = '/knqlogo.jpeg'; }}
-                    />
-                  ) : (
-                    <video 
-                      src={previewUrl} 
-                      className="h-full w-full object-cover" 
-                      playsInline 
-                      muted 
-                      preload="metadata" 
-                    />
-                  )}
+                <div className="flex flex-col items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isPreviewImage) {
+                        setActiveSheet('select-cover');
+                      }
+                    }}
+                    className="relative h-[110px] w-[82px] overflow-hidden rounded-[6px] border border-black/10 bg-black/5"
+                  >
+                    {postState.coverImage && postState.coverImage !== 'null' && postState.coverImage !== 'undefined' ? (
+                      <img 
+                        src={postState.coverImage} 
+                        alt="Cover" 
+                        className="h-full w-full object-cover" 
+                        onError={(e) => { e.target.src = previewUrl || selectedMedia?.image || '/knqlogo.jpeg'; }}
+                      />
+                    ) : isPreviewImage ? (
+                      <img 
+                        src={previewUrl || selectedMedia?.image || '/knqlogo.jpeg'} 
+                        alt="Cover" 
+                        className="h-full w-full object-cover" 
+                        onError={(e) => { e.target.src = '/knqlogo.jpeg'; }}
+                      />
+                    ) : (
+                      <video 
+                        src={previewUrl} 
+                        className="h-full w-full object-cover" 
+                        playsInline 
+                        muted 
+                        preload="metadata" 
+                      />
+                    )}
+                    {!isPreviewImage && previewUrl && (
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1.5 text-center text-[10px] font-medium text-white">
+                        Cover
+                      </span>
+                    )}
+                  </button>
                   {!isPreviewImage && previewUrl && (
-                    <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-2 text-left text-[11px] font-medium text-white">
-                      Select cover
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFinalPostPreview(true)}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-[#fe2c55] active:opacity-75"
+                    >
+                      <BiPlay size={14} />
+                      <span>Preview</span>
+                    </button>
                   )}
-                </button>
+                </div>
               )}
             </div>
 
@@ -6469,10 +6520,55 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
         onChange={handleFileChange} 
       />
 
+      {showFinalPostPreview && previewUrl && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 p-4 backdrop-blur-lg animate-in fade-in duration-200">
+          <div className="absolute top-4 right-4 z-10">
+            <button
+              type="button"
+              onClick={() => setShowFinalPostPreview(false)}
+              className="rounded-full bg-white/10 p-2.5 text-white backdrop-blur-md active:bg-white/20 transition-all"
+            >
+              <BiX size={24} />
+            </button>
+          </div>
+          
+          <div className="w-full max-w-[420px] aspect-[9/16] relative rounded-[16px] overflow-hidden shadow-2xl bg-black border border-white/10">
+            <video
+              src={previewUrl}
+              autoPlay
+              loop
+              controls
+              playsInline
+              className="h-full w-full object-contain"
+            />
+          </div>
+          
+          <div className="mt-4 text-center text-white/80 text-[13px] px-6 max-w-[420px]">
+            <p className="font-semibold">Reel Preview</p>
+            <p className="text-[11px] text-white/40 mt-1">This is a preview of the final processed video containing all edits, audio layers, and effects.</p>
+          </div>
+        </div>
+      )}
+
       {toastMessage && (
         <div
-          className="absolute left-1/2 top-5 z-50 -translate-x-1/2 rounded-[8px] bg-[#5c554f] px-5 py-2 text-[13px] font-medium text-white shadow-xl"
-          style={{ top: 'max(env(safe-area-inset-top), 14px)' }}
+          className={`absolute left-1/2 z-50 -translate-x-1/2 rounded-[12px] px-5 py-2.5 text-[13px] font-semibold text-white shadow-2xl border border-white/10 backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${
+            toastMessage.toLowerCase().includes('fail') || 
+            toastMessage.toLowerCase().includes('error') || 
+            toastMessage.toLowerCase().includes('denied') || 
+            toastMessage.toLowerCase().includes('cancel')
+              ? 'bg-red-500/90' 
+              : toastMessage.toLowerCase().includes('success') || 
+                toastMessage.toLowerCase().includes('complete') || 
+                toastMessage.toLowerCase().includes('✅') || 
+                toastMessage.toLowerCase().includes('loaded') || 
+                toastMessage.toLowerCase().includes('saved') || 
+                toastMessage.toLowerCase().includes('synced') || 
+                toastMessage.toLowerCase().includes('finished')
+              ? 'bg-emerald-500/90' 
+              : 'bg-zinc-800/90'
+          }`}
+          style={{ top: 'calc(max(env(safe-area-inset-top), 16px) + 56px)' }}
         >
           {toastMessage}
         </div>

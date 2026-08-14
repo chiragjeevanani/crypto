@@ -125,6 +125,38 @@ app.use("/api/auctions", auctionRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/nft", nftRoutes); // Collectible (Web2) endpoints
 app.use("/api/agora", agoraRoutes); // Agora Token generation
+
+// Utility route to scan and fix video posts incorrectly saved as image type
+app.get("/api/fix-posts", async (req, res) => {
+  try {
+    const Post = require("./models/Post");
+    const posts = await Post.find();
+    let updatedCount = 0;
+    for (const post of posts) {
+      const url = post.media?.url || "";
+      const originalname = post.media?.filename || url || "";
+      const isVideo = url.includes("/uploads/videos/") || 
+                      url.endsWith(".mp4") || 
+                      url.endsWith(".m3u8") ||
+                      post.media?.hlsUrl || 
+                      post.media?.assetDir || 
+                      post.media?.processingStatus === "processing" || 
+                      post.media?.processingStatus === "ready" ||
+                      /\.(mp4|webm|mov)$/i.test(originalname);
+
+      if (post.media?.type === "image" && isVideo) {
+        post.media.type = "video";
+        post.status = "approved";
+        post.isPublished = true;
+        await post.save();
+        updatedCount++;
+      }
+    }
+    res.json({ success: true, message: `Successfully updated ${updatedCount} posts in database.` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // Route removed from here to be moved higher up
 
 // Background jobs function - called after DB is connected
