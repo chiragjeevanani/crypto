@@ -17,8 +17,8 @@ export default function RootRoute() {
 
     if (!authChecked || authLoading) {
         return (
-            <div className="min-h-screen bg-bg flex items-center justify-center text-muted text-sm">
-                Checking session...
+            <div className="min-h-screen bg-bg flex items-center justify-center">
+                <img src="/knqlogo.jpeg" alt="Loading..." className="w-20 h-20 rounded-full object-cover animate-pulse shadow-2xl" />
             </div>
         );
     }

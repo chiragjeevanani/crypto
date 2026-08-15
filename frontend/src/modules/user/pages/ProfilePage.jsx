@@ -24,8 +24,9 @@ import { savedPostService } from '../services/savedPostService'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
 import DeleteAccountConfirmationModal from '../components/shared/DeleteAccountConfirmationModal'
+import Stories from '../components/feed/Stories'
 const TABS = ['Posts', 'NFTs', 'Tasks']
-const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'Content Languages', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
+const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'KYC Details', 'Content Languages', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
 export default function ProfilePage() {
     const navigate = useNavigate()
@@ -46,6 +47,7 @@ export default function ProfilePage() {
     const [editAvatar, setEditAvatar] = useState(null)
     const [editAvatarFile, setEditAvatarFile] = useState(null)
     const [showAvatarSourcePicker, setShowAvatarSourcePicker] = useState(false)
+    const [showAvatarActionSheet, setShowAvatarActionSheet] = useState(false)
     const fileInputRef = useRef(null)
     const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
     const [passwordMsg, setPasswordMsg] = useState('')
@@ -56,6 +58,30 @@ export default function ProfilePage() {
     const [joinedCampaignsLoading, setJoinedCampaignsLoading] = useState(false)
     const [ownedNfts, setOwnedNfts] = useState([])
     const [selectedLangs, setSelectedLangs] = useState([])
+    const [kycDetails, setKycDetails] = useState(null)
+    const [kycLoading, setKycLoading] = useState(false)
+
+    useEffect(() => {
+        if (settingsOpen && settingsTab === 'KYC Details') {
+            setKycLoading(true)
+            fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/user/kyc/status`, {
+                headers: { Authorization: `Bearer ${getStoredToken()}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.submission) {
+                    setKycDetails(data.submission)
+                } else {
+                    setKycDetails(null)
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching KYC:', err)
+                setKycDetails(null)
+            })
+            .finally(() => setKycLoading(false))
+        }
+    }, [settingsOpen, settingsTab])
 
     useEffect(() => {
         if (settingsOpen && settingsTab === 'Content Languages') {
@@ -458,6 +484,7 @@ export default function ProfilePage() {
 
     return (
         <div>
+            <Stories hideFeed={true} />
             <ProfileHeader
                 profile={{ 
                     ...profile, 
@@ -471,7 +498,59 @@ export default function ProfilePage() {
                 onEdit={() => setEditOpen(true)}
                 onOpenFollowers={() => setConnectionsOpen('followers')}
                 onOpenFollowing={() => setConnectionsOpen('following')}
+                onAvatarClick={() => setShowAvatarActionSheet(true)}
             />
+
+            <AnimatePresence>
+                {showAvatarActionSheet && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[110] bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+                        onClick={() => setShowAvatarActionSheet(false)}
+                    >
+                        <motion.div
+                            initial={{ y: 50, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: 50, opacity: 0 }}
+                            className="w-full max-w-sm rounded-3xl p-6 text-center border shadow-2xl flex flex-col gap-3"
+                            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 className="font-bold text-base mb-2" style={{ color: 'var(--color-text)' }}>Profile Options</h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowAvatarActionSheet(false);
+                                    navigate('?addStory=true', { replace: true });
+                                }}
+                                className="w-full py-3 bg-amber-500 text-white rounded-xl font-semibold text-sm active:scale-95 transition-transform"
+                            >
+                                Add Story
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowAvatarActionSheet(false);
+                                    setEditOpen(true);
+                                }}
+                                className="w-full py-3 rounded-xl font-semibold text-sm active:scale-95 transition-transform"
+                                style={{ background: 'var(--color-surface2)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                            >
+                                Change Profile Picture
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowAvatarActionSheet(false)}
+                                className="w-full py-3 rounded-xl font-bold text-sm text-zinc-400 active:scale-95 transition-transform mt-2"
+                            >
+                                Cancel
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="flex items-center justify-end gap-2 px-4 mb-3">
                 <motion.button
@@ -844,7 +923,9 @@ export default function ProfilePage() {
                                             {settingsMode === 'menu' ? 'Settings' : settingsTab}
                                         </p>
                                     </div>
-                                    <button onClick={() => setSettingsOpen(false)}><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
+                                    {settingsMode === 'menu' && (
+                                        <button onClick={() => setSettingsOpen(false)}><X size={18} style={{ color: 'var(--color-muted)' }} /></button>
+                                    )}
                                 </div>                                 {settingsMode === 'menu' && (
                                     <div className="space-y-2 mb-2">
                                         {SETTINGS_SECTIONS.map((section) => (
@@ -860,6 +941,8 @@ export default function ProfilePage() {
                                                 <div className="flex items-center gap-2">
                                                     {section === 'Saved Posts' && <Bookmark size={15} style={{ color: 'var(--color-primary)' }} />}
                                                     {section === 'Content Languages' && <Globe size={15} style={{ color: 'var(--color-primary)' }} />}
+                                                    {section === 'KYC Details' && <Shield size={15} style={{ color: 'var(--color-primary)' }} />}
+                                                    {section === 'Personal Information' && <FileText size={15} style={{ color: 'var(--color-primary)' }} />}
                                                     <span>{section}</span>
                                                 </div>
                                                 <ChevronRight size={15} style={{ color: 'var(--color-muted)' }} />
@@ -913,6 +996,113 @@ export default function ProfilePage() {
                                                         )}
                                                     </div>
                                                 ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {settingsMode === 'detail' && settingsTab === 'KYC Details' && (
+                                    <div className="space-y-4 text-[var(--color-text)]">
+                                        {kycLoading ? (
+                                            <div className="flex justify-center py-8">
+                                                <Clock3 className="animate-spin text-[var(--color-primary)]" size={24} />
+                                            </div>
+                                        ) : !kycDetails ? (
+                                            <div className="text-center py-6">
+                                                <Shield className="mx-auto text-[var(--color-muted)] mb-2" size={32} />
+                                                <p className="text-sm font-semibold">No KYC submission found</p>
+                                                <p className="text-xs text-[var(--color-muted)] mt-1">Please submit your KYC documents via the Wallet page to verify your account.</p>
+                                                <button 
+                                                    onClick={() => {
+                                                        setSettingsOpen(false);
+                                                        navigate('/wallet');
+                                                    }}
+                                                    className="mt-4 px-4 py-2 bg-[var(--color-primary)] text-white text-xs font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all"
+                                                >
+                                                    Go to Wallet
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--color-border)]" style={{ background: 'var(--color-surface2)' }}>
+                                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Verification Status</span>
+                                                    <span className={`px-2.5 py-1 text-[11px] font-bold rounded-full uppercase tracking-wider ${
+                                                        kycDetails.status === 'verified' 
+                                                            ? 'bg-emerald-500/10 text-emerald-500' 
+                                                            : kycDetails.status === 'rejected'
+                                                            ? 'bg-red-500/10 text-red-500'
+                                                            : 'bg-amber-500/10 text-amber-500'
+                                                    }`}>
+                                                        {kycDetails.status}
+                                                    </span>
+                                                </div>
+
+                                                {kycDetails.rejectionReason && (
+                                                    <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-400">
+                                                        <span className="font-semibold block mb-0.5">Rejection Reason:</span>
+                                                        {kycDetails.rejectionReason}
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-2.5">
+                                                    <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                                                        <span className="text-xs text-[var(--color-muted)]">Aadhar Number</span>
+                                                        <span className="text-xs font-bold font-mono">
+                                                            {kycDetails.aadharNumber ? `XXXX XXXX ${kycDetails.aadharNumber.slice(-4)}` : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                                                        <span className="text-xs text-[var(--color-muted)]">PAN Number</span>
+                                                        <span className="text-xs font-bold font-mono">
+                                                            {kycDetails.panNumber ? `${kycDetails.panNumber.slice(0, 3)}XXXX${kycDetails.panNumber.slice(-3)}`.toUpperCase() : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                    <p className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wide">Submitted Documents</p>
+                                                    <div className="grid grid-cols-1 gap-3">
+                                                        {kycDetails.documents?.aadharFrontUrl && (
+                                                            <div className="space-y-1">
+                                                                <span className="text-[11px] font-semibold text-[var(--color-muted)]">Aadhar Card Front</span>
+                                                                <div className="relative aspect-[3/2] w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-black/5">
+                                                                    <img 
+                                                                        src={optimizeCloudinaryUrl(kycDetails.documents.aadharFrontUrl)} 
+                                                                        alt="Aadhar Front"
+                                                                        className="h-full w-full object-contain cursor-zoom-in hover:scale-105 transition-transform duration-300"
+                                                                        onClick={() => window.open(optimizeCloudinaryUrl(kycDetails.documents.aadharFrontUrl), '_blank')}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {kycDetails.documents?.aadharBackUrl && (
+                                                            <div className="space-y-1">
+                                                                <span className="text-[11px] font-semibold text-[var(--color-muted)]">Aadhar Card Back</span>
+                                                                <div className="relative aspect-[3/2] w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-black/5">
+                                                                    <img 
+                                                                        src={optimizeCloudinaryUrl(kycDetails.documents.aadharBackUrl)} 
+                                                                        alt="Aadhar Back"
+                                                                        className="h-full w-full object-contain cursor-zoom-in hover:scale-105 transition-transform duration-300"
+                                                                        onClick={() => window.open(optimizeCloudinaryUrl(kycDetails.documents.aadharBackUrl), '_blank')}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {kycDetails.documents?.panCardUrl && (
+                                                            <div className="space-y-1">
+                                                                <span className="text-[11px] font-semibold text-[var(--color-muted)]">PAN Card</span>
+                                                                <div className="relative aspect-[3/2] w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-black/5">
+                                                                    <img 
+                                                                        src={optimizeCloudinaryUrl(kycDetails.documents.panCardUrl)} 
+                                                                        alt="PAN Card"
+                                                                        className="h-full w-full object-contain cursor-zoom-in hover:scale-105 transition-transform duration-300"
+                                                                        onClick={() => window.open(optimizeCloudinaryUrl(kycDetails.documents.panCardUrl), '_blank')}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>

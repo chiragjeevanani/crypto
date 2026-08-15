@@ -9,12 +9,15 @@ import {
     Wallet,
     Calendar,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminPageHeader } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
 import { userService } from '../services/userService';
+import { useAdminStore } from '../store/useAdminStore';
 
 export default function EditUser({ createMode = false }) {
     const { userId } = useParams();
@@ -24,6 +27,16 @@ export default function EditUser({ createMode = false }) {
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { countries, loadCountries } = useAdminStore();
+    
+    // Fallback dictionary for country phone codes
+    const phoneCodes = { IN: '+91', US: '+1', GB: '+44', AE: '+971', AU: '+61', CA: '+1', SG: '+65' };
+
+    useEffect(() => {
+        loadCountries();
+    }, [loadCountries]);
 
     useEffect(() => {
         const loadUser = async () => {
@@ -36,6 +49,7 @@ export default function EditUser({ createMode = false }) {
                     name: '',
                     email: '',
                     phone: '',
+                    countryCode: 'IN',
                     password: '',
                     confirmPassword: '',
                     role: 'Standard',
@@ -57,6 +71,7 @@ export default function EditUser({ createMode = false }) {
                         ...user,
                         fullName: user.name,
                         username: user.name,
+                        countryCode: user.countryCode || 'IN',
                         status: (user.isBanned || user.isSuspicious) ? 'Flagged' : (user.kycVerified ? 'Verified' : 'Pending'),
                         riskScore: user.isSuspicious ? 'High' : 'Low',
                         joined: user.joined,
@@ -81,8 +96,32 @@ export default function EditUser({ createMode = false }) {
         if (e?.preventDefault) e.preventDefault();
 
         if (createMode) {
-            if (!formData.fullName || !formData.email || !formData.password) {
-                setErrorMessage('Name, Email, and Password are required.');
+            if (!formData.fullName || !formData.email || !formData.password || !formData.username) {
+                setErrorMessage('Name, Username, Email, and Password are required.');
+                return;
+            }
+            if (formData.username.length > 20) {
+                setErrorMessage('Username cannot exceed 20 characters.');
+                return;
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                setErrorMessage('Please enter a valid email address.');
+                return;
+            }
+            if (formData.phone) {
+                if (formData.countryCode === 'IN' && formData.phone.length !== 10) {
+                    setErrorMessage('Indian phone numbers must be exactly 10 digits.');
+                    return;
+                }
+                const phoneRegex = /^\d{7,15}$/;
+                if (!phoneRegex.test(formData.phone)) {
+                    setErrorMessage('Please enter a valid phone number format.');
+                    return;
+                }
+            }
+            if (formData.password.length < 6 || formData.password.length > 8) {
+                setErrorMessage('Password must be between 6 and 8 characters.');
                 return;
             }
             if (formData.password !== formData.confirmPassword) {
@@ -101,6 +140,7 @@ export default function EditUser({ createMode = false }) {
                     email: formData.email,
                     password: formData.password,
                     phone: formData.phone,
+                    countryCode: formData.countryCode,
                     role: formData.role === 'Standard' ? 'User' : formData.role,
                     avatar: formData.avatar === '/person.png' ? '' : formData.avatar,
                     status: formData.status
@@ -115,6 +155,7 @@ export default function EditUser({ createMode = false }) {
                     name: formData.fullName || formData.name,
                     email: formData.email,
                     phone: formData.phone,
+                    countryCode: formData.countryCode,
                     role: formData.role === 'Standard' ? 'User' : formData.role,
                     avatar: formData.avatar === '/person.png' ? '' : formData.avatar,
                     status: formData.status
@@ -308,10 +349,12 @@ export default function EditUser({ createMode = false }) {
                                         <input
                                             type="text"
                                             value={formData.username}
+                                            maxLength={20}
                                             onChange={(e) => {
-                                                const username = e.target.value;
+                                                const username = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
                                                 setFormData({ ...formData, username, name: username });
                                             }}
+                                            placeholder="Max 20 chars (alphanumeric)"
                                             className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
                                         />
                                     </div>
@@ -325,6 +368,7 @@ export default function EditUser({ createMode = false }) {
                                             type="email"
                                             value={formData.email}
                                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            placeholder="user@example.com"
                                             className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
                                         />
                                     </div>
@@ -332,36 +376,84 @@ export default function EditUser({ createMode = false }) {
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
                                             <User className="w-3 h-3" /> Phone Number *
                                         </label>
-                                        <input
-                                            type="tel"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
-                                        />
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={formData.countryCode || 'IN'}
+                                                onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
+                                                className="w-[100px] bg-bg border border-surface rounded-xl py-3 px-3 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                            >
+                                                {countries?.length > 0 ? countries.map(c => (
+                                                    <option key={c.code} value={c.code}>
+                                                        {c.code} {phoneCodes[c.code] ? `(${phoneCodes[c.code]})` : ''}
+                                                    </option>
+                                                )) : (
+                                                    <>
+                                                        <option value="IN">IN (+91)</option>
+                                                        <option value="US">US (+1)</option>
+                                                        <option value="GB">UK (+44)</option>
+                                                        <option value="AE">UAE (+971)</option>
+                                                        <option value="AU">AU (+61)</option>
+                                                        <option value="CA">CA (+1)</option>
+                                                        <option value="SG">SG (+65)</option>
+                                                    </>
+                                                )}
+                                            </select>
+                                            <input
+                                                type="tel"
+                                                value={formData.phone}
+                                                maxLength={formData.countryCode === 'IN' ? 10 : 15}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    setFormData({ ...formData, phone: val });
+                                                }}
+                                                placeholder={formData.countryCode === 'IN' ? "10 digit number" : "Phone number"}
+                                                className="flex-1 w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                                     <div className="space-y-2.5">
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-                                            <Shield className="w-3 h-3" /> Password *
+                                            <Shield className="w-3 h-3" /> Password * (6-8 chars)
                                         </label>
-                                        <input
-                                            type="password"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                value={formData.password}
+                                                maxLength={8}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                className="w-full bg-bg border border-surface rounded-xl py-3 pl-4 pr-10 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                            />
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+                                            >
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="space-y-2.5">
                                         <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
                                             <Shield className="w-3 h-3" /> Confirm Password *
                                         </label>
-                                        <input
-                                            type="password"
-                                            value={formData.confirmPassword}
-                                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                value={formData.confirmPassword}
+                                                maxLength={8}
+                                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                                className="w-full bg-bg border border-surface rounded-xl py-3 pl-4 pr-10 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                            />
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+                                            >
+                                                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
@@ -423,6 +515,45 @@ export default function EditUser({ createMode = false }) {
                                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                             className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
                                         />
+                                    </div>
+                                    <div className="space-y-2.5">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                                            <User className="w-3 h-3" /> Phone Number
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={formData.countryCode || 'IN'}
+                                                onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
+                                                className="w-[100px] bg-bg border border-surface rounded-xl py-3 px-3 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                            >
+                                                {countries?.length > 0 ? countries.map(c => (
+                                                    <option key={c.code} value={c.code}>
+                                                        {c.code} {phoneCodes[c.code] ? `(${phoneCodes[c.code]})` : ''}
+                                                    </option>
+                                                )) : (
+                                                    <>
+                                                        <option value="IN">IN (+91)</option>
+                                                        <option value="US">US (+1)</option>
+                                                        <option value="GB">UK (+44)</option>
+                                                        <option value="AE">UAE (+971)</option>
+                                                        <option value="AU">AU (+61)</option>
+                                                        <option value="CA">CA (+1)</option>
+                                                        <option value="SG">SG (+65)</option>
+                                                    </>
+                                                )}
+                                            </select>
+                                            <input
+                                                type="tel"
+                                                value={formData.phone}
+                                                maxLength={formData.countryCode === 'IN' ? 10 : 15}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                                    setFormData({ ...formData, phone: val });
+                                                }}
+                                                placeholder={formData.countryCode === 'IN' ? "10 digit number" : "Phone number"}
+                                                className="flex-1 w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-semibold focus:ring-1 focus:ring-primary/20 transition-all outline-none text-text"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

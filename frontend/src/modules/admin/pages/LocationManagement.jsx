@@ -278,7 +278,24 @@ export default function LocationManagement() {
                 subtitle="Manage country protocol, currency valuation, and regional nodes."
                 actions={
                     <button 
-                        onClick={() => setIsAddingCountry(!isAddingCountry)}
+                        onClick={() => {
+                            if (isAddingCountry) {
+                                setIsAddingCountry(false);
+                                setEditingCountry(null);
+                                setForm({ name: '', code: '', currencyCode: '', currencySymbol: '', flag: '', inrValue: 1 });
+                            } else {
+                                setIsAddingCountry(true);
+                                setEditingCountry(null);
+                                setForm({ 
+                                    name: 'Australia', 
+                                    code: 'AU', 
+                                    currencyCode: 'AUD', 
+                                    currencySymbol: 'A$', 
+                                    flag: '🇦🇺', 
+                                    inrValue: 1 
+                                });
+                            }
+                        }}
                         className="flex items-center gap-2 px-5 py-2.5 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20"
                     >
                         {isAddingCountry ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}

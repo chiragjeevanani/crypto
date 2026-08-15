@@ -15,6 +15,8 @@ import {
     UserMinus,
     ShieldAlert,
     Edit2,
+    Edit3,
+    Eye,
     Ban,
     Trash2,
 } from 'lucide-react';
@@ -54,9 +56,15 @@ export default function UserManagement() {
     const [confirmState, setConfirmState] = useState({ open: false, action: null, id: null, title: '', message: '', variant: 'danger', confirmText: 'Confirm' });
 
     useEffect(() => {
-        loadUsers(params);
         loadKYCQueue();
-    }, [loadUsers, loadKYCQueue, params]);
+    }, [loadKYCQueue]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            loadUsers(params);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [loadUsers, params]);
 
     useEffect(() => {
         const sync = () => loadKYCQueue()
@@ -192,11 +200,18 @@ export default function UserManagement() {
                                 </span>,
                                 <div className="flex items-center gap-1.5">
                                     <button
+                                        onClick={() => navigate(`/admin/users/view/${user.id}`)}
+                                        className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group"
+                                        title="View User"
+                                    >
+                                        <Eye className="w-3.5 h-3.5 text-muted group-hover:text-primary" />
+                                    </button>
+                                    <button
                                         onClick={() => navigate(`/admin/users/edit/${user.id}`)}
                                         className="p-1.5 bg-surface2 hover:bg-surface rounded-md border border-surface transition-all group"
                                         title="Edit Identity"
                                     >
-                                        <UserPlus className="w-3.5 h-3.5 text-muted group-hover:text-primary" />
+                                        <Edit3 className="w-3.5 h-3.5 text-muted group-hover:text-amber-500" />
                                     </button>
                                     <button
                                         onClick={() => askConfirm(

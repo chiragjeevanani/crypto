@@ -34,7 +34,7 @@ const FILTERS = [
     { name: 'Crema', value: 'sepia(0.5) contrast(1.25)' },
 ];
 
-export default function Stories() {
+export default function Stories({ hideFeed = false }) {
     const { profile } = useUserStore();
     const [stories, setStories] = useState([]);
     const [myStory, setMyStory] = useState(null);
@@ -61,6 +61,15 @@ export default function Stories() {
     const [storyCaption, setStoryCaption] = useState('');
     const [storyMusicStartTime, setStoryMusicStartTime] = useState(0);
     const [isPlayingPreview, setIsPlayingPreview] = useState(true);
+
+    useEffect(() => {
+        if (searchParams.get('addStory') === 'true') {
+            setIsCreatingStory(true);
+            const params = new URLSearchParams(searchParams);
+            params.delete('addStory');
+            setSearchParams(params, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [storyFilter, setStoryFilter] = useState('none');
@@ -458,7 +467,7 @@ export default function Stories() {
                 id: s.id,
                 userId: s.user.id,
                 username: s.user.username || s.user.handle || 'User',
-                avatar: s.user.avatar || NO_IMAGE_AVATAR,
+                avatar: (s.media?.type === 'image' && s.media?.url) ? s.media.url : (s.user.avatar || NO_IMAGE_AVATAR),
                 isPremium: s.user.isPremium,
                 hasUnseen: true,
                 isMe: s.isMe,
@@ -497,7 +506,7 @@ export default function Stories() {
             const baseTile = {
                 id: 'me',
                 username: 'Your Story',
-                avatar: profile?.avatar || NO_IMAGE_AVATAR,
+                avatar: mine ? mine.avatar : (profile?.avatar || NO_IMAGE_AVATAR),
                 isPremium: profile?.isPremium,
                 hasUnseen: !!mine,
                 isMe: true,
@@ -861,14 +870,15 @@ export default function Stories() {
         }
     };
 
-    if (stories.length === 0) {
+    if (stories.length === 0 && !hideFeed) {
         return null;
     }
 
     return (
         <>
-            <div
-                className="w-full py-3 mb-2 border-b overflow-x-auto hide-scrollbar flex items-center gap-4 px-4 desktop-stories-container"
+            {!hideFeed && (
+                <div
+                    className="w-full py-3 mb-2 border-b overflow-x-auto hide-scrollbar flex items-center gap-4 px-4 desktop-stories-container"
                 style={{
                     background: 'var(--color-bg)',
                     borderColor: 'var(--color-border)',
@@ -917,6 +927,7 @@ export default function Stories() {
                     </div>
                 ))}
             </div>
+            )}
 
             {/* Story Viewer Modal */}
             <AnimatePresence>

@@ -205,14 +205,14 @@ export default function ReportsManagement() {
                             onClick={() => setSelectedReport(null)} 
                         />
                         <motion.div
-                            className="relative w-full max-w-lg rounded-[40px] overflow-hidden shadow-2xl flex flex-col h-[70vh] border"
+                            className="relative w-full max-w-xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border"
                             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                         >
                             {/* Media Section */}
-                            <div className="flex-1 bg-black/40 relative overflow-hidden flex items-center justify-center">
+                            <div className="w-full h-[45vh] min-h-[300px] bg-black/5 relative overflow-hidden flex items-center justify-center shrink-0">
                                 {selectedReport.post ? (
                                     selectedReport.post.mediaType === 'video' ? (
                                         <video
@@ -248,14 +248,14 @@ export default function ReportsManagement() {
                                 )}
                                 <button
                                     onClick={() => setSelectedReport(null)}
-                                    className="absolute top-6 right-6 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-all z-10"
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md transition-all z-10"
                                 >
                                     <X size={20} />
                                 </button>
                             </div>
 
                             {/* Info Section */}
-                            <div className="p-8 space-y-6 overflow-y-auto">
+                            <div className="p-8 space-y-6 overflow-y-auto flex-1">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-surface2 flex items-center justify-center border">

@@ -33,7 +33,7 @@ export default function MusicSelectionModal({ onSelect, onClose, currentSelected
         try {
             let data;
             if (query.trim()) {
-                data = await musicService.searchMusic(query)
+                data = await musicService.searchMusic(query.trim())
             } else {
                 data = await musicService.getActiveMusic(1, "")
             }

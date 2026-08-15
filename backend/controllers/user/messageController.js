@@ -94,6 +94,7 @@ exports.getConversations = async (req, res) => {
             lastMessage: {
               text: m.lastMessage.text,
               timestamp: new Date(m.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+              createdAt: m.lastMessage.createdAt,
               unreadCount
             },
             isOnline: true // Groups can always be considered active
@@ -125,6 +126,7 @@ exports.getConversations = async (req, res) => {
             lastMessage: {
               text: m.lastMessage.text,
               timestamp: new Date(m.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+              createdAt: m.lastMessage.createdAt,
               unreadCount
             },
             isOnline: false // Frontend will update this via socket

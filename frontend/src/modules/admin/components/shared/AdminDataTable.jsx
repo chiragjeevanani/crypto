@@ -9,7 +9,8 @@ export default function AdminDataTable({
     onSearch,
     onRowClick,
     searchPlaceholder = "Find in ledger...",
-    isLoading = false
+    isLoading = false,
+    emptyMessage
 }) {
     return (
         <div className="bg-surface border border-surface rounded-lg overflow-hidden shadow-sm">
@@ -39,7 +40,7 @@ export default function AdminDataTable({
             {/* Table Area */}
             <div className="overflow-x-auto selection:bg-primary/20">
                 <table className="w-full text-left border-collapse">
-                    <thead className="bg-surface2/40 text-[10px] font-bold uppercase tracking-widest text-muted border-b border-surface">
+                    <thead className="bg-surface2/40 text-[10px] font-bold uppercase tracking-widest text-text border-b border-surface">
                         <tr>
                             {columns.map((col, idx) => (
                                 <th key={idx} className="px-6 py-4 font-bold">{col}</th>
@@ -59,7 +60,7 @@ export default function AdminDataTable({
                         ) : data.length === 0 ? (
                             <tr>
                                 <td colSpan={columns.length} className="px-6 py-20 text-center">
-                                    <p className="text-[11px] font-semibold text-muted uppercase tracking-wider opacity-40 italic">Null Data Set Returned</p>
+                                    <p className="text-[11px] font-semibold text-muted uppercase tracking-wider opacity-40 italic">{emptyMessage || 'No data available'}</p>
                                 </td>
                             </tr>
                         ) : (

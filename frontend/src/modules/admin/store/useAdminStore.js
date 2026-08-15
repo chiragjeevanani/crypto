@@ -58,6 +58,8 @@ export const useAdminStore = create((set, get) => ({
     campaignClosures: [],
     adminNotifications: [],
     unreadAdminNotificationsCount: 0,
+    dashboardSearchQuery: '',
+    setDashboardSearchQuery: (q) => set({ dashboardSearchQuery: q }),
 
     // UI States
     isLoading: false,
@@ -161,11 +163,12 @@ export const useAdminStore = create((set, get) => ({
         set((state) => ({
             withdrawals: state.withdrawals.map(w => w.id === id ? updated : w)
         }));
-        const [ledger, logs] = await Promise.all([
+        const [ledger, logs, stats] = await Promise.all([
             withdrawalService.fetchLedger(),
-            withdrawalService.fetchAuditLogs()
+            withdrawalService.fetchAuditLogs(),
+            dashboardService.fetchFinancials()
         ]);
-        set({ ledger, auditLogs: logs });
+        set({ ledger, auditLogs: logs, financialStats: stats });
     }, "Withdrawal request approved and processed."),
 
     rejectWithdrawal: (id, reason) => get().execute(async () => {
@@ -173,8 +176,11 @@ export const useAdminStore = create((set, get) => ({
         set((state) => ({
             withdrawals: state.withdrawals.map(w => w.id === id ? updated : w)
         }));
-        const logs = await withdrawalService.fetchAuditLogs();
-        set({ auditLogs: logs });
+        const [logs, stats] = await Promise.all([
+            withdrawalService.fetchAuditLogs(),
+            dashboardService.fetchFinancials()
+        ]);
+        set({ auditLogs: logs, financialStats: stats });
     }, "Withdrawal request rejected."),
 
     getUserFinancialSnapshot: (userId) => get().execute(async () => {

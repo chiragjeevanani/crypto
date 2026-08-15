@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuctionStore } from '../store/useAuctionStore';
 import { useNavigate } from 'react-router-dom';
-import { Gavel, Clock, Trophy, ChevronRight } from 'lucide-react';
+import { Gavel, Clock, Trophy, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../user/utils/formatCurrency';
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization';
 import Avatar from '../../user/components/shared/Avatar';
@@ -31,6 +31,25 @@ export default function AuctionListingPage() {
             fetchAuctions(activeTab);
         }
     }, [fetchAuctions, activeTab, profile?.id]);
+
+    const handleDelete = async (e, id) => {
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to delete this auction?")) return;
+        try {
+            const { auctionService } = await import('../services/auctionService');
+            const res = await auctionService.deleteAuction(id);
+            if (res.success) {
+                if (activeTab === 'my') {
+                    fetchAuctions('', profile?.id);
+                } else {
+                    fetchAuctions(activeTab);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Failed to delete auction");
+        }
+    };
 
     if (loading && auctions.length === 0) {
         return (
@@ -102,7 +121,9 @@ export default function AuctionListingPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {auctions.map((auction) => (
+                {auctions
+                    .filter(a => activeTab !== 'live' || new Date(a.endDate) > new Date())
+                    .map((auction) => (
                     <div 
                         key={auction._id}
                         onClick={() => navigate(`/auctions/${auction._id}`)}
@@ -165,14 +186,32 @@ export default function AuctionListingPage() {
                                 </div>
                             </div>
 
-                            <div className="pt-2 flex items-center justify-between">
+                                <div className="pt-2 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Avatar src={auction.creator?.avatar} alt={auction.creator?.handle || auction.creator?.name} size="w-6 h-6" className="rounded-full border" style={{ borderColor: 'var(--color-border)' }} />
                                     <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>@{auction.creator?.handle || auction.creator?.name}</span>
                                 </div>
-                                <div className="flex items-center text-primary font-bold text-xs uppercase tracking-widest gap-1">
-                                    View Details <ChevronRight size={14} />
-                                </div>
+                                
+                                {activeTab === 'my' && profile?.id === auction.creator?._id && (auction.status === 'pending' || auction.status === 'rejected') ? (
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/auctions/${auction._id}`); }}
+                                            className="p-1.5 rounded-lg bg-surface2 text-primary hover:bg-primary/20 transition-colors"
+                                        >
+                                            <Edit2 size={14} />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => handleDelete(e, auction._id)}
+                                            className="p-1.5 rounded-lg bg-surface2 text-rose-500 hover:bg-rose-500/20 transition-colors"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center text-primary font-bold text-xs uppercase tracking-widest gap-1">
+                                        View Details <ChevronRight size={14} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

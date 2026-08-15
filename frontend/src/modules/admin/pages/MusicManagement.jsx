@@ -87,6 +87,9 @@ const fetchMusic = async () => {
             if (newTrack.thumbnailFile) {
                 formData.append('thumbnail', newTrack.thumbnailFile);
             }
+            if (newTrack.duration) {
+                formData.append('duration', newTrack.duration);
+            }
 
             const res = await fetch(`${API_BASE}/admin/music/upload`, {
                 method: 'POST',
@@ -97,7 +100,7 @@ const fetchMusic = async () => {
             const data = await res.json();
             if (data.success) {
                 setSuccess('Music uploaded successfully!');
-                setNewTrack({ title: '', artist: '', audioFile: null, thumbnailFile: null });
+                setNewTrack({ title: '', artist: '', audioFile: null, thumbnailFile: null, duration: 0 });
                 setIsUploadModalOpen(false);
                 fetchMusic();
             } else {
@@ -158,10 +161,12 @@ const fetchMusic = async () => {
         }
     };
 
-    const filteredMusic = music.filter(m => 
-        m.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        m.artist.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredMusic = music.filter(m => {
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) return true;
+        return m.title.toLowerCase().includes(term) || 
+               m.artist.toLowerCase().includes(term);
+    });
 
     return (
         <div className="space-y-6">
@@ -199,10 +204,10 @@ const fetchMusic = async () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-surface2/30 border-b border-surface">
-                                    <th className="px-6 py-4 text-[10px] font-black text-muted uppercase tracking-widest">Track</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-muted uppercase tracking-widest">Duration</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-muted uppercase tracking-widest">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-muted uppercase tracking-widest text-right">Actions</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-text uppercase tracking-widest">Track</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-text uppercase tracking-widest">Duration</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-text uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-text uppercase tracking-widest text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -244,7 +249,7 @@ const fetchMusic = async () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-[10px] font-mono text-muted">{Math.floor(m.duration / 60)}:{(m.duration % 60).toString().padStart(2, '0')}</span>
+                                            <span className="text-[10px] font-mono text-muted">{Math.floor(m.duration / 60)}:{Math.floor(m.duration % 60).toString().padStart(2, '0')}</span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <button 
@@ -346,12 +351,19 @@ const fetchMusic = async () => {
                                                 onChange={(e) => {
                                                     const file = e.target.files[0];
                                                     if (!file) return;
+                                                    
+                                                    const audioUrl = URL.createObjectURL(file);
+                                                    const audio = new Audio(audioUrl);
+                                                    audio.onloadedmetadata = () => {
+                                                        setNewTrack(prev => ({ ...prev, duration: audio.duration }));
+                                                    };
+
                                                     if (newTrack.audioPreviewUrl) URL.revokeObjectURL(newTrack.audioPreviewUrl);
-                                                    setNewTrack({ 
-                                                        ...newTrack, 
+                                                    setNewTrack(prev => ({ 
+                                                        ...prev, 
                                                         audioFile: file,
-                                                        audioPreviewUrl: URL.createObjectURL(file)
-                                                    });
+                                                        audioPreviewUrl: audioUrl
+                                                    }));
                                                 }}
                                             />
                                             <div className="w-full bg-bg border-2 border-dashed border-surface p-4 rounded-xl flex flex-col items-center gap-2 group-hover:border-primary transition-all">

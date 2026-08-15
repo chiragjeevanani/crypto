@@ -255,6 +255,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 sender: 'me',
                 text: inputValue.trim() || `Sent a ${type}`,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                createdAt: new Date().toISOString(),
                 type: type,
                 payload
             }
@@ -282,6 +283,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 text: inputValue,
                 status: 'sent',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                createdAt: new Date().toISOString(),
                 type: 'text'
             }
 
@@ -714,12 +716,56 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
 
                 <div className="text-center text-[11px] py-4" style={{ color: 'var(--color-muted)' }}>CHAT HISTORY</div>
 
-                {messages.map((msg) => (
-                    <div 
-                        key={msg.id} 
-                        className={`group flex flex-col w-full relative ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
-                    >
-                        {editingMessage?.id === msg.id ? (
+                {messages.map((msg, index) => {
+                    let showDateSeparator = false;
+                    let dateText = '';
+
+                    if (msg.createdAt || msg.timestamp) {
+                        const msgDate = new Date(msg.createdAt || Date.now());
+                        const msgDateString = msgDate.toDateString();
+
+                        if (index === 0) {
+                            showDateSeparator = true;
+                        } else {
+                            const prevMsg = messages[index - 1];
+                            const prevMsgDate = new Date(prevMsg.createdAt || Date.now());
+                            if (msgDateString !== prevMsgDate.toDateString()) {
+                                showDateSeparator = true;
+                            }
+                        }
+
+                        if (showDateSeparator) {
+                            const today = new Date().toDateString();
+                            const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+                            if (msgDateString === today) {
+                                dateText = 'Today';
+                            } else if (msgDateString === yesterday) {
+                                dateText = 'Yesterday';
+                            } else {
+                                dateText = msgDate.toLocaleDateString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            }
+                        }
+                    }
+
+                    return (
+                    <div key={msg.id} className="w-full">
+                        {showDateSeparator && (
+                            <div className="flex justify-center my-6">
+                                <span className="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider" 
+                                      style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
+                                    {dateText}
+                                </span>
+                            </div>
+                        )}
+                        <div 
+                            className={`group flex flex-col w-full relative ${msg.sender === 'me' ? 'items-end' : 'items-start'} ${!showDateSeparator ? 'mt-2' : ''}`}
+                        >
+                            {editingMessage?.id === msg.id ? (
                             <div className="w-full max-w-[70%] flex flex-col gap-2">
                                 <textarea
                                     value={editInputValue}
@@ -821,7 +867,9 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                             </div>
                         )}
                     </div>
-                ))}
+                    </div>
+                    );
+                })}
 
                 {isOtherTyping && (
                     <div className="flex items-center gap-2 text-[10px] font-semibold italic p-2" style={{ color: 'var(--color-muted)' }}>

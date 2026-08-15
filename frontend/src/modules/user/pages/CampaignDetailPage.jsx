@@ -189,17 +189,17 @@ export default function CampaignDetailPage() {
                 <div className="p-6 space-y-6">
                     <p className="text-xs leading-relaxed opacity-70">{campaign.description}</p>
 
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-2xl p-3 bg-bg/50 border border-surface">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-primary mb-1">Prize pool</p>
+                    <div className="flex flex-wrap gap-3">
+                        <div className="flex-1 min-w-[100px] rounded-2xl p-3 bg-bg/50 border border-surface">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-primary mb-1 truncate">Prize pool</p>
                             <p className="text-sm font-black text-text">{campaign.rewardDetails}</p>
                         </div>
-                        <div className="rounded-2xl p-3 bg-bg/50 border border-surface">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-muted mb-1">Participants</p>
+                        <div className="flex-1 min-w-[100px] rounded-2xl p-3 bg-bg/50 border border-surface">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-muted mb-1 truncate">Participants</p>
                             <p className="text-sm font-black text-text">{formatCount(campaign.participants || 0)}</p>
                         </div>
-                        <div className="rounded-2xl p-3 bg-bg/50 border border-surface">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-rose-500 mb-1">Ending in</p>
+                        <div className="flex-1 min-w-[100px] rounded-2xl p-3 bg-bg/50 border border-surface">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-rose-500 mb-1 truncate">Ending in</p>
                             <p className="text-sm font-black text-text">{daysLeft(campaign.endDate)}</p>
                         </div>
                     </div>
@@ -243,7 +243,7 @@ export default function CampaignDetailPage() {
                                     <div className="relative group">
                                         {!previews.bill ? (
                                             <>
-                                                <input type="file" accept="image/*" onChange={(e) => handleFileChange('bill', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <input type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange('bill', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                                 <div className="p-4 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex items-center gap-3">
                                                     <div className="p-2 rounded-lg bg-surface2 text-muted">
                                                         <Upload size={14} />
@@ -270,7 +270,7 @@ export default function CampaignDetailPage() {
                                     <div className="relative group">
                                         {!previews.product ? (
                                             <>
-                                                <input type="file" accept="image/*" onChange={(e) => handleFileChange('product', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <input type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange('product', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                                 <div className="p-4 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex items-center gap-3">
                                                     <div className="p-2 rounded-lg bg-surface2 text-muted">
                                                         <Upload size={14} />
@@ -297,7 +297,7 @@ export default function CampaignDetailPage() {
                                     <div className="relative group">
                                         {!previews.selfie ? (
                                             <>
-                                                <input type="file" accept="image/*" onChange={(e) => handleFileChange('selfie', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <input type="file" accept="image/*" capture="user" onChange={(e) => handleFileChange('selfie', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                                 <div className="p-4 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex items-center gap-3">
                                                     <div className="p-2 rounded-lg bg-surface2 text-muted">
                                                         <Upload size={14} />
@@ -323,7 +323,7 @@ export default function CampaignDetailPage() {
                             <button
                                 onClick={() => setSubmitStep(2)}
                                 disabled={!files.bill || !files.product || !files.selfie}
-                                className="w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-surface2 text-text disabled:opacity-30 transition-all hover:bg-primary hover:text-black"
+                                className="w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-black text-white disabled:opacity-30 transition-all hover:bg-zinc-800"
                             >
                                 Continue to Creative
                             </button>
@@ -337,7 +337,7 @@ export default function CampaignDetailPage() {
                                 <div className="relative group">
                                     {!previews.reel ? (
                                         <>
-                                            <input type="file" accept="video/*" onChange={(e) => handleFileChange('reel', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                            <input type="file" accept="video/*" capture="environment" onChange={(e) => handleFileChange('reel', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                             <div className="p-8 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex flex-col items-center justify-center gap-3">
                                                 <div className="p-3 rounded-xl bg-primary/10 text-primary">
                                                     <Upload />

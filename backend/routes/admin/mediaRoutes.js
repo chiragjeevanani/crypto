@@ -1,16 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../../middleware/authMiddleware");
-const { upload } = require("../../utils/upload");
+const { uploadRaw } = require("../../utils/upload");
 const { getBaseUrl } = require("../../utils/postHelpers");
-const fs = require("fs");
-const path = require("path");
 
 router.post(
   "/upload",
   protect,
   authorize("Admin", "SuperNode", "super_admin", "Developer"),
-  upload.single("file"),
+  uploadRaw.single("file"),
   async (req, res) => {
     try {
       if (!req.file) {
@@ -18,12 +16,13 @@ router.post(
       }
 
       const baseUrl = getBaseUrl(req);
-      let fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+      const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+      const mediaType = req.file.mimetype.startsWith("video/") ? "video" : "image";
 
       res.status(200).json({
         success: true,
         url: fileUrl,
-        type: req.file.mimetype.startsWith("video/") ? "video" : "image"
+        type: mediaType
       });
     } catch (error) {
       console.error("[MediaUpload] Error:", error.message);

@@ -41,6 +41,7 @@ export default function FinancialManagement() {
     const {
         withdrawals, loadWithdrawals, approveWithdrawal, rejectWithdrawal, getUserFinancialSnapshot,
         settings, settlementRails, loadSettlementRails, reconcileSettlementRail, loadSettings, updatePlatformSettings,
+        financialStats, loadFinancials,
         isLoading
     } = useAdminStore();
 
@@ -73,7 +74,8 @@ export default function FinancialManagement() {
         loadWithdrawals(withdrawalFilter);
         loadSettings();
         loadSettlementRails();
-    }, [loadWithdrawals, loadSettings, withdrawalFilter]);
+        loadFinancials();
+    }, [loadWithdrawals, loadSettings, loadSettlementRails, loadFinancials, withdrawalFilter]);
 
     useEffect(() => {
         const socket = getSocket();
@@ -155,10 +157,9 @@ export default function FinancialManagement() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <AdminStatCard label="Total Payouts" value={formatCurrency(142801)} change="+12.4%" icon={DollarSign} color="emerald-500" path="/admin/wallet" />
-                <AdminStatCard label="Pending Volume" value={formatCurrency(4210)} change="+2.1%" icon={TrendingUp} color="amber-500" path="/admin/withdrawals" />
-                <AdminStatCard label="Net Commission" value={formatCurrency(12400)} change="+5.2%" icon={PieChart} color="indigo-500" path="/admin/wallet" />
-
+                <AdminStatCard label="Total Payouts" value={formatCurrency(financialStats?.totalPayouts || 0)} change="Completed withdrawals" icon={DollarSign} color="emerald-500" path="/admin/wallet" />
+                <AdminStatCard label="Pending Volume" value={formatCurrency(financialStats?.pendingVolume || 0)} change="Awaiting approval" icon={TrendingUp} color="amber-500" path="/admin/withdrawals" />
+                <AdminStatCard label="Net Commission" value={formatCurrency(financialStats?.commissions || 0)} change="Platform fees collected" icon={PieChart} color="indigo-500" path="/admin/wallet" />
             </div>
 
             <div className="space-y-6">

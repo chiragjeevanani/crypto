@@ -141,6 +141,9 @@ export default function AuctionDetailPage() {
 
             if (diff <= 0) {
                 setTimeLeft('Ended');
+                useAuctionStore.setState(state => ({
+                    currentAuction: { ...state.currentAuction, status: 'ended' }
+                }));
                 return;
             }
 
@@ -153,7 +156,7 @@ export default function AuctionDetailPage() {
         const timer = setInterval(updateTimer, 1000);
         updateTimer();
         return () => clearInterval(timer);
-    }, [currentAuction]);
+    }, [currentAuction?.endDate]);
 
     const handleBid = async (e) => {
         e.preventDefault();
@@ -188,8 +191,12 @@ export default function AuctionDetailPage() {
     if (!currentAuction) return null;
 
     const isLive = currentAuction.status === 'live';
-    const isCreator = user?.id === currentAuction.creator?._id;
-    const isWinner = user?.id === currentAuction.winner?._id;
+    const isCreator = user && currentAuction && (
+        String(user.id || user._id) === String(currentAuction.creator?._id || currentAuction.creator?.id || currentAuction.creator)
+    );
+    const isWinner = user && currentAuction && (
+        String(user.id || user._id) === String(currentAuction.winner?._id || currentAuction.winner?.id || currentAuction.winner)
+    );
 
     return (
         <div className="flex-1 flex flex-col h-full bg-bg pb-safe">
@@ -339,19 +346,24 @@ export default function AuctionDetailPage() {
                                     type="number"
                                     value={bidAmount}
                                     onChange={(e) => setBidAmount(e.target.value)}
-                                    placeholder={`Min ₹${(currentAuction.highestBid || currentAuction.basePrice) + 1}`}
-                                    className="w-full bg-surface2 border border-border rounded-2xl py-4 pl-8 pr-12 text-lg font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                    placeholder={currentAuction.status === 'ended' || new Date() > new Date(currentAuction.endDate) ? "Auction ended" : `Min ₹${(currentAuction.highestBid || currentAuction.basePrice) + 1}`}
+                                    disabled={placingBid || currentAuction.status === 'ended' || new Date() > new Date(currentAuction.endDate)}
+                                    className="w-full bg-surface2 border border-border rounded-2xl py-4 pl-8 pr-12 text-lg font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                                 <button 
                                     type="submit"
-                                    disabled={placingBid}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-xl bg-primary text-white disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                                    disabled={placingBid || currentAuction.status === 'ended' || new Date() > new Date(currentAuction.endDate)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-xl bg-primary text-white disabled:opacity-50 transition-all hover:scale-105 active:scale-95 disabled:hover:scale-100 disabled:cursor-not-allowed"
                                 >
                                     {placingBid ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={20} />}
                                 </button>
                             </div>
                             <p className="text-center text-[10px] font-bold text-muted flex items-center justify-center gap-1.5">
-                                <Info size={12} /> Bids are final and cannot be withdrawn.
+                                {currentAuction.status === 'ended' || new Date() > new Date(currentAuction.endDate) ? (
+                                    "This auction has ended. Bidding is closed."
+                                ) : (
+                                    <><Info size={12} /> Bids are final and cannot be withdrawn.</>
+                                )}
                             </p>
                         </form>
                     ) : (

@@ -12,7 +12,11 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     const isAdminSession = ['SuperNode', 'Admin', 'super_admin', 'Developer'].includes(role);
 
     if (!authChecked || authLoading) {
-        return <div className="p-6 text-sm text-muted">Checking session...</div>;
+        return (
+            <div className="min-h-screen bg-bg flex items-center justify-center">
+                <img src="/knqlogo.jpeg" alt="Loading..." className="w-20 h-20 rounded-full object-cover animate-pulse shadow-2xl" />
+            </div>
+        );
     }
 
     if (!isAuthenticated) {

@@ -37,5 +37,21 @@ export const auctionService = {
     updateStatus: async (id, status) => {
         const response = await axios.patch(`${API_URL}/${id}/status`, { status }, getAuthHeader());
         return response.data;
+    },
+
+    updateAuction: async (id, formData) => {
+        const token = getStoredToken();
+        const response = await axios.put(`${API_URL}/${id}`, formData, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
+    deleteAuction: async (id) => {
+        const response = await axios.delete(`${API_URL}/${id}`, getAuthHeader());
+        return response.data;
     }
 };

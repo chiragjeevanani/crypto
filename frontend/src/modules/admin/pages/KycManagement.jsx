@@ -28,6 +28,7 @@ const KycManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [actionModal, setActionModal] = useState({ show: false, type: '', id: null, title: '', message: '', color: '' });
     const [rejectionReason, setRejectionReason] = useState('');
+    const [previewImage, setPreviewImage] = useState(null);
 
     const fetchSubmissions = async () => {
         try {
@@ -200,7 +201,7 @@ const KycManagement = () => {
             {/* Detailed View Modal */}
             <AnimatePresence>
                 {selectedKyc && (
-                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1000 }}>
                         <motion.div 
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -308,13 +309,13 @@ const KycManagement = () => {
                                                 <div key={idx} className="group relative rounded-3xl border border-border/50 bg-bg/30 overflow-hidden aspect-[4/3]">
                                                     {doc.url ? (
                                                         <>
-                                                            <img src={getAssetUrl(doc.url)} alt={doc.label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                                            <img src={getAssetUrl(doc.url)} alt={doc.label} className="w-full h-full object-contain bg-black/10 transition-transform duration-500 group-hover:scale-110" />
                                                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                                                <a href={getAssetUrl(doc.url)} target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-all">
-                                                                    <ExternalLink size={20} />
-                                                                </a>
+                                                                <button onClick={() => setPreviewImage(getAssetUrl(doc.url))} className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-all">
+                                                                    <Eye size={20} />
+                                                                </button>
                                                             </div>
-                                                            <div className="absolute bottom-4 left-4 right-4 py-2 px-4 rounded-xl bg-black/40 backdrop-blur-md text-[9px] font-black text-white uppercase tracking-[0.2em] text-center">
+                                                            <div className="absolute bottom-4 left-4 right-4 py-2 px-4 rounded-xl bg-black/60 backdrop-blur-md text-[9px] font-black text-white uppercase tracking-[0.2em] text-center pointer-events-none">
                                                                 {doc.label}
                                                             </div>
                                                         </>
@@ -338,7 +339,7 @@ const KycManagement = () => {
             {/* Custom Action Modal */}
             <AnimatePresence>
                 {actionModal.show && (
-                    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1100 }}>
                         <motion.div 
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -390,6 +391,32 @@ const KycManagement = () => {
                                     {actionLoading ? 'Processing...' : actionModal.type === 'verified' ? 'Confirm Approval' : 'Confirm Reject'}
                                 </button>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Image Preview Modal */}
+            <AnimatePresence>
+                {previewImage && (
+                    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1200 }}>
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                            onClick={() => setPreviewImage(null)}
+                        />
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-5xl max-h-[90vh] flex flex-col items-center justify-center"
+                        >
+                            <button onClick={() => setPreviewImage(null)} className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                                <X size={20} />
+                            </button>
+                            <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-2xl" />
                         </motion.div>
                     </div>
                 )}

@@ -8,6 +8,22 @@ import { getSocket } from '../../../../socket'
 import Avatar from '../../components/shared/Avatar'
 import CreateGroupModal from './CreateGroupModal'
 
+function formatConversationDate(createdAt, fallbackTimestamp) {
+    if (!createdAt) return fallbackTimestamp;
+    const date = new Date(createdAt);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+    } else {
+        return date.toLocaleDateString(undefined, { year: '2-digit', month: 'numeric', day: 'numeric' });
+    }
+}
+
 export default function ConversationList({ onSelectChat, selectedChatId }) {
     const { profile } = useUserStore()
     const [searchQuery, setSearchQuery] = useState('')
@@ -57,6 +73,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                         lastMessage: {
                             text: msg.text,
                             timestamp: msg.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                            createdAt: new Date().toISOString(),
                             unreadCount: isNowActive ? 0 : (msg.isOwn ? 0 : (c.lastMessage?.unreadCount || 0) + 1)
                         },
                         isTyping: false
@@ -285,7 +302,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{conv.lastMessage.timestamp}</span>
+                                    <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{formatConversationDate(conv.lastMessage?.createdAt, conv.lastMessage?.timestamp)}</span>
                                 </div>
                                 <div className="flex items-center justify-between mt-0.5">
                                     <p className={`text-xs truncate ${conv.lastMessage?.unreadCount > 0 ? 'font-bold' : ''}`} style={{ color: conv.lastMessage?.unreadCount > 0 ? 'var(--color-text)' : 'var(--color-muted)' }}>

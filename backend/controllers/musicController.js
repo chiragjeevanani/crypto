@@ -7,7 +7,7 @@ const spotifyService = require("../services/spotifyService");
  */
 exports.uploadMusic = async (req, res) => {
   try {
-    const { title, artist } = req.body;
+    const { title, artist, duration } = req.body;
     if (!title || !artist || !req.files?.audio) {
       return res.status(400).json({ success: false, message: "Title, artist and audio file are required" });
     }
@@ -47,7 +47,7 @@ exports.uploadMusic = async (req, res) => {
       artist,
       audioUrl: audioUrl,
       publicId: audioFilename,
-      duration: 0,
+      duration: duration ? parseFloat(duration) : 0,
       thumbnail: thumbnailUrl,
       isActive: true
     });

@@ -231,10 +231,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
             setGiftError(result.message || 'Insufficient balance.')
             setTimeout(() => {
                 setGiftError('')
-                if (result.error === 'insufficient_balance') {
-                    navigate('/wallet')
-                }
-            }, 1200)
+            }, 3000)
             return
         }
         sendGift(post.id, gift)

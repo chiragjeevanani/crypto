@@ -16,6 +16,7 @@ import {
     Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { AdminPageHeader, AdminStatCard } from '../components/shared';
 import { formatCurrency, getCurrency } from '../utils/currency';
 import { useAdminStore } from '../store/useAdminStore';
@@ -98,19 +99,25 @@ const ChartBar = ({ height, value }) => {
 };
 
 export default function AdminDashboard() {
+    const navigate = useNavigate();
     const {
         loadDashboardStats,
         dashboardStats,
         exchangeRates,
         countries,
         loadCountries,
-        isLoading
+        isLoading,
+        dashboardSearchQuery
     } = useAdminStore();
 
     useEffect(() => {
         loadDashboardStats();
         loadCountries();
     }, [loadDashboardStats, loadCountries]);
+
+    useEffect(() => {
+        console.log("Dashboard Stats:", dashboardStats);
+    }, [dashboardStats]);
 
     const stats = [
         {
@@ -156,19 +163,72 @@ export default function AdminDashboard() {
         },
     ];
 
-    // Prepare graph data from revenueByMonth
-    // We expect an array of { _id: { month, year }, amount }
+    // Build full 12-month graph data
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const graphData = (dashboardStats?.revenueByMonth || []).map(item => ({
-        label: `${months[item._id.month - 1]}`,
-        value: item.amount,
-        height: Math.min(100, (item.amount / (Math.max(...(dashboardStats?.revenueByMonth || [1]).map(i => i.amount)) || 1)) * 100)
+    const [chartView, setChartView] = useState('12M');
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-indexed (0=Jan)
+    const currentYear = now.getFullYear();
+
+    // Build a rolling 12-month timeline (month+year aware)
+    // Each slot = one calendar month going back from today
+    const rollingSlots = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(currentYear, currentMonth - (11 - i), 1);
+        return { label: months[d.getMonth()], month: d.getMonth() + 1, year: d.getFullYear(), isFuture: false };
+    });
+
+    // Map revenue keyed by "year-month"
+    const revenueMap = {};
+    (dashboardStats?.revenueByMonth || []).forEach(item => {
+        const key = `${item._id.year}-${item._id.month}`;
+        revenueMap[key] = (revenueMap[key] || 0) + item.amount;
+    });
+
+    // Fill rolling slots with real values
+    const fullYearData = rollingSlots.map(slot => ({
+        ...slot,
+        value: revenueMap[`${slot.year}-${slot.month}`] || 0
     }));
 
-    // If less than 6 months, pad it
-    while (graphData.length < 6) {
-        graphData.unshift({ label: '---', value: 0, height: 10 });
-    }
+    // Apply 6M / 12M filter
+    const displayData = chartView === '6M'
+        ? fullYearData.slice(6)   // last 6 of the 12 rolling slots
+        : fullYearData;
+
+    const maxRevenue = Math.max(...displayData.map(d => d.value), 1);
+    const totalRevenue = displayData.reduce((s, d) => s + d.value, 0);
+    const peakMonth = displayData.reduce((p, c) => c.value > p.value ? c : p, displayData[0]);
+
+    // Use sqrt scale so small bars stay visible relative to dominant months
+    const getBarHeight = (value) => {
+        if (value <= 0) return 1;
+        const sqrtMax = Math.sqrt(maxRevenue);
+        const sqrtVal = Math.sqrt(value);
+        return Math.max((sqrtVal / sqrtMax) * 100, 5); // min 5%
+    };
+
+    // Y-axis steps still use linear scale for readability
+    const ySteps = [0.25, 0.5, 0.75, 1].map(f => ({
+        value: maxRevenue * f,
+        pct: f * 100
+    }));
+
+
+    // Filtered lists based on topbar universal search
+    const q = (dashboardSearchQuery || '').toLowerCase();
+    const filteredUsers = (dashboardStats?.recentUsers || []).filter(u =>
+        !q ||
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.handle || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q)
+    );
+    const filteredTxns = (dashboardStats?.recentTransactions || []).filter(tx =>
+        !q ||
+        (tx.userId?.name || '').toLowerCase().includes(q) ||
+        (tx.type || '').toLowerCase().includes(q) ||
+        String(tx.amount || tx.coins || '').includes(q)
+    );
 
     return (
         <div className="space-y-6 pb-20">
@@ -204,21 +264,130 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
                 {/* Revenue Analytics */}
-                <div className="xl:col-span-4 bg-surface border border-surface rounded-lg p-6 flex flex-col h-[400px]">
-                    <div className="flex items-center justify-between mb-8">
+                <div className="xl:col-span-4 bg-surface border border-surface rounded-lg p-6 flex flex-col" style={{ minHeight: '420px' }}>
+                    <div className="flex items-center justify-between mb-4">
                         <div>
                             <h3 className="text-[10px] font-bold uppercase tracking-widest text-text">Revenue Performance</h3>
                             <p className="text-[9px] text-muted font-medium uppercase tracking-wider mt-1 opacity-60">Monthly Yield Analysis</p>
                         </div>
+                        {/* View toggle */}
+                        <div className="flex items-center gap-1 bg-bg border border-surface rounded-lg p-1">
+                            {['6M', '12M'].map(v => (
+                                <button
+                                    key={v}
+                                    onClick={() => setChartView(v)}
+                                    className={`px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all ${
+                                        chartView === v
+                                            ? 'bg-primary text-black'
+                                            : 'text-muted hover:text-text'
+                                    }`}
+                                >
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="flex-1 w-full bg-surface2/50 rounded-lg border border-surface p-8 flex items-end justify-around gap-3 relative group mt-auto min-h-[250px]">
-                        {graphData.map((d, i) => (
-                            <div key={i} className="flex flex-col items-center gap-2 flex-1 h-full justify-end group">
-                                <ChartBar height={d.height} value={formatCurrency(d.value)} />
-                                <span className="text-[8px] font-bold text-muted uppercase tracking-tighter opacity-40 group-hover:opacity-100 transition-opacity">{d.label}</span>
+                    {/* Chart area */}
+                    <div className="flex-1 flex gap-3 relative" style={{ minHeight: '280px' }}>
+                        {/* Y-axis labels */}
+                        <div className="flex flex-col justify-between items-end pb-8 shrink-0" style={{ width: '52px' }}>
+                            {[...ySteps].reverse().map((step, i) => (
+                                <span key={i} className="text-[8px] font-bold text-muted/60 uppercase tracking-wider leading-none">
+                                    {step.value >= 100000
+                                        ? `₹${(step.value / 100000).toFixed(1)}L`
+                                        : step.value >= 1000
+                                            ? `₹${(step.value / 1000).toFixed(0)}K`
+                                            : `₹${step.value.toFixed(0)}`
+                                    }
+                                </span>
+                            ))}
+                            <span className="text-[8px] font-bold text-muted/40">₹0</span>
+                        </div>
+
+                        {/* Bars + grid */}
+                        <div className="flex-1 relative flex flex-col">
+                            {/* Horizontal grid lines */}
+                            <div className="absolute inset-0 bottom-8 flex flex-col justify-between pointer-events-none">
+                                {[...ySteps, { pct: 0 }].map((step, i) => (
+                                    <div key={i} className="w-full border-t border-surface/60" />
+                                ))}
                             </div>
-                        ))}
+
+                            {/* Bars row */}
+                            <div className="flex-1 flex items-end gap-1.5 px-1 pb-0">
+                                {displayData.map((d, i) => {
+                                    const heightPct = getBarHeight(d.value);
+                                    const isPeak = d.value === maxRevenue && d.value > 0;
+                                    return (
+                                        <div
+                                            key={d.month}
+                                            className="flex-1 flex flex-col items-center justify-end h-full group relative"
+                                        >
+                                            {/* Tooltip */}
+                                            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none z-20">
+                                                <div className="bg-text text-bg text-[9px] font-black px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap">
+                                                    <p className="uppercase tracking-wider">{d.label}</p>
+                                                    <p className="text-primary mt-0.5">
+                                                        {d.value > 0 ? formatCurrency(d.value) : 'No revenue'}
+                                                    </p>
+                                                </div>
+                                                <div className="w-2 h-2 bg-text rotate-45 mx-auto -mt-1" />
+                                            </div>
+
+                                            {/* Bar */}
+                                            <motion.div
+                                                key={`${d.month}-${chartView}`}
+                                                initial={{ height: 0 }}
+                                                animate={{ height: `${heightPct}%` }}
+                                                transition={{ duration: 0.5, delay: i * 0.03, ease: 'easeOut' }}
+                                                className={`w-full rounded-t-[3px] transition-all cursor-pointer ${
+                                                    d.isFuture
+                                                        ? 'bg-surface2 border border-dashed border-surface'
+                                                        : isPeak
+                                                            ? 'bg-primary group-hover:brightness-110'
+                                                            : d.value > 0
+                                                                ? 'bg-primary opacity-70 group-hover:opacity-100'
+                                                                : 'bg-surface2'
+                                                }`}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Month labels */}
+                            <div className="flex gap-1.5 px-1 pt-2" style={{ height: '32px' }}>
+                                {displayData.map((d) => (
+                                    <div key={d.month} className="flex-1 flex items-center justify-center">
+                                        <span className={`text-[8px] font-black uppercase tracking-wider ${
+                                            d.isFuture ? 'text-muted/30' : 'text-muted/70'
+                                        }`}>{d.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Summary strip */}
+                    <div className="flex items-center gap-6 pt-4 mt-2 border-t border-surface">
+                        <div>
+                            <p className="text-[8px] text-muted uppercase tracking-widest font-bold">Period Total</p>
+                            <p className="text-sm font-black text-text mt-0.5">{formatCurrency(totalRevenue)}</p>
+                        </div>
+                        <div className="h-8 w-px bg-surface" />
+                        <div>
+                            <p className="text-[8px] text-muted uppercase tracking-widest font-bold">Peak Month</p>
+                            <p className="text-sm font-black text-primary mt-0.5">
+                                {peakMonth?.value > 0 ? `${peakMonth.label} — ${formatCurrency(peakMonth.value)}` : '—'}
+                            </p>
+                        </div>
+                        <div className="ml-auto flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-sm bg-primary" />
+                            <span className="text-[8px] text-muted font-bold uppercase tracking-wider">Revenue</span>
+                            <div className="w-2.5 h-2.5 rounded-sm bg-surface2 border border-dashed border-surface ml-3" />
+                            <span className="text-[8px] text-muted font-bold uppercase tracking-wider">Upcoming</span>
+                        </div>
                     </div>
                 </div>
 
@@ -253,16 +422,7 @@ export default function AdminDashboard() {
                             ))}
                         </div>
 
-                        <div className="mt-8 p-4 bg-bg border border-surface rounded-lg flex items-center gap-4">
-                            <div className="p-2.5 rounded-lg bg-primary/10 text-primary border border-surface">
-                                <Activity className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-text uppercase tracking-widest">Global Pulse</p>
-                                <p className="text-[9px] text-muted font-medium uppercase tracking-wider">Highly Optimistic</p>
-                            </div>
-                            <ArrowUpRight className="ml-auto w-4 h-4 text-emerald-500" />
-                        </div>
+
                     </div>
                 </div>
             </div>
@@ -274,11 +434,17 @@ export default function AdminDashboard() {
                         <h3 className="text-[10px] font-bold text-text flex items-center gap-2 uppercase tracking-widest">
                             <Users className="w-4 h-4 text-blue-500" />
                             Recent Onboarding
+                            {q && <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">Filtered</span>}
                         </h3>
-                        <button className="text-[9px] font-bold uppercase tracking-wider text-muted hover:text-primary transition-colors">View All</button>
+                        <button
+                            onClick={() => navigate('/admin/users')}
+                            className="text-[9px] font-bold uppercase tracking-wider text-muted hover:text-primary transition-colors"
+                        >
+                            View All
+                        </button>
                     </div>
                     <div className="space-y-3">
-                        {dashboardStats?.recentUsers?.map((user, i) => (
+                        {filteredUsers.map((user) => (
                             <div key={user._id} className="flex items-center gap-3 p-3 bg-bg border border-surface rounded-lg hover:border-primary/20 transition-all group cursor-pointer">
                                 <div className="w-10 h-10 rounded-full bg-surface2 border border-surface overflow-hidden">
                                     <Avatar src={user.avatar} size="w-full h-full" alt={user.name} />
@@ -294,8 +460,10 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         ))}
-                        {!dashboardStats?.recentUsers?.length && (
-                            <p className="text-center py-10 text-[10px] text-muted uppercase font-bold opacity-40">No recent users detected</p>
+                        {filteredUsers.length === 0 && (
+                            <p className="text-center py-10 text-[10px] text-muted uppercase font-bold opacity-40">
+                                {q ? `No users matching "${dashboardSearchQuery}"` : 'No recent users detected'}
+                            </p>
                         )}
                     </div>
                 </div>
@@ -306,11 +474,17 @@ export default function AdminDashboard() {
                         <h3 className="text-[10px] font-bold text-text flex items-center gap-2 uppercase tracking-widest">
                             <DollarSign className="w-4 h-4 text-emerald-500" />
                             Live Transactions
+                            {q && <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">Filtered</span>}
                         </h3>
-                        <button className="text-[9px] font-bold uppercase tracking-wider text-muted hover:text-emerald-500 transition-colors">Audit Ledger</button>
+                        <button
+                            onClick={() => navigate('/admin/wallet')}
+                            className="text-[9px] font-bold uppercase tracking-wider text-muted hover:text-emerald-500 transition-colors"
+                        >
+                            Audit Ledger
+                        </button>
                     </div>
                     <div className="space-y-3">
-                        {dashboardStats?.recentTransactions?.map((tx, i) => (
+                        {filteredTxns.map((tx) => (
                             <div key={tx._id} className="flex items-center gap-3 p-3 bg-bg border border-surface rounded-lg hover:border-emerald-500/20 transition-all group">
                                 <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
                                     <ArrowUpRight className="w-4 h-4" />
@@ -331,8 +505,10 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         ))}
-                        {!dashboardStats?.recentTransactions?.length && (
-                            <p className="text-center py-10 text-[10px] text-muted uppercase font-bold opacity-40">Idle transaction layer</p>
+                        {filteredTxns.length === 0 && (
+                            <p className="text-center py-10 text-[10px] text-muted uppercase font-bold opacity-40">
+                                {q ? `No transactions matching "${dashboardSearchQuery}"` : 'Idle transaction layer'}
+                            </p>
                         )}
                     </div>
                 </div>

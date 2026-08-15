@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Post = require("../../models/Post");
+const KycSubmission = require("../../models/KycSubmission");
 const { getCachedRates } = require("../../utils/exchangeRate");
 
 // Map a User document into the shape expected by the admin UI
@@ -79,7 +80,11 @@ exports.listUsers = async (req, res) => {
 
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"), "i");
-      conditions.push({ $or: [{ name: regex }, { email: regex }] });
+      const searchOr = [{ name: regex }, { email: regex }];
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        searchOr.push({ _id: search });
+      }
+      conditions.push({ $or: searchOr });
     }
 
     if (req.query.flagged === "true") {
@@ -183,9 +188,10 @@ exports.getUserDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const [postsCount, nftsCount] = await Promise.all([
+    const [postsCount, nftsCount, kycDetails] = await Promise.all([
       Post.countDocuments({ creator: userObjId }).exec(),
-      Post.countDocuments({ creator: userObjId, isNFT: true }).exec()
+      Post.countDocuments({ creator: userObjId, isNFT: true }).exec(),
+      KycSubmission.findOne({ userId: userObjId }).sort({ createdAt: -1 }).lean().exec()
     ]);
 
     const base = toAdminUserSummary(user);
@@ -229,6 +235,7 @@ exports.getUserDetail = async (req, res) => {
       following: followingList,
       postsCount: Number(postsCount),
       nftsCount: Number(nftsCount),
+      kycDetails: kycDetails || null,
       giftHistory: [
         { id: "G-1", sender: "System", gift: "Welcome Bonus", value: 0, date: base.joined }
       ],

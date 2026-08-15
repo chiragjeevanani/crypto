@@ -183,11 +183,11 @@ export default function WalletOverview() {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-surface">
-                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted">Transaction Details</th>
-                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-center">Entity</th>
-                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-center">Type</th>
-                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-center">Amount</th>
-                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Status</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-text">Transaction Details</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-text text-center">Entity</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-text text-center">Type</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-text text-center">Amount</th>
+                                <th className="pb-4 text-[9px] font-bold uppercase tracking-widest text-text text-right">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-surface/50">

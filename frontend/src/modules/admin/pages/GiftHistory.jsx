@@ -32,21 +32,9 @@ export default function GiftHistory() {
                 subtitle="Live audit of peer-to-peer asset transfers across the network."
             />
 
-            <div className="flex items-center gap-4 bg-surface border border-surface rounded-xl p-3">
-                <div className="p-2 bg-primary/10 text-primary border border-surface rounded-lg">
-                    <Search className="w-4 h-4" />
-                </div>
-                <input 
-                    type="text" 
-                    placeholder="Search by sender, receiver or gift asset..." 
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="flex-1 bg-transparent border-none outline-none text-xs font-semibold text-text"
-                />
-            </div>
-
             <AdminDataTable 
                 title="Universal Gift Ledger"
+                onSearch={setSearch}
                 columns={["Timestamp", "Sender", "Recipient", "Asset", "Value", "Context"]}
                 isLoading={isLoading}
                 data={filtered.map(h => ({
@@ -58,7 +46,6 @@ export default function GiftHistory() {
                         </div>,
                         <span className="text-xs font-bold text-text">{h.sender || 'Unknown'}</span>,
                         <div className="flex items-center gap-2">
-                             <ArrowRight className="w-3 h-3 text-muted" />
                              <span className="text-xs font-bold text-primary">{h.receiver || 'Unknown'}</span>
                         </div>,
                         <div className="flex items-center gap-2">

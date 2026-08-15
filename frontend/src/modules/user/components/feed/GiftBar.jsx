@@ -3,6 +3,7 @@ import { Gift, HelpCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
+import { useNavigate } from 'react-router-dom'
 import GiftButton from './GiftButton'
 import { usePlatformSettings } from '../../hooks/usePlatformSettings'
 import { useWalletStore } from '../../store/useWalletStore'
@@ -15,9 +16,10 @@ const EMPTY_COUNTS = {}
 
 function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
     const { maxGiftsPerMinute } = usePlatformSettings()
-    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts, giftsLoading } = useWalletStore(useShallow((s) => ({
+    const { giftSpendWallet, setGiftSpendWallet, inrWallet, cryptoWallet, gifts, giftsLoading, walletRates } = useWalletStore(useShallow((s) => ({
         giftSpendWallet: s.giftSpendWallet, setGiftSpendWallet: s.setGiftSpendWallet,
         inrWallet: s.inrWallet, cryptoWallet: s.cryptoWallet, gifts: s.gifts, giftsLoading: s.giftsLoading,
+        walletRates: s.walletRates
     })))
     const profile = useUserStore((s) => s.profile)
     const giftCountsRaw = useFeedStore((s) => s.giftCountsByPostId?.[postId])
@@ -34,6 +36,7 @@ function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
     const [activeSound, setActiveSound] = useState(null)
     const sentAtRef = useRef([])
     const loadGifts = useWalletStore((s) => s.loadGifts)
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (giftTypes.length === 0) {
@@ -149,27 +152,69 @@ function GiftBar({ postId, onGift, compact = false, showCounts = true }) {
                                     <span className="text-3xl">{confirmingGift.emoji}</span>
                                 </div>
                                 <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--color-text)' }}>Send Gift</h3>
-                                <p className="text-xs mb-6 opacity-80" style={{ color: 'var(--color-text)' }}>
-                                    Do you want to send <span className="font-bold text-orange-500">
-                                        {confirmingGift.currencySymbol || currencySymbol}{confirmingGift.price}
-                                    </span> to this post?
-                                </p>
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => setConfirmingGift(null)}
-                                        className="flex-1 py-3 rounded-xl font-bold text-xs"
-                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
-                                    >
-                                        No
-                                    </button>
-                                    <button 
-                                        onClick={confirmGift}
-                                        className="flex-1 py-3 rounded-xl font-bold text-xs text-white"
-                                        style={{ background: 'var(--color-primary)' }}
-                                    >
-                                        Yes
-                                    </button>
-                                </div>
+                                {(() => {
+                                    const coinsNeeded = Number(confirmingGift.coins || confirmingGift.price || 0)
+                                    const localRate = walletRates?.localRate || 1
+                                    const coinsNeededInInr = coinsNeeded / localRate
+                                    const hasSufficientBalance = inrWallet >= coinsNeededInInr
+
+                                    if (hasSufficientBalance) {
+                                        return (
+                                            <>
+                                                <p className="text-xs mb-6 opacity-80" style={{ color: 'var(--color-text)' }}>
+                                                    Do you want to send <span className="font-bold text-orange-500">
+                                                        {confirmingGift.currencySymbol || currencySymbol}{confirmingGift.price}
+                                                    </span> to this post?
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => setConfirmingGift(null)}
+                                                        className="flex-1 py-3 rounded-xl font-bold text-xs"
+                                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                                                    >
+                                                        No
+                                                    </button>
+                                                    <button 
+                                                        onClick={confirmGift}
+                                                        className="flex-1 py-3 rounded-xl font-bold text-xs text-white"
+                                                        style={{ background: 'var(--color-primary)' }}
+                                                    >
+                                                        Yes
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )
+                                    } else {
+                                        return (
+                                            <>
+                                                <p className="text-xs mb-6 font-medium" style={{ color: 'var(--color-danger)' }}>
+                                                    Insufficient balance. You need <span className="font-bold text-orange-500">
+                                                        {confirmingGift.currencySymbol || currencySymbol}{confirmingGift.price}
+                                                    </span> but your balance is low.
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => setConfirmingGift(null)}
+                                                        className="flex-1 py-3 rounded-xl font-bold text-xs"
+                                                        style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setConfirmingGift(null)
+                                                            navigate('/wallet')
+                                                        }}
+                                                        className="flex-1 py-3 rounded-xl font-bold text-xs text-white"
+                                                        style={{ background: 'var(--color-primary)' }}
+                                                    >
+                                                        Add Funds
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )
+                                    }
+                                })()}
                             </motion.div>
                         </div>
                     )}

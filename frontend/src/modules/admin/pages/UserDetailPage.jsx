@@ -12,6 +12,9 @@ import {
     Ban,
     AlertTriangle,
     ExternalLink,
+    FileText,
+    CheckCircle,
+    Eye,
 } from 'lucide-react';
 import { AdminPageHeader } from '../components/shared';
 import { formatCurrency } from '../utils/currency';
@@ -37,6 +40,7 @@ export default function UserDetailPage() {
     const [followingCountFromApi, setFollowingCountFromApi] = useState(null);
     const followersRef = useRef(null);
     const followingRef = useRef(null);
+    const [previewImage, setPreviewImage] = useState(null);
 
     useEffect(() => {
         if (!userId) return;
@@ -243,6 +247,61 @@ export default function UserDetailPage() {
                                 <span className="text-[10px] font-bold text-text uppercase tracking-wider">{u.language || 'English'}</span>
                             </div>
                         </div>
+
+                        {/* KYC Details Section */}
+                        {u.kycDetails && (
+                            <div className="mt-6 pt-6 border-t border-surface">
+                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
+                                    <FileText className="w-4 h-4" /> KYC Documents
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="bg-bg/50 border border-surface rounded-xl p-3">
+                                        <p className="text-[9px] font-bold text-muted uppercase tracking-wider mb-1">Aadhar Number</p>
+                                        <p className="text-sm font-bold text-text">{u.kycDetails.aadharNumber}</p>
+                                        <div className="flex gap-2 mt-2">
+                                            {u.kycDetails.documents?.aadharFrontUrl && (
+                                                <button type="button" onClick={() => setPreviewImage(u.kycDetails.documents.aadharFrontUrl)} className="flex-1 relative group rounded-lg overflow-hidden border border-surface hover:border-primary/50 transition-colors bg-black/10">
+                                                    <img src={u.kycDetails.documents.aadharFrontUrl} alt="Aadhar Front" className="w-full h-24 object-contain" />
+                                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                        <Eye className="w-6 h-6 text-white" />
+                                                    </div>
+                                                </button>
+                                            )}
+                                            {u.kycDetails.documents?.aadharBackUrl && (
+                                                <button type="button" onClick={() => setPreviewImage(u.kycDetails.documents.aadharBackUrl)} className="flex-1 relative group rounded-lg overflow-hidden border border-surface hover:border-primary/50 transition-colors bg-black/10">
+                                                    <img src={u.kycDetails.documents.aadharBackUrl} alt="Aadhar Back" className="w-full h-24 object-contain" />
+                                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                        <Eye className="w-6 h-6 text-white" />
+                                                    </div>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="bg-bg/50 border border-surface rounded-xl p-3">
+                                        <p className="text-[9px] font-bold text-muted uppercase tracking-wider mb-1">PAN Number</p>
+                                        <p className="text-sm font-bold text-text">{u.kycDetails.panNumber}</p>
+                                        {u.kycDetails.documents?.panCardUrl && (
+                                            <button type="button" onClick={() => setPreviewImage(u.kycDetails.documents.panCardUrl)} className="mt-2 block w-full relative group rounded-lg overflow-hidden border border-surface hover:border-primary/50 transition-colors bg-black/10">
+                                                <img src={u.kycDetails.documents.panCardUrl} alt="PAN Card" className="w-full h-24 object-contain" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <Eye className="w-6 h-6 text-white" />
+                                                </div>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-bg/50 border border-surface rounded-xl">
+                                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider">Status</span>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${
+                                            u.kycDetails.status === 'verified' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                            u.kycDetails.status === 'rejected' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
+                                            'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                        }`}>
+                                            {u.kycDetails.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -494,6 +553,22 @@ export default function UserDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Image Preview Modal */}
+            {previewImage && (
+                <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1200 }}>
+                    <div 
+                        className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                        onClick={() => setPreviewImage(null)}
+                    />
+                    <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col items-center justify-center">
+                        <button onClick={() => setPreviewImage(null)} className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                        <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-2xl" />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

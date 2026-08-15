@@ -7,6 +7,7 @@ import AssetUploader from './AssetUploader';
 export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose, onSubmit }) {
     // mode: 'modal' (default) renders overlay/backdrop, 'page' renders inline centered
     const [step, setStep] = useState(1);
+    const [dateError, setDateError] = useState('');
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -34,6 +35,13 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
     });
 
     const handleNext = () => {
+        if (step === 1) {
+            if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
+                setDateError('End date must be after the start date.');
+                return;
+            }
+            setDateError('');
+        }
         if (step < 5) setStep(step + 1);
     };
     const handlePrev = () => {
@@ -262,7 +270,10 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                         <input
                                             type="date"
                                             value={formData.startDate}
-                                            onChange={e => handleInputChange('startDate', e.target.value)}
+                                            onChange={e => {
+                                                handleInputChange('startDate', e.target.value);
+                                                setDateError('');
+                                            }}
                                             className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
                                         />
                                     </div>
@@ -273,9 +284,18 @@ export default function CampaignWizard({ mode = 'modal', isOpen = true, onClose,
                                         <input
                                             type="date"
                                             value={formData.endDate}
-                                            onChange={e => handleInputChange('endDate', e.target.value)}
-                                            className="w-full bg-bg border border-surface rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none"
+                                            min={formData.startDate || undefined}
+                                            onChange={e => {
+                                                handleInputChange('endDate', e.target.value);
+                                                setDateError('');
+                                            }}
+                                            className={`w-full bg-bg border rounded-xl py-3 px-4 text-xs font-medium text-text focus:ring-1 focus:ring-primary/30 outline-none ${
+                                                dateError ? 'border-red-500/70' : 'border-surface'
+                                            }`}
                                         />
+                                        {dateError && (
+                                            <p className="text-[10px] text-red-400 font-medium ml-1 mt-1">{dateError}</p>
+                                        )}
                                     </div>
                                 </div>
 

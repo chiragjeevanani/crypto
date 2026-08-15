@@ -842,9 +842,6 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     const postRefs = useRef({})
     const [activeReelIndex, setActiveReelIndex] = useState(null)
     const itemHeightRef = useRef(0)
-    const loopedPosts = useMemo(() => (posts.length > 1 && !forceReels ? [...posts, ...posts, ...posts] : posts), [posts, forceReels])
-
-    const isOpen = startIndex !== null && startIndex >= 0
     const isReelsMode = useMemo(() => {
         if (forceReels) return true
         if (!posts.length) return false
@@ -856,6 +853,9 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
         }
         return posts.every((p) => p.media?.type === 'video')
     }, [posts, forceReels])
+
+    const loopedPosts = useMemo(() => (posts.length > 1 && isReelsMode ? [...posts, ...posts, ...posts] : posts), [posts, isReelsMode])
+    const isOpen = startIndex !== null && startIndex >= 0
     const safeIndex = useMemo(() => {
         if (!isOpen) return 0
         return Math.max(0, Math.min(posts.length - 1, startIndex))
@@ -866,7 +866,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     // alive — everything further away collapses to a lightweight placeholder inside
     // the same fixed-height wrapper, so memory/DOM cost no longer grows with scroll depth.
     const RENDER_WINDOW = 2
-    const initialLoopIndex = posts.length > 1 ? posts.length + safeIndex : safeIndex
+    const initialLoopIndex = posts.length > 1 && isReelsMode ? posts.length + safeIndex : safeIndex
     const effectiveActiveIndex = activeReelIndex ?? initialLoopIndex
 
     useEffect(() => {
@@ -885,7 +885,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
 
     useEffect(() => {
         if (!isOpen) return
-        const loopIndex = posts.length > 1 ? posts.length + safeIndex : safeIndex
+        const loopIndex = posts.length > 1 && isReelsMode ? posts.length + safeIndex : safeIndex
         const node = postRefs.current[loopIndex]
         if (node && containerRef.current) {
             node.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -937,7 +937,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     }, [isOpen, isReelsMode, loopedPosts])
 
     useEffect(() => {
-        if (!isOpen || posts.length <= 1 || forceReels) return
+        if (!isOpen || posts.length <= 1 || !isReelsMode) return
         const container = containerRef.current
         if (!container) return
         let lock = false

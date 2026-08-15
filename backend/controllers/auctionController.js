@@ -361,15 +361,17 @@ const processEndedAuctions = async () => {
             } catch (txError) {
                 session = null;
             }
-            try {
+
+            const runSettlement = async (useSession) => {
+                const activeSession = useSession ? session : null;
                 auction.status = "ended";
                 
                 if (auction.winner && auction.highestBid > 0) {
-                    const winner = session
-                        ? await User.findById(auction.winner).session(session)
+                    const winner = activeSession
+                        ? await User.findById(auction.winner).session(activeSession)
                         : await User.findById(auction.winner);
-                    const creator = session
-                        ? await User.findById(auction.creator).session(session)
+                    const creator = activeSession
+                        ? await User.findById(auction.creator).session(activeSession)
                         : await User.findById(auction.creator);
                     
                     if (winner && creator) {
@@ -383,16 +385,16 @@ const processEndedAuctions = async () => {
                         if (winner.rechargeCoins < 0) {
                             winner.rechargeCoins = 0;
                         }
-                        if (session) {
-                            await winner.save({ session });
+                        if (activeSession) {
+                            await winner.save({ session: activeSession });
                         } else {
                             await winner.save();
                         }
 
                         // Add to creator
                         creator.rechargeCoins += payout;
-                        if (session) {
-                            await creator.save({ session });
+                        if (activeSession) {
+                            await creator.save({ session: activeSession });
                         } else {
                             await creator.save();
                         }
@@ -419,9 +421,9 @@ const processEndedAuctions = async () => {
                             status: "success"
                         };
 
-                        if (session) {
-                            await WalletTransaction.create([txDataWinner], { session });
-                            await WalletTransaction.create([txDataCreator], { session });
+                        if (activeSession) {
+                            await WalletTransaction.create([txDataWinner], { session: activeSession });
+                            await WalletTransaction.create([txDataCreator], { session: activeSession });
                         } else {
                             await WalletTransaction.create(txDataWinner);
                             await WalletTransaction.create(txDataCreator);
@@ -438,8 +440,8 @@ const processEndedAuctions = async () => {
                             transferType: "initial_sale"
                         };
 
-                        if (session) {
-                            await CollectibleOwnership.create([ownershipData], { session });
+                        if (activeSession) {
+                            await CollectibleOwnership.create([ownershipData], { session: activeSession });
                         } else {
                             await CollectibleOwnership.create(ownershipData);
                         }
@@ -449,11 +451,29 @@ const processEndedAuctions = async () => {
                     }
                 }
 
-                if (session) {
-                    await auction.save({ session });
+                if (activeSession) {
+                    await auction.save({ session: activeSession });
                     await session.commitTransaction();
                 } else {
                     await auction.save();
+                }
+            };
+
+            try {
+                if (session) {
+                    try {
+                        await runSettlement(true);
+                    } catch (settleErr) {
+                        try {
+                            await session.abortTransaction();
+                        } catch (abortErr) {}
+                        session.endSession();
+                        session = null;
+                        console.warn(`Transaction failed for auction ${auction._id}, falling back to non-transactional settlement:`, settleErr.message);
+                        await runSettlement(false);
+                    }
+                } else {
+                    await runSettlement(false);
                 }
                 
                 broadcastToRoom(`auction_${auction._id}`, "auction_ended", {
@@ -462,9 +482,6 @@ const processEndedAuctions = async () => {
                     highestBid: auction.highestBid
                 });
             } catch (err) {
-                if (session) {
-                    await session.abortTransaction();
-                }
                 console.error(`Failed to process auction ${auction._id}:`, err);
             } finally {
                 if (session) {
@@ -473,7 +490,7 @@ const processEndedAuctions = async () => {
             }
         }
     } catch (error) {
-        console.error("Process Ended Auctions Global Error:", error);
+        console.error("processEndedAuctions error:", error);
     }
 };
 

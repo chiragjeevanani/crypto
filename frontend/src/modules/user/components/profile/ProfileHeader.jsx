@@ -100,7 +100,7 @@ function ShareModal({ isOpen, onClose, referralCode }) {
   );
 }
 
-export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpenFollowing }) {
+export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpenFollowing, onAvatarClick }) {
     const { format: formatLocal } = useUserCurrency()
     const navigate = useNavigate()
     const [isShareOpen, setIsShareOpen] = useState(false)
@@ -120,8 +120,9 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
             <div className="flex items-start gap-4">
                 {/* Avatar with gradient ring */}
                 <div
-                    className="flex-shrink-0 p-0.5 rounded-full"
+                    className="flex-shrink-0 p-0.5 rounded-full cursor-pointer transition-transform active:scale-95"
                     style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary2))' }}
+                    onClick={onAvatarClick}
                 >
                     <Avatar 
                         src={profile.avatar} 

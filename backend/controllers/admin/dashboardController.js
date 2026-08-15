@@ -15,18 +15,18 @@ exports.getDashboardStats = async (req, res) => {
         ]);
         const totalRevenue = revenueAggregation.length > 0 ? revenueAggregation[0].total : 0;
 
-        // 2. Revenue By Month (Last 6 Months)
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-        sixMonthsAgo.setDate(1);
-        sixMonthsAgo.setHours(0, 0, 0, 0);
+        // 2. Revenue By Month (Last 12 Months)
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
+        twelveMonthsAgo.setDate(1);
+        twelveMonthsAgo.setHours(0, 0, 0, 0);
 
         const revenueByMonth = await WalletTransaction.aggregate([
             {
                 $match: {
                     type: "deposit",
                     status: "success",
-                    createdAt: { $gte: sixMonthsAgo }
+                    createdAt: { $gte: twelveMonthsAgo }
                 }
             },
             {
@@ -112,11 +112,24 @@ exports.getFinancialStats = async (req, res) => {
 
         // Platform commissions derived from successful withdrawals (realized profit)
         const Withdrawal = require("../../models/Withdrawal");
-        const commissionAgg = await Withdrawal.aggregate([
-            { $match: { status: "success" } },
-            { $group: { _id: null, total: { $sum: "$platformFee" } } }
+        const withdrawalStatsAgg = await Withdrawal.aggregate([
+            {
+                $facet: {
+                    successStats: [
+                        { $match: { status: "success" } },
+                        { $group: { _id: null, totalCommissions: { $sum: "$platformFee" }, totalPayouts: { $sum: "$finalAmount" } } }
+                    ],
+                    pendingStats: [
+                        { $match: { status: "pending" } },
+                        { $group: { _id: null, totalVolume: { $sum: "$grossAmount" } } }
+                    ]
+                }
+            }
         ]);
-        const commissions = commissionAgg[0]?.total || 0;
+
+        const commissions = withdrawalStatsAgg[0]?.successStats[0]?.totalCommissions || 0;
+        const totalPayouts = withdrawalStatsAgg[0]?.successStats[0]?.totalPayouts || 0;
+        const pendingVolume = withdrawalStatsAgg[0]?.pendingStats[0]?.totalVolume || 0;
 
         res.status(200).json({
             success: true,
@@ -125,6 +138,8 @@ exports.getFinancialStats = async (req, res) => {
                 promotionRevenue,
                 walletRechargeRevenue,
                 commissions,
+                totalPayouts,
+                pendingVolume,
                 // Add metadata to track reconciliation
                 syncAt: new Date(),
                 node: "FIN-CORE-01"
