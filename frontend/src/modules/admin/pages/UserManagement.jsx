@@ -420,6 +420,18 @@ export default function UserManagement() {
                                                 <span>Referral Code</span>
                                                 <span className="text-primary">{userDetail.referralCode || 'None'}</span>
                                             </div>
+                                            {userDetail.gender && (
+                                                <div className="flex justify-between items-center text-[10px] font-bold text-muted uppercase border-t border-surface pt-2">
+                                                    <span>Gender</span>
+                                                    <span className="text-text capitalize">{userDetail.gender}</span>
+                                                </div>
+                                            )}
+                                            {userDetail.dateOfBirth && (
+                                                <div className="flex justify-between items-center text-[10px] font-bold text-muted uppercase">
+                                                    <span>Date of Birth</span>
+                                                    <span className="text-text">{new Date(userDetail.dateOfBirth).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -504,8 +516,8 @@ export default function UserManagement() {
                                             userDetail.isBanned ? 'Restore' : 'Restrict'
                                         )}
                                         className={`w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all border ${userDetail.isBanned
-                                                ? 'bg-emerald-500 text-black border-emerald-500 shadow-lg shadow-emerald-500/20'
-                                                : 'bg-rose-500 text-black border-rose-500 shadow-lg shadow-rose-500/20'
+                                            ? 'bg-emerald-500 text-black border-emerald-500 shadow-lg shadow-emerald-500/20'
+                                            : 'bg-rose-500 text-black border-rose-500 shadow-lg shadow-rose-500/20'
                                             }`}
                                     >
                                         {userDetail.isBanned ? 'Authorize Access' : 'Restrict Identity'}
@@ -522,15 +534,15 @@ export default function UserManagement() {
                     </AnimatePresence>
                 </div>
             </div>
-        <ConfirmModal
-            isOpen={confirmState.open}
-            title={confirmState.title}
-            message={confirmState.message}
-            variant={confirmState.variant}
-            confirmText={confirmState.confirmText}
-            onConfirm={handleConfirmed}
-            onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
-        />
+            <ConfirmModal
+                isOpen={confirmState.open}
+                title={confirmState.title}
+                message={confirmState.message}
+                variant={confirmState.variant}
+                confirmText={confirmState.confirmText}
+                onConfirm={handleConfirmed}
+                onCancel={() => setConfirmState(s => ({ ...s, open: false }))}
+            />
         </div>
     );
 }

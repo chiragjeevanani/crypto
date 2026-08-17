@@ -114,6 +114,15 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: ""
     },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other", ""],
+      default: ""
+    },
+    dateOfBirth: {
+      type: Date,
+      default: null
+    },
     language: {
       type: String,
       trim: true,

@@ -28,7 +28,7 @@ const getBalance = async (req, res) => {
     }
     const rechargeCoins = Number(user.rechargeCoins || 0);
     const earningCoins = Number(user.earningCoins || 0);
-    
+
     let localRate = 1;
     const currencyCode = user.currencyCode || "INR";
     if (currencyCode !== "INR") {
@@ -215,23 +215,23 @@ const sendGift = async (req, res) => {
         // 1. Determine how much the sender pays in their LOCAL currency
         let localPricePaid;
         if (senderCurrency === "INR") {
-            localPricePaid = gift.priceInr || 1;
+          localPricePaid = gift.priceInr || 1;
         } else {
-            // Everyone else pays the Global price in their local currency value
-            localPricePaid = gift.priceGlobal || gift.priceUsd || 1;
+          // Everyone else pays the Global price in their local currency value
+          localPricePaid = gift.priceGlobal || gift.priceUsd || 1;
         }
 
         // 2. Convert that local payment to INR base (since wallets store coins in INR base)
         const inrRate = rates["INR"] || 80;
         const senderRate = rates[senderCurrency] || 1;
-        
+
         // Convert to USD first, then to INR
         const baseUsdOfTx = localPricePaid / senderRate;
         deductAmount = parseFloat((baseUsdOfTx * inrRate).toFixed(2));
 
         // 3. The receiver gets the exact same INR base value in their earningCoins
         creditAmount = deductAmount;
-        
+
         if (creditAmount <= 0) throw new Error("Conversion error for receiver");
 
         const senderBefore = Number(sender.rechargeCoins || 0);
@@ -275,11 +275,11 @@ const sendGift = async (req, res) => {
               referenceType: "gift",
               status: "success",
               idempotencyKey,
-              meta: { 
-                receiverId, 
+              meta: {
+                receiverId,
                 receiverName: receiver.name || receiver.username,
                 receiverHandle: receiver.handle,
-                postId, 
+                postId,
                 reelId,
                 basePriceUsd: baseUsdOfTx,
                 localCurrency: sender.currencyCode,
@@ -299,11 +299,11 @@ const sendGift = async (req, res) => {
               referenceId,
               referenceType: "gift",
               status: "success",
-              meta: { 
-                senderId, 
+              meta: {
+                senderId,
                 senderName: sender.name || sender.username,
                 senderHandle: sender.handle,
-                postId, 
+                postId,
                 reelId,
                 basePriceUsd: baseUsdOfTx,
                 localCurrency: receiver.currencyCode,
@@ -329,11 +329,11 @@ const sendGift = async (req, res) => {
       const giftEmoji = gift.icon || "🎁";
       const notifType = gift.name?.toLowerCase().includes("heart") ? "follower_broadcast" : "gift";
       const notifTitle = `${senderHandle} sent a ${giftEmoji} ${gift.name} to ${receiverHandle}`;
-      
+
       const receiverAmountFormatted = `${receiver.currencySymbol}${creditAmount.toFixed(2)}`;
       const notifSubtitle = notifType === "follower_broadcast"
-          ? "Broadcast sent to 100 followers to boost engagement."
-          : `You received a premium ${gift.name}! (${receiverAmountFormatted})`;
+        ? ""
+        : `You received a premium ${gift.name}! (${receiverAmountFormatted})`;
 
       const savedNotif = await createNotification({
         recipientId: receiverId,
@@ -341,9 +341,9 @@ const sendGift = async (req, res) => {
         type: notifType,
         title: notifTitle,
         subtitle: notifSubtitle,
-        meta: { 
-          postId, reelId, 
-          giftName: gift.name, giftIcon: giftEmoji, 
+        meta: {
+          postId, reelId,
+          giftName: gift.name, giftIcon: giftEmoji,
           amount: creditAmount,
           currency: receiver.currencyCode,
           formatted: receiverAmountFormatted
@@ -365,7 +365,7 @@ const sendGift = async (req, res) => {
       if (baseUsdOfTx >= 5) {
         const broadcastTitle = `${receiverHandle} received a ${giftEmoji} ${gift.name} from ${senderHandle}!`;
         const broadcastSubtitle = `Join the post to show your support.`;
-        
+
         const globalNotif = await createNotification({
           type: "follower_broadcast",
           title: broadcastTitle,
@@ -473,19 +473,19 @@ const withdraw = async (req, res) => {
         if (coins < Number(config.minWithdrawalCoins || 0)) {
           throw new Error(`Minimum withdrawal amount is ${config.minWithdrawalCoins} RS`);
         }
-        
+
         // Enforce sharing/referral requirement
         const requiredReferrals = Number(config.minReferralsForWithdrawal || 0);
         if (Number(user.referralCount || 0) < requiredReferrals) {
           throw new Error(`You must refer at least ${requiredReferrals} members before withdrawing. (Your count: ${user.referralCount || 0})`);
         }
 
-        let { 
-          paymentMethod, 
-          bankDetails, 
-          upiId, 
-          kycDetails, 
-          documents 
+        let {
+          paymentMethod,
+          bankDetails,
+          upiId,
+          kycDetails,
+          documents
         } = req.body;
 
         if (!paymentMethod) throw new Error("Payment method is required");
@@ -501,22 +501,22 @@ const withdraw = async (req, res) => {
 
         // Auto-fetch KYC from verified submission if missing in body
         if (!kycDetails?.aadharNumber) {
-            console.log(`[Wallet] KYC details missing in body, fetching from verified submission for user: ${userId}`);
-            const verifiedKyc = await KycSubmission.findOne({ userId, status: 'verified' }).session(session);
-            if (verifiedKyc) {
-                kycDetails = {
-                    aadharNumber: verifiedKyc.aadharNumber,
-                    panNumber: verifiedKyc.panNumber
-                };
-                documents = {
-                    aadharFrontUrl: verifiedKyc.documents?.aadharFrontUrl,
-                    aadharBackUrl: verifiedKyc.documents?.aadharBackUrl,
-                    panCardUrl: verifiedKyc.documents?.panCardUrl
-                };
-                console.log(`[Wallet] Found verified KYC for user: ${userId}`);
-            } else {
-                throw new Error("Verified KYC documentation is required to initiate a payout. Please complete your verification first.");
-            }
+          console.log(`[Wallet] KYC details missing in body, fetching from verified submission for user: ${userId}`);
+          const verifiedKyc = await KycSubmission.findOne({ userId, status: 'verified' }).session(session);
+          if (verifiedKyc) {
+            kycDetails = {
+              aadharNumber: verifiedKyc.aadharNumber,
+              panNumber: verifiedKyc.panNumber
+            };
+            documents = {
+              aadharFrontUrl: verifiedKyc.documents?.aadharFrontUrl,
+              aadharBackUrl: verifiedKyc.documents?.aadharBackUrl,
+              panCardUrl: verifiedKyc.documents?.panCardUrl
+            };
+            console.log(`[Wallet] Found verified KYC for user: ${userId}`);
+          } else {
+            throw new Error("Verified KYC documentation is required to initiate a payout. Please complete your verification first.");
+          }
         }
 
         if (!kycDetails?.aadharNumber) throw new Error("Aadhar number is required for withdrawal");
@@ -552,7 +552,7 @@ const withdraw = async (req, res) => {
 
         const beforeBalance = earningCoins;
         // const afterBalance = earningCoins - coins;
-        
+
         // Deduction moved to Admin Approval step per user requirement
         // user.earningCoins = afterBalance;
         // await user.save({ session });
@@ -584,18 +584,18 @@ const withdraw = async (req, res) => {
 
     // Notify Admins for Withdrawal Request
     try {
-        const user = await User.findById(userId).select("name handle");
-        await notifyAdmins(`Withdrawal request of ₹${withdrawal.finalAmount.toFixed(2)} (${withdrawal.coins} coins) submitted by ${user?.name || 'User'} (${user?.handle || '@user'}). Please review and approve.`, {
-            type: "withdrawal_request",
-            title: "New Withdrawal Request",
-            referenceId: withdrawal._id
-        });
-        
-        // Emit real-time WebSocket event for admins
-        const { broadcastAll } = require("../../utils/socket");
-        broadcastAll("new_withdrawal_request", withdrawal);
+      const user = await User.findById(userId).select("name handle");
+      await notifyAdmins(`Withdrawal request of ₹${withdrawal.finalAmount.toFixed(2)} (${withdrawal.coins} coins) submitted by ${user?.name || 'User'} (${user?.handle || '@user'}). Please review and approve.`, {
+        type: "withdrawal_request",
+        title: "New Withdrawal Request",
+        referenceId: withdrawal._id
+      });
+
+      // Emit real-time WebSocket event for admins
+      const { broadcastAll } = require("../../utils/socket");
+      broadcastAll("new_withdrawal_request", withdrawal);
     } catch (err) {
-        console.error("Error in withdrawal notification:", err);
+      console.error("Error in withdrawal notification:", err);
     }
 
     return res.status(201).json({
@@ -622,10 +622,10 @@ const listActiveGifts = async (req, res) => {
     const mappedGifts = gifts.map(g => {
       // 1. Determine the ground-truth USD price
       const baseUsd = g.priceGlobal || g.priceUsd || (g.priceInr ? g.priceInr / 80 : 0) || 1;
-      
+
       // 2. Determine the local display price - STRICTLY follow admin definitions
       let localPrice;
-      
+
       if (currencyCode === "INR") {
         // Use exact INR price defined by admin (fallback to 1 if not set)
         localPrice = g.priceInr || 1;
@@ -634,7 +634,7 @@ const listActiveGifts = async (req, res) => {
         // This ensures a gift set to "Global: 10" shows as "10" everywhere outside India
         localPrice = g.priceGlobal || baseUsd;
       }
-      
+
       return {
         id: g._id.toString(),
         name: g.name,
@@ -672,9 +672,9 @@ const addPayoutMethod = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    
+
     const { type, upiId, holderName, accountNumber, ifscCode, bankName, primary } = req.body;
-    
+
     if (type === 'upi' && !upiId) return res.status(400).json({ success: false, message: "UPI ID is required" });
     if (type === 'bank' && (!accountNumber || !ifscCode || !holderName)) return res.status(400).json({ success: false, message: "Complete bank details are required" });
 
@@ -682,7 +682,7 @@ const addPayoutMethod = async (req, res) => {
     if (primary) {
       user.payoutMethods.forEach(pm => pm.primary = false);
     }
-    
+
     // If it's the only method, make it primary automatically
     const isFirst = !user.payoutMethods || user.payoutMethods.length === 0;
 
@@ -707,10 +707,10 @@ const removePayoutMethod = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    
+
     const methodId = req.params.id;
     user.payoutMethods = user.payoutMethods.filter(pm => pm._id.toString() !== methodId);
-    
+
     // If we removed the primary one, make the first remaining one primary
     if (user.payoutMethods.length > 0 && !user.payoutMethods.some(pm => pm.primary)) {
       user.payoutMethods[0].primary = true;
@@ -727,7 +727,7 @@ const setPrimaryPayoutMethod = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    
+
     const methodId = req.params.id;
     let found = false;
     user.payoutMethods.forEach(pm => {

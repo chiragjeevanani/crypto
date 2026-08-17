@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check, Globe, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ShieldCheck, Zap, Phone, Search, ChevronDown, Check, Globe, Eye, EyeOff, Calendar } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { authService } from '../../auth/services/authService';
@@ -10,21 +10,21 @@ import { X } from 'lucide-react';
 // Correct mobile number digit counts per country (excluding dial code prefix)
 const PHONE_DIGITS = {
     IN: 10, US: 10, GB: 10, CA: 10, AU: 9,
-    AE: 9,  SA: 9,  SG: 8,  MY: 9,  PH: 10,
-    ID: 9,  PK: 10, BD: 10, NP: 10, LK: 9,
-    DE: 10, FR: 9,  IT: 10, ES: 9,  NL: 9,
+    AE: 9, SA: 9, SG: 8, MY: 9, PH: 10,
+    ID: 9, PK: 10, BD: 10, NP: 10, LK: 9,
+    DE: 10, FR: 9, IT: 10, ES: 9, NL: 9,
     RU: 10, CN: 11, JP: 10, KR: 10, HK: 8,
-    TW: 9,  TH: 9,  VN: 9,  MM: 9,  KH: 9,
-    NG: 10, ZA: 9,  KE: 9,  GH: 9,  ET: 9,
-    EG: 10, MA: 9,  TZ: 9,  UG: 9,  ZM: 9,
+    TW: 9, TH: 9, VN: 9, MM: 9, KH: 9,
+    NG: 10, ZA: 9, KE: 9, GH: 9, ET: 9,
+    EG: 10, MA: 9, TZ: 9, UG: 9, ZM: 9,
     BR: 11, MX: 10, AR: 10, CO: 10, CL: 9,
-    PE: 9,  VE: 10, EC: 9,  BO: 8,  PY: 9,
-    NZ: 9,  FJ: 7,  PG: 8,  IR: 10, IQ: 10,
-    TR: 10, IL: 9,  JO: 9,  LB: 8,  QA: 8,
-    KW: 8,  BH: 8,  OM: 8,  YE: 9,  SY: 9,
-    PL: 9,  UA: 9,  RO: 9,  CZ: 9,  HU: 9,
-    PT: 9,  GR: 10, SE: 9,  NO: 8,  FI: 10,
-    DK: 8,  CH: 9,  AT: 10, BE: 9,  IE: 9,
+    PE: 9, VE: 10, EC: 9, BO: 8, PY: 9,
+    NZ: 9, FJ: 7, PG: 8, IR: 10, IQ: 10,
+    TR: 10, IL: 9, JO: 9, LB: 8, QA: 8,
+    KW: 8, BH: 8, OM: 8, YE: 9, SY: 9,
+    PL: 9, UA: 9, RO: 9, CZ: 9, HU: 9,
+    PT: 9, GR: 10, SE: 9, NO: 8, FI: 10,
+    DK: 8, CH: 9, AT: 10, BE: 9, IE: 9,
 };
 
 /**
@@ -40,22 +40,22 @@ const getPhoneLength = (countryCode, countries) => {
 
 // Comprehensive ISO-3166 country code to dial code map
 const DIAL_CODES = {
-    IN: '+91',  US: '+1',   GB: '+44',  AU: '+61',  CA: '+1',
-    AE: '+971', SA: '+966', SG: '+65',  MY: '+60',  PH: '+63',
-    ID: '+62',  PK: '+92',  BD: '+880', NP: '+977', LK: '+94',
-    DE: '+49',  FR: '+33',  IT: '+39',  ES: '+34',  NL: '+31',
-    RU: '+7',   CN: '+86',  JP: '+81',  KR: '+82',  HK: '+852',
-    TW: '+886', TH: '+66',  VN: '+84',  MM: '+95',  KH: '+855',
-    NG: '+234', ZA: '+27',  KE: '+254', GH: '+233', ET: '+251',
-    EG: '+20',  MA: '+212', TZ: '+255', UG: '+256', ZM: '+260',
-    BR: '+55',  MX: '+52',  AR: '+54',  CO: '+57',  CL: '+56',
-    PE: '+51',  VE: '+58',  EC: '+593', BO: '+591', PY: '+595',
-    NZ: '+64',  FJ: '+679', PG: '+675', IR: '+98',  IQ: '+964',
-    TR: '+90',  IL: '+972', JO: '+962', LB: '+961', QA: '+974',
+    IN: '+91', US: '+1', GB: '+44', AU: '+61', CA: '+1',
+    AE: '+971', SA: '+966', SG: '+65', MY: '+60', PH: '+63',
+    ID: '+62', PK: '+92', BD: '+880', NP: '+977', LK: '+94',
+    DE: '+49', FR: '+33', IT: '+39', ES: '+34', NL: '+31',
+    RU: '+7', CN: '+86', JP: '+81', KR: '+82', HK: '+852',
+    TW: '+886', TH: '+66', VN: '+84', MM: '+95', KH: '+855',
+    NG: '+234', ZA: '+27', KE: '+254', GH: '+233', ET: '+251',
+    EG: '+20', MA: '+212', TZ: '+255', UG: '+256', ZM: '+260',
+    BR: '+55', MX: '+52', AR: '+54', CO: '+57', CL: '+56',
+    PE: '+51', VE: '+58', EC: '+593', BO: '+591', PY: '+595',
+    NZ: '+64', FJ: '+679', PG: '+675', IR: '+98', IQ: '+964',
+    TR: '+90', IL: '+972', JO: '+962', LB: '+961', QA: '+974',
     KW: '+965', BH: '+973', OM: '+968', YE: '+967', SY: '+963',
-    PL: '+48',  UA: '+380', RO: '+40',  CZ: '+420', HU: '+36',
-    PT: '+351', GR: '+30',  SE: '+46',  NO: '+47',  FI: '+358',
-    DK: '+45',  CH: '+41',  AT: '+43',  BE: '+32',  IE: '+353',
+    PL: '+48', UA: '+380', RO: '+40', CZ: '+420', HU: '+36',
+    PT: '+351', GR: '+30', SE: '+46', NO: '+47', FI: '+358',
+    DK: '+45', CH: '+41', AT: '+43', BE: '+32', IE: '+353',
 };
 
 const getDialCode = (countryCode) => DIAL_CODES[countryCode] || '';
@@ -112,7 +112,7 @@ export default function SignUpPage() {
     const [isStateOpen, setIsStateOpen] = useState(false);
     const [stateSearch, setStateSearch] = useState('');
     const stateDropdownRef = useRef(null);
-    
+
     const [isCountryOpen, setIsCountryOpen] = useState(false);
     const [countrySearch, setCountrySearch] = useState('');
     const countryDropdownRef = useRef(null);
@@ -154,7 +154,7 @@ export default function SignUpPage() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-    
+
     // Deep linking: redirect to native app or Play Store fallback when referral code is present on mobile
     useEffect(() => {
         const ref = searchParams.get('ref');
@@ -163,10 +163,10 @@ export default function SignUpPage() {
             if (isMobile) {
                 const appUri = `knqreels://signup?ref=${ref.toUpperCase()}`;
                 const playStoreUrl = `https://play.google.com/store/apps/details?id=com.knqreels.app`;
-                
+
                 // Try launching the native app
                 window.location.href = appUri;
-                
+
                 // Fallback to Play Store after a short delay if app didn't open
                 const timer = setTimeout(() => {
                     if (document.visibilityState === 'visible') {
@@ -205,6 +205,8 @@ export default function SignUpPage() {
         // URL referral code takes priority over draft
         referralCode: refCode || draft?.referralCode || '',
         agreedToTerms: draft?.agreedToTerms || false,
+        gender: draft?.gender || '',
+        dateOfBirth: draft?.dateOfBirth || '',
     });
 
     const [fieldErrors, setFieldErrors] = useState({
@@ -216,6 +218,8 @@ export default function SignUpPage() {
         state: '',
         agreedToTerms: '',
         referralCode: '',
+        gender: '',
+        dateOfBirth: '',
     });
 
     // Fetch countries on mount
@@ -233,17 +237,17 @@ export default function SignUpPage() {
         fetchCountries();
     }, []);
 
-    const filteredStates = states.filter(s => 
+    const filteredStates = states.filter(s =>
         s.name.toLowerCase().includes(stateSearch.toLowerCase())
     );
 
-    const filteredCountries = countries.filter(c => 
-        c.name.toLowerCase().includes(countrySearch.toLowerCase()) || 
+    const filteredCountries = countries.filter(c =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
         c.code.toLowerCase().includes(countrySearch.toLowerCase())
     );
 
-    const selectedCountry = countries.find(c => c.code === formData.countryCode) || 
-                          { name: 'India', code: 'IN', flag: '🇮🇳', currencySymbol: '₹' };
+    const selectedCountry = countries.find(c => c.code === formData.countryCode) ||
+        { name: 'India', code: 'IN', flag: '🇮🇳', currencySymbol: '₹' };
 
     // Fetch states when country changes
     React.useEffect(() => {
@@ -315,7 +319,7 @@ export default function SignUpPage() {
         const passwordErr = validatePassword(formData.password);
         const phoneErr = validatePhone(formData.phone, getPhoneLength(formData.countryCode, countries));
         const countryErr = formData.countryCode ? '' : 'Country is required';
-        
+
         // Only require state if there are states available for this country
         const stateRequired = states.length > 0;
         const stateErr = (stateRequired && !formData.state) ? 'State is required' : '';
@@ -340,10 +344,12 @@ export default function SignUpPage() {
                 password: formData.password,
                 phone: formData.phone.trim() ? formData.phone.replace(/\D/g, '') : undefined,
                 countryCode: formData.countryCode,
-                state: formData.state || "Default", // Provide fallback if no state selected
+                state: formData.state || "Default",
                 language: formData.language,
                 referralCode: formData.referralCode.trim().toUpperCase(),
                 agreedToTerms: formData.agreedToTerms,
+                gender: formData.gender || undefined,
+                dateOfBirth: formData.dateOfBirth || undefined,
             });
             if (res?.requireVerification) {
                 setRegisteredEmail(formData.email.trim());
@@ -415,388 +421,424 @@ export default function SignUpPage() {
 
                     <AnimatePresence mode="wait">
                         {step === 1 ? (
-                    <motion.form 
-                        key="step1"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        onSubmit={handleSubmit} 
-                        className="space-y-3"
-                    >
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Full Name</label>
-                            <div className="relative group">
-                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
-                                <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (/[0-9]/.test(val)) return; // prevent typing numbers
-                                        handleChange('name', val);
-                                    }}
-                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.name ? 'border-red-500' : 'border-surface'}`}
-                                    placeholder="Jane Doe"
-                                />
-                            </div>
-                            {fieldErrors.name && (
-                                <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.name}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Email</label>
-                            <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => handleChange('email', e.target.value)}
-                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.email ? 'border-red-500' : 'border-surface'}`}
-                                    placeholder="name@domain.io"
-                                />
-                            </div>
-                            {fieldErrors.email && (
-                                <p className="text-xs text-red-500 ml-1">{fieldErrors.email}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Password</label>
-                            <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    value={formData.password}
-                                    onChange={(e) => handleChange('password', e.target.value)}
-                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-12 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.password ? 'border-red-500' : 'border-surface'}`}
-                                    placeholder="••••••••"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
-                            </div>
-                            {fieldErrors.password && (
-                                <p className="text-xs text-red-500 ml-1">{fieldErrors.password}</p>
-                            )}
-                        </div>
-                        {/* ── Phone with Dial Code Prefix ── */}
-                        <div className="space-y-2 relative" ref={phoneDialRef}>
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
-                                Phone Number ({getPhoneLength(formData.countryCode, countries)} digits)
-                            </label>
-                            <div className={`flex items-stretch bg-bg border rounded-xl overflow-visible transition-all ${fieldErrors.phone ? 'border-red-500' : 'border-surface'}`}>
-                                {/* Dial code prefix button */}
-                                <button
-                                    type="button"
-                                    onClick={() => { setIsPhoneDialOpen(v => !v); setPhoneDialSearch(''); }}
-                                    className="flex items-center gap-1.5 pl-3 pr-2 py-3.5 border-r text-sm font-semibold shrink-0 transition-colors hover:bg-primary/10 rounded-l-xl cursor-pointer"
-                                    style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text)' }}
-                                >
-                                    <span className="text-base leading-none">
-                                        {countries.find(c => c.code === formData.countryCode)?.flag || '🌍'}
-                                    </span>
-                                    <span className="text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
-                                        {getDialCode(formData.countryCode) || '+?'}
-                                    </span>
-                                    <ChevronDown size={12} className={`transition-transform ${isPhoneDialOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--color-muted)' }} />
-                                </button>
+                            <motion.form
+                                key="step1"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                onSubmit={handleSubmit}
+                                className="space-y-3"
+                            >
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Full Name</label>
+                                    <div className="relative group">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type="text"
+                                            value={formData.name}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (/[0-9]/.test(val)) return; // prevent typing numbers
+                                                handleChange('name', val);
+                                            }}
+                                            className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.name ? 'border-red-500' : 'border-surface'}`}
+                                            placeholder="Jane Doe"
+                                        />
+                                    </div>
+                                    {fieldErrors.name && (
+                                        <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.name}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Email</label>
+                                    <div className="relative group">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={(e) => handleChange('email', e.target.value)}
+                                            className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.email ? 'border-red-500' : 'border-surface'}`}
+                                            placeholder="name@domain.io"
+                                        />
+                                    </div>
+                                    {fieldErrors.email && (
+                                        <p className="text-xs text-red-500 ml-1">{fieldErrors.email}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Password</label>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            value={formData.password}
+                                            onChange={(e) => handleChange('password', e.target.value)}
+                                            className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-12 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text ${fieldErrors.password ? 'border-red-500' : 'border-surface'}`}
+                                            placeholder="••••••••"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    {fieldErrors.password && (
+                                        <p className="text-xs text-red-500 ml-1">{fieldErrors.password}</p>
+                                    )}
+                                </div>
+                                {/* ── Phone with Dial Code Prefix ── */}
+                                <div className="space-y-2 relative" ref={phoneDialRef}>
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
+                                        Phone Number ({getPhoneLength(formData.countryCode, countries)} digits)
+                                    </label>
+                                    <div className={`flex items-stretch bg-bg border rounded-xl overflow-visible transition-all ${fieldErrors.phone ? 'border-red-500' : 'border-surface'}`}>
+                                        {/* Dial code prefix button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => { setIsPhoneDialOpen(v => !v); setPhoneDialSearch(''); }}
+                                            className="flex items-center gap-1.5 pl-3 pr-2 py-3.5 border-r text-sm font-semibold shrink-0 transition-colors hover:bg-primary/10 rounded-l-xl cursor-pointer"
+                                            style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                                        >
+                                            <span className="text-base leading-none">
+                                                {countries.find(c => c.code === formData.countryCode)?.flag || '🌍'}
+                                            </span>
+                                            <span className="text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
+                                                {getDialCode(formData.countryCode) || '+?'}
+                                            </span>
+                                            <ChevronDown size={12} className={`transition-transform ${isPhoneDialOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--color-muted)' }} />
+                                        </button>
 
-                                {/* Actual phone number input */}
-                                <input
-                                    type="tel"
-                                    inputMode="numeric"
-                                    value={formData.phone}
-                                    onChange={(e) => {
-                                        const required = getPhoneLength(formData.countryCode, countries);
-                                        const digits = e.target.value.replace(/\D/g, '').slice(0, required);
-                                        handleChange('phone', digits);
-                                    }}
-                                    className="flex-1 bg-transparent px-3 py-3.5 text-sm font-medium outline-none text-text min-w-0"
-                                    placeholder={`e.g. ${'9876543210'.slice(0, getPhoneLength(formData.countryCode, countries))}`}
-                                />
-                            </div>
+                                        {/* Actual phone number input */}
+                                        <input
+                                            type="tel"
+                                            inputMode="numeric"
+                                            value={formData.phone}
+                                            onChange={(e) => {
+                                                const required = getPhoneLength(formData.countryCode, countries);
+                                                const digits = e.target.value.replace(/\D/g, '').slice(0, required);
+                                                handleChange('phone', digits);
+                                            }}
+                                            className="flex-1 bg-transparent px-3 py-3.5 text-sm font-medium outline-none text-text min-w-0"
+                                            placeholder={`e.g. ${'9876543210'.slice(0, getPhoneLength(formData.countryCode, countries))}`}
+                                        />
+                                    </div>
 
-                            {/* Dial code searchable dropdown */}
-                            <AnimatePresence>
-                                {isPhoneDialOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -8 }}
-                                        transition={{ duration: 0.15 }}
-                                        className="absolute z-[70] left-0 right-0 mt-1 rounded-xl shadow-2xl overflow-hidden"
-                                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                    {/* Dial code searchable dropdown */}
+                                    <AnimatePresence>
+                                        {isPhoneDialOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -8 }}
+                                                transition={{ duration: 0.15 }}
+                                                className="absolute z-[70] left-0 right-0 mt-1 rounded-xl shadow-2xl overflow-hidden"
+                                                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                                            >
+                                                {/* Search */}
+                                                <div className="p-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--color-muted)' }} />
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="Search country or dial code..."
+                                                            value={phoneDialSearch}
+                                                            onChange={(e) => setPhoneDialSearch(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-full rounded-lg py-2 pl-9 pr-4 text-xs outline-none"
+                                                            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {/* Country list */}
+                                                <div className="max-h-52 overflow-y-auto">
+                                                    {countries
+                                                        .filter(c => {
+                                                            const q = phoneDialSearch.toLowerCase();
+                                                            const dial = getDialCode(c.code);
+                                                            return !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || dial.includes(q);
+                                                        })
+                                                        .map(c => {
+                                                            const dial = getDialCode(c.code);
+                                                            const isSelected = formData.countryCode === c.code;
+                                                            return (
+                                                                <div
+                                                                    key={c.code}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleChange('countryCode', c.code);
+                                                                        setIsPhoneDialOpen(false);
+                                                                        setPhoneDialSearch('');
+                                                                    }}
+                                                                    className="flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors"
+                                                                    style={{
+                                                                        background: isSelected ? 'var(--color-primary)10' : 'transparent',
+                                                                    }}
+                                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb, 245,158,11), 0.08)'}
+                                                                    onMouseLeave={e => e.currentTarget.style.background = isSelected ? 'rgba(var(--color-primary-rgb, 245,158,11), 0.08)' : 'transparent'}
+                                                                >
+                                                                    <span className="flex items-center gap-2.5 text-sm" style={{ color: isSelected ? 'var(--color-primary)' : 'var(--color-text)' }}>
+                                                                        <span className="text-lg leading-none">{c.flag}</span>
+                                                                        <span className={isSelected ? 'font-bold' : 'font-medium'}>{c.name}</span>
+                                                                    </span>
+                                                                    <span className="text-xs font-bold tabular-nums ml-2 shrink-0" style={{ color: dial ? 'var(--color-primary)' : 'var(--color-muted)' }}>
+                                                                        {dial || '—'}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    }
+                                                    {countries.filter(c => {
+                                                        const q = phoneDialSearch.toLowerCase();
+                                                        return !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || getDialCode(c.code).includes(q);
+                                                    }).length === 0 && (
+                                                            <div className="px-4 py-6 text-center text-xs italic" style={{ color: 'var(--color-muted)' }}>
+                                                                No countries matching "{phoneDialSearch}"
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    {fieldErrors.phone && (
+                                        <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.phone}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2 relative" ref={countryDropdownRef}>
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Country</label>
+
+                                    {/* Custom Country Dropdown */}
+                                    <div
+                                        onClick={() => setIsCountryOpen(!isCountryOpen)}
+                                        className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium flex items-center justify-between cursor-pointer transition-all ${isCountryOpen ? 'border-primary ring-1 ring-primary/20' : 'border-surface'}`}
                                     >
-                                        {/* Search */}
-                                        <div className="p-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--color-muted)' }} />
-                                                <input
-                                                    autoFocus
-                                                    type="text"
-                                                    placeholder="Search country or dial code..."
-                                                    value={phoneDialSearch}
-                                                    onChange={(e) => setPhoneDialSearch(e.target.value)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="w-full rounded-lg py-2 pl-9 pr-4 text-xs outline-none"
-                                                    style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Country list */}
-                                        <div className="max-h-52 overflow-y-auto">
-                                            {countries
-                                                .filter(c => {
-                                                    const q = phoneDialSearch.toLowerCase();
-                                                    const dial = getDialCode(c.code);
-                                                    return !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || dial.includes(q);
-                                                })
-                                                .map(c => {
-                                                    const dial = getDialCode(c.code);
-                                                    const isSelected = formData.countryCode === c.code;
-                                                    return (
-                                                        <div
-                                                            key={c.code}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleChange('countryCode', c.code);
-                                                                setIsPhoneDialOpen(false);
-                                                                setPhoneDialSearch('');
-                                                            }}
-                                                            className="flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors"
-                                                            style={{
-                                                                background: isSelected ? 'var(--color-primary)10' : 'transparent',
-                                                            }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(var(--color-primary-rgb, 245,158,11), 0.08)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = isSelected ? 'rgba(var(--color-primary-rgb, 245,158,11), 0.08)' : 'transparent'}
-                                                        >
-                                                            <span className="flex items-center gap-2.5 text-sm" style={{ color: isSelected ? 'var(--color-primary)' : 'var(--color-text)' }}>
-                                                                <span className="text-lg leading-none">{c.flag}</span>
-                                                                <span className={isSelected ? 'font-bold' : 'font-medium'}>{c.name}</span>
-                                                            </span>
-                                                            <span className="text-xs font-bold tabular-nums ml-2 shrink-0" style={{ color: dial ? 'var(--color-primary)' : 'var(--color-muted)' }}>
-                                                                {dial || '—'}
-                                                            </span>
+                                        <span className="flex items-center gap-2 text-text">
+                                            {selectedCountry.flag} {selectedCountry.name} ({selectedCountry.currencySymbol})
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {isCountryOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute z-[60] left-0 right-0 top-full mt-2 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                                            >
+                                                <div className="p-2 border-b border-white/5 bg-white/5">
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="Search countries..."
+                                                            value={countrySearch}
+                                                            onChange={(e) => setCountrySearch(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-full bg-bg border border-surface rounded-lg py-2 pl-9 pr-4 text-xs outline-none focus:border-primary/50 transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                    {filteredCountries.length > 0 ? (
+                                                        filteredCountries.map(c => (
+                                                            <div
+                                                                key={c.code}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleChange('countryCode', c.code);
+                                                                    setIsCountryOpen(false);
+                                                                }}
+                                                                className="px-4 py-2.5 text-sm hover:bg-primary/10 cursor-pointer flex items-center justify-between group transition-colors"
+                                                            >
+                                                                <span className={formData.countryCode === c.code ? 'text-primary font-semibold' : 'text-text'}>
+                                                                    {c.flag} {c.name} ({c.currencySymbol})
+                                                                </span>
+                                                                {formData.countryCode === c.code && <Check className="w-4 h-4 text-primary" />}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-4 py-4 text-xs text-muted text-center italic">
+                                                            No countries found matching "{countrySearch}"
                                                         </div>
-                                                    );
-                                                })
-                                            }
-                                            {countries.filter(c => {
-                                                const q = phoneDialSearch.toLowerCase();
-                                                return !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || getDialCode(c.code).includes(q);
-                                            }).length === 0 && (
-                                                <div className="px-4 py-6 text-center text-xs italic" style={{ color: 'var(--color-muted)' }}>
-                                                    No countries matching "{phoneDialSearch}"
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
 
-                            {fieldErrors.phone && (
-                                <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.phone}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2 relative" ref={countryDropdownRef}>
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Country</label>
-                            
-                            {/* Custom Country Dropdown */}
-                            <div 
-                                onClick={() => setIsCountryOpen(!isCountryOpen)}
-                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium flex items-center justify-between cursor-pointer transition-all ${isCountryOpen ? 'border-primary ring-1 ring-primary/20' : 'border-surface'}`}
-                            >
-                                <span className="flex items-center gap-2 text-text">
-                                    {selectedCountry.flag} {selectedCountry.name} ({selectedCountry.currencySymbol})
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
-                            </div>
+                                    {fieldErrors.country && (
+                                        <p className="text-xs text-red-500 ml-1">{fieldErrors.country}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2 relative" ref={stateDropdownRef}>
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
+                                        {loadingLocations ? 'Loading States...' : 'State'}
+                                    </label>
 
-                            <AnimatePresence>
-                                {isCountryOpen && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="absolute z-[60] left-0 right-0 top-full mt-2 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                                    {/* Custom Searchable Dropdown */}
+                                    <div
+                                        onClick={() => !loadingLocations && setIsStateOpen(!isStateOpen)}
+                                        className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium flex items-center justify-between cursor-pointer transition-all ${isStateOpen ? 'border-primary ring-1 ring-primary/20' : 'border-surface'} ${loadingLocations ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
-                                        <div className="p-2 border-b border-white/5 bg-white/5">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
-                                                <input 
-                                                    autoFocus
-                                                    type="text"
-                                                    placeholder="Search countries..."
-                                                    value={countrySearch}
-                                                    onChange={(e) => setCountrySearch(e.target.value)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="w-full bg-bg border border-surface rounded-lg py-2 pl-9 pr-4 text-xs outline-none focus:border-primary/50 transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                                            {filteredCountries.length > 0 ? (
-                                                filteredCountries.map(c => (
-                                                    <div 
-                                                        key={c.code}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleChange('countryCode', c.code);
-                                                            setIsCountryOpen(false);
-                                                        }}
-                                                        className="px-4 py-2.5 text-sm hover:bg-primary/10 cursor-pointer flex items-center justify-between group transition-colors"
-                                                    >
-                                                        <span className={formData.countryCode === c.code ? 'text-primary font-semibold' : 'text-text'}>
-                                                            {c.flag} {c.name} ({c.currencySymbol})
-                                                        </span>
-                                                        {formData.countryCode === c.code && <Check className="w-4 h-4 text-primary" />}
+                                        <span className={formData.state ? 'text-text' : 'text-muted'}>
+                                            {formData.state || "Select State"}
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isStateOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {isStateOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute z-50 left-0 right-0 top-full mt-2 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                                            >
+                                                <div className="p-2 border-b border-white/5 bg-white/5">
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="Search states..."
+                                                            value={stateSearch}
+                                                            onChange={(e) => setStateSearch(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="w-full bg-bg border border-surface rounded-lg py-2 pl-9 pr-4 text-xs outline-none focus:border-primary/50 transition-all"
+                                                        />
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="px-4 py-4 text-xs text-muted text-center italic">
-                                                    No countries found matching "{countrySearch}"
                                                 </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
 
-                            {fieldErrors.country && (
-                                <p className="text-xs text-red-500 ml-1">{fieldErrors.country}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2 relative" ref={stateDropdownRef}>
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
-                                {loadingLocations ? 'Loading States...' : 'State'}
-                            </label>
-                            
-                            {/* Custom Searchable Dropdown */}
-                            <div 
-                                onClick={() => !loadingLocations && setIsStateOpen(!isStateOpen)}
-                                className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium flex items-center justify-between cursor-pointer transition-all ${isStateOpen ? 'border-primary ring-1 ring-primary/20' : 'border-surface'} ${loadingLocations ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <span className={formData.state ? 'text-text' : 'text-muted'}>
-                                    {formData.state || "Select State"}
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isStateOpen ? 'rotate-180' : ''}`} />
-                            </div>
-
-                            <AnimatePresence>
-                                {isStateOpen && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="absolute z-50 left-0 right-0 top-full mt-2 bg-surface border border-surface rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
-                                    >
-                                        <div className="p-2 border-b border-white/5 bg-white/5">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
-                                                <input 
-                                                    autoFocus
-                                                    type="text"
-                                                    placeholder="Search states..."
-                                                    value={stateSearch}
-                                                    onChange={(e) => setStateSearch(e.target.value)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="w-full bg-bg border border-surface rounded-lg py-2 pl-9 pr-4 text-xs outline-none focus:border-primary/50 transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                            {filteredStates.length > 0 ? (
-                                                filteredStates.map(s => (
-                                                    <div 
-                                                        key={s.name}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleChange('state', s.name);
-                                                            setIsStateOpen(false);
-                                                        }}
-                                                        className="px-4 py-2.5 text-sm hover:bg-primary/10 cursor-pointer flex items-center justify-between group transition-colors"
-                                                    >
-                                                        <span className={formData.state === s.name ? 'text-primary font-semibold' : 'text-text'}>
-                                                            {s.name}
-                                                        </span>
-                                                        {formData.state === s.name && <Check className="w-4 h-4 text-primary" />}
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="px-4 py-4 text-xs text-muted text-center italic">
-                                                    No states found matching "{stateSearch}"
+                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                    {filteredStates.length > 0 ? (
+                                                        filteredStates.map(s => (
+                                                            <div
+                                                                key={s.name}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleChange('state', s.name);
+                                                                    setIsStateOpen(false);
+                                                                }}
+                                                                className="px-4 py-2.5 text-sm hover:bg-primary/10 cursor-pointer flex items-center justify-between group transition-colors"
+                                                            >
+                                                                <span className={formData.state === s.name ? 'text-primary font-semibold' : 'text-text'}>
+                                                                    {s.name}
+                                                                </span>
+                                                                {formData.state === s.name && <Check className="w-4 h-4 text-primary" />}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-4 py-4 text-xs text-muted text-center italic">
+                                                            No states found matching "{stateSearch}"
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    {fieldErrors.state && (
+                                        <p className="text-xs text-red-500 ml-1">{fieldErrors.state}</p>
+                                    )}
+                                </div>
+
+                                {/* Gender + Date of Birth - side by side */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Gender</label>
+                                        <div className={`w-full bg-bg border rounded-xl px-4 py-3.5 text-sm font-medium flex items-center justify-between transition-all ${fieldErrors.gender ? 'border-red-500' : 'border-surface'}`}>
+                                            <select
+                                                value={formData.gender}
+                                                onChange={(e) => handleChange('gender', e.target.value)}
+                                                className="flex-1 bg-transparent outline-none text-text text-sm font-medium cursor-pointer"
+                                            >
+                                                <option value="">Select...</option>
+                                                <option value="male">Male</option>
+                                                <option value="female">Female</option>
+                                                <option value="other">Other</option>
+                                            </select>
                                         </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                        {fieldErrors.gender && (
+                                            <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.gender}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Date of Birth</label>
+                                        <input
+                                            type="date"
+                                            value={formData.dateOfBirth}
+                                            max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
+                                            onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                                            className={`w-full bg-bg border rounded-xl py-3.5 px-4 text-sm font-medium outline-none transition-all text-text cursor-pointer ${fieldErrors.dateOfBirth ? 'border-red-500' : 'border-surface'}`}
+                                            style={{ colorScheme: 'auto' }}
+                                        />
+                                        {fieldErrors.dateOfBirth && (
+                                            <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.dateOfBirth}</p>
+                                        )}
+                                    </div>
+                                </div>
 
-                            {fieldErrors.state && (
-                                <p className="text-xs text-red-500 ml-1">{fieldErrors.state}</p>
-                            )}
-                        </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Referral Code (Optional)</label>
+                                    <div className="relative group">
+                                        <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
+                                        <input
+                                            type="text"
+                                            value={formData.referralCode}
+                                            onChange={(e) => handleChange('referralCode', e.target.value.toUpperCase())}
+                                            className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text uppercase placeholder:normal-case ${fieldErrors.referralCode ? 'border-red-500' : 'border-surface'}`}
+                                            placeholder="e.g. USER1234"
+                                        />
+                                    </div>
+                                    {fieldErrors.referralCode && (
+                                        <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.referralCode}</p>
+                                    )}
+                                </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Referral Code (Optional)</label>
-                            <div className="relative group">
-                                <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted group-focus-within:text-primary transition-colors" />
-                                <input
-                                    type="text"
-                                    value={formData.referralCode}
-                                    onChange={(e) => handleChange('referralCode', e.target.value.toUpperCase())}
-                                    className={`w-full bg-bg border rounded-xl py-3.5 pl-12 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary/20 outline-none transition-all text-text uppercase placeholder:normal-case ${fieldErrors.referralCode ? 'border-red-500' : 'border-surface'}`}
-                                    placeholder="e.g. USER1234"
-                                />
-                            </div>
-                            {fieldErrors.referralCode && (
-                                <p className="text-[10px] text-red-500 ml-1 font-bold">{fieldErrors.referralCode}</p>
-                            )}
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="flex items-start gap-2 cursor-pointer group">
-                                <input 
-                                    type="checkbox" 
-                                    checked={formData.agreedToTerms}
-                                    onChange={(e) => handleChange('agreedToTerms', e.target.checked)}
-                                    className="w-4 h-4 mt-0.5 rounded border-surface text-primary focus:ring-primary/20 cursor-pointer accent-primary"
-                                />
-                                <span className="text-[11px] text-muted font-medium group-hover:text-text transition-colors">
-                                    I agree to the <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('terms'); }}>Terms & Conditions</button>, <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('privacy'); }}>Privacy Policy</button>, and <Link to="/child-safety" target="_blank" className="text-primary hover:underline" onClick={e => e.stopPropagation()}>Child Safety Standards</Link>
-                                </span>
-                            </label>
-                            {fieldErrors.agreedToTerms && (
-                                <p className="text-[10px] text-red-500 ml-6 font-bold">{fieldErrors.agreedToTerms}</p>
-                            )}
-                        </div>
-                        <button
-                            type="submit"
-                            disabled={authLoading}
-                            className="w-full bg-primary text-black font-bold uppercase tracking-widest text-[11px] py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
-                        >
-                            {authLoading ? (
-                                <Zap className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <>
-                                    Sign Up <ArrowRight className="w-4 h-4" />
-                                </>
-                            )}
-                        </button>
-                        {authError && <p className="text-xs text-red-500 text-center mt-2">{authError}</p>}
-                    </motion.form>
+                                <div className="space-y-1">
+                                    <label className="flex items-start gap-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.agreedToTerms}
+                                            onChange={(e) => handleChange('agreedToTerms', e.target.checked)}
+                                            className="w-4 h-4 mt-0.5 rounded border-surface text-primary focus:ring-primary/20 cursor-pointer accent-primary"
+                                        />
+                                        <span className="text-[11px] text-muted font-medium group-hover:text-text transition-colors">
+                                            I agree to the <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('terms'); }}>Terms & Conditions</button>, <button type="button" className="text-primary hover:underline" onClick={e => { e.preventDefault(); e.stopPropagation(); openModal('privacy'); }}>Privacy Policy</button>, and <Link to="/child-safety" target="_blank" className="text-primary hover:underline" onClick={e => e.stopPropagation()}>Child Safety Standards</Link>
+                                        </span>
+                                    </label>
+                                    {fieldErrors.agreedToTerms && (
+                                        <p className="text-[10px] text-red-500 ml-6 font-bold">{fieldErrors.agreedToTerms}</p>
+                                    )}
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={authLoading}
+                                    className="w-full bg-primary text-black font-bold uppercase tracking-widest text-[11px] py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                                >
+                                    {authLoading ? (
+                                        <Zap className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <>
+                                            Sign Up <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
+                                </button>
+                                {authError && <p className="text-xs text-red-500 text-center mt-2">{authError}</p>}
+                            </motion.form>
                         ) : (
-                            <motion.form 
+                            <motion.form
                                 key="step2"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                onSubmit={handleVerify} 
+                                onSubmit={handleVerify}
                                 className="space-y-5"
                             >
                                 <div className="space-y-2">
@@ -814,7 +856,7 @@ export default function SignUpPage() {
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <button
                                     type="submit"
                                     disabled={authLoading}
@@ -830,7 +872,7 @@ export default function SignUpPage() {
                                 </button>
                                 {authError && <p className="text-xs text-red-500 text-center mt-2 font-medium">{authError}</p>}
                                 {resendMsg && <p className="text-xs text-green-500 text-center mt-2 font-medium">{resendMsg}</p>}
-                                
+
                                 <div className="flex flex-col items-center gap-3 mt-4">
                                     <button
                                         type="button"
@@ -861,14 +903,14 @@ export default function SignUpPage() {
 
             <AnimatePresence>
                 {modalConfig.open && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" 
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
                         onClick={() => setModalConfig({ ...modalConfig, open: false })}
                     >
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -879,8 +921,8 @@ export default function SignUpPage() {
                                 <h2 className="text-lg font-bold text-text">
                                     {modalConfig.type === 'terms' ? 'Terms & Conditions' : 'Privacy Policy'}
                                 </h2>
-                                <button 
-                                    onClick={() => setModalConfig({ ...modalConfig, open: false })} 
+                                <button
+                                    onClick={() => setModalConfig({ ...modalConfig, open: false })}
                                     className="p-2 hover:bg-surface rounded-full transition-colors text-muted hover:text-text"
                                 >
                                     <X size={20} />

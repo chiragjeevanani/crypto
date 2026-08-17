@@ -39,36 +39,36 @@ const resolveLocaleFromCountry = async (countryInput) => {
 
   // 2. Hardcoded fallback table for critical countries (safety net)
   const fallback = {
-    IN:  { countryCode: "IN",  countryName: "India",                currencyCode: "INR", currencySymbol: "₹"   },
-    US:  { countryCode: "US",  countryName: "United States",        currencyCode: "USD", currencySymbol: "$"   },
-    AU:  { countryCode: "AU",  countryName: "Australia",            currencyCode: "AUD", currencySymbol: "A$"  },
-    GB:  { countryCode: "GB",  countryName: "United Kingdom",       currencyCode: "GBP", currencySymbol: "£"   },
-    CA:  { countryCode: "CA",  countryName: "Canada",               currencyCode: "CAD", currencySymbol: "CA$" },
-    AE:  { countryCode: "AE",  countryName: "United Arab Emirates", currencyCode: "AED", currencySymbol: "AED" },
-    SG:  { countryCode: "SG",  countryName: "Singapore",            currencyCode: "SGD", currencySymbol: "S$"  },
-    EU:  { countryCode: "EU",  countryName: "Eurozone",             currencyCode: "EUR", currencySymbol: "€"   },
-    DE:  { countryCode: "DE",  countryName: "Germany",              currencyCode: "EUR", currencySymbol: "€"   },
-    FR:  { countryCode: "FR",  countryName: "France",               currencyCode: "EUR", currencySymbol: "€"   },
-    JP:  { countryCode: "JP",  countryName: "Japan",                currencyCode: "JPY", currencySymbol: "¥"   },
-    CN:  { countryCode: "CN",  countryName: "China",                currencyCode: "CNY", currencySymbol: "¥"   },
-    SA:  { countryCode: "SA",  countryName: "Saudi Arabia",         currencyCode: "SAR", currencySymbol: "﷼"   },
-    NZ:  { countryCode: "NZ",  countryName: "New Zealand",          currencyCode: "NZD", currencySymbol: "NZ$" },
-    ZA:  { countryCode: "ZA",  countryName: "South Africa",         currencyCode: "ZAR", currencySymbol: "R"   },
-    NG:  { countryCode: "NG",  countryName: "Nigeria",              currencyCode: "NGN", currencySymbol: "₦"   },
-    BR:  { countryCode: "BR",  countryName: "Brazil",               currencyCode: "BRL", currencySymbol: "R$"  },
-    MX:  { countryCode: "MX",  countryName: "Mexico",               currencyCode: "MXN", currencySymbol: "MX$" },
-    PK:  { countryCode: "PK",  countryName: "Pakistan",             currencyCode: "PKR", currencySymbol: "₨"   },
-    BD:  { countryCode: "BD",  countryName: "Bangladesh",           currencyCode: "BDT", currencySymbol: "৳"   },
-    MY:  { countryCode: "MY",  countryName: "Malaysia",             currencyCode: "MYR", currencySymbol: "RM"  },
-    ID:  { countryCode: "ID",  countryName: "Indonesia",            currencyCode: "IDR", currencySymbol: "Rp"  },
-    PH:  { countryCode: "PH",  countryName: "Philippines",          currencyCode: "PHP", currencySymbol: "₱"   },
-    TH:  { countryCode: "TH",  countryName: "Thailand",             currencyCode: "THB", currencySymbol: "฿"   },
-    VN:  { countryCode: "VN",  countryName: "Vietnam",              currencyCode: "VND", currencySymbol: "₫"   },
-    KR:  { countryCode: "KR",  countryName: "South Korea",          currencyCode: "KRW", currencySymbol: "₩"   },
-    RU:  { countryCode: "RU",  countryName: "Russia",               currencyCode: "RUB", currencySymbol: "₽"   },
-    TR:  { countryCode: "TR",  countryName: "Turkey",               currencyCode: "TRY", currencySymbol: "₺"   },
-    EG:  { countryCode: "EG",  countryName: "Egypt",                currencyCode: "EGP", currencySymbol: "E£"  },
-    UK:  { countryCode: "GB",  countryName: "United Kingdom",       currencyCode: "GBP", currencySymbol: "£"   },
+    IN: { countryCode: "IN", countryName: "India", currencyCode: "INR", currencySymbol: "₹" },
+    US: { countryCode: "US", countryName: "United States", currencyCode: "USD", currencySymbol: "$" },
+    AU: { countryCode: "AU", countryName: "Australia", currencyCode: "AUD", currencySymbol: "A$" },
+    GB: { countryCode: "GB", countryName: "United Kingdom", currencyCode: "GBP", currencySymbol: "£" },
+    CA: { countryCode: "CA", countryName: "Canada", currencyCode: "CAD", currencySymbol: "CA$" },
+    AE: { countryCode: "AE", countryName: "United Arab Emirates", currencyCode: "AED", currencySymbol: "AED" },
+    SG: { countryCode: "SG", countryName: "Singapore", currencyCode: "SGD", currencySymbol: "S$" },
+    EU: { countryCode: "EU", countryName: "Eurozone", currencyCode: "EUR", currencySymbol: "€" },
+    DE: { countryCode: "DE", countryName: "Germany", currencyCode: "EUR", currencySymbol: "€" },
+    FR: { countryCode: "FR", countryName: "France", currencyCode: "EUR", currencySymbol: "€" },
+    JP: { countryCode: "JP", countryName: "Japan", currencyCode: "JPY", currencySymbol: "¥" },
+    CN: { countryCode: "CN", countryName: "China", currencyCode: "CNY", currencySymbol: "¥" },
+    SA: { countryCode: "SA", countryName: "Saudi Arabia", currencyCode: "SAR", currencySymbol: "﷼" },
+    NZ: { countryCode: "NZ", countryName: "New Zealand", currencyCode: "NZD", currencySymbol: "NZ$" },
+    ZA: { countryCode: "ZA", countryName: "South Africa", currencyCode: "ZAR", currencySymbol: "R" },
+    NG: { countryCode: "NG", countryName: "Nigeria", currencyCode: "NGN", currencySymbol: "₦" },
+    BR: { countryCode: "BR", countryName: "Brazil", currencyCode: "BRL", currencySymbol: "R$" },
+    MX: { countryCode: "MX", countryName: "Mexico", currencyCode: "MXN", currencySymbol: "MX$" },
+    PK: { countryCode: "PK", countryName: "Pakistan", currencyCode: "PKR", currencySymbol: "₨" },
+    BD: { countryCode: "BD", countryName: "Bangladesh", currencyCode: "BDT", currencySymbol: "৳" },
+    MY: { countryCode: "MY", countryName: "Malaysia", currencyCode: "MYR", currencySymbol: "RM" },
+    ID: { countryCode: "ID", countryName: "Indonesia", currencyCode: "IDR", currencySymbol: "Rp" },
+    PH: { countryCode: "PH", countryName: "Philippines", currencyCode: "PHP", currencySymbol: "₱" },
+    TH: { countryCode: "TH", countryName: "Thailand", currencyCode: "THB", currencySymbol: "฿" },
+    VN: { countryCode: "VN", countryName: "Vietnam", currencyCode: "VND", currencySymbol: "₫" },
+    KR: { countryCode: "KR", countryName: "South Korea", currencyCode: "KRW", currencySymbol: "₩" },
+    RU: { countryCode: "RU", countryName: "Russia", currencyCode: "RUB", currencySymbol: "₽" },
+    TR: { countryCode: "TR", countryName: "Turkey", currencyCode: "TRY", currencySymbol: "₺" },
+    EG: { countryCode: "EG", countryName: "Egypt", currencyCode: "EGP", currencySymbol: "E£" },
+    UK: { countryCode: "GB", countryName: "United Kingdom", currencyCode: "GBP", currencySymbol: "£" },
   };
 
   if (fallback[code]) return fallback[code];
@@ -123,13 +123,13 @@ const safeUser = (user, kyc = null) => {
     isMonetized: user.isMonetized || false,
     walletAddress: user.walletAddress || "",
     kyc: kyc ? {
-        status: kyc.status,
-        aadharNumber: kyc.aadharNumber,
-        panNumber: kyc.panNumber,
-        rejectionReason: kyc.rejectionReason || "",
-        hasAadharFront: !!kyc.documents?.aadharFrontUrl,
-        hasAadharBack: !!kyc.documents?.aadharBackUrl,
-        hasPanCard: !!kyc.documents?.panCardUrl
+      status: kyc.status,
+      aadharNumber: kyc.aadharNumber,
+      panNumber: kyc.panNumber,
+      rejectionReason: kyc.rejectionReason || "",
+      hasAadharFront: !!kyc.documents?.aadharFrontUrl,
+      hasAadharBack: !!kyc.documents?.aadharBackUrl,
+      hasPanCard: !!kyc.documents?.panCardUrl
     } : null
   };
   return safe;
@@ -137,7 +137,7 @@ const safeUser = (user, kyc = null) => {
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, phone, countryCode, state, language, referralCode: signupReferralCode, agreedToTerms } = req.body;
+    const { name, email, password, phone, countryCode, state, language, referralCode: signupReferralCode, agreedToTerms, gender, dateOfBirth } = req.body;
 
     if (!name || !email || !password) {
       return res
@@ -169,7 +169,7 @@ const registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const locale = await resolveLocaleFromCountry(countryCode);
-    
+
     // Check for referrer
     let referrerId = null;
     if (signupReferralCode) {
@@ -197,7 +197,9 @@ const registerUser = async (req, res) => {
       referredBy: referrerId,
       state: state || "",
       language: language || "English",
-      agreedToTerms
+      agreedToTerms,
+      gender: gender || "",
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null
     });
 
     // If referred, increment referrer count
@@ -220,12 +222,12 @@ const registerUser = async (req, res) => {
     // Generate verification OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const hashedOtp = await bcrypt.hash(otp, 10);
-    
+
     await User.updateOne(
       { _id: user._id },
       { $set: { emailVerificationOtp: hashedOtp, emailVerificationExpires: Date.now() + 10 * 60 * 1000 } }
     );
-    
+
     sendVerificationEmail(user.email, otp);
 
     return res.status(201).json({
@@ -269,19 +271,19 @@ const loginUser = async (req, res) => {
       // Generate new verification OTP
       const otp = Math.floor(1000 + Math.random() * 9000).toString();
       const hashedOtp = await bcrypt.hash(otp, 10);
-      
+
       await User.updateOne(
         { _id: user._id },
         { $set: { emailVerificationOtp: hashedOtp, emailVerificationExpires: Date.now() + 10 * 60 * 1000 } }
       );
-      
+
       sendVerificationEmail(user.email, otp);
-      
-      return res.status(403).json({ 
-        success: false, 
-        requireVerification: true, 
+
+      return res.status(403).json({
+        success: false,
+        requireVerification: true,
         email: user.email,
-        message: "Please verify your email to log in. A new OTP has been sent." 
+        message: "Please verify your email to log in. A new OTP has been sent."
       });
     }
 
@@ -530,7 +532,7 @@ const resetPassword = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
+
     await User.updateOne(
       { _id: user._id },
       { $set: { password: hashedPassword, resetPasswordOtp: null, resetPasswordExpires: null } }
@@ -585,13 +587,13 @@ const verifyEmail = async (req, res) => {
         referenceType: "referral_reward",
         referenceId: user._id
       });
-      
+
       if (!existingTx) {
         const REFERRAL_BONUS_COINS = 100;
         await User.findByIdAndUpdate(user.referredBy, {
           $inc: { earningCoins: REFERRAL_BONUS_COINS }
         });
-        
+
         await WalletTransaction.create({
           userId: user.referredBy,
           type: "deposit",
@@ -634,12 +636,12 @@ const resendVerificationOtp = async (req, res) => {
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const hashedOtp = await bcrypt.hash(otp, 10);
-    
+
     await User.updateOne(
       { _id: user._id },
       { $set: { emailVerificationOtp: hashedOtp, emailVerificationExpires: Date.now() + 10 * 60 * 1000 } }
     );
-    
+
     sendVerificationEmail(user.email, otp);
 
     return res.status(200).json({ success: true, message: "A new OTP has been sent." });
@@ -655,7 +657,7 @@ const deleteMyAccount = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { password } = req.body;
-    
+
     if (!password) {
       return res.status(400).json({ success: false, message: "Password is required to delete your account" });
     }

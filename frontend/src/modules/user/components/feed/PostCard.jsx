@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, UserPlus, Check, Volume2, VolumeX, BriefcaseBusiness, TrendingUp, Sparkles, Send, AlertCircle, ShieldAlert, X, Camera, MessagesSquare, Music, Vote, Eye, ChevronRight, Link2, Trash2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
@@ -27,8 +27,7 @@ function getColor(id) {
     const idx = parseInt(String(id).replace(/\D/g, ''), 10) % AVATAR_COLORS.length
     return AVATAR_COLORS[idx] || '#f59e0b'
 }
-
-function PostCard({ post, onOpen, onDeleteSuccess }) {
+function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
     if (!post) return null
     if (post.postType !== 'campaign_card' && !post.creator) return null
     const {
@@ -52,6 +51,8 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
         performGift: s.performGift,
     })))
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const isModalOpen = !isModalView && (!!searchParams.get('view') || !!searchParams.get('post'))
     const { profile } = useUserStore()
     const [earningsFlash, setEarningsFlash] = useState(false)
     const [isIntersecting, setIsIntersecting] = useState(false)
@@ -108,47 +109,42 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
     }, [isMuted])
 
     useEffect(() => {
-        if (videoRef.current) videoRef.current.muted = isMuted;
+        if (videoRef.current) videoRef.current.muted = post.musicData ? true : isMuted;
         if (audioRef.current) audioRef.current.muted = isMuted;
-    }, [isMuted]);
+    }, [isMuted, post.musicData]);
 
     const toggleMute = (e) => {
         e.stopPropagation()
         const nextMuted = !isMuted
         setIsMuted(nextMuted)
-        
+
         if (audioRef.current) {
             audioRef.current.muted = nextMuted
-            if (!nextMuted) audioRef.current.play().catch(() => {})
+            if (!nextMuted) audioRef.current.play().catch(() => { })
         }
         if (videoRef.current) {
-            videoRef.current.muted = nextMuted
-            if (!nextMuted) videoRef.current.play().catch(() => {})
+            videoRef.current.muted = post.musicData ? true : nextMuted
+            if (!nextMuted) videoRef.current.play().catch(() => { })
         }
-        
+
         setShowMuteIndicator(true)
         setTimeout(() => setShowMuteIndicator(false), 800)
     }
 
     useEffect(() => {
-        if (isIntersecting && !isStoryOpen) {
+        if (isIntersecting && !isStoryOpen && !isModalOpen) {
             const recordView = useFeedStore.getState().recordView
             if (recordView && !post.isOwned) recordView(post.id)
 
             const playMedia = async () => {
                 try {
                     if (videoRef.current) {
-                        videoRef.current.muted = isMutedRef.current;
+                        videoRef.current.muted = post.musicData ? true : isMutedRef.current;
                         if (videoRef.current.readyState >= 2) {
                             await videoRef.current.play();
                         } else {
-                            // preload is "none" until intersecting, so nothing may be loading yet —
-                            // force the browser to start fetching now that preload="auto" is in effect.
-                            if (videoRef.current.networkState !== 2 /* NETWORK_LOADING */) {
-                                videoRef.current.load();
-                            }
                             videoRef.current.oncanplay = async () => {
-                                if (isIntersecting && !isStoryOpen) {
+                                if (isIntersecting && !isStoryOpen && !isModalOpen) {
                                     await videoRef.current?.play();
                                 }
                             };
@@ -161,7 +157,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                             await audioRef.current.play();
                         } else {
                             audioRef.current.oncanplay = async () => {
-                                if (isIntersecting && !isStoryOpen) {
+                                if (isIntersecting && !isStoryOpen && !isModalOpen) {
                                     await audioRef.current?.play();
                                 }
                             };
@@ -170,8 +166,8 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                 } catch (err) {
                     if (err.name === 'NotAllowedError' && !isMutedRef.current) {
                         setIsMuted(true);
-                        videoRef.current?.play().catch(() => {});
-                        audioRef.current?.play().catch(() => {});
+                        videoRef.current?.play().catch(() => { });
+                        audioRef.current?.play().catch(() => { });
                     }
                 }
             };
@@ -186,7 +182,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                 audioRef.current.oncanplay = null
             }
         }
-    }, [isIntersecting, isStoryOpen, post.id, post.musicStartTime])
+    }, [isIntersecting, isStoryOpen, post.id, post.musicStartTime, isModalOpen])
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -219,7 +215,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
     const handleGift = async (gift) => {
         const receiverId = post.creator?._id || post.creator?.id
         const postId = post._id || post.id
-        
+
         const result = await performGift({
             gift,
             receiverId,
@@ -312,8 +308,8 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
             const text = encodeURIComponent("I am interested in your product")
             window.open(`https://wa.me/${number}?text=${text}`, '_blank')
         } else if (post.redirectType === 'internal') {
-            navigate('/messaging', { 
-                state: { 
+            navigate('/messaging', {
+                state: {
                     openChat: post.creator,
                     initialMessage: `Hi ${post.creator?.username}, I saw your post "${post.caption?.slice(0, 30) || 'advertisement'}..." and I'm interested!`,
                     sharedPost: {
@@ -323,7 +319,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         type: post.media?.type === 'video' ? 'reel' : 'post',
                         creator: post.creator
                     }
-                } 
+                }
             })
         }
     }
@@ -331,7 +327,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
     return (
         <article
             className={`post-card-shell mb-4 overflow-hidden transition-all duration-200 ease-out lg:mb-6 relative ${post.campaign ? 'border-2 rounded-[28px]' : ''}`}
-            style={{ 
+            style={{
                 background: 'var(--color-surface)',
                 borderColor: post.campaign ? 'rgba(99,102,241,0.4)' : 'transparent',
                 boxShadow: post.campaign ? '0 12px 24px -10px rgba(99,102,241,0.15)' : 'none'
@@ -349,11 +345,11 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                     to={isSelfPost ? '/profile' : `/user/${post.creator?.id || ''}`}
                     className="cursor-pointer"
                 >
-                    <Avatar 
-                        src={post.creator?.avatar} 
-                        alt={post.creator?.username} 
-                        size="md" 
-                        isPremium={post.creator?.isPremium} 
+                    <Avatar
+                        src={post.creator?.avatar}
+                        alt={post.creator?.username}
+                        size="md"
+                        isPremium={post.creator?.isPremium}
                     />
                 </Link>
                 <div className="flex-1 min-w-0">
@@ -429,9 +425,9 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         )}
                     </motion.button>
                 )}
-                
+
                 <div className="relative">
-                    <button 
+                    <button
                         onClick={(e) => {
                             e.stopPropagation()
                             setIsReportMenuOpen(!isReportMenuOpen)
@@ -443,7 +439,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                     </button>
                     <AnimatePresence>
                         {isReportMenuOpen && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -451,7 +447,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                                 style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                             >
                                 {isSelfPost ? (
-                                    <button 
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             setIsReportMenuOpen(false)
@@ -463,7 +459,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                                         Delete Post
                                     </button>
                                 ) : (
-                                    <button 
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             setIsReportMenuOpen(false)
@@ -488,7 +484,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                 {post.media?.type === 'video' ? (
                     <div className="absolute inset-0 w-full h-full" onClick={toggleMute}>
                         {post.musicData?.audioUrl && (
-                            <audio 
+                            <audio
                                 ref={audioRef}
                                 src={post.musicData.audioUrl}
                                 crossOrigin="anonymous"
@@ -514,13 +510,27 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                             style={{ filter: post.filter || 'none', WebkitTouchCallout: 'none', opacity: mediaLoaded ? 1 : 0 }}
                             loop
                             playsInline
-                            muted={isMuted}
+                            muted={post.musicData ? true : isMuted}
                             preload={isIntersecting ? "auto" : "none"}
                             controlsList="nodownload"
                             onLoadedData={() => setMediaLoaded(true)}
                             onContextMenu={(e) => e.preventDefault()}
                             poster={optimizeCloudinaryUrl(post.media?.thumbnailUrl || post.media?.thumbnail || post.media?.poster || post.media?.url, { width: 480, quality: '50' })}
-                            onError={(e) => { e.target.style.background = 'var(--color-surface2)' }}
+                            onWaiting={() => {
+                                console.warn(`[Video Playback] post ${post.id} is waiting (buffering)...`);
+                            }}
+                            onStalled={() => {
+                                console.warn(`[Video Playback] post ${post.id} stream stalled.`);
+                            }}
+                            onError={(e) => {
+                                const err = e.target.error;
+                                if (!e.target.src && !e.target.currentSrc) return;
+                                console.error(`[Video Playback Error] post ${post.id}:`, {
+                                    code: err?.code,
+                                    message: err?.message
+                                });
+                                e.target.style.background = 'var(--color-surface2)';
+                            }}
                         />
                         <AnimatePresence>
                             {showMuteIndicator && (
@@ -537,7 +547,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                             )}
                         </AnimatePresence>
                         {/* Persistent Volume Toggle */}
-                        <button 
+                        <button
                             onClick={toggleMute}
                             className="absolute bottom-3 right-3 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
                         >
@@ -549,9 +559,9 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary)', color: '#000' }}>
                             <Music size={24} />
                         </div>
-                        <audio 
-                            src={post.media?.url} 
-                            controls 
+                        <audio
+                            src={post.media?.url}
+                            controls
                             className="flex-1 min-w-0"
                             onPlay={(e) => {
                                 const mediaElements = document.querySelectorAll('audio, video');
@@ -560,13 +570,13 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                                         media.pause();
                                     }
                                 });
-                            }} 
+                            }}
                         />
                     </div>
                 ) : (
                     <div className="absolute inset-0 w-full h-full" onClick={post.musicData ? toggleMute : undefined}>
                         {post.musicData?.audioUrl && (
-                            <audio 
+                            <audio
                                 ref={audioRef}
                                 src={post.musicData.audioUrl}
                                 crossOrigin="anonymous"
@@ -604,7 +614,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         </AnimatePresence>
                         {/* Persistent Volume Toggle for Images with Music */}
                         {post.musicData && (
-                            <button 
+                            <button
                                 onClick={toggleMute}
                                 className="absolute bottom-3 right-3 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-transform active:scale-90"
                             >
@@ -634,10 +644,10 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
 
             {/* Business CTA Section - Screenshot Style */}
             {post.isBusiness && post.ctaType && post.ctaType !== 'none' && (
-                <div 
+                <div
                     onClick={handleCTAClick}
                     className="w-full flex items-center justify-between px-5 py-3.5 cursor-pointer transition-all active:brightness-90 hover:brightness-105"
-                    style={{ 
+                    style={{
                         background: '#e11d48', // Prominent Red like the screenshot
                         color: '#fff',
                     }}
@@ -681,7 +691,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                         <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-0.5" style={{ color: 'var(--color-primary)' }}>Vote</span>
                     )}
                 </motion.button>
-                
+
                 {isSelfPost && (
                     <div className="flex items-center gap-1.5 cursor-default transition-transform duration-200 ease-out hover:scale-[1.03]">
                         <Eye size={23} strokeWidth={2} style={{ color: 'var(--color-muted)' }} />
@@ -805,7 +815,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
             {/* NFT Actions */}
             {isNFTPost && !isSelfPost && (
                 <div className="px-4 lg:px-5 pb-4 lg:pb-5">
-                    <button 
+                    <button
                         onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/tasks?view=nft&action=buy&id=${post.collectibleId || post.id}`);
@@ -1012,7 +1022,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                                 >
                                     <h3 className="text-lg font-black text-center mb-1" style={{ color: 'var(--color-text)' }}>Report Post</h3>
                                     <p className="text-[12px] text-center mb-6 opacity-60" style={{ color: 'var(--color-text)' }}>Why are you reporting this post?</p>
-                                    
+
                                     <div className="space-y-2.5 mb-6">
                                         {['Spam', 'Harassment', 'Inappropriate', 'Illegal', 'Other'].map((option) => (
                                             <button
@@ -1062,7 +1072,7 @@ function PostCard({ post, onOpen, onDeleteSuccess }) {
                 </>,
                 document.body
             )}
-            <ActionConfirmationModal 
+            <ActionConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDelete}

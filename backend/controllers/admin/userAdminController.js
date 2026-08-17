@@ -62,7 +62,9 @@ function toAdminUserSummary(user, extra = {}) {
     language: user.language || "English",
     postsCount: extra.postsCount ?? 0,
     followersCount,
-    followingCount: Array.isArray(user.following) ? user.following.length : (extra.followingCount ?? 0)
+    followingCount: Array.isArray(user.following) ? user.following.length : (extra.followingCount ?? 0),
+    gender: user.gender || "",
+    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString().split('T')[0] : null
   };
 }
 
@@ -127,7 +129,7 @@ exports.listUsers = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious countryName state currencyCode currencySymbol phone bio isPremium kycStatus")
+      .select("name email role avatar createdAt followers following referralCode referralCount referredBy isBanned isSuspicious countryName state currencyCode currencySymbol phone bio isPremium kycStatus gender dateOfBirth")
       .populate("referredBy", "name")
       .lean()
       .exec();
@@ -331,7 +333,7 @@ exports.toggleSuspicious = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const { name, email, password, phone, role, avatar, status } = req.body;
-    
+
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "Name, email and password are required" });
     }
@@ -342,14 +344,14 @@ exports.createUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     // Generate a basic referral code using the first name
     const baseCode = name.split(" ")[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
     const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
     const referralCode = `${baseCode}${randomStr}`;
 
     const isPremium = role === "Premium" || role === "VIP User";
-    
+
     let kycStatus = "unsubmitted";
     let isSuspicious = false;
     if (status === "Verified") {
@@ -422,10 +424,10 @@ exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    
+
     // Perform cascade deletion
     await deleteUserCascade(req.params.id);
-    
+
     return res.status(200).json({ success: true, user: toAdminUserSummary(user) });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

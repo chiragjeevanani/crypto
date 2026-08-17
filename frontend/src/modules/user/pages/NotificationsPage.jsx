@@ -26,7 +26,7 @@ const formatTime = (dateString) => {
 
 const groupByDate = (notifications) => {
     if (!notifications || notifications.length === 0) return []
-    
+
     const today = new Date().toDateString()
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
@@ -38,7 +38,7 @@ const groupByDate = (notifications) => {
         if (!n.createdAt) continue
         const d = new Date(n.createdAt)
         const dStr = d.toDateString()
-        
+
         let label
         if (dStr === today) {
             label = 'Today'
@@ -88,10 +88,10 @@ function SuggestionCard({ user }) {
         >
             <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
                 style={{ background: 'var(--color-surface2)' }}>
-                <img 
-                    src={optimizeCloudinaryUrl(user.avatar, { width: 80 })} 
-                    alt={user.name} 
-                    className={`w-full h-full object-cover ${!user.avatar ? 'opacity-60' : ''}`} 
+                <img
+                    src={optimizeCloudinaryUrl(user.avatar, { width: 80 })}
+                    alt={user.name}
+                    className={`w-full h-full object-cover ${!user.avatar ? 'opacity-60' : ''}`}
                 />
             </div>
             <div className="flex-1 min-w-0">
@@ -290,8 +290,8 @@ export default function NotificationsPage() {
                                                 }}
                                             >
                                                 {item.type === 'follow' && item.sender?.avatar ? (
-                                                    <img 
-                                                        src={optimizeCloudinaryUrl(item.sender.avatar, { width: 100 })} 
+                                                    <img
+                                                        src={optimizeCloudinaryUrl(item.sender.avatar, { width: 100 })}
                                                         className="w-full h-full object-cover"
                                                         alt="sender"
                                                     />
@@ -309,9 +309,11 @@ export default function NotificationsPage() {
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center justify-between gap-4">
-                                                    <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--color-muted)' }}>
-                                                        {item.subtitle}
-                                                    </p>
+                                                    {item.subtitle && !item.subtitle.includes("Broadcast sent to 100 followers") && (
+                                                        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--color-muted)' }}>
+                                                            {item.subtitle}
+                                                        </p>
+                                                    )}
                                                     {item.type === 'follow' && item.meta?.canFollowBack && !followingIds.has(item.meta.followerId) && (
                                                         <button
                                                             onClick={(e) => handleFollowBack(e, item.meta.followerId)}
@@ -374,9 +376,11 @@ export default function NotificationsPage() {
                                     {selectedNotification.title}
                                 </h3>
                                 <div className="w-12 h-1 rounded-full mb-6" style={{ background: 'var(--color-border)' }} />
-                                <p className="text-base leading-relaxed mb-10" style={{ color: 'var(--color-muted)' }}>
-                                    {selectedNotification.subtitle}
-                                </p>
+                                {selectedNotification.subtitle && !selectedNotification.subtitle.includes("Broadcast sent to 100 followers") && (
+                                    <p className="text-base leading-relaxed mb-10" style={{ color: 'var(--color-muted)' }}>
+                                        {selectedNotification.subtitle}
+                                    </p>
+                                )}
                                 <div
                                     className="w-full rounded-2xl p-4 flex items-center justify-between"
                                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}

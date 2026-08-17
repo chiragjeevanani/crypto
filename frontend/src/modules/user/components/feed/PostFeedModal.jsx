@@ -162,7 +162,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
             if (!nextMuted) audioRef.current.play().catch(() => { })
         }
         if (videoRef.current) {
-            videoRef.current.muted = nextMuted
+            videoRef.current.muted = post.musicData ? true : nextMuted
             if (!nextMuted) videoRef.current.play().catch(() => { })
         }
 
@@ -171,9 +171,9 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
     }
 
     useEffect(() => {
-        if (videoRef.current) videoRef.current.muted = globalMute
+        if (videoRef.current) videoRef.current.muted = post.musicData ? true : globalMute
         if (audioRef.current) audioRef.current.muted = globalMute
-    }, [globalMute])
+    }, [globalMute, post.musicData])
 
     useEffect(() => {
         if (active) {
@@ -191,7 +191,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
             const playMedia = async () => {
                 try {
                     if (video) {
-                        video.muted = globalMute
+                        video.muted = post.musicData ? true : globalMute
                         // Ensure video is ready to play
                         if (video.readyState >= 2) {
                             if (isCurrent) await video.play()
@@ -242,7 +242,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                 audio.oncanplay = null
             }
         }
-    }, [active, post.id, globalMute, isLanguageModalOpen])
+    }, [active, post.id, globalMute, isLanguageModalOpen, post.musicData, setGlobalMute])
 
     // "Far away" is already enforced by the ±2 render window in PostFeedModal
     // (a placeholder div is swapped in instead of this component past that
@@ -272,18 +272,46 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
             {/* Mobile: full height/width. Desktop: 9:16 with max widths. */}
             <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] md:max-h-[calc(100vh-56px)]">
                 {post.media?.type === 'video' ? (
-                    <video
-                        key={`vid-${post.id}`}
-                        ref={videoRef}
-                        className="w-full h-full object-cover cursor-pointer"
-                        style={{ filter: post.filter || 'none' }}
-                        loop
-                        muted={globalMute}
-                        playsInline
-                        preload={active ? "auto" : shouldPreload ? "metadata" : "none"}
-                        poster={post.media?.poster || optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
-                        onClick={toggleMute}
-                    />
+                    <>
+                        {post.musicData?.audioUrl && (
+                            <audio
+                                ref={audioRef}
+                                src={post.musicData.audioUrl}
+                                crossOrigin="anonymous"
+                                type="audio/mpeg"
+                                loop
+                                muted={globalMute}
+                                preload="auto"
+                                className="hidden"
+                            />
+                        )}
+                        <video
+                            key={`vid-${post.id}`}
+                            ref={videoRef}
+                            className="w-full h-full object-cover cursor-pointer"
+                            style={{ filter: post.filter || 'none' }}
+                            loop
+                            muted={post.musicData ? true : globalMute}
+                            playsInline
+                            preload={active ? "auto" : shouldPreload ? "metadata" : "none"}
+                            poster={post.media?.poster || optimizeCloudinaryUrl(post.media?.thumbnail || post.media?.url?.replace(/\.[^/.]+$/, ".jpg"), { width: 480, quality: '50' })}
+                            onClick={toggleMute}
+                            onWaiting={() => {
+                                console.warn(`[Reels Playback] post ${post.id} is waiting (buffering)...`);
+                            }}
+                            onStalled={() => {
+                                console.warn(`[Reels Playback] post ${post.id} stream stalled.`);
+                            }}
+                            onError={(e) => {
+                                const err = e.target.error;
+                                if (!e.target.src && !e.target.currentSrc) return;
+                                console.error(`[Reels Playback Error] post ${post.id}:`, {
+                                    code: err?.code,
+                                    message: err?.message
+                                });
+                            }}
+                        />
+                    </>
                 ) : (
                     <img
                         key={`img-${post.id}`}
@@ -599,8 +627,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                             <Avatar src={post.creator?.avatar} alt={post.creator?.username} size="w-9 h-9" isPremium={post.creator?.isPremium} />
                         </div>
                         <div className="flex flex-col min-w-0">
-                            <div 
-                                className="flex items-center gap-1 cursor-pointer w-fit" 
+                            <div
+                                className="flex items-center gap-1 cursor-pointer w-fit"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/user/${post.creator?.id || post.creator?._id}`) }}
                             >
                                 <span className="text-sm font-semibold text-white">
@@ -706,7 +734,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                         </div>
                     )}
                 </div>
-                
+
                 {typeof document !== 'undefined' && createPortal(
                     <AnimatePresence>
                         {showComments && (
@@ -815,7 +843,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                     />
                 )}
             </div>
-            <ActionConfirmationModal 
+            <ActionConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDelete}
@@ -842,6 +870,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     const postRefs = useRef({})
     const [activeReelIndex, setActiveReelIndex] = useState(null)
     const itemHeightRef = useRef(0)
+    const lastScrolledPostIdRef = useRef(null)
     const isReelsMode = useMemo(() => {
         if (forceReels) return true
         if (!posts.length) return false
@@ -884,14 +913,27 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     }, [isOpen, onClose])
 
     useEffect(() => {
-        if (!isOpen) return
+        if (!isOpen) {
+            lastScrolledPostIdRef.current = null
+            return
+        }
+
+        const targetPost = posts[safeIndex]
+        if (!targetPost) return
+
+        const targetPostId = targetPost.id || targetPost._id
+        if (lastScrolledPostIdRef.current === targetPostId) return
+
         const loopIndex = posts.length > 1 && isReelsMode ? posts.length + safeIndex : safeIndex
         const node = postRefs.current[loopIndex]
         if (node && containerRef.current) {
-            node.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            setActiveReelIndex(loopIndex)
+            node.scrollIntoView({ behavior: 'auto', block: 'start' })
+            requestAnimationFrame(() => {
+                setActiveReelIndex(loopIndex)
+            })
+            lastScrolledPostIdRef.current = targetPostId
         }
-    }, [isOpen, loopedPosts, safeIndex, posts.length])
+    }, [isOpen, safeIndex, posts, isReelsMode])
 
     useEffect(() => {
         if (!isOpen) return
@@ -943,7 +985,14 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
         let lock = false
         const onScroll = () => {
             if (lock) return
-            const itemHeight = itemHeightRef.current
+            let itemHeight = itemHeightRef.current
+            if (!itemHeight) {
+                const firstItem = container.querySelector('.reels-item')
+                if (firstItem) {
+                    itemHeight = firstItem.getBoundingClientRect().height
+                    itemHeightRef.current = itemHeight
+                }
+            }
             if (!itemHeight) return
             const loopSize = posts.length * itemHeight
             const start = loopSize
@@ -961,7 +1010,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
         }
         container.addEventListener('scroll', onScroll, { passive: true })
         return () => container.removeEventListener('scroll', onScroll)
-    }, [isOpen, posts.length])
+    }, [isOpen, posts.length, isReelsMode])
 
     if (!isOpen) return null
 
@@ -1005,7 +1054,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
 
                 <div
                     ref={containerRef}
-                    className="flex-1 overflow-y-auto overflow-x-hidden px-0 py-0 md:px-0 hide-scrollbar snap-y snap-mandatory"
+                    className={`flex-1 overflow-y-auto overflow-x-hidden px-0 py-0 md:px-0 hide-scrollbar ${isReelsMode ? 'snap-y snap-mandatory' : ''}`}
                     style={{
                         paddingBottom: isReelsMode ? 0 : 'var(--reels-bottom-offset)',
                         WebkitOverflowScrolling: 'touch'
@@ -1020,7 +1069,8 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                     ref={(node) => {
                                         if (node) postRefs.current[index] = node
                                     }}
-                                    className="snap-start snap-always shrink-0 w-full reels-item"
+                                    className={`shrink-0 w-full reels-item ${isReelsMode ? 'snap-start snap-always' : ''}`}
+                                    style={isReelsMode ? { height: 'var(--reels-viewport-height)' } : undefined}
                                     data-index={index}
                                 >
                                     {!inRenderWindow ? (
@@ -1029,7 +1079,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                                         ? post?.type === 'campaign'
                                             ? <CampaignReelCard campaign={post} active={activeReelIndex === index} />
                                             : <ReelPost post={post} active={activeReelIndex === index} shouldPreload={activeReelIndex !== null && (index === activeReelIndex + 1)} onClose={onClose} onNftAction={onNftAction} />
-                                        : post && <PostCard post={post} onDeleteSuccess={onClose} />}
+                                        : post && <PostCard post={post} onDeleteSuccess={onClose} isModalView={true} />}
                                 </div>
                             )
                         })}
