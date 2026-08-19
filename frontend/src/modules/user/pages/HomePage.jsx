@@ -40,6 +40,10 @@ export default function HomePage() {
     const { liveAuctionCount, fetchAuctions } = useAuctionStore()
     const navigate = useNavigate()
     const loadMoreSentinelRef = useRef(null)
+    const postsRef = useRef(posts)
+    useEffect(() => {
+        postsRef.current = posts
+    }, [posts])
 
     useEffect(() => {
         loadPosts({ paginated: true })
@@ -214,13 +218,25 @@ export default function HomePage() {
         if (idx >= 0) setActivePostIndex(idx)
     }, [isExplore, currentPostId, filteredExplore])
 
+    // Reads posts via a ref (not the `posts` state itself) so this callback's
+    // identity stays stable across re-renders. It was previously recreated on
+    // every `posts` mutation in the store — including the frequent
+    // recordView() writes fired as each video scrolls into view — and since
+    // it's passed as the `onOpen` prop to every mounted PostCard, a new
+    // reference defeated PostCard's React.memo for the ENTIRE visible feed on
+    // every single one of those writes, forcing a full re-render of every
+    // video card (heavy framer-motion trees included) at once. That main
+    // -thread churn, unbounded by the home feed's lack of windowing (unlike
+    // the reels viewer's fixed ~5-item render window), was starving hls.js's
+    // buffer-append scheduling right as videos were starting, which read as
+    // the video stalling/restarting a few times before playing smoothly.
     const handleOpenFromFeed = useCallback((postId) => {
-        const post = posts.find((p) => p.id === postId)
+        const post = postsRef.current.find((p) => p.id === postId)
         if (post?.media?.type === 'video') {
             // Navigate into reels tab when a video is tapped from home feed
             navigate(`/home?view=reels&post=${postId}`)
         }
-    }, [posts, navigate])
+    }, [navigate])
 
     return (
         <div>

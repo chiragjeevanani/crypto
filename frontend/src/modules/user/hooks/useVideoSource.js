@@ -1,5 +1,15 @@
 import { useEffect, useRef } from 'react'
 
+// TEMPORARY diagnostic instrumentation for the home-feed video-stutter
+// investigation. Safe to delete once the root cause is confirmed fixed —
+// every call is behind this flag and behind typeof-window/console guards.
+const DEBUG_VIDEO = true
+function dbg(url, tag, ...rest) {
+  if (!DEBUG_VIDEO || typeof console === 'undefined') return
+  const short = (url || '').split('/').pop()?.slice(-24) || url
+  console.debug(`[video-src][${short}] ${tag}`, ...rest)
+}
+
 const WARM_MAX_BUFFER_SECONDS = 2
 const SLOW_MAX_BUFFER_SECONDS = 10
 const DEFAULT_MAX_BUFFER_SECONDS = 30
@@ -77,6 +87,10 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
   const hlsRef = useRef(null)
   const warmOnlyRef = useRef(warmOnly)
   warmOnlyRef.current = warmOnly
+  // Debug-label only (avoids adding hlsUrl/mp4Url to the live-adjust effect's
+  // deps, which would make it re-run for an unrelated reason).
+  const debugLabelRef = useRef('')
+  debugLabelRef.current = hlsUrl || mp4Url || ''
 
   // Live-adjust an already-attached instance's buffering aggressiveness
   // instead of recreating it when only `warmOnly` changes.
@@ -84,6 +98,7 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
     const hls = hlsRef.current
     if (!hls) return
     const cfg = computeBufferConfig(warmOnly)
+    dbg(debugLabelRef.current, 'live-adjust warmOnly=', warmOnly, cfg)
     hls.config.maxBufferLength = cfg.maxBufferLength
     hls.config.maxMaxBufferLength = cfg.maxMaxBufferLength
     hls.autoLevelCapping = cfg.levelCap
@@ -93,8 +108,11 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
     const video = videoRef.current
     if (!video) return undefined
 
+    dbg(hlsUrl || mp4Url, 'effect run: enabled=', enabled, 'hlsUrl=', !!hlsUrl)
+
     const destroyHls = () => {
       if (hlsRef.current) {
+        dbg(hlsUrl || mp4Url, 'destroyHls()')
         try {
           hlsRef.current.destroy()
         } catch {
@@ -107,6 +125,7 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
     if (!enabled) {
       destroyHls()
       if (video.hasAttribute('src')) {
+        dbg(hlsUrl || mp4Url, 'disabled -> removeAttribute(src) + load()')
         video.removeAttribute('src')
         video.load()
       }
@@ -115,13 +134,19 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
 
     if (!hlsUrl) {
       destroyHls()
-      if (video.src !== mp4Url) video.src = mp4Url || ''
+      if (video.src !== mp4Url) {
+        dbg(mp4Url, 'video.src = mp4Url (no hlsUrl)')
+        video.src = mp4Url || ''
+      }
       return destroyHls
     }
 
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       destroyHls()
-      if (video.src !== hlsUrl) video.src = hlsUrl
+      if (video.src !== hlsUrl) {
+        dbg(hlsUrl, 'video.src = hlsUrl (native HLS)')
+        video.src = hlsUrl
+      }
       return destroyHls
     }
 
@@ -151,10 +176,12 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
       })
       hls.autoLevelCapping = cfg.levelCap
       hlsRef.current = hls
+      dbg(hlsUrl, 'new Hls() + loadSource + attachMedia', cfg)
 
       let fatalRetried = false
       hls.on(HlsCtor.Events.ERROR, (_event, data) => {
         if (!data?.fatal) return
+        dbg(hlsUrl, 'FATAL hls error', data.type, data.details)
         if (!fatalRetried && data.type === HlsCtor.ErrorTypes.NETWORK_ERROR) {
           fatalRetried = true
           hls.startLoad()
@@ -173,6 +200,13 @@ export function useVideoSource({ videoRef, hlsUrl, mp4Url, enabled, warmOnly = f
           if (wasPlaying) video.play().catch(() => {})
         }
       })
+      if (DEBUG_VIDEO) {
+        hls.on(HlsCtor.Events.MEDIA_ATTACHED, () => dbg(hlsUrl, 'hls MEDIA_ATTACHED'))
+        hls.on(HlsCtor.Events.MANIFEST_PARSED, () => dbg(hlsUrl, 'hls MANIFEST_PARSED'))
+        hls.on(HlsCtor.Events.LEVEL_SWITCHED, (_e, d) => dbg(hlsUrl, 'hls LEVEL_SWITCHED ->', d?.level))
+        hls.on(HlsCtor.Events.FRAG_BUFFERED, (_e, d) => dbg(hlsUrl, 'hls FRAG_BUFFERED', d?.frag?.sn))
+        hls.on(HlsCtor.Events.BUFFER_STALLED_ERROR, () => dbg(hlsUrl, 'hls BUFFER_STALLED_ERROR'))
+      }
 
       hls.loadSource(hlsUrl)
       hls.attachMedia(video)
