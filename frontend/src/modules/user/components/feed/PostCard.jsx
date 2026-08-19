@@ -16,15 +16,16 @@ import { playGiftSound } from '../../utils/giftSounds'
 import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import { postService } from '../../services/postService'
 import { useVideoSource } from '../../hooks/useVideoSource'
+import { registerVideo, reportRatio, FEED_SCOPE, MODAL_SCOPE } from '../../utils/activeVideo'
 import Avatar from '../shared/Avatar'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 import { renderCaptionWithLinks } from '../../utils/captionHelper'
 
-// TEMPORARY diagnostic flag for the home-feed video-stutter investigation —
-// safe to delete, along with every console.debug it gates, once confirmed fixed.
-const DEBUG_VIDEO = true
-
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
+
+// Fine-grained thresholds so the coordinator can compare cards by how visible
+// they actually are, rather than by who crossed a single cutoff first.
+const RATIO_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20)
 
 function getColor(id) {
     if (!id) return '#f59e0b'
@@ -108,16 +109,6 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
     const audioRef = useRef(null)
     const containerRef = useRef(null)
 
-    // TEMPORARY: counts re-renders per card so we can see in the console
-    // whether an unrelated store update (e.g. another post's recordView)
-    // is forcing this card to re-render even though its own `post`/`onOpen`
-    // props didn't meaningfully change.
-    const renderCountRef = useRef(0)
-    renderCountRef.current += 1
-    if (DEBUG_VIDEO && post.media?.type === 'video') {
-        console.debug(`[postcard-render][${post.id}] render #${renderCountRef.current}`)
-    }
-
     const isMutedRef = useRef(isMuted)
     useEffect(() => {
         isMutedRef.current = isMuted
@@ -155,13 +146,11 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                 try {
                     if (videoRef.current) {
                         videoRef.current.muted = post.musicData ? true : isMutedRef.current;
-                        console.debug(`[video-el][${post.id}] play/pause effect: readyState=`, videoRef.current.readyState, 'calling play()?', videoRef.current.readyState >= 2)
                         if (videoRef.current.readyState >= 2) {
                             await videoRef.current.play();
                         } else {
                             videoRef.current.oncanplay = async () => {
                                 if (isIntersecting && !isStoryOpen && !isModalOpen) {
-                                    console.debug(`[video-el][${post.id}] deferred play() via oncanplay`)
                                     await videoRef.current?.play();
                                 }
                             };
@@ -191,7 +180,6 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
             playMedia();
         } else {
             if (videoRef.current) {
-                console.debug(`[video-el][${post.id}] play/pause effect: calling pause() (isIntersecting=`, isIntersecting, ')')
                 videoRef.current.pause()
                 videoRef.current.oncanplay = null
             }
@@ -202,15 +190,40 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
         }
     }, [isIntersecting, isStoryOpen, post.id, post.musicStartTime, isModalOpen])
 
-    // Hysteresis + a short pause-debounce around the play/pause boundary.
-    // A single 0.3 threshold with no slack flips isIntersecting back and
-    // forth every time a card's edge lingers near 30% visible during a slow
-    // scroll (no scroll-snap on the home feed, unlike the reels viewer) —
-    // each flip paused and replayed the video, which reads as the video
-    // "getting stuck" 2-3 times before settling. Entering needs >=0.35,
-    // leaving needs <0.15, and leaving only commits after 220ms so a brief
-    // dip below the exit line during momentum scroll doesn't pause at all.
+    // For VIDEO posts, who plays is decided globally rather than per-card: this
+    // observer only reports how visible the card is, and the coordinator picks
+    // the single most-visible card in the feed and activates exactly that one —
+    // the same guarantee the reels viewer gets from its scroll-snap + single
+    // activeReelIndex. Deciding locally (any card over ~35% plays) let two
+    // adjacent cards play at once, because a card's media is ~590px inside an
+    // ~876px pitch: there is a wide band where one card is 35% visible and the
+    // next is 60%+. Two decoders and two downloads competing for the same
+    // connection budget is what made the watched video stutter.
+    //
+    // Non-video posts keep the old local hysteresis. They must NOT enter the
+    // coordinator: an image post winning the single slot would silence a real
+    // video, and an image costs nothing to have "active" anyway. This flag
+    // still drives their background-music playback and their view recording.
+    const isVideoPost = post.media?.type === 'video'
+    // The feed's cards stay mounted and keep intersecting the viewport behind
+    // the full-screen modal, so the two surfaces need independent slots — one
+    // shared slot would let a card hidden behind the modal win it and leave the
+    // card the user is actually looking at silent.
+    const videoScope = isModalView ? MODAL_SCOPE : FEED_SCOPE
     useEffect(() => {
+        if (isVideoPost) {
+            const unregister = registerVideo(videoScope, post.id, setIsIntersecting)
+            const observer = new IntersectionObserver(
+                ([entry]) => reportRatio(videoScope, post.id, entry.intersectionRatio),
+                { threshold: RATIO_THRESHOLDS }
+            )
+            if (containerRef.current) observer.observe(containerRef.current)
+            return () => {
+                observer.disconnect()
+                unregister()
+            }
+        }
+
         let pauseTimer = null
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -231,22 +244,21 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
             },
             { threshold: [0, 0.15, 0.35, 0.5] }
         )
-
         if (containerRef.current) observer.observe(containerRef.current)
         return () => {
             if (pauseTimer) clearTimeout(pauseTimer)
             observer.disconnect()
         }
-    }, [post.id])
+    }, [post.id, isVideoPost, videoScope])
 
-    // Separate, much looser observer just to decide whether a video source
-    // stays attached. Tying source attachment to the tight 0.3-threshold
-    // isIntersecting above caused hls.js/video.src to be torn down and
-    // reattached on every flicker across that boundary during a slow scroll
-    // (the video restarting from scratch looks like repeated buffering).
-    // Keeping the source warm across a generous rootMargin — and only
-    // detaching once the post is well off-screen — avoids that churn while
-    // still not loading every video in the whole feed at once.
+    // Separate, looser observer deciding only whether a source stays attached.
+    // Detaching runs video.load(), which throws away everything buffered — so
+    // this band wants to be GENEROUS, otherwise ordinary scroll jitter around
+    // the edge forces a card to re-download from scratch each time the user
+    // comes back to it. It can afford to be generous now that the preload
+    // ladder below caps a merely-near card at a metadata fetch; previously
+    // every card in this band was on `preload="auto"`, so widening it meant
+    // more full-file downloads competing with the video on screen.
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -582,25 +594,29 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                             loop
                             playsInline
                             muted={post.musicData ? true : isMuted}
-                            preload={isNearViewport ? "auto" : "none"}
+                            /* Mirrors the reels viewer's ladder: only the one card the
+                               coordinator activated downloads eagerly, its neighbours
+                               fetch metadata only, everything else nothing. This used to
+                               be `isNearViewport ? "auto" : "none"`, which put every card
+                               in the near band on a full eager download of the original
+                               file — those competed with the video actually on screen for
+                               the browser's per-origin connection budget. */
+                            preload={isIntersecting ? "auto" : isNearViewport ? "metadata" : "none"}
                             controlsList="nodownload"
                             onLoadedData={() => setMediaLoaded(true)}
+                            /* When the source detaches, useVideoSource calls video.load(),
+                               which empties the element. Without resetting this the video
+                               stayed at opacity 1 and painted an empty black box OVER the
+                               thumbnail underneath until it had reloaded — the "stuck"
+                               frame users saw when scrolling back to a card. */
+                            onEmptied={() => setMediaLoaded(false)}
                             onContextMenu={(e) => e.preventDefault()}
                             poster={optimizeCloudinaryUrl(post.media?.thumbnailUrl || post.media?.thumbnail || post.media?.poster || post.media?.url, { width: 480, quality: '50' })}
-                            /* TEMPORARY diagnostic instrumentation for the home-feed
-                               video-stutter investigation — safe to remove once confirmed fixed. */
-                            onLoadedMetadata={() => console.debug(`[video-el][${post.id}] loadedmetadata`)}
-                            onCanPlay={() => console.debug(`[video-el][${post.id}] canplay readyState=`, videoRef.current?.readyState)}
-                            onPlay={() => console.debug(`[video-el][${post.id}] play() fired`)}
-                            onPlaying={() => console.debug(`[video-el][${post.id}] playing (resumed after buffering)`)}
-                            onPause={() => console.debug(`[video-el][${post.id}] pause() fired`)}
-                            onSuspend={() => console.debug(`[video-el][${post.id}] suspend`)}
-                            onProgress={() => console.debug(`[video-el][${post.id}] progress (buffer updated)`)}
                             onWaiting={() => {
-                                console.warn(`[Video Playback] post ${post.id} is waiting (buffering)...`);
+                                if (import.meta.env.DEV) console.warn(`[Video Playback] post ${post.id} is waiting (buffering)...`);
                             }}
                             onStalled={() => {
-                                console.warn(`[Video Playback] post ${post.id} stream stalled.`);
+                                if (import.meta.env.DEV) console.warn(`[Video Playback] post ${post.id} stream stalled.`);
                             }}
                             onError={(e) => {
                                 const err = e.target.error;
