@@ -106,7 +106,7 @@ export default function AppShell() {
             let thumb = listing.thumbnail || ''
             if (!thumb) {
                 if (listing.mediaType === 'video') {
-                    thumb = listing.mediaUrl?.includes('cloudinary') 
+                    thumb = listing.mediaUrl?.includes('cloudinary')
                         ? optimizeCloudinaryUrl(listing.mediaUrl, { isVideo: true, width: 100, crop: 'scale', format: 'jpg' })
                         : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='5 3 19 12 5 21 5 3'%3E%3C/polygon%3E%3C/svg%3E";
                 } else if (listing.mediaType === 'audio') {
@@ -115,7 +115,7 @@ export default function AppShell() {
                     thumb = listing.mediaUrl || ''
                 }
             }
-            
+
             return {
                 id: `listing_${listing.id}`,
                 title: listing.title,
@@ -310,7 +310,7 @@ export default function AppShell() {
                     {SIDEBAR_ITEMS.map((item) => {
                         const Icon = item.icon
                         const active = isItemActive(item)
-                        
+
                         if (item.key === 'logout') {
                             return (
                                 <button
@@ -344,14 +344,14 @@ export default function AppShell() {
                                 <Icon size={19} />
                                 <span className="hidden lg:inline text-sm">{item.label}</span>
                                 {item.key === 'messaging' && unreadTotal > 0 && (
-                                    <span 
+                                    <span
                                         className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold text-white bg-blue-500"
                                     >
                                         {unreadTotal}
                                     </span>
                                 )}
                                 {item.key === 'notifications' && notifTotal > 0 && (
-                                    <span 
+                                    <span
                                         className="ml-auto min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1.5 text-[10px] font-black text-white shadow-[0_2px_8px_rgba(239,68,68,0.4)] border-2 border-[var(--color-surface)]"
                                         style={{ background: '#ef4444' }}
                                     >
@@ -359,7 +359,7 @@ export default function AppShell() {
                                     </span>
                                 )}
                                 {item.key === 'auctions' && liveAuctionCount > 0 && (
-                                    <span 
+                                    <span
                                         className="ml-auto min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[8px] font-black text-white bg-red-600 animate-pulse uppercase"
                                     >
                                         Live
@@ -386,19 +386,29 @@ export default function AppShell() {
                 </div>
             </aside>
 
-            <main className={`app-shell-main relative flex flex-col flex-1 hide-scrollbar pb-safe ${location.pathname === '/create' ? 'overflow-hidden md:pb-0' : 'overflow-y-auto md:pb-6'} md:ml-[84px] md:px-4 lg:ml-[248px] lg:mr-[300px] lg:px-6 xl:mr-[332px]`}>
-                <PullToRefresh disabled={location.pathname === '/create'}>
-                    <div className={`mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col ${(
-                        location.pathname === '/create' || 
-                        location.pathname === '/' || 
-                        location.pathname === '/home' || 
-                        location.pathname.startsWith('/auctions') || 
-                        location.pathname.startsWith('/nfts') || 
-                        location.pathname.startsWith('/my-collection')
-                    ) ? 'pt-0' : 'pt-4'}`}>
+            <main className={`app-shell-main relative flex flex-col flex-1 hide-scrollbar pb-safe md:ml-[84px] lg:ml-[248px] lg:mr-[300px] xl:mr-[332px] ${location.pathname === '/create' || location.pathname === '/messaging'
+                    ? 'overflow-hidden md:px-0 lg:px-0'
+                    : 'overflow-y-auto md:px-4 lg:px-6'
+                }`}>
+                {location.pathname === '/messaging' ? (
+                    // Messaging gets full-height, no padding, no pull-to-refresh
+                    <div className="w-full h-full flex flex-col">
                         <Outlet />
                     </div>
-                </PullToRefresh>
+                ) : (
+                    <PullToRefresh disabled={location.pathname === '/create'}>
+                        <div className={`mx-auto w-full md:max-w-[620px] lg:max-w-[680px] flex-1 flex flex-col ${(
+                            location.pathname === '/create' ||
+                            location.pathname === '/' ||
+                            location.pathname === '/home' ||
+                            location.pathname.startsWith('/auctions') ||
+                            location.pathname.startsWith('/nfts') ||
+                            location.pathname.startsWith('/my-collection')
+                        ) ? 'pt-0' : 'pt-4'}`}>
+                            <Outlet />
+                        </div>
+                    </PullToRefresh>
+                )}
             </main>
 
             <aside
@@ -508,10 +518,10 @@ export default function AppShell() {
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="h-11 w-11 rounded-lg overflow-hidden bg-surface flex items-center justify-center border border-surface2">
-                                            <img 
-                                                src={post.thumbnail || '/person.png'} 
-                                                alt="" 
-                                                className="h-full w-full object-cover" 
+                                            <img
+                                                src={post.thumbnail || '/person.png'}
+                                                alt=""
+                                                className="h-full w-full object-cover"
                                                 onError={(e) => {
                                                     e.target.onerror = null;
                                                     e.target.src = '/person.png';
@@ -576,9 +586,9 @@ export default function AppShell() {
 
             <CoinRain />
             <RoseShower />
-            <LogoutConfirmationModal 
-                isOpen={isLogoutModalOpen} 
-                onClose={() => setIsLogoutModalOpen(false)} 
+            <LogoutConfirmationModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
                 onConfirm={async () => {
                     setIsLogoutModalOpen(false)
                     useUserStore.getState().logout()
