@@ -269,8 +269,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
 
     return (
         <div className="relative flex flex-col h-full bg-black items-center justify-center">
-            {/* Mobile: full height/width. Desktop: 9:16 with max widths. */}
-            <div className="relative w-full h-full mx-auto overflow-hidden bg-black md:h-auto md:aspect-[9/16] md:max-w-[520px] lg:max-w-[560px] md:max-h-[calc(100vh-56px)]">
+            {/* Mobile/Tablet: full height/width. Large Desktop: 9:16 with max widths. */}
+            <div className="relative w-full h-full mx-auto overflow-hidden bg-black lg:h-auto lg:aspect-[9/16] lg:max-w-[560px] lg:max-h-[calc(100vh-56px)]">
                 {post.media?.type === 'video' ? (
                     <>
                         {post.musicData?.audioUrl && (
@@ -898,6 +898,30 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
     const initialLoopIndex = posts.length > 1 && isReelsMode ? posts.length + safeIndex : safeIndex
     const effectiveActiveIndex = activeReelIndex ?? initialLoopIndex
 
+    const [viewportHeight, setViewportHeight] = useState('100svh')
+
+    useEffect(() => {
+        if (!isOpen || !isReelsMode) return;
+        if (typeof window !== 'undefined') {
+            let lastHeight = window.innerHeight;
+            setViewportHeight(`${lastHeight}px`);
+
+            const handleResize = () => {
+                const currentHeight = window.innerHeight;
+                // Update if height increased (keyboard closed) or changed significantly (orientation)
+                if (currentHeight > lastHeight || Math.abs(currentHeight - lastHeight) > lastHeight * 0.4) {
+                    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+                        return;
+                    }
+                    lastHeight = currentHeight;
+                    setViewportHeight(`${currentHeight}px`);
+                }
+            };
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+        }
+    }, [isOpen, isReelsMode]);
+
     useEffect(() => {
         if (!isOpen) return undefined
         const prev = document.body.style.overflow
@@ -1022,7 +1046,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                     background: isReelsMode ? '#000' : 'var(--color-bg)',
                     '--reels-header-height': '64px',
                     '--reels-bottom-offset': 'calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 24px)',
-                    '--reels-viewport-height': isReelsMode ? '100svh' : 'auto'
+                    '--reels-viewport-height': isReelsMode ? viewportHeight : 'auto'
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1060,7 +1084,7 @@ export default function PostFeedModal({ posts = [], startIndex = null, onClose, 
                         WebkitOverflowScrolling: 'touch'
                     }}
                 >
-                    <div className="mx-auto w-full md:max-w-[460px] lg:max-w-[520px]">
+                    <div className={`mx-auto w-full ${!isReelsMode ? 'md:max-w-[460px] lg:max-w-[520px]' : ''}`}>
                         {loopedPosts.map((post, index) => {
                             const inRenderWindow = !isReelsMode || Math.abs(index - effectiveActiveIndex) <= RENDER_WINDOW
                             return (

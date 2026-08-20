@@ -59,26 +59,26 @@ export default function MessagingPage() {
     }
 
     return (
-        <div className="flex w-full overflow-hidden" style={{ background: 'var(--color-bg)', height: isMobile ? (showChatMobile ? '100dvh' : 'calc(100dvh - 56px)') : '100dvh' }}>
+        <div className="flex w-full h-full overflow-hidden" style={{ background: 'var(--color-bg)' }}>
             {/* Desktop: Sidebar + Chat */}
             {!isMobile && (
                 <>
-                    <div className="w-80 border-r" style={{ borderColor: 'var(--color-border)' }}>
-                        <ConversationList 
-                            onSelectChat={handleSelectChat} 
-                            selectedChatId={selectedChat?.id || selectedChat?.user?.id} 
+                    <div className="w-56 lg:w-72 xl:w-80 shrink-0 border-r" style={{ borderColor: 'var(--color-border)' }}>
+                        <ConversationList
+                            onSelectChat={handleSelectChat}
+                            selectedChatId={selectedChat?.id || selectedChat?.user?.id}
                         />
                     </div>
                     <div className="flex-1 flex flex-col">
                         {selectedChat ? (
-                            <ChatWindow 
-                                chat={selectedChat} 
-                                sharingPost={sharingPost} 
-                                clearSharingPost={() => setSharingPost(null)} 
+                            <ChatWindow
+                                chat={selectedChat}
+                                sharingPost={sharingPost}
+                                clearSharingPost={() => setSharingPost(null)}
                             />
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                                <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4" 
+                                <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
                                     style={{ background: 'var(--color-surface2)', color: 'var(--color-muted)' }}>
                                     <Send size={40} />
                                 </div>
@@ -86,7 +86,7 @@ export default function MessagingPage() {
                                 <p className="text-sm max-w-xs" style={{ color: 'var(--color-muted)' }}>
                                     Send private photos and messages to a friend or group.
                                 </p>
-                                <button 
+                                <button
                                     className="mt-6 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200"
                                     style={{ background: 'var(--color-primary)', color: '#fff' }}
                                 >
@@ -111,10 +111,10 @@ export default function MessagingPage() {
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="absolute inset-0 w-full h-full"
                             >
-                        <ConversationList 
-                            onSelectChat={handleSelectChat} 
-                            selectedChatId={selectedChat?.id || selectedChat?.user?.id} 
-                        />
+                                <ConversationList
+                                    onSelectChat={handleSelectChat}
+                                    selectedChatId={selectedChat?.id || selectedChat?.user?.id}
+                                />
                             </motion.div>
                         ) : (
                             <motion.div
@@ -125,11 +125,11 @@ export default function MessagingPage() {
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="absolute inset-0 w-full h-full z-[80]"
                             >
-                                <ChatWindow 
-                                    chat={selectedChat} 
-                                    onBack={handleBackToList} 
-                                    sharingPost={sharingPost} 
-                                    clearSharingPost={() => setSharingPost(null)} 
+                                <ChatWindow
+                                    chat={selectedChat}
+                                    onBack={handleBackToList}
+                                    sharingPost={sharingPost}
+                                    clearSharingPost={() => setSharingPost(null)}
                                 />
                             </motion.div>
                         )}
