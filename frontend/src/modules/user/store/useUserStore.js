@@ -46,7 +46,7 @@ export const clearAuthStorage = () => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
-    
+
     // Clear all creation page states & cached files on logout/token clearing
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('create_') || key === 'selectedSound' || key === 'soundFavorites') {
@@ -84,6 +84,7 @@ const defaultProfile = {
     language: 'English',
     languages: [],
     hasSelectedLanguages: false,
+    isMonetized: false,
 }
 
 function profileFromUser(user) {
@@ -116,14 +117,15 @@ function profileFromUser(user) {
         language: user.language || 'English',
         languages: user.languages || [],
         hasSelectedLanguages: user.hasSelectedLanguages || false,
+        isMonetized: user.isMonetized || false,
     }
 }
 
 const storedUser = getStoredUser()
 
 export const useUserStore = create((set, get) => ({
-    darkMode: localStorage.getItem('knq_reels_dark_mode') !== null 
-        ? localStorage.getItem('knq_reels_dark_mode') === 'true' 
+    darkMode: localStorage.getItem('knq_reels_dark_mode') !== null
+        ? localStorage.getItem('knq_reels_dark_mode') === 'true'
         : false,
     isAuthenticated: Boolean(getStoredToken()),
     token: getStoredToken(),
@@ -188,15 +190,15 @@ export const useUserStore = create((set, get) => ({
                 const response = await authService.getMe(token)
                 const user = response.user
                 saveAuthToStorage({ token, refreshToken, user })
-                set((state) => ({ 
-                    token, 
-                    user, 
-                    profile: profileFromUser(user), 
-                    isAuthenticated: true, 
-                    authChecked: true, 
+                set((state) => ({
+                    token,
+                    user,
+                    profile: profileFromUser(user),
+                    isAuthenticated: true,
+                    authChecked: true,
                     authLoading: false,
-                    kyc: { 
-                        ...state.kyc, 
+                    kyc: {
+                        ...state.kyc,
                         status: user.kyc?.status || user.kycStatus || 'unverified',
                         referredCount: user.referralCount || 0,
                         referralCode: user.referralCode || '',
@@ -215,11 +217,11 @@ export const useUserStore = create((set, get) => ({
         } catch (err) {
             const status = err?.response?.status || err?.status
             const msg = err?.message || ""
-            const isAuthError = status === 401 || status === 403 || 
-                                msg.toLowerCase().includes("unauthorized") || 
-                                msg.toLowerCase().includes("expired") || 
-                                msg.toLowerCase().includes("invalid token")
-            
+            const isAuthError = status === 401 || status === 403 ||
+                msg.toLowerCase().includes("unauthorized") ||
+                msg.toLowerCase().includes("expired") ||
+                msg.toLowerCase().includes("invalid token")
+
             // If it's NOT a definitive auth error (e.g. network down, 500, timeout), DON'T log out.
             // Just mark check as done so UI can continue.
             if (!isAuthError) {
@@ -242,9 +244,9 @@ export const useUserStore = create((set, get) => ({
             } catch (err) {
                 const status = err?.response?.status || err?.status
                 const msg = err?.message || ""
-                const isAuthError = status === 401 || status === 403 || 
-                                    msg.toLowerCase().includes("expired") || 
-                                    msg.toLowerCase().includes("invalid token")
+                const isAuthError = status === 401 || status === 403 ||
+                    msg.toLowerCase().includes("expired") ||
+                    msg.toLowerCase().includes("invalid token")
                 if (!isAuthError) {
                     set({ authChecked: true, authLoading: false })
                     return
@@ -475,7 +477,7 @@ export const useUserStore = create((set, get) => ({
             }
             // Construct payload with explicit field checks
             const payload = {}
-            
+
             // Handle name logic: prioritize explicit name, then fullName, then username
             // In the Settings menu, fullName corresponds to 'name' in DB, 
             // while username might be a legacy field or display name.
@@ -489,19 +491,19 @@ export const useUserStore = create((set, get) => ({
 
             if (data.email !== undefined) payload.email = data.email
             if (data.phone !== undefined) payload.phone = data.phone
-            
+
             // Ensure bio is passed if it exists in the data object
             if (data.bio !== undefined) {
                 payload.bio = data.bio
             }
 
             if (data.avatar !== undefined) payload.avatar = data.avatar
-            
+
             if (data.handle !== undefined) {
                 // Remove @ if user added it manually
                 payload.handle = data.handle?.startsWith('@') ? data.handle.slice(1) : data.handle
             }
-            
+
             if (data.state !== undefined) payload.state = data.state
             if (data.language !== undefined) payload.language = data.language
             if (data.languages !== undefined) payload.languages = data.languages
@@ -511,7 +513,7 @@ export const useUserStore = create((set, get) => ({
             let user = mergedUser
             if (Object.keys(payload).length > 0) {
                 const response = await authService.updateProfile(token, payload)
-                
+
                 if (response?.user) {
                     user = { ...user, ...response.user }
                 } else {
@@ -522,15 +524,15 @@ export const useUserStore = create((set, get) => ({
 
             // Sync with storage and state
             saveAuthToStorage({ token, user })
-            set((state) => ({ 
-                user, 
+            set((state) => ({
+                user,
                 profile: profileFromUser(user),
                 kyc: {
                     ...state.kyc,
                     status: user.kycStatus || 'unverified'
                 }
             }))
-            
+
             return { success: true, user }
         } catch (err) {
             console.warn("[Store] Profile update failed:", err.message)

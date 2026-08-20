@@ -8,6 +8,7 @@ const fs = require("fs");
 const { getBaseUrl } = require("../utils/postHelpers");
 const { UPLOAD_DIR } = require("../utils/upload");
 const { sendOtpEmail, sendVerificationEmail } = require("../utils/mailer");
+const { getAdminConfig } = require("../utils/adminConfig");
 
 
 const getJwtSecret = () => process.env.JWT_SECRET || "change-me";
@@ -202,21 +203,43 @@ const registerUser = async (req, res) => {
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null
     });
 
-    // If referred, increment referrer count
+    // If referred, increment referrer count and credit reward
     if (referrerId) {
-      const updatedReferrer = await User.findByIdAndUpdate(
+      const adminConfig = await getAdminConfig();
+      const REFERRAL_BONUS_COINS = adminConfig.referralBonusCoins > 0 ? adminConfig.referralBonusCoins : 100;
+
+      const preUpdateReferrer = await User.findByIdAndUpdate(
         referrerId,
-        { $inc: { referralCount: 1 } },
-        { new: true }
+        { $inc: { referralCount: 1, earningCoins: REFERRAL_BONUS_COINS } },
+        { new: false }
       );
+
+      const beforeBalance = preUpdateReferrer?.earningCoins || 0;
+      const afterBalance = beforeBalance + REFERRAL_BONUS_COINS;
+      const newReferralCount = (preUpdateReferrer?.referralCount || 0) + 1;
+
       try {
         const { emitToUser } = require("../utils/socket");
         emitToUser(referrerId, "referral_count_update", {
-          referralCount: updatedReferrer?.referralCount || 0
+          referralCount: newReferralCount
         });
       } catch (socketErr) {
         console.error("[Referral] Failed to emit count update:", socketErr);
       }
+
+      const WalletTransaction = require("../models/WalletTransaction");
+      await WalletTransaction.create({
+        userId: referrerId,
+        type: "deposit",
+        referenceType: "referral_reward",
+        referenceId: user._id,
+        coins: REFERRAL_BONUS_COINS,
+        amount: REFERRAL_BONUS_COINS,
+        beforeBalance,
+        afterBalance,
+        status: "success",
+        description: `Referral reward for inviting ${user.name}`
+      });
     }
 
     // Generate verification OTP
@@ -579,33 +602,7 @@ const verifyEmail = async (req, res) => {
       { $set: { isEmailVerified: true, emailVerificationOtp: null, emailVerificationExpires: null } }
     );
 
-    // Credit referral reward if user was referred
-    if (user.referredBy) {
-      const WalletTransaction = require("../models/WalletTransaction");
-      const existingTx = await WalletTransaction.findOne({
-        userId: user.referredBy,
-        referenceType: "referral_reward",
-        referenceId: user._id
-      });
 
-      if (!existingTx) {
-        const REFERRAL_BONUS_COINS = 100;
-        await User.findByIdAndUpdate(user.referredBy, {
-          $inc: { earningCoins: REFERRAL_BONUS_COINS }
-        });
-
-        await WalletTransaction.create({
-          userId: user.referredBy,
-          type: "deposit",
-          referenceType: "referral_reward",
-          referenceId: user._id,
-          coins: REFERRAL_BONUS_COINS,
-          amount: REFERRAL_BONUS_COINS,
-          status: "success",
-          description: `Referral reward for inviting ${user.name}`
-        });
-      }
-    }
 
     // Do not auto-login, just return success
     return res.status(200).json({

@@ -18,10 +18,11 @@ const updateConfig = async (req, res) => {
   try {
     const updates = {};
     const fields = [
-      "coinRate", 
-      "platformFeePct", 
-      "gstPct", 
-      "minReferralsForWithdrawal", 
+      "coinRate",
+      "platformFeePct",
+      "gstPct",
+      "minReferralsForWithdrawal",
+      "referralBonusCoins",
       "minWithdrawalCoins",
       "premiumThreshold",
       "businessPostPriceINR",
@@ -37,11 +38,11 @@ const updateConfig = async (req, res) => {
     ];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
-          if (["adminNotificationMobiles", "nftTermsAndConditions", "termsAndConditions", "privacyPolicy", "supportEmail", "supportMobile", "faqs"].includes(field)) {
-              updates[field] = req.body[field];
-          } else {
-              updates[field] = Number(req.body[field]);
-          }
+        if (["adminNotificationMobiles", "nftTermsAndConditions", "termsAndConditions", "privacyPolicy", "supportEmail", "supportMobile", "faqs"].includes(field)) {
+          updates[field] = req.body[field];
+        } else {
+          updates[field] = Number(req.body[field]);
+        }
       }
     });
 

@@ -4,6 +4,7 @@ export const DEFAULT_PLATFORM_SETTINGS = {
     commission: 10,
     minWithdrawal: 10,
     minReferralsForWithdrawal: 5,
+    referralBonusCoins: 100,
     coinRate: 1,
     maintenanceMode: false,
     kycMandatory: true,
@@ -70,6 +71,7 @@ export function fetchPlatformSettings() {
                     commission: data.config.platformFeePct,
                     minWithdrawal: data.config.minWithdrawalCoins,
                     minReferralsForWithdrawal: data.config.minReferralsForWithdrawal,
+                    referralBonusCoins: data.config.referralBonusCoins,
                     premiumThreshold: data.config.premiumThreshold,
                     coinRate: data.config.coinRate
                 });

@@ -3585,7 +3585,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
   const renderCameraSideTools = () => (
     <div
-      className={`absolute right-4 z-20 flex flex-col items-center gap-5 transition-all duration-300 ${
+      className={`absolute right-4 z-20 flex flex-col items-center gap-3 md:gap-5 transition-all duration-300 ${
         isFiltersTrayOpen ? 'top-[10%]' : 'top-[14%]'
       }`}
     >
@@ -4989,7 +4989,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
       {/* Bottom Tools & Buttons */}
       <div
-        className="bg-[#121214] border-t border-white/5 pt-4 pb-[calc(max(1.25rem,env(safe-area-inset-bottom))+4.5rem)] md:pb-[max(1.25rem,env(safe-area-inset-bottom))] z-20"
+        className="bg-[#121214] border-t border-white/5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] z-20"
       >
         {/* Horizontal Tools List */}
         <div className="mb-6 flex gap-6 overflow-x-auto px-6 no-scrollbar">
@@ -5052,7 +5052,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
           <span className="w-6" />
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-[calc(max(1rem,env(safe-area-inset-bottom))+5rem)]">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="border-b border-black/5 px-4 py-4">
             <div className="flex gap-4">
               <textarea

@@ -45,6 +45,7 @@ const mapConfigToSettings = (config) => ({
     coinRate: Number(config?.coinRate || 0),
     gstPct: Number(config?.gstPct || 0),
     minReferralsForWithdrawal: Number(config?.minReferralsForWithdrawal || 0),
+    referralBonusCoins: Number(config?.referralBonusCoins || 0),
     premiumThreshold: Number(config?.premiumThreshold || 0),
     auctionListingFeeINR: Number(config?.auctionListingFeeINR || 0),
     auctionCommissionPct: Number(config?.auctionCommissionPct || 0),
@@ -64,10 +65,11 @@ export const settingsService = {
         if (newSettings.coinRate !== undefined) payload.coinRate = Number(newSettings.coinRate);
         if (newSettings.gstPct !== undefined) payload.gstPct = Number(newSettings.gstPct);
         if (newSettings.minReferralsForWithdrawal !== undefined) payload.minReferralsForWithdrawal = Number(newSettings.minReferralsForWithdrawal);
+        if (newSettings.referralBonusCoins !== undefined) payload.referralBonusCoins = Number(newSettings.referralBonusCoins);
         if (newSettings.premiumThreshold !== undefined) payload.premiumThreshold = Number(newSettings.premiumThreshold);
         if (newSettings.auctionListingFeeINR !== undefined) payload.auctionListingFeeINR = Number(newSettings.auctionListingFeeINR);
         if (newSettings.auctionCommissionPct !== undefined) payload.auctionCommissionPct = Number(newSettings.auctionCommissionPct);
-        
+
         if (newSettings.adminNotificationMobiles !== undefined) {
             // Filter out empty strings to keep only valid numbers
             payload.adminNotificationMobiles = newSettings.adminNotificationMobiles.filter(m => m && m.trim() !== '');

@@ -361,7 +361,7 @@ export const useAdminStore = create((set, get) => ({
     addCategory: (formData) => get().execute(async () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getStoredToken()}`
             },
@@ -378,7 +378,7 @@ export const useAdminStore = create((set, get) => ({
     updateCategory: (id, formData) => get().execute(async () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${id}`, {
             method: 'PATCH',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getStoredToken()}`
             },
@@ -397,7 +397,7 @@ export const useAdminStore = create((set, get) => ({
     deleteCategory: (id) => get().execute(async () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${id}`, {
             method: 'DELETE',
-            headers: { 
+            headers: {
                 'Authorization': `Bearer ${getStoredToken()}`
             }
         });
@@ -410,7 +410,7 @@ export const useAdminStore = create((set, get) => ({
     addSubcategory: (categoryId, formData) => get().execute(async () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${categoryId}/sub`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getStoredToken()}`
             },
@@ -429,7 +429,7 @@ export const useAdminStore = create((set, get) => ({
     updateSubcategory: (categoryId, subId, formData) => get().execute(async () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${categoryId}/sub/${subId}`, {
             method: 'PATCH',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${getStoredToken()}`
             },
@@ -448,7 +448,7 @@ export const useAdminStore = create((set, get) => ({
     deleteSubcategory: (categoryId, subId) => get().execute(async () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002/api"}/admin/categories/${categoryId}/sub/${subId}`, {
             method: 'DELETE',
-            headers: { 
+            headers: {
                 'Authorization': `Bearer ${getStoredToken()}`
             }
         });
@@ -542,6 +542,7 @@ export const useAdminStore = create((set, get) => ({
             commission: settings.platformFeePct,
             minWithdrawal: settings.minWithdrawalCoins,
             minReferralsForWithdrawal: settings.minReferralsForWithdrawal,
+            referralBonusCoins: settings.referralBonusCoins,
             premiumThreshold: settings.premiumThreshold
         });
     }),
@@ -554,6 +555,7 @@ export const useAdminStore = create((set, get) => ({
             commission: updated.platformFeePct,
             minWithdrawal: updated.minWithdrawalCoins,
             minReferralsForWithdrawal: updated.minReferralsForWithdrawal,
+            referralBonusCoins: updated.referralBonusCoins,
             premiumThreshold: updated.premiumThreshold
         });
     }, "Kernel parameters updated successfully."),

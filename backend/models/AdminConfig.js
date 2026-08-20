@@ -22,6 +22,11 @@ const adminConfigSchema = new mongoose.Schema(
       default: 5,
       min: 0
     },
+    referralBonusCoins: {
+      type: Number,
+      default: 100,
+      min: 0
+    },
     minWithdrawalCoins: {
       type: Number,
       default: 10, // 10 RS

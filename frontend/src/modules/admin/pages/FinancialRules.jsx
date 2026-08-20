@@ -70,6 +70,18 @@ export default function FinancialRules() {
                             />
                         </div>
                         <div className="space-y-2">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Referral Bonus (Coins)</label>
+                            <input
+                                type="number"
+                                value={formData.referralBonusCoins ?? ''}
+                                onChange={(e) => handleChange('referralBonusCoins', parseInt(e.target.value))}
+                                className="w-full bg-bg border border-surface rounded-lg py-2.5 px-4 text-xs font-medium focus:ring-1 focus:ring-primary/30 outline-none text-text"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
                             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted ml-0.5">Premium Earning Threshold (INR)</label>
                             <input
                                 type="number"
@@ -143,7 +155,7 @@ export default function FinancialRules() {
                         </div>
                     </div>
                 </section>
-                
+
                 <section className="space-y-6 pt-6 border-t border-surface2">
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="w-4 h-4 text-primary" />

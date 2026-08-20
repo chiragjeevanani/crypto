@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2, Zap, Share2, X, Users } from 'lucide-react'
+import { Gift, CheckSquare, Gem, Link, ShieldCheck, AlertTriangle, Loader2, Zap, Share2, X, Users, Star } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useWalletStore } from '../store/useWalletStore'
 import { useUserStore, getStoredToken } from '../store/useUserStore'
@@ -22,98 +22,98 @@ const getAssetUrl = (path) => {
 };
 
 function ShareModal({ isOpen, onClose, referralCode }) {
-  const [copied, setCopied] = useState(false);
-  if (!isOpen) return null;
+    const [copied, setCopied] = useState(false);
+    if (!isOpen) return null;
 
-  const url = `https://play.google.com/store/apps/details?id=com.knqreels.app`;
-  const text = `Join me on KnQ Reels! Use my referral code: ${referralCode || ''} and start earning. Download now!`;
+    const url = `https://play.google.com/store/apps/details?id=com.knqreels.app`;
+    const text = `Join me on KnQ Reels! Use my referral code: ${referralCode || ''} and start earning. Download now!`;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+    const handleCopy = () => {
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
-  const shareOptions = [
-    {
-      name: 'WhatsApp',
-      color: '#25D366',
-      icon: (
-        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.453L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.022-5.11-2.885-6.974C16.586 1.81 14.113.784 11.48.784c-5.437 0-9.862 4.421-9.866 9.86-.001 1.902.504 3.753 1.464 5.378L2.016 22.03l6.19-1.624-.559-.252z"/>
-        </svg>
-      ),
-      link: `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + url)}`
-    },
-    {
-      name: 'Telegram',
-      color: '#0088cc',
-      icon: (
-        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-          <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.24-.213-.054-.33-.373-.117l-6.87 4.326-2.96-.924c-.643-.203-.657-.643.136-.953l11.57-4.46c.536-.203.996.124.8.982z"/>
-        </svg>
-      ),
-      link: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-    },
-    {
-      name: 'Facebook',
-      color: '#1877F2',
-      icon: (
-        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-        </svg>
-      ),
-      link: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`
-    }
-  ];
+    const shareOptions = [
+        {
+            name: 'WhatsApp',
+            color: '#25D366',
+            icon: (
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.5-5.739-1.453L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.022-5.11-2.885-6.974C16.586 1.81 14.113.784 11.48.784c-5.437 0-9.862 4.421-9.866 9.86-.001 1.902.504 3.753 1.464 5.378L2.016 22.03l6.19-1.624-.559-.252z" />
+                </svg>
+            ),
+            link: `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + url)}`
+        },
+        {
+            name: 'Telegram',
+            color: '#0088cc',
+            icon: (
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.24-.213-.054-.33-.373-.117l-6.87 4.326-2.96-.924c-.643-.203-.657-.643.136-.953l11.57-4.46c.536-.203.996.124.8.982z" />
+                </svg>
+            ),
+            link: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+        },
+        {
+            name: 'Facebook',
+            color: '#1877F2',
+            icon: (
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+            ),
+            link: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`
+        }
+    ];
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1c1c1e] border border-white/10 w-full max-w-sm rounded-[24px] p-6 shadow-2xl relative overflow-hidden text-white" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/5 transition-colors text-white/50 hover:text-white">
-          <X size={18} />
-        </button>
-        <h3 className="text-base font-black tracking-tight text-white mb-4 uppercase">Share Referral</h3>
-        <p className="text-xs text-white/50 mb-5 font-medium leading-relaxed">
-          Invite friends to earn. Copy your link or share directly to your social and messaging apps.
-        </p>
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-[#1c1c1e] border border-white/10 w-full max-w-sm rounded-[24px] p-6 shadow-2xl relative overflow-hidden text-white" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/5 transition-colors text-white/50 hover:text-white">
+                    <X size={18} />
+                </button>
+                <h3 className="text-base font-black tracking-tight text-white mb-4 uppercase">Share Referral</h3>
+                <p className="text-xs text-white/50 mb-5 font-medium leading-relaxed">
+                    Invite friends to earn. Copy your link or share directly to your social and messaging apps.
+                </p>
 
-        {/* Input + copy button */}
-        <div className="flex gap-2 p-1.5 rounded-xl border border-white/10 bg-black/30 mb-6">
-          <input 
-            type="text" 
-            readOnly 
-            value={url} 
-            className="flex-1 min-w-0 bg-transparent text-xs font-semibold px-2 outline-none text-white select-all" 
-          />
-          <button 
-            onClick={handleCopy}
-            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${copied ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-black hover:bg-amber-400'}`}
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </button>
+                {/* Input + copy button */}
+                <div className="flex gap-2 p-1.5 rounded-xl border border-white/10 bg-black/30 mb-6">
+                    <input
+                        type="text"
+                        readOnly
+                        value={url}
+                        className="flex-1 min-w-0 bg-transparent text-xs font-semibold px-2 outline-none text-white select-all"
+                    />
+                    <button
+                        onClick={handleCopy}
+                        className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${copied ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-black hover:bg-amber-400'}`}
+                    >
+                        {copied ? 'Copied' : 'Copy'}
+                    </button>
+                </div>
+
+                {/* Social Buttons */}
+                <div className="grid grid-cols-3 gap-3">
+                    {shareOptions.map(opt => (
+                        <a
+                            key={opt.name}
+                            href={opt.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-white/5 border border-white/5 transition-colors"
+                        >
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 shadow-sm" style={{ backgroundColor: opt.color, color: '#fff' }}>
+                                {opt.icon}
+                            </div>
+                            <span className="text-[10px] font-bold text-white/80">{opt.name}</span>
+                        </a>
+                    ))}
+                </div>
+            </div>
         </div>
-
-        {/* Social Buttons */}
-        <div className="grid grid-cols-3 gap-3">
-          {shareOptions.map(opt => (
-            <a 
-              key={opt.name}
-              href={opt.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col items-center justify-center p-3 rounded-xl hover:bg-white/5 border border-white/5 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2 shadow-sm" style={{ backgroundColor: opt.color, color: '#fff' }}>
-                {opt.icon}
-              </div>
-              <span className="text-[10px] font-bold text-white/80">{opt.name}</span>
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 const TABS = ['Transactions', 'Withdraw', 'Linked']
@@ -255,7 +255,7 @@ export default function WalletPage() {
                 const byteArray = new Uint8Array(byteNumbers)
                 const blob = new Blob([byteArray], { type: result.mimeType || 'image/jpeg' })
                 const file = new File([blob], result.fileName || `${type}.jpg`, { type: result.mimeType || 'image/jpeg' })
-                
+
                 if (type === 'aadharFront') setKycAadharFront(file)
                 if (type === 'aadharBack') setKycAadharBack(file)
                 if (type === 'panCard') setPanCardFile(file)
@@ -285,7 +285,7 @@ export default function WalletPage() {
         if (payoutMethods && payoutMethods.length > 0) {
             const methodsOfType = payoutMethods.filter(acc => acc.type === withdrawMethod)
             const activeMethod = methodsOfType.find(acc => acc.primary) || methodsOfType[0]
-            
+
             if (activeMethod) {
                 if (withdrawMethod === 'upi') {
                     setWithdrawUpiId(activeMethod.upiId || '')
@@ -303,11 +303,11 @@ export default function WalletPage() {
     // Polling for KYC status updates if pending
     useEffect(() => {
         if (kyc.status !== 'pending') return;
-        
+
         const interval = setInterval(() => {
             initializeAuth();
         }, 15000); // Increased to 15 seconds to reduce load
-        
+
         return () => {
             clearInterval(interval);
         }
@@ -335,7 +335,7 @@ export default function WalletPage() {
                 setSearchParams({}, { replace: true })
                 return
             }
-            
+
             if (gateway && trx) {
                 setWalletActionMessage('Verifying payment...')
                 // Pass session_id for Stripe, existing razorpay fields for Razorpay
@@ -413,7 +413,7 @@ export default function WalletPage() {
                 setIsProcessingPayment(false)
                 return
             }
-            
+
             const options = {
                 key: result.keyId,
                 amount: result.amount,
@@ -558,7 +558,18 @@ export default function WalletPage() {
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-14 w-14 rounded-full object-cover shadow-sm" />
-                    <h1 className="text-3xl md:text-4xl font-black tracking-tight" style={{ color: 'var(--color-text)' }}>Wallet</h1>
+                    <div className="flex flex-col items-start gap-1">
+                        <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>Wallet</h1>
+                        {profile?.isMonetized && (
+                            <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm"
+                                style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}
+                            >
+                                <Star size={10} strokeWidth={3} fill="#10b981" />
+                                Monetized
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="p-2 rounded-2xl bg-surface border border-border/50">
                     <ShieldCheck size={20} className="text-primary" />
@@ -574,12 +585,12 @@ export default function WalletPage() {
             {/* Wallet cards - Stacked Vertical for Single View */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
                 {/* INR Wallet Card */}
-                <motion.div 
+                <motion.div
                     whileHover={{ scale: 1.01 }}
                     className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/10"
-                    style={{ 
-                        background: 'linear-gradient(135deg, #FF9933 0%, #F45D22 100%)', 
-                        color: '#fff' 
+                    style={{
+                        background: 'linear-gradient(135deg, #FF9933 0%, #F45D22 100%)',
+                        color: '#fff'
                     }}
                 >
                     <div className="relative z-10 flex flex-col gap-3">
@@ -597,12 +608,12 @@ export default function WalletPage() {
                 </motion.div>
 
                 {/* Earning Wallet Card */}
-                <motion.div 
+                <motion.div
                     whileHover={{ scale: 1.01 }}
                     className="rounded-2xl p-5 relative overflow-hidden shadow-lg border border-white/5"
-                    style={{ 
-                        background: 'linear-gradient(135deg, #138808 0%, #0B6604 100%)', 
-                        color: '#fff' 
+                    style={{
+                        background: 'linear-gradient(135deg, #138808 0%, #0B6604 100%)',
+                        color: '#fff'
                     }}
                 >
                     <div className="relative z-10 flex flex-col gap-3">
@@ -618,7 +629,7 @@ export default function WalletPage() {
                                     <span className="text-sm font-medium opacity-70">{currencySymbol}</span>
                                     <span className="truncate">{Math.round((earningsWallet / platformSettings.coinRate) * (walletRates.localRate || 1)).toLocaleString()}</span>
                                 </h2>
-                                
+
                                 <div className="shrink-0 grow flex justify-end">
                                     {earningsWallet < platformSettings.minWithdrawal ? (
                                         <div className="w-full max-w-[120px] space-y-1">
@@ -627,8 +638,8 @@ export default function WalletPage() {
                                                 <span>{Math.round((earningsWallet / platformSettings.minWithdrawal) * 100)}%</span>
                                             </div>
                                             <div className="h-1 bg-black/20 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-white transition-all duration-700" 
+                                                <div
+                                                    className="h-full bg-white transition-all duration-700"
                                                     style={{ width: `${Math.min(100, (earningsWallet / platformSettings.minWithdrawal) * 100)}%` }}
                                                 />
                                             </div>
@@ -665,7 +676,7 @@ export default function WalletPage() {
                             Select or enter amount
                         </p>
                     </div>
-                    
+
                     <div className="flex flex-wrap gap-2 mb-8">
                         {[5, 10, 20, 50, 100, 200, 500].map(amt => (
                             <button
@@ -678,7 +689,7 @@ export default function WalletPage() {
                             </button>
                         ))}
                     </div>
-                    
+
                     <div className="relative">
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-1 group/input">
@@ -701,10 +712,10 @@ export default function WalletPage() {
                                 disabled={isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0}
                                 onClick={() => handleQuickAdd(addInrAmount)}
                                 className="w-full sm:w-auto px-10 h-14 rounded-xl text-white text-[11px] font-black uppercase tracking-widest shadow-lg transition-all disabled:opacity-60 shrink-0 active:scale-95 hover:brightness-110"
-                                style={{ 
+                                style={{
                                     background: 'linear-gradient(135deg, #F39C12 0%, #D35400 100%)',
-                                    boxShadow: (isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0) 
-                                        ? 'none' 
+                                    boxShadow: (isProcessingPayment || !addInrAmount || Number(addInrAmount) <= 0)
+                                        ? 'none'
                                         : '0 10px 15px -3px rgba(211, 84, 0, 0.4)'
                                 }}
                             >
@@ -820,7 +831,7 @@ export default function WalletPage() {
                                         </div>
                                         <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover shadow-sm opacity-80" />
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={handleShareReferral}
                                         className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-primary text-black text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
                                     >
@@ -834,13 +845,13 @@ export default function WalletPage() {
                             </div>
                             {/* KYC Status Banner */}
                             {(kyc.status !== 'verified' || (profile.referralCount || 0) < platformSettings.minReferralsForWithdrawal) && (
-                                <motion.div 
+                                <motion.div
                                     id="kyc-section"
                                     className="rounded-[32px] p-8 border backdrop-blur-md shadow-2xl relative overflow-hidden"
                                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                                 >
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl" />
-                                    
+
                                     <div className="flex items-start gap-5 relative z-10">
                                         <div className="w-14 h-14 rounded-3xl flex items-center justify-center bg-orange-500/10 shrink-0 shadow-inner">
                                             <ShieldCheck size={28} className="text-orange-500" />
@@ -895,7 +906,7 @@ export default function WalletPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 opacity-60 pointer-events-none">
                                                     {aadharFrontPreview && (
                                                         <div className="relative aspect-video rounded-3xl overflow-hidden border border-border bg-bg flex items-center justify-center min-h-[120px]">
@@ -919,7 +930,7 @@ export default function WalletPage() {
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     <div className="space-y-2">
                                                         <label className="text-[10px] font-black uppercase text-muted tracking-widest ml-1">Aadhar Number (12 digits)</label>
-                                                        <input 
+                                                        <input
                                                             type="text"
                                                             maxLength={12}
                                                             value={aadharNumber}
@@ -930,7 +941,7 @@ export default function WalletPage() {
                                                     </div>
                                                     <div className="space-y-2">
                                                         <label className="text-[10px] font-black uppercase text-muted tracking-widest ml-1">PAN Card Number</label>
-                                                        <input 
+                                                        <input
                                                             type="text"
                                                             maxLength={10}
                                                             value={panNumber}
@@ -942,7 +953,7 @@ export default function WalletPage() {
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                    <div 
+                                                    <div
                                                         onClick={() => handleKycClick('aadharFront', aadharFrontInputRef)}
                                                         className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[140px]"
                                                     >
@@ -957,19 +968,19 @@ export default function WalletPage() {
                                                             <>
                                                                 <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all rotate-3"><ShieldCheck size={20} /></div>
                                                                 <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                                    {kycAadharFront?.name || kyc.aadharFrontName?.substring(0,10) || 'AADHAR FRONT'}
+                                                                    {kycAadharFront?.name || kyc.aadharFrontName?.substring(0, 10) || 'AADHAR FRONT'}
                                                                 </span>
                                                             </>
                                                         )}
-                                                        <input 
-                                                            type="file" 
+                                                        <input
+                                                            type="file"
                                                             ref={aadharFrontInputRef}
-                                                            accept="image/*" 
-                                                            onChange={(e) => setKycAadharFront(e.target.files?.[0] || null)} 
-                                                            className="hidden" 
+                                                            accept="image/*"
+                                                            onChange={(e) => setKycAadharFront(e.target.files?.[0] || null)}
+                                                            className="hidden"
                                                         />
                                                     </div>
-                                                    <div 
+                                                    <div
                                                         onClick={() => handleKycClick('aadharBack', aadharBackInputRef)}
                                                         className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[140px]"
                                                     >
@@ -984,19 +995,19 @@ export default function WalletPage() {
                                                             <>
                                                                 <div className="p-2 rounded-xl bg-surface group-hover:bg-primary group-hover:text-black transition-all -rotate-3"><ShieldCheck size={20} /></div>
                                                                 <span className="text-[10px] font-black uppercase text-muted text-center tracking-tighter">
-                                                                    {kycAadharBack?.name || kyc.aadharBackName?.substring(0,10) || 'AADHAR BACK'}
+                                                                    {kycAadharBack?.name || kyc.aadharBackName?.substring(0, 10) || 'AADHAR BACK'}
                                                                 </span>
                                                             </>
                                                         )}
-                                                        <input 
-                                                            type="file" 
+                                                        <input
+                                                            type="file"
                                                             ref={aadharBackInputRef}
-                                                            accept="image/*" 
-                                                            onChange={(e) => setKycAadharBack(e.target.files?.[0] || null)} 
-                                                            className="hidden" 
+                                                            accept="image/*"
+                                                            onChange={(e) => setKycAadharBack(e.target.files?.[0] || null)}
+                                                            className="hidden"
                                                         />
                                                     </div>
-                                                    <div 
+                                                    <div
                                                         onClick={() => handleKycClick('panCard', panCardInputRef)}
                                                         className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[140px]"
                                                     >
@@ -1015,16 +1026,16 @@ export default function WalletPage() {
                                                                 </span>
                                                             </>
                                                         )}
-                                                        <input 
-                                                            type="file" 
+                                                        <input
+                                                            type="file"
                                                             ref={panCardInputRef}
-                                                            accept="image/*" 
-                                                            onChange={(e) => setPanCardFile(e.target.files?.[0] || null)} 
-                                                            className="hidden" 
+                                                            accept="image/*"
+                                                            onChange={(e) => setPanCardFile(e.target.files?.[0] || null)}
+                                                            className="hidden"
                                                         />
                                                     </div>
                                                 </div>
-                                                
+
                                                 <button
                                                     onClick={handleSubmitKYC}
                                                     disabled={!canSubmitKYC || isSubmittingKyc}
@@ -1082,7 +1093,7 @@ export default function WalletPage() {
                                                         }}
                                                         className="bg-transparent border-none outline-none text-xl font-black w-full text-text placeholder:text-muted/20"
                                                     />
-                                                    <button 
+                                                    <button
                                                         onClick={() => setWithdrawAmount(Math.floor(earningsWallet / platformSettings.coinRate))}
                                                         className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-black transition-all"
                                                     >
@@ -1095,7 +1106,7 @@ export default function WalletPage() {
                                             </div>
 
                                             {/* Payout Breakdown */}
-                                            <motion.div 
+                                            <motion.div
                                                 initial={{ opacity: 0, height: 0 }}
                                                 animate={{ opacity: withdrawAmount ? 1 : 0, height: withdrawAmount ? 'auto' : 0 }}
                                                 className="overflow-hidden"
@@ -1255,7 +1266,7 @@ export default function WalletPage() {
                                                 setValidationErrors({});
 
                                                 setWalletActionMessage('Processing payout request...')
-                                                 const payoutPayload = {
+                                                const payoutPayload = {
                                                     paymentMethod: withdrawMethod,
                                                     bankDetails: withdrawMethod === 'bank' ? {
                                                         accountNumber: withdrawAccountNumber.trim(),
@@ -1294,7 +1305,7 @@ export default function WalletPage() {
                                         >
                                             Execute Payout
                                         </motion.button>
-                                        
+
                                         {earningsWallet < (platformSettings.minWithdrawal || 10) && (
                                             <p className="text-[10px] text-center font-bold text-muted px-6 uppercase tracking-widest opacity-60">
                                                 Balance must be at least {currencySymbol}{platformSettings.minWithdrawal || 10} to initiate payout
@@ -1312,7 +1323,7 @@ export default function WalletPage() {
                                         Identity verification (KYC) and at least {platformSettings.minReferralsForWithdrawal || 5} successful referrals are required to unlock payout features.
                                     </p>
                                     <div className="pt-6">
-                                        <button 
+                                        <button
                                             onClick={() => document.getElementById('kyc-section')?.scrollIntoView({ behavior: 'smooth' })}
                                             className="px-8 py-3 rounded-xl bg-bg border-2 border-primary text-primary text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-black transition-all"
                                         >
@@ -1330,7 +1341,7 @@ export default function WalletPage() {
                                 <h3 className="text-sm font-black uppercase tracking-widest text-muted">Saved Accounts</h3>
                                 <div className="px-3 py-1 bg-surface border rounded-full text-[10px] font-bold text-muted uppercase">PCI DSS Compliant</div>
                             </div>
-                            
+
                             <div className="space-y-3">
                                 {payoutMethods.map((acc) => (
                                     <motion.div
@@ -1366,7 +1377,7 @@ export default function WalletPage() {
                                     <h4 className="text-sm font-black text-text uppercase tracking-widest">Connect New Account</h4>
                                     <p className="text-[10px] font-bold text-muted leading-tight">Linked accounts can be used for instant withdrawals.</p>
                                 </div>
-                                
+
                                 <div className="space-y-4">
                                     <select
                                         value={linkMethodType}
@@ -1377,7 +1388,7 @@ export default function WalletPage() {
                                         <option value="upi">UPI ID</option>
                                         <option value="bank">Direct Bank Account</option>
                                     </select>
-                                    
+
                                     {linkMethodType === 'upi' ? (
                                         <div className="grid grid-cols-1 gap-3">
                                             <input
@@ -1469,13 +1480,13 @@ export default function WalletPage() {
                 </motion.div>
             </AnimatePresence>
             <ShareModal isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} referralCode={profile.referralCode} />
-            
+
             {kycSourcePicker.open && (
-                <div 
+                <div
                     className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
                     onClick={() => setKycSourcePicker({ open: false, type: null, ref: null })}
                 >
-                    <div 
+                    <div
                         className="w-full max-w-sm rounded-[24px] p-6 text-center border shadow-2xl flex flex-col gap-3 text-white animate-in fade-in zoom-in-95 duration-200"
                         style={{ background: '#1c1c1e', borderColor: 'rgba(255,255,255,0.1)' }}
                         onClick={(e) => e.stopPropagation()}
