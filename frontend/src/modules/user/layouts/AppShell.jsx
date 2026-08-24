@@ -283,10 +283,12 @@ export default function AppShell() {
 
         socket.on('receive_message', handleNewMessage)
         socket.on('messages_seen_update', handleSeenUpdate)
+        socket.on('unread_count_reset', handleSeenUpdate)
 
         return () => {
             socket.off('receive_message', handleNewMessage)
             socket.off('messages_seen_update', handleSeenUpdate)
+            socket.off('unread_count_reset', handleSeenUpdate)
         }
     }, [user?.id, setUnreadMessagesTotal])
 
@@ -387,8 +389,8 @@ export default function AppShell() {
             </aside>
 
             <main className={`app-shell-main relative flex flex-col flex-1 hide-scrollbar pb-safe md:ml-[84px] lg:ml-[248px] lg:mr-[300px] xl:mr-[332px] ${location.pathname === '/create' || location.pathname === '/messaging'
-                    ? 'overflow-hidden md:px-0 lg:px-0'
-                    : 'overflow-y-auto md:px-4 lg:px-6'
+                ? 'overflow-hidden md:px-0 lg:px-0'
+                : 'overflow-y-auto md:px-4 lg:px-6'
                 }`}>
                 {location.pathname === '/messaging' ? (
                     // Messaging gets full-height, no padding, no pull-to-refresh

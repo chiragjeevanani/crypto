@@ -82,7 +82,7 @@ export const useFeedStore = create((set, get) => ({
     commentsLoading: {},
 
     globalMute: false,
-    setGlobalMute: (muted) => set({ globalMute: muted }),
+    setGlobalMute: (updater) => set(typeof updater === 'function' ? (state) => ({ globalMute: updater(state.globalMute) }) : { globalMute: updater }),
 
     isStoryOpen: false,
     setIsStoryOpen: (open) => set({ isStoryOpen: open }),
@@ -208,13 +208,13 @@ export const useFeedStore = create((set, get) => ({
                 set((state) => {
                     const existsInPosts = state.posts.find(p => String(p.id || p._id) === String(res.post.id || res.post._id))
                     const existsInReels = state.reelFeed.find(p => String(p.id || p._id) === String(res.post.id || res.post._id))
-                    
+
                     const nextPosts = existsInPosts ? state.posts : [res.post, ...state.posts]
                     let nextReels = state.reelFeed
                     if (!existsInReels && res.post.media?.type === 'video') {
                         nextReels = [res.post, ...state.reelFeed]
                     }
-                    
+
                     return { posts: nextPosts, reelFeed: nextReels }
                 })
                 return res.post
@@ -252,6 +252,12 @@ export const useFeedStore = create((set, get) => ({
     unreadMessagesTotal: 0,
     suggestions: [],
     suggestionsLoading: false,
+    conversations: [],
+    conversationsLoaded: false,
+    setConversations: (updater) => set((state) => ({
+        conversations: typeof updater === 'function' ? updater(state.conversations) : updater,
+        conversationsLoaded: true
+    })),
     setUnreadMessagesTotal: (count) => set({ unreadMessagesTotal: count }),
 
     toggleLike: async (postId) => {
@@ -266,16 +272,16 @@ export const useFeedStore = create((set, get) => ({
             const updateItem = (p) => {
                 if (String(p.id || p._id) === String(postId)) {
                     const isLiked = !p.isLiked
-                    return { 
-                        ...p, 
-                        isLiked, 
-                        likes: isLiked ? (p.likes || 0) + 1 : Math.max(0, (p.likes || 1) - 1) 
+                    return {
+                        ...p,
+                        isLiked,
+                        likes: isLiked ? (p.likes || 0) + 1 : Math.max(0, (p.likes || 1) - 1)
                     }
                 }
                 return p
             }
 
-            return { 
+            return {
                 posts: state.posts.map(updateItem),
                 reelFeed: state.reelFeed.map(updateItem)
             }
@@ -283,7 +289,7 @@ export const useFeedStore = create((set, get) => ({
 
         try {
             const res = await postService.likePost(postId)
-            const syncItem = (p) => 
+            const syncItem = (p) =>
                 (String(p.id || p._id) === String(postId))
                     ? { ...p, isLiked: res.liked, likes: res.likes ?? (res.liked ? p.likes + 1 : p.likes - 1) }
                     : p
@@ -351,13 +357,13 @@ export const useFeedStore = create((set, get) => ({
             const res = await followService.toggleFollow(creatorId)
             const isFollowing = !!res.following
             const followerCount = typeof res.followerCount === 'number' ? res.followerCount : null
-            
+
             // Dispatch global event for other components to sync
-            window.dispatchEvent(new CustomEvent('user-follow-changed', { 
-                detail: { creatorId, isFollowing, followerCount } 
+            window.dispatchEvent(new CustomEvent('user-follow-changed', {
+                detail: { creatorId, isFollowing, followerCount }
             }))
 
-            const updateItem = (p) => 
+            const updateItem = (p) =>
                 p.creator?.id === creatorId
                     ? {
                         ...p,
@@ -376,7 +382,7 @@ export const useFeedStore = create((set, get) => ({
             return res
         } catch (error) {
             // Fallback: optimistic toggle in UI only
-            const updateItemFallback = (p) => 
+            const updateItemFallback = (p) =>
                 p.creator?.id === creatorId
                     ? {
                         ...p,
@@ -403,7 +409,7 @@ export const useFeedStore = create((set, get) => ({
             const comment = res?.comment
             set((state) => {
                 const nextComments = [...(state.commentsByPostId[postId] || []), comment].filter(Boolean)
-                const updateItem = (p) => 
+                const updateItem = (p) =>
                     p.id === postId ? { ...p, comments: res.commentCount ?? (p.comments || 0) + 1 } : p
 
                 return {
@@ -424,8 +430,8 @@ export const useFeedStore = create((set, get) => ({
             const res = await postService.sharePost(postId)
             const raw = res?.shares
             const count = typeof raw === 'number' ? raw : (raw != null ? Number(raw) : null)
-            
-            const updateItem = (p) => 
+
+            const updateItem = (p) =>
                 String(p.id) === idStr
                     ? { ...p, shares: count !== null && !Number.isNaN(count) ? count : (p.shares || 0) }
                     : p
@@ -464,7 +470,7 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await postService.recordView(postId)
             if (res.success && !res.alreadyViewed) {
-                const updateItem = (p) => 
+                const updateItem = (p) =>
                     p.id === postId ? { ...p, views: res.views } : p
 
                 set((state) => ({
@@ -485,7 +491,7 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await notificationService.getNotifications()
             clearTimeout(timeout)
-            
+
             const uniqueNotifs = []
             const seenIds = new Set()
             const rawNotifs = res.notifications || []
@@ -590,7 +596,7 @@ export const useFeedStore = create((set, get) => ({
     toggleSavePost: async (postId) => {
         const idStr = String(postId)
         const isCurrentlySaved = get().savedPostIds.has(idStr)
-        
+
         // Optimistic update
         const newSet = new Set(get().savedPostIds)
         if (isCurrentlySaved) newSet.delete(idStr)
@@ -617,7 +623,7 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await userCampaignService.vote(campaignId, submissionId)
             if (res.success) {
-                const updateItem = (p) => 
+                const updateItem = (p) =>
                     String(p.id) === String(postId)
                         ? { ...p, votes: res.votes, hasVoted: true }
                         : p

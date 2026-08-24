@@ -58,15 +58,15 @@ exports.getConversations = async (req, res) => {
           ]
         }
       },
-        { $sort: { createdAt: -1 } },
-        {
-          $group: {
-            _id: "$roomId",
-            lastMessage: { $first: "$$ROOT" }
-          }
-        },
-        { $sort: { "lastMessage.createdAt": -1 } }
-      ]);
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$roomId",
+          lastMessage: { $first: "$$ROOT" }
+        }
+      },
+      { $sort: { "lastMessage.createdAt": -1 } }
+    ]);
 
     const result = await Promise.all(
       messages.map(async (m) => {
@@ -104,14 +104,18 @@ exports.getConversations = async (req, res) => {
             ? m.lastMessage.receiver
             : m.lastMessage.sender;
 
-          const otherUser = await User.findById(otherUserId).select("name handle avatar").lean();
-          if (!otherUser) return null;
+          const otherUser = (await User.findById(otherUserId).select("name handle avatar").lean()) || {
+            _id: otherUserId,
+            name: "Deleted User",
+            handle: "deleted",
+            avatar: ""
+          };
 
           // Calculate unread count for this conversation
           const unreadCount = await Message.countDocuments({
-              roomId: m._id,
-              receiver: currentUserId,
-              status: { $ne: "seen" }
+            roomId: m._id,
+            receiver: currentUserId,
+            status: { $ne: "seen" }
           });
 
           return {
@@ -163,9 +167,9 @@ exports.getConversations = async (req, res) => {
     const finalConversations = [...result.filter(Boolean), ...emptyGroups]
       .filter(c => c.user.id.toString() !== currentUserId.toString());
 
-    res.json({ 
-      success: true, 
-      conversations: finalConversations 
+    res.json({
+      success: true,
+      conversations: finalConversations
     });
   } catch (error) {
     console.error("[Message] getConversations error:", error);
@@ -187,12 +191,12 @@ exports.uploadMedia = async (req, res) => {
 
     let url = `${baseUrl}/uploads/${file.filename}`;
 
-    res.json({ 
-        success: true, 
-        url, 
-        type: isImage ? "image" : (isVideo ? "video" : (isAudio ? "audio" : "file")),
-        mimeType: file.mimetype,
-        name: file.originalname
+    res.json({
+      success: true,
+      url,
+      type: isImage ? "image" : (isVideo ? "video" : (isAudio ? "audio" : "file")),
+      mimeType: file.mimetype,
+      name: file.originalname
     });
   } catch (error) {
     console.error("[Message] uploadMedia error:", error);
@@ -201,30 +205,30 @@ exports.uploadMedia = async (req, res) => {
 };
 
 exports.getUnreadTotal = async (req, res) => {
-    try {
-        const currentUserId = req.user.userId;
-        
-        // Unread 1v1 messages
-        const unread1v1 = await Message.countDocuments({
-            receiver: currentUserId,
-            status: { $ne: "seen" }
-        });
+  try {
+    const currentUserId = req.user.userId;
 
-        // Unread group messages
-        const userGroups = await GroupChat.find({ members: currentUserId }).select('_id');
-        const groupIds = userGroups.map(g => g._id);
+    // Unread 1v1 messages
+    const unread1v1 = await Message.countDocuments({
+      receiver: currentUserId,
+      status: { $ne: "seen" }
+    });
 
-        const unreadGroups = await Message.countDocuments({
-            groupId: { $in: groupIds },
-            sender: { $ne: currentUserId },
-            seenBy: { $ne: currentUserId }
-        });
+    // Unread group messages
+    const userGroups = await GroupChat.find({ members: currentUserId }).select('_id');
+    const groupIds = userGroups.map(g => g._id);
 
-        res.json({ success: true, total: unread1v1 + unreadGroups });
-    } catch (error) {
-        console.error("[Message] getUnreadTotal error:", error);
-        res.status(500).json({ success: false, message: "Failed to fetch unread total" });
-    }
+    const unreadGroups = await Message.countDocuments({
+      groupId: { $in: groupIds },
+      sender: { $ne: currentUserId },
+      seenBy: { $ne: currentUserId }
+    });
+
+    res.json({ success: true, total: unread1v1 + unreadGroups });
+  } catch (error) {
+    console.error("[Message] getUnreadTotal error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch unread total" });
+  }
 };
 
 exports.deleteMessage = async (req, res) => {
@@ -233,7 +237,7 @@ exports.deleteMessage = async (req, res) => {
     const currentUserId = req.user.userId;
 
     if (!mongoose.Types.ObjectId.isValid(messageId)) {
-        return res.status(400).json({ success: false, message: "Invalid message ID" });
+      return res.status(400).json({ success: false, message: "Invalid message ID" });
     }
 
     const message = await Message.findById(messageId);
@@ -268,7 +272,7 @@ exports.editMessage = async (req, res) => {
 
     // Validate ObjectId to avoid 500 CastError
     if (!mongoose.Types.ObjectId.isValid(messageId)) {
-        return res.status(400).json({ success: false, message: "Invalid message ID" });
+      return res.status(400).json({ success: false, message: "Invalid message ID" });
     }
 
     const message = await Message.findById(messageId);
@@ -302,11 +306,11 @@ exports.editMessage = async (req, res) => {
 
     // Notify via socket
     const userIds = message.roomId.split("-");
-    const editData = { 
-        messageId, 
-        roomId: message.roomId, 
-        text,
-        isEdited: true 
+    const editData = {
+      messageId,
+      roomId: message.roomId,
+      text,
+      isEdited: true
     };
     userIds.forEach(id => emitToUser(id, "message_edited", editData));
 
@@ -325,7 +329,7 @@ exports.deleteChat = async (req, res) => {
     // Verify user is part of this chat room
     // RoomId is usually "userId1-userId2" or similar
     if (!roomId.includes(currentUserId)) {
-        return res.status(403).json({ success: false, message: "Unauthorized to delete this chat" });
+      return res.status(403).json({ success: false, message: "Unauthorized to delete this chat" });
     }
 
     // Delete all messages in the room
@@ -350,7 +354,7 @@ exports.createGroup = async (req, res) => {
     const currentUserId = req.user.userId;
 
     if (!name) return res.status(400).json({ success: false, message: "Group name is required" });
-    
+
     const user = await User.findById(currentUserId);
 
     // Ensure creator is in the members list
@@ -364,9 +368,9 @@ exports.createGroup = async (req, res) => {
       admins: [currentUserId]
     });
 
-    const userName = (user.username && user.username !== 'undefined') ? user.username : 
-                     (user.name && user.name !== 'undefined') ? user.name : 
-                     (user.handle && user.handle !== 'undefined') ? user.handle : 'A user';
+    const userName = (user.username && user.username !== 'undefined') ? user.username :
+      (user.name && user.name !== 'undefined') ? user.name :
+        (user.handle && user.handle !== 'undefined') ? user.handle : 'A user';
 
     // Create a system message
     const msg = await Message.create({
@@ -413,9 +417,9 @@ exports.addGroupMembers = async (req, res) => {
     const { members } = req.body; // array of user IDs
     const currentUserId = req.user.userId;
     const group = await GroupChat.findById(groupId);
-    
+
     if (!group) return res.status(404).json({ success: false, message: "Group not found" });
-    
+
     // Basic auth: Must be a member to add others (or restrict to admins)
     if (!group.members.includes(currentUserId)) {
       return res.status(403).json({ success: false, message: "Not a group member" });
@@ -435,15 +439,15 @@ exports.addGroupMembers = async (req, res) => {
       const user = await User.findById(currentUserId);
       const addedUsers = await User.find({ _id: { $in: addedIds } });
       const addedNames = addedUsers.map(u => {
-          if (u.username && u.username !== 'undefined') return u.username;
-          if (u.name && u.name !== 'undefined') return u.name;
-          if (u.handle && u.handle !== 'undefined') return u.handle;
-          return 'someone';
+        if (u.username && u.username !== 'undefined') return u.username;
+        if (u.name && u.name !== 'undefined') return u.name;
+        if (u.handle && u.handle !== 'undefined') return u.handle;
+        return 'someone';
       }).join(', ');
 
-      const userName = (user.username && user.username !== 'undefined') ? user.username : 
-                       (user.name && user.name !== 'undefined') ? user.name : 
-                       (user.handle && user.handle !== 'undefined') ? user.handle : 'A user';
+      const userName = (user.username && user.username !== 'undefined') ? user.username :
+        (user.name && user.name !== 'undefined') ? user.name :
+          (user.handle && user.handle !== 'undefined') ? user.handle : 'A user';
 
       // Create a system message
       const msg = await Message.create({

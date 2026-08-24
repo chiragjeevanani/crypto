@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Search, Edit, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore } from '../../store/useUserStore'
+import { useFeedStore } from '../../store/useFeedStore'
 import { messageService } from '../../../../services/messageService'
 import { searchService } from '../../services/searchService'
 import { getSocket } from '../../../../socket'
@@ -26,10 +27,10 @@ function formatConversationDate(createdAt, fallbackTimestamp) {
 
 export default function ConversationList({ onSelectChat, selectedChatId }) {
     const { profile } = useUserStore()
+    const { conversations, conversationsLoaded, setConversations } = useFeedStore()
     const [searchQuery, setSearchQuery] = useState('')
-    const [conversations, setConversations] = useState([])
     const [searchResults, setSearchResults] = useState([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(!conversationsLoaded)
     const [searching, setSearching] = useState(false)
     const [showGroupModal, setShowGroupModal] = useState(false)
     const navigate = useNavigate()
@@ -46,12 +47,14 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                 console.error('Fetch conversations error:', err)
                 setLoading(false)
             })
-    }, [profile?.id])
+    }, [profile?.id, setConversations])
 
     useEffect(() => {
-        setLoading(true)
+        if (!conversationsLoaded) {
+            setLoading(true)
+        }
         fetchConversations()
-    }, [fetchConversations])
+    }, [fetchConversations, conversationsLoaded])
 
     // Listen for new messages globally to update the list
     useEffect(() => {
@@ -62,12 +65,12 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
             const targetUserId = msg.senderId
             setConversations(prev => {
                 const index = prev.findIndex(c => c.user.id === targetUserId)
-                
+
                 if (index !== -1) {
                     const updated = [...prev]
                     const c = updated[index]
                     const isNowActive = selectedChatId === (c.id || c.user.id)
-                    
+
                     const newItem = {
                         ...c,
                         lastMessage: {
@@ -78,7 +81,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                         },
                         isTyping: false
                     }
-                    
+
                     const filtered = updated.filter((_, i) => i !== index)
                     return [newItem, ...filtered]
                 } else {
@@ -89,19 +92,19 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
         }
 
         const handleTyping = ({ roomId, userId }) => {
-            setConversations(prev => prev.map(c => 
+            setConversations(prev => prev.map(c =>
                 c.user.id === userId ? { ...c, isTyping: true } : c
             ))
         }
 
         const handleStopTyping = ({ roomId, userId }) => {
-            setConversations(prev => prev.map(c => 
+            setConversations(prev => prev.map(c =>
                 c.user.id === userId ? { ...c, isTyping: false } : c
             ))
         }
 
         const handleStatusChanged = ({ userId, status }) => {
-            setConversations(prev => prev.map(c => 
+            setConversations(prev => prev.map(c =>
                 c.user.id === userId ? { ...c, isOnline: status === 'online' } : c
             ))
         }
@@ -111,7 +114,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
         }
 
         const handleUnreadReset = (data) => {
-            setConversations(prev => prev.map(conv => 
+            setConversations(prev => prev.map(conv =>
                 (conv.id === data.roomId || conv.roomId === data.roomId) ? { ...conv, lastMessage: { ...conv.lastMessage, unreadCount: 0 } } : conv
             ))
         }
@@ -217,7 +220,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                 <h2 className="text-lg font-bold truncate z-10" style={{ color: 'var(--color-text)' }}>
                     {profile?.username || 'Messages'}
                 </h2>
-                <button 
+                <button
                     onClick={() => setShowGroupModal(true)}
                     className="p-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
                 >
@@ -227,12 +230,12 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
 
             {/* Search */}
             <div className="px-4 py-3">
-                <div 
+                <div
                     className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200"
                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
                 >
                     <Search size={16} style={{ color: 'var(--color-muted)' }} />
-                    <input 
+                    <input
                         type="text"
                         placeholder="Search users..."
                         value={searchQuery}
@@ -250,11 +253,11 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                     {conversations.filter(c => c.isOnline).map(conv => (
                         <div key={`story-${conv.id || conv.user.id}`} className="flex flex-col items-center gap-1 cursor-pointer min-w-14">
                             <div className="relative">
-                                <Avatar 
-                                    src={conv.user.avatar} 
-                                    alt={conv.user.username} 
-                                    size="lg" 
-                                    isPremium={conv.user.isPremium} 
+                                <Avatar
+                                    src={conv.user.avatar}
+                                    alt={conv.user.username}
+                                    size="lg"
+                                    isPremium={conv.user.isPremium}
                                     className="ring-2 ring-primary ring-offset-2 ring-offset-bg"
                                 />
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
@@ -282,11 +285,11 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                             className={`w-full flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface2)] text-left ${(selectedChatId === conv.id || selectedChatId === conv.user.id) ? 'bg-[var(--color-surface2)]' : ''}`}
                         >
                             <div className="relative">
-                                <Avatar 
-                                    src={conv.user.avatar} 
-                                    alt={conv.user.username} 
-                                    size="lg" 
-                                    isPremium={conv.user.isPremium} 
+                                <Avatar
+                                    src={conv.user.avatar}
+                                    alt={conv.user.username}
+                                    size="lg"
+                                    isPremium={conv.user.isPremium}
                                 />
                                 {conv.isOnline && (
                                     <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--color-bg)] bg-green-500" />
@@ -309,7 +312,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                                         {conv.isTyping ? <span className="text-blue-500 italic">Typing...</span> : conv.lastMessage?.text}
                                     </p>
                                     {conv.lastMessage?.unreadCount > 0 && (
-                                        <div 
+                                        <div
                                             className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold text-white bg-blue-500"
                                         >
                                             {conv.lastMessage.unreadCount}
@@ -326,7 +329,7 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
                 )}
             </div>
 
-            <CreateGroupModal 
+            <CreateGroupModal
                 isOpen={showGroupModal}
                 onClose={() => setShowGroupModal(false)}
                 onCreate={(group) => {
