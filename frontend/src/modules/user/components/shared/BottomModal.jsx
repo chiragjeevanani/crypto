@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { X } from 'lucide-react'
 
 export default function BottomModal({ isOpen, onClose, title, children, maxHeight = '85vh' }) {
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                <div className="fixed inset-0 z-[150] flex flex-col justify-end">
                     {/* Backdrop */}
                     <motion.div
                         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
@@ -31,8 +32,16 @@ export default function BottomModal({ isOpen, onClose, title, children, maxHeigh
 
                         {/* Optional Title Header */}
                         {title && (
-                            <div className="px-6 pb-2">
+                            <div className="pl-6 pr-4 pb-2 flex items-center justify-between">
                                 <h3 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>{title}</h3>
+                                <button
+                                    onClick={onClose}
+                                    className="p-1.5 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                                    style={{ color: 'var(--color-muted)' }}
+                                    aria-label="Close"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
                         )}
 

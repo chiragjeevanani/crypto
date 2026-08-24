@@ -978,7 +978,17 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                                     <div className="flex justify-center mb-4">
                                         <div className="w-10 h-1 rounded-full bg-zinc-700/50" />
                                     </div>
-                                    <p className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>Comments</p>
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>Comments</p>
+                                        <button
+                                            onClick={() => setCommentsOpen(false)}
+                                            className="p-1.5 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                                            style={{ color: 'var(--color-muted)' }}
+                                            aria-label="Close comments"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </div>
                                     <div className="space-y-2 mb-3">
                                         {commentsLoading[post.id] ? (
                                             <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Loading...</p>

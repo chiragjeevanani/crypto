@@ -1,57 +1,79 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/jpeg" href="/knqlogo.jpeg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
-    <title>KnQ Reels</title>
 
-    <!-- Fonts: discovered/fetched in parallel with the JS bundle instead of via a
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/jpeg" href="/knqlogo.jpeg" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
+  <title>KnQ Reels</title>
+
+  <!-- Fonts: discovered/fetched in parallel with the JS bundle instead of via a
          render-blocking @import inside the bundled CSS, so brand text paints sooner. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Pacifico&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Pacifico&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+    rel="stylesheet" />
 
-    <!-- Open Graph / Facebook Share Metadata -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="KnQ Reels" />
-    <meta property="og:description" content="Watch, create, and share amazing reels on KnQ Reels." />
-    <meta property="og:image" content="/knqlogo.jpeg" />
+  <!-- Open Graph / Facebook Share Metadata -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="KnQ Reels" />
+  <meta property="og:description" content="Watch, create, and share amazing reels on KnQ Reels." />
+  <meta property="og:image" content="/knqlogo.jpeg" />
 
-    <!-- Twitter Card Share Metadata -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="KnQ Reels" />
-    <meta name="twitter:description" content="Watch, create, and share amazing reels on KnQ Reels." />
-    <meta name="twitter:image" content="/knqlogo.jpeg" />
+  <!-- Twitter Card Share Metadata -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="KnQ Reels" />
+  <meta name="twitter:description" content="Watch, create, and share amazing reels on KnQ Reels." />
+  <meta name="twitter:image" content="/knqlogo.jpeg" />
 
-    <!-- Razorpay SDK loaded dynamically when needed -->
+  <!-- Razorpay SDK loaded dynamically when needed -->
 
-    <!-- Static splash, shown until React mounts and replaces #root — avoids a blank
+  <!-- Static splash, shown until React mounts and replaces #root — avoids a blank
          white/black flash on cold loads over slow connections or low-end CPUs. -->
-    <style>
-      html { background: #09090b; }
-      #app-splash {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #09090b;
+  <style>
+    html {
+      background: #ffffff;
+    }
+
+    #app-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+    }
+
+    #app-splash img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      animation: app-splash-pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes app-splash-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
       }
-      #app-splash img {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        animation: app-splash-pulse 1.4s ease-in-out infinite;
+
+      50% {
+        transform: scale(0.9);
+        opacity: 0.65;
       }
-      @keyframes app-splash-pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(0.9); opacity: 0.65; }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"><div id="app-splash"><img src="/knqlogo.jpeg" alt="" /></div></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root">
+    <div id="app-splash"><img src="/knqlogo.jpeg" alt="" /></div>
+  </div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>
