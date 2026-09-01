@@ -58,7 +58,8 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const isModalOpen = !isModalView && (!!searchParams.get('view') || !!searchParams.get('post'))
-    const { profile } = useUserStore()
+    const { profile, user } = useUserStore()
+    const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
     const [earningsFlash, setEarningsFlash] = useState(false)
     const [isIntersecting, setIsIntersecting] = useState(false)
     const [isNearViewport, setIsNearViewport] = useState(false)
@@ -138,7 +139,7 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
     }
 
     useEffect(() => {
-        if (isIntersecting && !isStoryOpen && !isModalOpen) {
+        if (isIntersecting && !isStoryOpen && !isModalOpen && !isLanguageModalOpen) {
             const recordView = useFeedStore.getState().recordView
             if (recordView && !post.isOwned) recordView(post.id)
 
@@ -150,7 +151,7 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                             await videoRef.current.play();
                         } else {
                             videoRef.current.oncanplay = async () => {
-                                if (isIntersecting && !isStoryOpen && !isModalOpen) {
+                                if (isIntersecting && !isStoryOpen && !isModalOpen && !isLanguageModalOpen) {
                                     await videoRef.current?.play();
                                 }
                             };
@@ -163,7 +164,7 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                             await audioRef.current.play();
                         } else {
                             audioRef.current.oncanplay = async () => {
-                                if (isIntersecting && !isStoryOpen && !isModalOpen) {
+                                if (isIntersecting && !isStoryOpen && !isModalOpen && !isLanguageModalOpen) {
                                     await audioRef.current?.play();
                                 }
                             };
@@ -188,7 +189,7 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                 audioRef.current.oncanplay = null
             }
         }
-    }, [isIntersecting, isStoryOpen, post.id, post.musicStartTime, isModalOpen])
+    }, [isIntersecting, isStoryOpen, post.id, post.musicStartTime, isModalOpen, isLanguageModalOpen])
 
     // For VIDEO posts, who plays is decided globally rather than per-card: this
     // observer only reports how visible the card is, and the coordinator picks
