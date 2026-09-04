@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Heart, Smile } from 'lucide-react'
 import { timeAgo } from '../../utils/formatCurrency'
 import BottomModal from '../shared/BottomModal'
+import Avatar from '../shared/Avatar'
 import { getStoredToken } from '../../store/useUserStore'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
@@ -116,12 +117,7 @@ export default function CommentSheet({ postId, onClose }) {
                                 animate={{ opacity: 1, x: 0 }}
                                 className="flex gap-2.5"
                             >
-                                <div
-                                    className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
-                                    style={{ background: 'var(--color-surface2)' }}
-                                >
-                                    {comment.user.username.charAt(0)}
-                                </div>
+                                <Avatar src={comment.user?.avatar} alt={comment.user?.username} size="xs" />
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-baseline justify-between gap-2">
                                         <p className="text-[12px] font-bold" style={{ color: 'var(--color-text)' }}>

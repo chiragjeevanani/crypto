@@ -9,8 +9,9 @@ function ShareModal({ isOpen, onClose, referralCode }) {
   const [copied, setCopied] = useState(false);
   if (!isOpen) return null;
 
-  const url = `https://play.google.com/store/apps/details?id=com.knqreels.app`;
-  const text = `Join me on KnQ Reels! Use my referral code: ${referralCode || ''} and start earning. Download now!`;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://knqreels.com';
+  const url = `${origin}/?ref=${referralCode || ''}`;
+  const text = `Join me on KnQ Reels! Use my referral code: ${referralCode || ''} and start earning. Download now:`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url);
@@ -105,14 +106,14 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
   const navigate = useNavigate()
   const [isShareOpen, setIsShareOpen] = useState(false)
   return (
-    <div className="px-4 pt-4 pb-4 relative">
+    <div className="px-4 pt-2 pb-3 relative">
       {/* Top Bar with Back Button */}
-      <div className="flex items-center mb-4">
+      <div className="flex items-center mb-1">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 -ml-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+          className="p-1 -ml-1 rounded-full hover:bg-[var(--color-surface2)] transition-colors cursor-pointer"
         >
-          <ChevronLeft size={24} style={{ color: 'var(--color-text)' }} />
+          <ChevronLeft size={22} style={{ color: 'var(--color-text)' }} />
         </button>
       </div>
 

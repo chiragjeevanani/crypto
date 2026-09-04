@@ -66,12 +66,18 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         });
     };
 
-    // Set initial message if provided (e.g. from CTA redirect)
+    // Set initial message if provided (e.g. from CTA redirect or shared intent)
     useEffect(() => {
         if (chat?.initialMessage) {
             setInputValue(chat.initialMessage)
         }
     }, [chat?.initialMessage])
+
+    useEffect(() => {
+        if (sharingPost && (sharingPost.caption || sharingPost.text)) {
+            setInputValue(sharingPost.caption || sharingPost.text || '')
+        }
+    }, [sharingPost])
 
     // Sort user IDs for a consistent roomId (or use groupId directly)
     useEffect(() => {
@@ -228,11 +234,16 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         socket.emit('stop_typing', { roomId, userId: profile.id })
 
         if (sharingPost) {
-            const type = sharingPost.type === 'profile' ? 'profile' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'reel' : 'post')
+            const isImage = sharingPost.type === 'image' || sharingPost.type === 'media' || (sharingPost.url && !sharingPost.media?.type)
+            const type = sharingPost.type === 'profile' 
+                ? 'profile' 
+                : (isImage ? 'image' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'reel' : 'post'))
+
             const payload = {
-                id: sharingPost.id || sharingPost._id,
-                caption: sharingPost.caption || sharingPost.bio || 'Check out this profile!',
-                thumbnail: sharingPost.media?.thumbnail || sharingPost.media?.url || sharingPost.thumbnail || sharingPost.avatar || '/person.png',
+                id: sharingPost.id || sharingPost._id || `share_${Date.now()}`,
+                url: sharingPost.url || sharingPost.media?.url || sharingPost.thumbnail || sharingPost.sharedMedia,
+                caption: sharingPost.caption || sharingPost.text || sharingPost.bio || 'Check this out!',
+                thumbnail: sharingPost.url || sharingPost.media?.thumbnail || sharingPost.media?.url || sharingPost.thumbnail || sharingPost.avatar || '/person.png',
                 creator: {
                     username: sharingPost.creator?.username || sharingPost.username || 'User',
                     avatar: sharingPost.creator?.avatar || sharingPost.avatar
@@ -244,7 +255,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 sender: profile.id,
                 receiver: chat.isGroup ? null : chat.user.id,
                 groupId: chat.isGroup ? chat.groupId : null,
-                text: inputValue.trim() || `Sent a ${type}`,
+                text: inputValue.trim() || payload.caption || `Sent an ${type}`,
                 type: type,
                 payload
             }
@@ -896,14 +907,14 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                             className="p-3 rounded-2xl flex items-center justify-between"
                             style={{ background: 'var(--color-surface)', border: '1px dashed var(--color-primary)' }}
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-black/10">
                                     <img 
                                         src={
                                             sharingPost.type === 'profile'
                                                 ? (sharingPost.avatar || '/person.png')
                                                 : (() => {
-                                                    const rawUrl = sharingPost.media?.url || sharingPost.thumbnail;
+                                                    const rawUrl = sharingPost.url || sharingPost.media?.url || sharingPost.thumbnail || sharingPost.sharedMedia || sharingPost.imageUrl;
                                                     if (!rawUrl) return '/person.png';
                                                     
                                                     const isVideo = sharingPost.media?.type === 'video' || 
@@ -928,9 +939,11 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                                         }}
                                     />
                                 </div>
-                                <div>
-                                    <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>Share this {sharingPost.type === 'profile' ? 'Profile' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'Reel' : 'Post')}?</p>
-                                    <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>To: {chat.user.username}</p>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-bold truncate" style={{ color: 'var(--color-text)' }}>
+                                        Share {sharingPost.type === 'profile' ? 'Profile' : (sharingPost.type === 'image' || sharingPost.type === 'media' ? 'Shared Image' : ((sharingPost.media?.type || sharingPost.type) === 'video' ? 'Reel' : 'Post'))}?
+                                    </p>
+                                    <p className="text-[10px] truncate" style={{ color: 'var(--color-muted)' }}>To: {chat.user.username}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">

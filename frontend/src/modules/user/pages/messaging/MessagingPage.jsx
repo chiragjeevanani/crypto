@@ -24,28 +24,62 @@ export default function MessagingPage() {
 
     useEffect(() => {
         const state = location.state
+        const searchParams = new URLSearchParams(location.search)
+        
+        const paramText = searchParams.get('text') || searchParams.get('sharedText') || searchParams.get('title') || searchParams.get('caption')
+        const paramUrl = searchParams.get('url') || searchParams.get('sharedUrl')
+        const paramImage = searchParams.get('image') || searchParams.get('sharedImage') || searchParams.get('media') || searchParams.get('sharedMedia') || searchParams.get('mediaUrl')
+
+        let localIntent = null
+        try {
+            const raw = localStorage.getItem('knq_shared_intent') || localStorage.getItem('knq_share_data')
+            if (raw) {
+                localIntent = JSON.parse(raw)
+                localStorage.removeItem('knq_shared_intent')
+                localStorage.removeItem('knq_share_data')
+            }
+        } catch {
+            // ignore
+        }
+
+        const sharedMediaUrl = paramImage || localIntent?.image || localIntent?.mediaUrl || localIntent?.url
+        const sharedTextContent = paramText || localIntent?.text || localIntent?.caption || (paramUrl && paramUrl !== sharedMediaUrl ? paramUrl : '')
+
         if (state?.openChat) {
-            // Map the user object to the chat format used by ChatWindow
             setSelectedChat({
-                id: null, // New conversation might not have an ID yet
+                id: null,
                 user: state.openChat,
-                lastMessage: { text: state.initialMessage || '', timestamp: '' },
+                lastMessage: { text: state.initialMessage || sharedTextContent || '', timestamp: '' },
                 isOnline: false,
-                initialMessage: state.initialMessage, // Pass initial message
-                autoSharePost: state.sharedPost // Auto-attach the post
+                initialMessage: state.initialMessage || sharedTextContent,
+                autoSharePost: state.sharedPost
             })
             if (isMobile) {
                 setShowChatMobile(true)
             }
-            // Clear state after reading to prevent re-opening on refresh
-            navigate(location.pathname, { replace: true, state: null })
         }
+
         if (state?.sharePost || state?.sharedPost) {
             setSharingPost(state.sharePost || state.sharedPost)
-            // Clear state after reading
+        } else if (sharedMediaUrl || sharedTextContent) {
+            setSharingPost({
+                id: `shared_${Date.now()}`,
+                type: sharedMediaUrl ? 'image' : 'text',
+                url: sharedMediaUrl || null,
+                media: sharedMediaUrl ? { url: sharedMediaUrl, type: 'image' } : null,
+                caption: sharedTextContent || '',
+                text: sharedTextContent || '',
+                creator: {
+                    username: profile?.username || 'User',
+                    avatar: profile?.avatar
+                }
+            })
+        }
+
+        if (state || searchParams.toString() || localIntent) {
             navigate(location.pathname, { replace: true, state: null })
         }
-    }, [location.state, isMobile, location.pathname, navigate])
+    }, [location.state, location.search, isMobile, location.pathname, navigate, profile?.username, profile?.avatar])
 
     const handleSelectChat = (chat) => {
         setSelectedChat(chat)

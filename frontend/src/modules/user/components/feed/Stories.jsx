@@ -1772,7 +1772,7 @@ export default function Stories({ hideFeed = false }) {
                                 )}
                                 <input
                                     type="file"
-                                    accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
+                                    accept="image/*,video/*"
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];

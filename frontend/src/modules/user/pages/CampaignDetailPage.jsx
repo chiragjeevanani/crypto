@@ -243,7 +243,7 @@ export default function CampaignDetailPage() {
                                     <div className="relative group">
                                         {!previews.bill ? (
                                             <>
-                                                <input type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange('bill', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <input type="file" accept="image/*" onChange={(e) => handleFileChange('bill', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                                 <div className="p-4 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex items-center gap-3">
                                                     <div className="p-2 rounded-lg bg-surface2 text-muted">
                                                         <Upload size={14} />
@@ -270,7 +270,7 @@ export default function CampaignDetailPage() {
                                     <div className="relative group">
                                         {!previews.product ? (
                                             <>
-                                                <input type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange('product', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <input type="file" accept="image/*" onChange={(e) => handleFileChange('product', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                                 <div className="p-4 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex items-center gap-3">
                                                     <div className="p-2 rounded-lg bg-surface2 text-muted">
                                                         <Upload size={14} />
@@ -297,7 +297,7 @@ export default function CampaignDetailPage() {
                                     <div className="relative group">
                                         {!previews.selfie ? (
                                             <>
-                                                <input type="file" accept="image/*" capture="user" onChange={(e) => handleFileChange('selfie', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                                <input type="file" accept="image/*" onChange={(e) => handleFileChange('selfie', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                                 <div className="p-4 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex items-center gap-3">
                                                     <div className="p-2 rounded-lg bg-surface2 text-muted">
                                                         <Upload size={14} />
@@ -337,7 +337,7 @@ export default function CampaignDetailPage() {
                                 <div className="relative group">
                                     {!previews.reel ? (
                                         <>
-                                            <input type="file" accept="video/*" capture="environment" onChange={(e) => handleFileChange('reel', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                            <input type="file" accept="video/*" onChange={(e) => handleFileChange('reel', e)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                             <div className="p-8 rounded-2xl border-2 border-dashed border-surface2 bg-bg/30 hover:border-primary/50 transition-all flex flex-col items-center justify-center gap-3">
                                                 <div className="p-3 rounded-xl bg-primary/10 text-primary">
                                                     <Upload />

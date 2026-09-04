@@ -721,8 +721,8 @@ export default function ProfilePage() {
 
             <AnimatePresence>
                 {editOpen && (
-                    <motion.div className="fixed inset-0 z-40 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeEdit}>
-                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-[calc(var(--bottom-nav-height)+16px)]" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
+                    <motion.div className="fixed inset-0 z-[80] flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.6)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeEdit}>
+                        <motion.div className="rounded-t-3xl px-5 pt-4 pb-28 max-h-[85vh] overflow-y-auto" style={{ background: 'var(--color-surface)' }} initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 280, damping: 30 }} onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-center mb-4"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border)' }} /></div>
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>Edit Profile</p>
@@ -877,13 +877,7 @@ export default function ProfilePage() {
                                         }}
                                     >
                                         {/* Avatar */}
-                                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--color-primary)' }}>
-                                            {item.avatar ? (
-                                                <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                item.name.charAt(0).toUpperCase()
-                                            )}
-                                        </div>
+                                        <Avatar src={item.avatar} alt={item.name} size="md" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{item.name}</p>
                                             <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{item.email || item.handle}</p>
@@ -909,9 +903,9 @@ export default function ProfilePage() {
 
             <AnimatePresence>
                 {settingsOpen && (
-                    <motion.div className="fixed inset-0 z-50 flex justify-end p-2 md:p-3" style={{ background: 'rgba(0,0,0,0.55)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSettingsOpen(false)}>
+                    <motion.div className="fixed inset-0 z-[80] flex justify-end p-2 md:p-3" style={{ background: 'rgba(0,0,0,0.55)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSettingsOpen(false)}>
                         <motion.div className="h-full w-full max-w-md overflow-hidden rounded-2xl" initial={{ x: 36, opacity: 0.96 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 36, opacity: 0.96 }} transition={{ duration: 0.22, ease: 'easeOut' }} onClick={(e) => e.stopPropagation()}>
-                            <div className="h-full rounded-2xl p-4 overflow-y-auto" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                            <div className="h-full rounded-2xl p-4 overflow-y-auto pb-28" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         {settingsMode === 'detail' && (

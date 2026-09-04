@@ -5,14 +5,6 @@ import { useNavigate } from 'react-router-dom'
 import { useFeedStore } from '../../store/useFeedStore'
 import Avatar from '../shared/Avatar'
 
-const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
-
-function getColor(id) {
-    if (!id) return '#f59e0b';
-    const idx = parseInt(String(id).replace(/\D/g, ''), 10) % AVATAR_COLORS.length;
-    return AVATAR_COLORS[idx] || '#f59e0b';
-}
-
 export default function SuggestedUserCard({ user, onRemove }) {
     const navigate = useNavigate()
     const { toggleFollow } = useFeedStore()
@@ -53,7 +45,7 @@ export default function SuggestedUserCard({ user, onRemove }) {
             <div className="w-20 h-20 rounded-full mb-2 flex-shrink-0">
                 <div 
                     className="w-full h-full rounded-full overflow-hidden shadow-sm"
-                    style={{ background: getColor(user.id || user._id) }}
+                    style={{ background: 'var(--color-surface2)' }}
                 >
                     <Avatar src={user.avatar} alt={user.username} className="w-full h-full" size="w-full h-full" />
                 </div>

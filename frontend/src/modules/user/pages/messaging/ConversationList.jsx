@@ -213,16 +213,18 @@ export default function ConversationList({ onSelectChat, selectedChatId }) {
     return (
         <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--color-bg)' }}>
             {/* Header */}
-            <div className="px-4 py-4 flex items-center justify-between border-b relative" style={{ borderColor: 'var(--color-border)' }}>
-                <div className="absolute left-1/2 -translate-x-1/2">
-                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-12 w-12 rounded-full object-cover shadow-sm" />
+            <div className="px-4 py-3 flex items-center justify-between border-b relative" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="max-w-[calc(50%-30px)] min-w-0 pr-2 z-10">
+                    <h2 className="text-lg font-bold truncate" style={{ color: 'var(--color-text)' }}>
+                        {profile?.username || 'Messages'}
+                    </h2>
                 </div>
-                <h2 className="text-lg font-bold truncate z-10" style={{ color: 'var(--color-text)' }}>
-                    {profile?.username || 'Messages'}
-                </h2>
+                <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none">
+                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                </div>
                 <button
                     onClick={() => setShowGroupModal(true)}
-                    className="p-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors"
+                    className="p-2 rounded-full hover:bg-[var(--color-surface2)] transition-colors z-10 cursor-pointer"
                 >
                     <Edit size={18} style={{ color: 'var(--color-text)' }} />
                 </button>
