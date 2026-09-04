@@ -25,8 +25,9 @@ function ShareModal({ isOpen, onClose, referralCode }) {
     const [copied, setCopied] = useState(false);
     if (!isOpen) return null;
 
-    const url = `https://play.google.com/store/apps/details?id=com.knqreels.app`;
-    const text = `Join me on KnQ Reels! Use my referral code: ${referralCode || ''} and start earning. Download now!`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://knqreels.com';
+    const url = `${origin}/?ref=${referralCode || ''}`;
+    const text = `Join me on KnQ Reels! Use my referral code: ${referralCode || ''} and start earning. Download now:`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(url);

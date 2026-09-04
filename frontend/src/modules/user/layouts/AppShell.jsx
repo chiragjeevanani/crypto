@@ -403,6 +403,8 @@ export default function AppShell() {
                             location.pathname === '/create' ||
                             location.pathname === '/' ||
                             location.pathname === '/home' ||
+                            location.pathname === '/profile' ||
+                            location.pathname.startsWith('/user/') ||
                             location.pathname.startsWith('/auctions') ||
                             location.pathname.startsWith('/nfts') ||
                             location.pathname.startsWith('/my-collection')

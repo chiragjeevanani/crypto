@@ -243,10 +243,10 @@ export default function UserProfilePage() {
     return (
         <div className="flex flex-col h-full bg-inherit">
             {/* Header / Actions */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-4 sticky top-0 z-20"
+            <div className="flex items-center justify-between px-4 pt-2 pb-2 sticky top-0 z-20"
                 style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
-                <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full cursor-pointer hover:bg-zinc-800/50">
-                    <ChevronLeft size={24} />
+                <button onClick={() => navigate(-1)} className="p-1 -ml-1 rounded-full cursor-pointer hover:bg-zinc-800/50">
+                    <ChevronLeft size={22} />
                 </button>
                 <div className="flex-1 px-4 truncate text-center">
                     <p className="text-base font-bold truncate">{user.username}</p>
@@ -641,13 +641,7 @@ export default function UserProfilePage() {
                                         }}
                                     >
                                         {/* Avatar */}
-                                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--color-primary)' }}>
-                                            {item.avatar ? (
-                                                <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                item.name.charAt(0).toUpperCase()
-                                            )}
-                                        </div>
+                                        <Avatar src={item.avatar} alt={item.name} size="md" />
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>

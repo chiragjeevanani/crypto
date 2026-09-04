@@ -6510,12 +6510,14 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
       <input 
         type="file" 
         ref={overlayInputRef} 
+        accept="image/*"
         className="hidden" 
         onChange={handleOverlaySelect} 
       />
       <input 
         type="file" 
         ref={fileInputRef} 
+        accept="image/*,video/*"
         className="hidden" 
         onChange={handleFileChange} 
       />
