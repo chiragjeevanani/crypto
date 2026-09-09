@@ -8,6 +8,11 @@
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
   <title>KnQ Reels</title>
 
+  <!-- Installable PWA manifest — required for the OS "Share to KnQ Reels" target
+       (share_target) to receive an image/video from the phone's gallery. -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#f59e0b" />
+
   <!-- Fonts: discovered/fetched in parallel with the JS bundle instead of via a
          render-blocking @import inside the bundled CSS, so brand text paints sooner. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />

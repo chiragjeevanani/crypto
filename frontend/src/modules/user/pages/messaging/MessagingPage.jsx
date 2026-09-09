@@ -5,6 +5,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import ConversationList from './ConversationList'
 import ChatWindow from './ChatWindow'
 import { useUserStore } from '../../store/useUserStore'
+import { messageService } from '../../../../services/messageService'
+
+const SHARE_CACHE_NAME = 'knq-share-target-v1'
+const SHARE_FILE_KEY = '/__shared-file'
+const SHARE_META_KEY = '/__shared-meta'
 
 export default function MessagingPage() {
     const navigate = useNavigate()
@@ -80,6 +85,64 @@ export default function MessagingPage() {
             navigate(location.pathname, { replace: true, state: null })
         }
     }, [location.state, location.search, isMobile, location.pathname, navigate, profile?.username, profile?.avatar])
+
+    // Picks up a file shared from the OS share sheet (Android "Share to KnQ
+    // Reels"). The service worker's /share-target handler can't reach this
+    // page's localStorage or React state directly — it can only redirect a
+    // navigation — so it stashes the file in Cache Storage and redirects here
+    // with ?sharedFile=pending as the handoff signal. That raw file has never
+    // been uploaded anywhere, so unlike the sharingPost paths above (which
+    // all point at content the server already hosts), it has to be uploaded
+    // first to get a real URL before it can be attached to a message.
+    useEffect(() => {
+        const params = new URLSearchParams(location.search)
+        if (params.get('sharedFile') !== 'pending') return
+        if (typeof caches === 'undefined') return
+        let cancelled = false
+
+        ;(async () => {
+            try {
+                const cache = await caches.open(SHARE_CACHE_NAME)
+                const [fileRes, metaRes] = await Promise.all([
+                    cache.match(SHARE_FILE_KEY),
+                    cache.match(SHARE_META_KEY),
+                ])
+                await Promise.all([
+                    cache.delete(SHARE_FILE_KEY),
+                    cache.delete(SHARE_META_KEY),
+                ])
+                if (!fileRes || cancelled) return
+
+                const blob = await fileRes.blob()
+                const meta = metaRes ? await metaRes.json().catch(() => ({})) : {}
+                const file = new File([blob], meta.name || `shared-${Date.now()}`, {
+                    type: meta.type || blob.type || 'application/octet-stream',
+                })
+
+                const data = await messageService.uploadMedia(file)
+                if (cancelled || !data?.success) return
+
+                setSharingPost({
+                    id: `shared_${Date.now()}`,
+                    type: data.type === 'video' ? 'video' : 'image',
+                    url: data.url,
+                    media: { url: data.url, type: data.type === 'video' ? 'video' : 'image' },
+                    caption: meta.text || meta.title || '',
+                    text: meta.text || meta.title || '',
+                    creator: {
+                        username: profile?.username || 'User',
+                        avatar: profile?.avatar,
+                    },
+                })
+            } catch (err) {
+                console.error('[share-target] failed to load pending shared file', err)
+            } finally {
+                if (!cancelled) navigate(location.pathname, { replace: true, state: null })
+            }
+        })()
+
+        return () => { cancelled = true }
+    }, [location.search, location.pathname, navigate, profile?.username, profile?.avatar])
 
     const handleSelectChat = (chat) => {
         setSelectedChat(chat)

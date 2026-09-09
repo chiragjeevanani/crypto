@@ -1,0 +1,33 @@
+{
+  "name": "KnQ Reels",
+  "short_name": "KnQ Reels",
+  "description": "Watch, create, and share amazing reels on KnQ Reels.",
+  "start_url": "/home",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/knqlogo.jpeg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "sharedFile",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  }
+}

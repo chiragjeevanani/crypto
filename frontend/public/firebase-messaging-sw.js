@@ -36,6 +36,51 @@ try {
   console.warn("⚠️ Firebase SW initialization skipped or failed:", error.message);
 }
 
+// ─── Web Share Target ────────────────────────────────────────────────────
+// manifest.json's share_target.action points here. The OS share sheet POSTs
+// the shared file/text as multipart form data to this URL; only a service
+// worker can intercept that POST (a plain page can't receive it), so this
+// stashes the file in Cache Storage under well-known keys and redirects the
+// navigation to /messaging?sharedFile=pending, which MessagingPage.jsx reads
+// on load to pull the file back out, upload it, and open the "pick a
+// contact" screen with it pre-attached.
+const SHARE_CACHE_NAME = 'knq-share-target-v1';
+const SHARE_FILE_KEY = '/__shared-file';
+const SHARE_META_KEY = '/__shared-meta';
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (event.request.method === 'POST' && url.pathname === '/share-target') {
+    event.respondWith(handleShareTarget(event));
+  }
+});
+
+async function handleShareTarget(event) {
+  const redirectUrl = new URL('/messaging', self.location.origin);
+  try {
+    const formData = await event.request.formData();
+    const file = formData.get('sharedFile');
+    const title = formData.get('title') || '';
+    const text = formData.get('text') || '';
+
+    if (file && typeof file === 'object' && file.size > 0) {
+      const cache = await caches.open(SHARE_CACHE_NAME);
+      await cache.put(SHARE_FILE_KEY, new Response(file, {
+        headers: { 'Content-Type': file.type || 'application/octet-stream' }
+      }));
+      await cache.put(SHARE_META_KEY, new Response(JSON.stringify({
+        name: file.name || '', type: file.type || '', title, text
+      }), { headers: { 'Content-Type': 'application/json' } }));
+      redirectUrl.searchParams.set('sharedFile', 'pending');
+    } else if (text || title) {
+      redirectUrl.searchParams.set('text', text || title);
+    }
+  } catch (err) {
+    console.error('[share-target] failed to handle shared content', err);
+  }
+  return Response.redirect(redirectUrl.href, 303);
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   // Add logic here to open a specific page when the notification is clicked

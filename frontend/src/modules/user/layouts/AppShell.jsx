@@ -294,7 +294,14 @@ export default function AppShell() {
 
     return (
         <div
-            className="app-shell relative flex flex-col h-screen w-full overflow-hidden"
+            // 100vh (h-screen) is a fixed layout-viewport height that doesn't track
+            // the browser's actual visible area — on mobile Chrome/MIUI it's sized
+            // for the tallest state (toolbar hidden), so once the toolbar/nav chrome
+            // is showing, that difference shows up as dead space below the fixed
+            // bottom nav. 100dvh (h-dvh) always matches the real visible viewport;
+            // this file already uses it for the reels full-screen viewer for the
+            // same reason (see --reels-viewport-height in index.css).
+            className="app-shell relative flex flex-col h-dvh w-full overflow-hidden"
             style={{ background: 'var(--color-bg)' }}
         >
             <aside
