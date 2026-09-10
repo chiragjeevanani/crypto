@@ -50,4 +50,34 @@ const authorize = (...roles) => (req, res, next) => {
   return next();
 };
 
-module.exports = { protect, authorize };
+// Middleware for staff portal JWT (reads from StaffMember collection via token payload)
+const protectStaff = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Unauthorized - No Token Found" });
+    }
+
+    const decoded = jwt.verify(token, getJwtSecret());
+    if (decoded.type !== "staff_access") {
+      return res.status(401).json({ success: false, message: "Invalid staff token" });
+    }
+
+    const StaffMember = require("../models/StaffMember");
+    const staff = await StaffMember.findById(decoded.staffId).select("isActive role grantedMenus").lean();
+    if (!staff) {
+      return res.status(401).json({ success: false, message: "Staff account not found" });
+    }
+    if (!staff.isActive) {
+      return res.status(401).json({ success: false, message: "Your account has been deactivated. Please contact your admin." });
+    }
+
+    req.staff = { staffId: decoded.staffId, role: staff.role, grantedMenus: staff.grantedMenus };
+    return next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+  }
+};
+
+module.exports = { protect, authorize, protectStaff };

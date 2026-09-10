@@ -32,6 +32,7 @@ const adminReportRoutes = require("./routes/admin/reportRoutes");
 const adminNotificationRoutes = require("./routes/admin/notificationRoutes");
 const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
 const adminDealRoutes = require("./routes/admin/dealRoutes");
+const adminStaffRoutes = require("./routes/admin/staffRoutes");
 const auctionRoutes = require("./routes/auctionRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const nftRoutes = require("./routes/nftRoutes"); // Collectible (Web2) routes
@@ -114,6 +115,7 @@ app.use("/api/admin/categories", adminCategoryRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin/deals", adminDealRoutes);
 app.use("/api/deals", adminDealRoutes);
+app.use("/api/admin/staff", adminStaffRoutes);
 app.use("/api/user/messages", userMessageRoutes);
 app.use("/api/payment", userPaymentRoutes);
 app.use("/api/notifications", userNotificationRoutes);

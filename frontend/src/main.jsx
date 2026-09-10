@@ -10,14 +10,25 @@ const originalFetch = window.fetch;
 window.fetch = async function (...args) {
   const response = await originalFetch.apply(this, args);
   if (response.status === 401) {
-    const isAdmin = window.location.pathname.startsWith('/admin');
-    const prefix = isAdmin ? 'admin_' : '';
-    const tokenKey = `crypto_${prefix}auth_token`;
-    if (localStorage.getItem(tokenKey)) {
-      localStorage.removeItem(`crypto_${prefix}auth_token`);
-      localStorage.removeItem(`crypto_${prefix}refresh_token`);
-      localStorage.removeItem(`crypto_${prefix}auth_user`);
-      window.location.href = isAdmin ? "/admin/login" : "/signin";
+    const path = window.location.pathname;
+    const isAdmin = path.startsWith('/admin');
+    const isStaff = path.startsWith('/staff') && !path.startsWith('/staff/login') && !path.startsWith('/staff/forgot') && !path.startsWith('/staff/reset');
+
+    if (isStaff) {
+      if (localStorage.getItem('crypto_staff_auth_token')) {
+        localStorage.removeItem('crypto_staff_auth_token');
+        localStorage.removeItem('crypto_staff_auth_user');
+        window.location.href = '/staff/login';
+      }
+    } else {
+      const prefix = isAdmin ? 'admin_' : '';
+      const tokenKey = `crypto_${prefix}auth_token`;
+      if (localStorage.getItem(tokenKey)) {
+        localStorage.removeItem(`crypto_${prefix}auth_token`);
+        localStorage.removeItem(`crypto_${prefix}refresh_token`);
+        localStorage.removeItem(`crypto_${prefix}auth_user`);
+        window.location.href = isAdmin ? '/admin/login' : '/signin';
+      }
     }
   }
   return response;

@@ -22,7 +22,8 @@ import {
     PanelLeftClose,
     ChevronDown,
     Gavel,
-    Sparkles
+    Sparkles,
+    UserCog
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -115,7 +116,12 @@ const menuGroups = [
             { icon: ShieldCheck, label: 'KYC Management', path: '/admin/kyc' },
         ]
     },
-
+    {
+        title: 'Team',
+        items: [
+            { icon: UserCog, label: 'Staff Management', path: '/admin/staff' },
+        ]
+    },
     {
         title: 'Settings',
         items: [

@@ -66,6 +66,11 @@ const TrendingDealsManagement = lazy(() => import('./modules/admin/pages/Trendin
 const AdminAuctionManagement = lazy(() => import('./modules/admin/pages/AdminAuctionManagement'))
 const LocationManagement = lazy(() => import('./modules/admin/pages/LocationManagement'))
 const UserCreatePage = lazy(() => import('./modules/admin/pages/UserCreatePage'))
+const StaffManagement = lazy(() => import('./modules/admin/pages/StaffManagement'))
+
+// Staff Portal — completely isolated from admin and user
+const StaffLayout = lazy(() => import('./modules/staff/layouts/StaffLayout'))
+const StaffProfilePage = lazy(() => import('./modules/staff/pages/StaffProfilePage'))
 
 // Public transparency pages
 const TransparencyPortal = lazy(() => import('./modules/public/pages/TransparencyPortal'))
@@ -79,6 +84,10 @@ import LogoutPage from './modules/auth/pages/LogoutPage'
 import ForgotPasswordPage from './modules/user/pages/ForgotPasswordPage'
 import ProtectedRoute from './modules/auth/components/ProtectedRoute'
 import RootRoute from './modules/auth/components/RootRoute'
+import StaffLoginPage from './modules/auth/pages/StaffLoginPage'
+import StaffForgotPasswordPage from './modules/auth/pages/StaffForgotPasswordPage'
+import StaffResetPasswordPage from './modules/auth/pages/StaffResetPasswordPage'
+import StaffGuard from './modules/staff/guards/StaffGuard'
 
 // user module auth
 import SignInPage from './modules/user/pages/SignInPage'
@@ -205,6 +214,34 @@ export default function App() {
           {/* redirect legacy login to admin login */}
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />
 
+          {/* ─── Staff Portal (completely separate from /admin and user app) ─────────────── */}
+          <Route path="/staff/login"            element={<StaffLoginPage />} />
+          <Route path="/staff/forgot-password"  element={<StaffForgotPasswordPage />} />
+          <Route path="/staff/reset-password"   element={<StaffResetPasswordPage />} />
+
+          <Route path="/staff" element={<StaffGuard><Suspense fallback={<RouteLoader />}><StaffLayout /></Suspense></StaffGuard>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users"       element={<UserManagement />} />
+            <Route path="content"     element={<ContentControl />} />
+            <Route path="categories"  element={<CategoryManagementPage />} />
+            <Route path="nfts"        element={<NFTModeration />} />
+            <Route path="voting"      element={<VotingManagement />} />
+            <Route path="music"       element={<MusicManagement />} />
+            <Route path="auctions"    element={<AdminAuctionManagement />} />
+            <Route path="locations"   element={<LocationManagement />} />
+            <Route path="campaigns"   element={<CampaignManagement />} />
+            <Route path="advertisers" element={<AdvertiserPanel />} />
+            <Route path="deals"       element={<TrendingDealsManagement />} />
+            <Route path="wallet"      element={<WalletOverview />} />
+            <Route path="withdrawals" element={<FinancialManagement />} />
+            <Route path="gifts"       element={<GiftListPage />} />
+            <Route path="reports"     element={<ReportsManagement />} />
+            <Route path="audit"       element={<AuditLogs />} />
+            <Route path="kyc"         element={<KycManagement />} />
+            <Route path="settings"    element={<PlatformSettings />} />
+            <Route path="profile"     element={<StaffProfilePage />} />
+          </Route>
+
           {/* User app: admins are also allowed here */}
           <Route element={<ProtectedRoute allowedRoles={['User', 'SuperNode', 'Admin', 'super_admin', 'Developer']} />}>
             <Route path="/*" element={<AppShell />}>
@@ -279,6 +316,7 @@ export default function App() {
               <Route path="music" element={<MusicManagement />} />
               <Route path="auctions" element={<AdminAuctionManagement />} />
               <Route path="locations" element={<LocationManagement />} />
+              <Route path="staff" element={<StaffManagement />} />
             </Route>
           </Route>
 

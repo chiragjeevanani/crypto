@@ -13,7 +13,8 @@ import {
     ChevronRight,
     AlertCircle,
     Cpu,
-    Globe
+    Globe,
+    UserCog
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -236,13 +237,22 @@ export default function AdminDashboard() {
                 title="Strategic Control Center"
                 subtitle="High-fidelity telemetry for the platform reward ecosystem."
                 actions={
-                    <button
-                        onClick={() => loadDashboardStats()}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
-                    >
-                        <BarChart3 className={`w-3.5 h-3.5 ${isLoading ? 'animate-pulse text-primary' : ''}`} />
-                        Sync Intelligence
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => navigate('/staff/login')}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                        >
+                            <UserCog className="w-3.5 h-3.5" />
+                            Staff Login
+                        </button>
+                        <button
+                            onClick={() => loadDashboardStats()}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface rounded-lg text-[10px] font-semibold uppercase tracking-wider hover:bg-surface2 transition-all text-text"
+                        >
+                            <BarChart3 className={`w-3.5 h-3.5 ${isLoading ? 'animate-pulse text-primary' : ''}`} />
+                            Sync Intelligence
+                        </button>
+                    </div>
                 }
             />
 

@@ -12,7 +12,10 @@ const {
   verifyEmail,
   resendVerificationOtp,
   deleteMyAccount,
-  changePassword
+  changePassword,
+  loginStaff,
+  staffForgotPassword,
+  staffResetPassword,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const { upload } = require("../utils/upload");
@@ -33,5 +36,10 @@ router.patch("/profile", protect, updateProfile);
 router.patch("/profile/avatar", protect, upload.single("avatar"), updateAvatar);
 router.delete("/account", protect, deleteMyAccount);
 router.put("/password", protect, changePassword);
+
+// ─── Staff Portal Auth (separate from admin + user) ─────────────────────────
+router.post("/staff/login",            loginStaff);
+router.post("/staff/forgot-password",  staffForgotPassword);
+router.post("/staff/reset-password",   staffResetPassword);
 
 module.exports = router;

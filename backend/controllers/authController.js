@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const StaffMember = require("../models/StaffMember");
 const Country = require("../models/Country");
 const KycSubmission = require("../models/KycSubmission");
 const path = require("path");
@@ -706,6 +707,124 @@ const changePassword = async (req, res) => {
   }
 };
 
+// ─── Staff Portal Auth ────────────────────────────────────────────────────────
+
+const loginStaff = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
+
+    const staff = await StaffMember.findOne({ email: email.toLowerCase() });
+    if (!staff) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (!staff.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "Your account has been deactivated. Please contact your admin."
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, staff.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // Sign token with staffId + grantedMenus embedded for fast client-side filtering
+    const token = jwt.sign(
+      { staffId: staff._id, role: staff.role, grantedMenus: staff.grantedMenus, type: "staff_access" },
+      getJwtSecret(),
+      { expiresIn: accessExpiry }
+    );
+
+    staff.lastLoginAt = new Date();
+    await staff.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      staff: {
+        id: staff._id,
+        name: staff.name,
+        email: staff.email,
+        role: staff.role,
+        grantedMenus: staff.grantedMenus,
+        avatar: staff.avatar || "",
+        phone: staff.phone || "",
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const staffForgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const staff = await StaffMember.findOne({ email: email.toLowerCase() });
+    // Always return success to prevent email enumeration
+    if (!staff) {
+      return res.status(200).json({ success: true, message: "If that email exists, an OTP has been sent." });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    staff.resetPasswordOtp = hashedOtp;
+    staff.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await staff.save();
+
+    await sendOtpEmail(staff.email, otp);
+
+    return res.status(200).json({ success: true, message: "If that email exists, an OTP has been sent." });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const staffResetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: "Email, OTP and new password are required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const staff = await StaffMember.findOne({ email: email.toLowerCase() });
+    if (!staff || !staff.resetPasswordOtp || !staff.resetPasswordExpires) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    if (staff.resetPasswordExpires < new Date()) {
+      return res.status(400).json({ success: false, message: "OTP has expired. Please request a new one." });
+    }
+
+    const isOtpValid = await bcrypt.compare(otp, staff.resetPasswordOtp);
+    if (!isOtpValid) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    staff.password = await bcrypt.hash(newPassword, 12);
+    staff.resetPasswordOtp = null;
+    staff.resetPasswordExpires = null;
+    await staff.save();
+
+    return res.status(200).json({ success: true, message: "Password reset successful. You can now log in." });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -719,5 +838,9 @@ module.exports = {
   verifyEmail,
   resendVerificationOtp,
   deleteMyAccount,
-  changePassword
+  changePassword,
+  // Staff portal
+  loginStaff,
+  staffForgotPassword,
+  staffResetPassword,
 };
