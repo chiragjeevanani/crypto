@@ -3,6 +3,14 @@ import { authService } from '../../auth/services/authService'
 import { DEFAULT_PLATFORM_SETTINGS } from '../../../shared/platformSettings'
 
 export const getKeys = () => {
+    const isStaff = window.location.pathname.startsWith('/staff')
+    if (isStaff) {
+        return {
+            TOKEN_KEY: 'crypto_staff_auth_token',
+            REFRESH_TOKEN_KEY: 'crypto_staff_auth_token',
+            USER_KEY: 'crypto_staff_auth_user'
+        }
+    }
     const isAdmin = window.location.pathname.startsWith('/admin')
     const prefix = isAdmin ? 'admin_' : ''
     const keys = {
@@ -14,6 +22,10 @@ export const getKeys = () => {
 }
 
 export const getStoredToken = () => {
+    const isStaff = window.location.pathname.startsWith('/staff')
+    if (isStaff) {
+        return localStorage.getItem('crypto_staff_auth_token') || localStorage.getItem('crypto_admin_auth_token') || localStorage.getItem('crypto_auth_token')
+    }
     const { TOKEN_KEY } = getKeys()
     return localStorage.getItem(TOKEN_KEY)
 }

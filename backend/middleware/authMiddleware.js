@@ -19,6 +19,18 @@ const protect = async (req, res, next) => {
     if (decoded.type === "refresh") {
       return res.status(401).json({ success: false, message: "Use access token for this request" });
     }
+
+    // Support Staff Member authentication when accessing admin/platform APIs
+    if (decoded.type === "staff_access") {
+      const StaffMember = require("../models/StaffMember");
+      const staff = await StaffMember.findById(decoded.staffId).select("isActive role grantedMenus").lean();
+      if (!staff || !staff.isActive) {
+        return res.status(401).json({ success: false, message: "Unauthorized - Staff account inactive or not found" });
+      }
+      req.user = { userId: decoded.staffId, role: staff.role, isStaff: true, grantedMenus: staff.grantedMenus };
+      req.staff = req.user;
+      return next();
+    }
     
     const dbUser = await User.findById(decoded.userId).select("isBanned role").lean();
     if (!dbUser) {
@@ -41,7 +53,14 @@ const protect = async (req, res, next) => {
 };
 
 const authorize = (...roles) => (req, res, next) => {
-  if (!req.user || !roles.includes(req.user.role)) {
+  if (!req.user) {
+    return res.status(403).json({ success: false, message: "Forbidden" });
+  }
+  // Allow Staff members / Team Leaders accessing authorized portal pages
+  if (req.user.isStaff || ["staff", "team_leader"].includes(req.user.role)) {
+    return next();
+  }
+  if (!roles.includes(req.user.role)) {
     return res.status(403).json({ 
       success: false, 
       message: `Forbidden: Role '${req.user?.role}' not authorized. Required: ${roles.join(", ")}` 
