@@ -5,8 +5,8 @@ import { useUserCurrency } from '../../utils/formatCurrency'
 export default function NFTBadge({ status = 'listed', price, className }) {
     const { format } = useUserCurrency()
     const statusMap = {
-        listed: { label: 'NFT Listed', color: 'var(--color-purple)' },
-        sold: { label: 'NFT Sold', color: 'var(--color-success)' },
+        listed: { label: 'V-World Listed', color: 'var(--color-purple)' },
+        sold: { label: 'V-World Sold', color: 'var(--color-success)' },
     }
     const { label, color } = statusMap[status] || statusMap.listed
 

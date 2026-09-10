@@ -927,7 +927,7 @@ function PostCard({ post, onOpen, onDeleteSuccess, isModalView = false }) {
                             border: post.isListedForSale || post.status === 'listed' ? 'none' : '1px solid var(--color-border)'
                         }}
                     >
-                        {post.isListedForSale || post.status === 'listed' ? 'Buy NFT' : 'Make Offer'}
+                        {post.isListedForSale || post.status === 'listed' ? 'Buy V-World' : 'Make Offer'}
                     </button>
                 </div>
             )}

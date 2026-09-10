@@ -25,7 +25,7 @@ import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 import LogoutConfirmationModal from '../components/shared/LogoutConfirmationModal'
 import DeleteAccountConfirmationModal from '../components/shared/DeleteAccountConfirmationModal'
 import Stories from '../components/feed/Stories'
-const TABS = ['Posts', 'NFTs', 'Tasks']
+const TABS = ['Posts', 'V-World', 'Tasks']
 const SETTINGS_SECTIONS = ['Saved Posts', 'Personal Information', 'KYC Details', 'Content Languages', 'Change Password', 'Usage & Screen Time', 'Terms & Policies', 'Contacts']
 
 export default function ProfilePage() {
@@ -649,10 +649,10 @@ export default function ProfilePage() {
                         )
                     )}
 
-                    {activeTab === 'NFTs' && (
+                    {activeTab === 'V-World' && (
                         <div className="px-4 py-3 flex flex-col gap-3">
                             {nftListings.length === 0 && (
-                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No NFTs listed yet.</p>
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No V-World items listed yet.</p>
                             )}
                             {nftListings.map((nft) => (
                                 <div key={nft.id} onClick={() => setActivePostIndex(nftListings.findIndex((item) => String(item.id) === String(nft.id)))} className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
@@ -714,7 +714,7 @@ export default function ProfilePage() {
                 </motion.div>
             </AnimatePresence>
             <PostFeedModal 
-                posts={settingsTab === 'Saved Posts' && settingsOpen ? savedPosts : activeTab === 'NFTs' ? nftListings : profilePosts} 
+                posts={settingsTab === 'Saved Posts' && settingsOpen ? savedPosts : activeTab === 'V-World' ? nftListings : profilePosts} 
                 startIndex={activePostIndex} 
                 onClose={() => setActivePostIndex(null)} 
             />

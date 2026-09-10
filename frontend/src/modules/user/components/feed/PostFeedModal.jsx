@@ -691,7 +691,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                                         border: post.isListedForSale || post.status === 'listed' ? 'none' : '1px solid rgba(255,255,255,0.3)'
                                     }}
                                 >
-                                    {post.isListedForSale || post.status === 'listed' ? 'Buy NFT' : 'Make Offer'}
+                                    {post.isListedForSale || post.status === 'listed' ? 'Buy V-World' : 'Make Offer'}
                                 </button>
                             )}
                         </div>
@@ -713,7 +713,7 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                                 className="px-4 py-1.5 rounded-xl text-[11px] font-bold shadow-lg whitespace-nowrap"
                                 style={{ background: 'var(--color-primary)', color: '#fff' }}
                             >
-                                {post.nftData.isOffer ? 'Cancel Offer' : (post.nftData.status === 'listed' ? 'Buy NFT' : (post.nftData.owner?._id === profile?._id || post.nftData.buyer === profile?._id ? 'Resell NFT' : 'Make Offer'))}
+                                {post.nftData.isOffer ? 'Cancel Offer' : (post.nftData.status === 'listed' ? 'Buy V-World' : (post.nftData.owner?._id === profile?._id || post.nftData.buyer === profile?._id ? 'Resell V-World' : 'Make Offer'))}
                             </button>
                         )}
                     </div>

@@ -337,7 +337,7 @@ export default function HomePage() {
                         {[
                             { id: 'all', label: 'All' },
                             { id: 'regular', label: 'Regular' },
-                            { id: 'nft', label: 'NFT' },
+                            { id: 'nft', label: 'V-World' },
                             { id: 'brand', label: 'Brand' },
                         ].map((filter) => (
                             <button

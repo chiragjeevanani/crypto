@@ -73,8 +73,8 @@ function NFTTermsManager() {
                 <div className="flex items-center gap-3">
                     <ScrollText className="w-4 h-4 text-primary" />
                     <div className="text-left">
-                        <p className="text-sm font-bold text-text">NFT Submission Terms & Conditions</p>
-                        <p className="text-[10px] text-muted font-medium">Manage the terms users must accept before submitting an NFT</p>
+                        <p className="text-sm font-bold text-text">V-World Submission Terms & Conditions</p>
+                        <p className="text-[10px] text-muted font-medium">Manage the terms users must accept before submitting a V-World item</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ function NFTTermsManager() {
                     >
                         <div className="px-6 pb-6 pt-1 border-t border-surface space-y-4">
                             <p className="text-[10px] text-amber-500/80 font-medium uppercase tracking-wider bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">
-                                These terms are shown to users before they submit an NFT. Users must accept before they can proceed.
+                                These terms are shown to users before they submit a V-World item. Users must accept before they can proceed.
                             </p>
                             {loading ? (
                                 <div className="flex items-center justify-center py-8">
@@ -109,7 +109,7 @@ function NFTTermsManager() {
                                     value={terms}
                                     onChange={(e) => setTerms(e.target.value)}
                                     rows={10}
-                                    placeholder="Enter the NFT submission terms and conditions..."
+                                    placeholder="Enter the V-World submission terms and conditions..."
                                     className="w-full bg-bg border border-surface rounded-lg p-4 text-xs font-medium text-text outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 resize-none leading-relaxed font-mono"
                                 />
                             )}

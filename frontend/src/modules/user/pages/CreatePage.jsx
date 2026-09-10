@@ -3109,7 +3109,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             }
 
             if (postState.isNFT) {
-                showToast('Your NFT has been submitted for review. It will show to other users after approval.');
+                showToast('Your V-World item has been submitted for review. It will show to other users after approval.');
             } else if (!postState.isBusiness) {
                 showToast('Reel published successfully!');
             }
@@ -5383,7 +5383,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   <span className="text-black/45">
                     <BiImageAlt size={18} />
                   </span>
-                  <span className="text-[15px] font-medium">Mint as NFT</span>
+                  <span className="text-[15px] font-medium">Mint as V-World</span>
                 </div>
                 <Toggle
                   enabled={postState.isNFT}
@@ -6472,7 +6472,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             onClick={e => e.stopPropagation()}
           >
             <div className="w-10 h-1.5 bg-black/20 dark:bg-white/20 rounded-full my-4 mx-auto" />
-            <h3 className="text-[17px] font-bold mb-2 text-center">NFT Terms & Conditions</h3>
+            <h3 className="text-[17px] font-bold mb-2 text-center">V-World Terms & Conditions</h3>
             
             <div className="px-6 py-4 overflow-y-auto flex-1">
               <div className="bg-black/5 dark:bg-white/5 p-4 rounded-xl text-[13px] leading-relaxed whitespace-pre-wrap">
@@ -6482,7 +6482,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
 
             <div className="px-6 pt-2 pb-4">
               <p className="text-[12px] text-black/60 dark:text-white/60 mb-4 text-center">
-                I have read, understood, and agree to the terms and conditions above. I confirm that this NFT is my original creation.
+                I have read, understood, and agree to the terms and conditions above. I confirm that this V-World item is my original creation.
               </p>
               <div className="flex gap-3">
                  <button

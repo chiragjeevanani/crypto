@@ -64,7 +64,7 @@ export default function TasksPage() {
     const { taskId: routeTaskId } = useParams()
     const [searchParams] = useSearchParams()
     const view = searchParams.get('view')
-    const isNFTView = view === 'nft'
+    const isNFTView = view === 'nft' || view === 'v-world'
 
     const [activeFilter, setActiveFilter] = useState('All')
     const [selectedTask, setSelectedTask] = useState(null)
@@ -646,9 +646,12 @@ export default function TasksPage() {
                         style={{ background: 'linear-gradient(180deg, #047BD5 0%, #0060A8 100%)' }}
                     >
                         <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-xl font-extrabold italic text-white drop-shadow-md">e Digital Marketplace</h1>
-                                <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-10 w-10 rounded-full object-cover" />
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-xl font-extrabold italic text-white drop-shadow-md">e Digital Marketplace</h1>
+                                    <img src="/knqlogo.jpeg" alt="KnQ Logo" className="h-10 w-10 rounded-full object-cover" />
+                                </div>
+                                <p className="text-[11px] font-medium text-white/80 mt-0.5">V-World ( Virtual World )</p>
                             </div>
                             <button onClick={() => navigate('/create')} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white">
                                 +
@@ -858,14 +861,14 @@ export default function TasksPage() {
                                 </div>
                                 <p className="text-sm font-medium" style={{ color: 'var(--color-muted)' }}>
                                     {nftTab === 'My Listings'
-                                        ? "You haven't minted any NFTs yet"
+                                        ? "You haven't created any V-World items yet"
                                         : nftTab === 'My Collection'
-                                        ? 'Your collection is empty'
+                                        ? 'Your V-World collection is empty'
                                         : nftTab === 'Resale'
-                                        ? 'No resale NFTs available yet'
+                                        ? 'No resale V-World items available yet'
                                         : nftTab === 'My Offers'
                                         ? "You haven't made any offers yet"
-                                        : 'No collectibles in the marketplace yet'}
+                                        : 'No V-World items in the marketplace yet'}
                                 </p>
                                 {nftTab === 'Discover' && (
                                     <button
@@ -876,7 +879,7 @@ export default function TasksPage() {
                                             color: '#000',
                                         }}
                                     >
-                                        + Submit Your NFT
+                                        + Submit Your V-World Item
                                     </button>
                                 )}
                             </motion.div>
@@ -1023,8 +1026,8 @@ export default function TasksPage() {
                                                                             e.stopPropagation();
                                                                             setActiveDropdownId(null);
                                                                             setModalConfig({
-                                                                                title: 'Delete NFT',
-                                                                                message: 'Are you sure you want to delete this NFT?',
+                                                                                title: 'Delete V-World Item',
+                                                                                message: 'Are you sure you want to delete this V-World item?',
                                                                                 onConfirm: async () => {
                                                                                     try {
                                                                                         await postService.deletePost(nft.id || nft.collectibleId);
@@ -1033,7 +1036,7 @@ export default function TasksPage() {
                                                                                     } catch (err) {
                                                                                         setModalConfig({
                                                                                             title: 'Error',
-                                                                                            message: 'Failed to delete NFT.',
+                                                                                            message: 'Failed to delete V-World item.',
                                                                                             onConfirm: () => setModalConfig(null),
                                                                                             onCancel: () => setModalConfig(null)
                                                                                         });
@@ -1045,7 +1048,7 @@ export default function TasksPage() {
                                                                         className="w-full px-4 py-2 text-[12px] font-bold text-left hover:bg-[rgba(239,68,68,0.1)] transition-colors"
                                                                         style={{ color: '#ef4444' }}
                                                                     >
-                                                                        Delete NFT
+                                                                        Delete V-World Item
                                                                     </button>
                                                                 </motion.div>
                                                             </>
@@ -1241,7 +1244,7 @@ export default function TasksPage() {
                                                     })()}
                                                 </span>
                                             </p>
-                                            <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>Relist NFT</p>
+                                            <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>Relist V-World Item</p>
                                             <div className="flex gap-2">
                                                 <input
                                                     type="number"

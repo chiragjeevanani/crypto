@@ -137,7 +137,7 @@ export default function ProfileHeader({ profile, onEdit, onOpenFollowers, onOpen
         <div className="flex-1 grid grid-cols-4 gap-1 pt-2">
           {[
             { label: 'Posts', value: formatCount(profile.posts) },
-            { label: 'NFTs', value: formatCount(profile.nfts || 0) },
+            { label: 'V-World', value: formatCount(profile.nfts || 0) },
             { label: 'Followers', value: formatCount(profile.followers) },
             { label: 'Following', value: formatCount(profile.following) },
           ].map((stat) => (

@@ -516,10 +516,10 @@ export default function AppShell() {
                     </section>
 
                     <section className="desktop-panel-card rounded-2xl p-4">
-                        <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Trending NFTs</p>
+                        <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Trending V-World Items</p>
                         <div className="space-y-2.5">
                             {trendingNFTs.length === 0 && (
-                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No NFTs yet.</p>
+                                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>No V-World items yet.</p>
                             )}
                             {trendingNFTs.map((post) => (
                                 <div

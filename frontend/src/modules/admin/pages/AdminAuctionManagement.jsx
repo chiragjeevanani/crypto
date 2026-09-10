@@ -182,7 +182,7 @@ function PreviewModal({ auction, onClose, onApprove, onReject }) {
                             ) : auction.status === 'ended' && auction.winner ? (
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between px-2">
-                                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Web3 NFT Status</span>
+                                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Web3 V-World Status</span>
                                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase ${
                                             auction.nftStatus === 'settled' ? 'bg-emerald-500 text-black' :
                                             auction.nftStatus === 'deposit_received' ? 'bg-amber-500/10 text-amber-500' :

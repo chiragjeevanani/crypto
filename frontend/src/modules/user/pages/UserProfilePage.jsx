@@ -16,7 +16,7 @@ import SuggestedUsersSection from '../components/feed/SuggestedUsersSection'
 import Avatar from '../components/shared/Avatar'
 import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 
-const TABS = ['Posts', 'NFTs']
+const TABS = ['Posts', 'V-World']
 
 const AVATAR_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316']
 
@@ -160,7 +160,7 @@ export default function UserProfilePage() {
             username: profileLoading ? 'Loading...' : 'Unknown User',
             handle: profileLoading ? '...' : '@unknown',
             isFollowing: false,
-            bio: 'Digital Creator & NFT Collector. Sharing daily vibes and exclusive content. 📸✨'
+            bio: 'Digital Creator & V-World Collector. Sharing daily vibes and exclusive content. 📸✨'
         }
     }, [userId, posts, profileUser, profileLoading])
 
@@ -211,7 +211,7 @@ export default function UserProfilePage() {
     const handleNftClick = async (nft) => {
         if (nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed'))) {
             const priceToPay = nft.isListedForSale ? nft.resalePrice : (nft.nftPriceINR || nft.price);
-            const confirmBuy = window.confirm(`Buy this NFT for ₹${priceToPay}?`);
+            const confirmBuy = window.confirm(`Buy this V-World item for ₹${priceToPay}?`);
             if (confirmBuy) {
                 try {
                     if (nft.collectibleId) {
@@ -219,11 +219,11 @@ export default function UserProfilePage() {
                     } else {
                         await walletService.buyPostNFT(nft.id);
                     }
-                    alert("NFT bought successfully!");
+                    alert("V-World item bought successfully!");
                     // Optimistic update
                     setNfts(prev => prev.map(n => (n.collectibleId === nft.collectibleId || n.id === nft.id) ? { ...n, status: 'sold', isListedForSale: false } : n));
                 } catch (err) {
-                    alert(err.message || 'Unable to buy NFT.');
+                    alert(err.message || 'Unable to buy V-World item.');
                 }
             }
         } else {
@@ -329,7 +329,7 @@ export default function UserProfilePage() {
                         <div className="flex-1 grid grid-cols-4 gap-1 pt-4">
                             {[
                                 { label: 'Posts', value: String(userPosts.length), onClick: null },
-                                { label: 'NFTs', value: String(nfts.length), onClick: null },
+                                { label: 'V-World', value: String(nfts.length), onClick: null },
                                 { label: 'Followers', value: String(user.followersCount !== undefined ? user.followersCount : followers.length), onClick: () => setConnectionsOpen('followers') },
                                 { label: 'Following', value: String(user.followingCount !== undefined ? user.followingCount : following.length), onClick: () => setConnectionsOpen('following') },
                             ].map((stat) => (
@@ -496,7 +496,7 @@ export default function UserProfilePage() {
                             </div>
                         )
                     )}
-                    {activeTab === 'NFTs' && (
+                    {activeTab === 'V-World' && (
                         <div className="px-4 py-4 flex flex-col gap-3">
                             {nfts.map((nft) => (
                                 <div
@@ -523,14 +523,14 @@ export default function UserProfilePage() {
                                         ) : (
                                             <img
                                                 src={nft.thumbnail || nft.media?.thumbnail || nft.media?.url || nft.mediaUrl}
-                                                alt={nft.caption || 'NFT'}
+                                                alt={nft.caption || 'V-World'}
                                                 className="w-full h-full object-cover"
                                             />
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {nft.caption || 'Untitled NFT'}
+                                            {nft.caption || 'Untitled V-World'}
                                         </p>
                                         <NFTBadge status={nft.status === 'approved' ? 'listed' : 'sold'} price={nft.nftPriceINR || 0} className="mt-1" />
                                     </div>
@@ -543,7 +543,7 @@ export default function UserProfilePage() {
                                                 handleNftClick(nft);
                                             }}
                                         >
-                                            {nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed')) ? 'Buy NFT' : 'Make Offer'}
+                                            {nft.isListedForSale || (!nft.collectibleId && (nft.status === 'approved' || nft.status === 'listed')) ? 'Buy V-World' : 'Make Offer'}
                                         </button>
                                         
                                         {profile?.id === userId && (
@@ -553,8 +553,8 @@ export default function UserProfilePage() {
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setDeleteModalConfig({
-                                                        title: 'Delete NFT',
-                                                        message: 'Are you sure you want to delete this NFT?',
+                                                        title: 'Delete V-World item',
+                                                        message: 'Are you sure you want to delete this V-World item?',
                                                         onConfirm: async () => {
                                                             try {
                                                                 await postService.deletePost(nft.id || nft.collectibleId);

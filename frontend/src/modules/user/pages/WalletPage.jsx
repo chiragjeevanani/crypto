@@ -737,7 +737,7 @@ export default function WalletPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 <WalletStatCard label="Gifts" amount={((giftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gift} color="var(--color-danger)" small />
                 <WalletStatCard label="Tasks" amount={((taskEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={CheckSquare} color="var(--color-primary)" small />
-                <WalletStatCard label="NFTs" amount={((nftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gem} color="var(--color-purple)" small />
+                <WalletStatCard label="V-World" amount={((nftEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Gem} color="var(--color-purple)" small />
                 <WalletStatCard label="Referrals" amount={((referralEarnings / platformSettings.coinRate) * (walletRates?.localRate || 1)) || 0} currencySymbol={currencySymbol} icon={Users} color="var(--color-warning)" small />
             </div>
 

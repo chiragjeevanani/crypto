@@ -57,7 +57,7 @@ const menuGroups = [
                 path: '/admin/content',
             },
             { icon: Tags, label: 'Categories', path: '/admin/categories' },
-            { icon: Box, label: 'NFT Review', path: '/admin/nfts' },
+            { icon: Box, label: 'V-World Review', path: '/admin/nfts' },
             { icon: Vote, label: 'Voting', path: '/admin/voting' },
             { icon: Music, label: 'Music', path: '/admin/music' },
             { icon: Gavel, label: 'Auctions', path: '/admin/auctions' },
@@ -155,7 +155,7 @@ export default function AdminSidebar({ isCollapsed, setIsCollapsed, closeMobile 
             ...group,
             items: group.items.map(item => {
                 if (item.label === 'Advertisers') return { ...item, badge: moderationStats.ads > 0 ? moderationStats.ads : null };
-                if (item.label === 'NFT Review') return { ...item, badge: moderationStats.nfts > 0 ? moderationStats.nfts : null };
+                if (item.label === 'V-World Review') return { ...item, badge: moderationStats.nfts > 0 ? moderationStats.nfts : null };
                 if (item.label === 'Reports') return { ...item, badge: moderationStats.reports > 0 ? moderationStats.reports : null };
                 if (item.label === 'Withdrawals') return { ...item, badge: moderationStats.withdrawals > 0 ? moderationStats.withdrawals : null };
                 if (item.label === 'Auctions') return { ...item, badge: moderationStats.pendingAuctions > 0 ? moderationStats.pendingAuctions : null };
