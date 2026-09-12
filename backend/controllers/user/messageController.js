@@ -626,3 +626,95 @@ exports.getChatUsers = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch users" });
   }
 };
+
+// REST send message — used by Flutter share extension (no socket required on sender side)
+// Supports: text, image, file, video, audio types
+exports.sendMessage = async (req, res) => {
+  try {
+    const currentUserId = req.user?.userId;
+    if (!currentUserId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { receiverId, text, type = "text", payload } = req.body;
+
+    if (!receiverId) {
+      return res.status(400).json({ success: false, message: "receiverId is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      return res.status(400).json({ success: false, message: "Invalid receiverId" });
+    }
+
+    if (receiverId.toString() === currentUserId.toString()) {
+      return res.status(400).json({ success: false, message: "Cannot send message to yourself" });
+    }
+
+    const receiver = await User.findById(receiverId).select("_id name handle avatar").lean();
+    if (!receiver) {
+      return res.status(404).json({ success: false, message: "Receiver not found" });
+    }
+
+    // Build deterministic roomId (sorted so both sides get the same room)
+    const sortedIds = [currentUserId.toString(), receiverId.toString()].sort();
+    const roomId = `${sortedIds[0]}-${sortedIds[1]}`;
+
+    const newMessage = await Message.create({
+      sender: new mongoose.Types.ObjectId(currentUserId),
+      receiver: new mongoose.Types.ObjectId(receiverId),
+      roomId,
+      text: text || "",
+      type,
+      payload: payload || null,
+      status: "sent"
+    });
+
+    const formattedMsg = {
+      id: newMessage._id.toString(),
+      sender: "other",
+      senderId: currentUserId.toString(),
+      text: newMessage.text,
+      type: newMessage.type,
+      payload: newMessage.payload,
+      status: newMessage.status,
+      timestamp: new Date(newMessage.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      })
+    };
+
+    // Push to receiver via socket if online
+    emitToUser(receiverId.toString(), "receive_message", formattedMsg);
+    emitToUser(receiverId.toString(), "new_message_alert", {
+      roomId,
+      message: formattedMsg,
+      chat: {
+        id: currentUserId.toString(),
+        isGroup: false
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: {
+        id: newMessage._id,
+        roomId,
+        text: newMessage.text,
+        type: newMessage.type,
+        payload: newMessage.payload,
+        status: newMessage.status,
+        createdAt: newMessage.createdAt
+      },
+      receiver: {
+        id: receiver._id,
+        name: receiver.name,
+        handle: receiver.handle,
+        avatar: receiver.avatar
+      }
+    });
+  } catch (error) {
+    console.error("[Message] sendMessage error:", error);
+    res.status(500).json({ success: false, message: "Failed to send message" });
+  }
+};
