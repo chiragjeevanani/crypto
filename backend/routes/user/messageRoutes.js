@@ -8,6 +8,8 @@ const { upload } = require("../../utils/upload");
 // Get all users available for chat (new chat picker)
 router.get("/users", protect, messageController.getChatUsers);
 
+// REST send message — for Flutter share extension (no WebSocket needed)
+router.post("/send", protect, messageController.sendMessage);
 
 router.get("/conversations", protect, messageController.getConversations);
 router.get("/unread-total", protect, messageController.getUnreadTotal);
