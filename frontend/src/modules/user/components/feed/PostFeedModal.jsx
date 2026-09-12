@@ -18,6 +18,7 @@ import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 import Avatar from '../shared/Avatar'
 import ActionConfirmationModal from '../shared/ActionConfirmationModal'
 import { postService } from '../../services/postService'
+import { behaviorService } from '../../services/behaviorService'
 import { useVideoSource } from '../../hooks/useVideoSource'
 import { renderCaptionWithLinks } from '../../utils/captionHelper'
 
@@ -29,13 +30,14 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
     const {
         toggleLike, sendGift, splats, clearSplat, earningsByPostId, savedPostIds, toggleSavePost,
         voteCampaignSubmission, deletePost, toggleFollow, loadComments, addComment, commentsByPostId, commentsLoading,
-        globalMute, setGlobalMute
+        globalMute, setGlobalMute, reportNotInterested
     } = useFeedStore(useShallow((s) => ({
         toggleLike: s.toggleLike, sendGift: s.sendGift, splats: s.splats, clearSplat: s.clearSplat,
         earningsByPostId: s.earningsByPostId, savedPostIds: s.savedPostIds, toggleSavePost: s.toggleSavePost,
         voteCampaignSubmission: s.voteCampaignSubmission, deletePost: s.deletePost, toggleFollow: s.toggleFollow,
         loadComments: s.loadComments, addComment: s.addComment, commentsByPostId: s.commentsByPostId,
         commentsLoading: s.commentsLoading, globalMute: s.globalMute, setGlobalMute: s.setGlobalMute,
+        reportNotInterested: s.reportNotInterested,
     })))
     const { addGiftEarning, spendGiftFromSelectedWallet, performGift } = useWalletStore(useShallow((s) => ({
         addGiftEarning: s.addGiftEarning,
@@ -151,6 +153,8 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
 
     const videoRef = useRef(null)
     const audioRef = useRef(null)
+    // Watch-time tracking for behavior engine
+    const watchStartRef = useRef(null)
 
     const toggleMute = (e) => {
         if (e) e.stopPropagation()
@@ -179,6 +183,26 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
         if (active) {
             const recordView = useFeedStore.getState().recordView
             if (recordView) recordView(post.id)
+            // Start watch-time clock
+            watchStartRef.current = Date.now()
+        } else {
+            // Reel became inactive — compute watch % and send behavior event
+            if (watchStartRef.current) {
+                const video = videoRef.current
+                const elapsed = (Date.now() - watchStartRef.current) / 1000 // seconds
+                const duration = video?.duration || 0
+                let pct = 0
+                if (duration > 0) {
+                    pct = Math.min(100, Math.round((elapsed / duration) * 100))
+                } else if (elapsed > 3) {
+                    // Fallback: if duration unknown, estimate from elapsed time
+                    pct = elapsed >= 15 ? 90 : elapsed >= 6 ? 50 : 10
+                }
+                if (pct > 0 && post.id) {
+                    behaviorService.recordEvent(post.id, 'watch', pct)
+                }
+                watchStartRef.current = null
+            }
         }
     }, [active, post.id])
 
@@ -509,17 +533,30 @@ const ReelPostInner = ({ post, active, shouldPreload, onClose, onNftAction }) =>
                                             Delete Reel
                                         </button>
                                     ) : (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setIsReportMenuOpen(false)
-                                                setIsReportModalOpen(true)
-                                            }}
-                                            className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
-                                        >
-                                            <AlertCircle size={14} />
-                                            Report Reel
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setIsReportMenuOpen(false)
+                                                    reportNotInterested?.(post.id)
+                                                }}
+                                                className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-zinc-800/10 transition-colors flex items-center gap-2 text-[var(--color-text)]"
+                                            >
+                                                <X size={14} />
+                                                Not Interested
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setIsReportMenuOpen(false)
+                                                    setIsReportModalOpen(true)
+                                                }}
+                                                className="w-full px-4 py-3 text-left text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2"
+                                            >
+                                                <AlertCircle size={14} />
+                                                Report Reel
+                                            </button>
+                                        </>
                                     )}
                                 </motion.div>
                             )}

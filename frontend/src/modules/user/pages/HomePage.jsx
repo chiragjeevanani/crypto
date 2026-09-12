@@ -26,14 +26,14 @@ import { optimizeCloudinaryUrl } from '../../../utils/mediaOptimization'
 export default function HomePage() {
     const {
         posts, postsLoading, postsHasMore, postsLoadingMore, loadMorePosts, notifications, unreadNotifications, loadNotifications, markNotificationsRead, loadPosts, fetchSinglePost,
-        reelFeed, reelFeedLoading, reelFeedError, loadReelFeed, unreadTotal, setUnreadMessagesTotal
+        reelFeed, reelFeedLoading, reelFeedError, unreadTotal, setUnreadMessagesTotal
     } = useFeedStore(useShallow((s) => ({
         posts: s.posts, postsLoading: s.postsLoading, postsHasMore: s.postsHasMore, postsLoadingMore: s.postsLoadingMore,
         loadMorePosts: s.loadMorePosts, notifications: s.notifications,
         unreadNotifications: s.unreadNotifications, loadNotifications: s.loadNotifications,
         markNotificationsRead: s.markNotificationsRead, loadPosts: s.loadPosts, fetchSinglePost: s.fetchSinglePost,
         reelFeed: s.reelFeed, reelFeedLoading: s.reelFeedLoading, reelFeedError: s.reelFeedError,
-        loadReelFeed: s.loadReelFeed, unreadTotal: s.unreadMessagesTotal, setUnreadMessagesTotal: s.setUnreadMessagesTotal,
+        unreadTotal: s.unreadMessagesTotal, setUnreadMessagesTotal: s.setUnreadMessagesTotal,
     })))
     const { user, profile } = useUserStore()
     const isLanguageModalOpen = user?.role === 'User' && !user?.hasSelectedLanguages;
@@ -130,17 +130,24 @@ export default function HomePage() {
 
     useEffect(() => {
         if (!isReels) return
-        
-        if (reelFeed.length === 0) {
-            loadReelFeed(6)
+
+        // Always fetch a fresh personalized feed when the user enters the Reels tab.
+        // The behavior engine may have updated the user's interest profile since the
+        // last cached load, so we must bypass the cache here to serve new rankings.
+        // We call refreshReelFeed() (which clears localStorage cache first) so the
+        // backend returns behavior-ranked results, not a stale chronological list.
+        const { refreshReelFeed } = useFeedStore.getState()
+        refreshReelFeed(6)
+
+        const onRefresh = () => {
+            const { refreshReelFeed: rf } = useFeedStore.getState()
+            rf(6)
         }
-        
-        const onRefresh = () => loadReelFeed(6, 1)
         window.addEventListener('reels-feed-refresh', onRefresh)
         return () => {
             window.removeEventListener('reels-feed-refresh', onRefresh)
         }
-    }, [isReels, loadReelFeed, reelFeed.length])
+    }, [isReels])
 
     useEffect(() => {
         if (!isExplore) return

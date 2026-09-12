@@ -5,6 +5,7 @@ import { savedPostService } from '../services/savedPostService'
 import { userCampaignService } from '../services/campaignService'
 import { notificationService } from '../services/notificationService'
 import { reelFeedService } from '../services/reelFeedService'
+import { behaviorService } from '../services/behaviorService'
 import { useUserStore } from './useUserStore'
 
 const getStoredCurrencySymbol = () => {
@@ -298,6 +299,8 @@ export const useFeedStore = create((set, get) => ({
                 posts: state.posts.map(syncItem),
                 reelFeed: state.reelFeed.map(syncItem)
             }))
+            // Behavior signal — non-blocking, fire-and-forget
+            behaviorService.recordEvent(postId, 'like')
         } catch (err) {
             // Rollback on error
             set(() => ({
@@ -450,6 +453,8 @@ export const useFeedStore = create((set, get) => ({
                     ...s.notifications,
                 ],
             }))
+            // Behavior signal — non-blocking
+            behaviorService.recordEvent(postId, 'share')
         } catch {
             // If the API fails, do not change the local share count.
         }
@@ -606,8 +611,13 @@ export const useFeedStore = create((set, get) => ({
         try {
             const res = await savedPostService.toggleSave(postId)
             const syncedSet = new Set(get().savedPostIds)
-            if (res.isSaved) syncedSet.add(idStr)
-            else syncedSet.delete(idStr)
+            if (res.isSaved) {
+                syncedSet.add(idStr)
+                // Behavior signal for saving — strong positive signal
+                behaviorService.recordEvent(postId, 'save')
+            } else {
+                syncedSet.delete(idStr)
+            }
             set({ savedPostIds: syncedSet })
         } catch (err) {
             // Revert on error
@@ -617,6 +627,19 @@ export const useFeedStore = create((set, get) => ({
             set({ savedPostIds: revertedSet })
             throw err
         }
+    },
+
+    // ─── Not Interested ───────────────────────────────────────────────────────
+    reportNotInterested: (postId) => {
+        if (!postId) return
+        // Remove from feeds immediately
+        const idStr = String(postId)
+        set((state) => ({
+            posts: state.posts.filter((p) => String(p.id) !== idStr),
+            reelFeed: state.reelFeed.filter((p) => String(p.id) !== idStr)
+        }))
+        // Fire behavior signal — blocks future appearances
+        behaviorService.markNotInterested(postId)
     },
 
     voteCampaignSubmission: async (campaignId, submissionId, postId) => {
