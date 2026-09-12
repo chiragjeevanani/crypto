@@ -5,6 +5,10 @@ const { protect } = require("../../middleware/authMiddleware");
 
 const { upload } = require("../../utils/upload");
 
+// Get all users available for chat (new chat picker)
+router.get("/users", protect, messageController.getChatUsers);
+
+
 router.get("/conversations", protect, messageController.getConversations);
 router.get("/unread-total", protect, messageController.getUnreadTotal);
 router.get("/messages/:roomId", protect, messageController.getMessages);

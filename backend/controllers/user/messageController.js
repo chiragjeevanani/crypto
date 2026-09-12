@@ -572,3 +572,57 @@ exports.removeGroupMember = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to remove member" });
   }
 };
+
+// Get all users available to chat with (excludes self, banned users)
+exports.getChatUsers = async (req, res) => {
+  try {
+    const currentUserId = req.user?.userId;
+    if (!currentUserId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { q = "", page = 1, limit = 50 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const filter = {
+      _id: { $ne: currentUserId },
+      isBanned: { $ne: true }
+    };
+
+    if (q.trim()) {
+      const regex = new RegExp(q.trim(), "i");
+      filter.$or = [
+        { name: regex },
+        { handle: regex }
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select("_id name handle avatar")
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .lean();
+
+    const total = await User.countDocuments(filter);
+
+    res.json({
+      success: true,
+      users: users.map(u => ({
+        id: u._id,
+        name: u.name,
+        handle: u.handle || "",
+        avatar: u.avatar || ""
+      })),
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error("[Message] getChatUsers error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
+  }
+};
