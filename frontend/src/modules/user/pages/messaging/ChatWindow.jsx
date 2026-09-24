@@ -540,7 +540,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     <video 
                         src={msg.payload.url} 
                         controls 
-                        className="max-w-full h-auto max-h-80"
+                        playsInline
+                        className="w-full h-auto max-h-80 object-contain rounded-2xl bg-black"
                         preload="metadata"
                     />
                 </div>
