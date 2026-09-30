@@ -28,6 +28,17 @@ class ErrorBoundary extends React.Component {
 
     // Helper to reset the error state (e.g. for a "Try Again" button)
     handleReset = () => {
+        const isChunkError = 
+            this.state.error?.message?.includes('Failed to fetch dynamically imported module') ||
+            this.state.error?.message?.includes('Importing a module script failed') ||
+            this.state.error?.name === 'ChunkLoadError' ||
+            (this.state.error?.message && this.state.error.message.includes('/assets/'));
+
+        if (isChunkError) {
+            window.location.reload();
+            return;
+        }
+
         this.setState({ hasError: false, error: null });
         if (this.props.onReset) {
             this.props.onReset();
@@ -43,6 +54,12 @@ class ErrorBoundary extends React.Component {
                     : this.props.fallback;
             }
 
+            const isChunkError = 
+                this.state.error?.message?.includes('Failed to fetch dynamically imported module') ||
+                this.state.error?.message?.includes('Importing a module script failed') ||
+                this.state.error?.name === 'ChunkLoadError' ||
+                (this.state.error?.message && this.state.error.message.includes('/assets/'));
+
             // Default fallback UI
             return (
                 <div 
@@ -56,10 +73,14 @@ class ErrorBoundary extends React.Component {
                         <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center">
                             <span className="text-lg font-bold">!</span>
                         </div>
-                        <h3 className="font-bold text-sm">Something went wrong in this section</h3>
+                        <h3 className="font-bold text-sm">
+                            {isChunkError ? 'New Update Available' : 'Something went wrong in this section'}
+                        </h3>
                     </div>
                     <p className="text-xs text-rose-500/80 mb-2 leading-relaxed">
-                        We encountered a problem while rendering this part of the app. It might be a temporary issue.
+                        {isChunkError 
+                            ? 'A new version of the app was deployed. Please tap Reload to load the latest features.'
+                            : 'We encountered a problem while rendering this part of the app. It might be a temporary issue.'}
                     </p>
                     {this.state.error && (
                         <pre className="text-[10px] font-mono bg-white/60 p-2.5 rounded-lg mb-4 max-h-[150px] overflow-auto border border-rose-200/50 text-rose-800 leading-normal text-left">
@@ -73,7 +94,7 @@ class ErrorBoundary extends React.Component {
                             onClick={this.handleReset}
                             className="text-xs font-bold px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-sm active:scale-95"
                         >
-                            Try Again
+                            {isChunkError ? 'Reload App' : 'Try Again'}
                         </button>
                     </div>
                 </div>

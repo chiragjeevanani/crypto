@@ -10,6 +10,7 @@ import Avatar from '../../components/shared/Avatar'
 import ActionConfirmationModal from '../../components/shared/ActionConfirmationModal'
 import { Trash2 as TrashIcon } from 'lucide-react'
 import GroupDetailsModal from './GroupDetailsModal'
+import { optimizeCloudinaryUrl } from '../../../../utils/mediaOptimization'
 
 export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost }) {
     const navigate = useNavigate()
@@ -520,27 +521,29 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         }
 
         if (msg.type === 'image') {
+            const mediaUrl = optimizeCloudinaryUrl(msg.payload?.url)
             return (
                 <div 
                     className={`max-w-[70%] rounded-2xl overflow-hidden border cursor-pointer ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
-                    onClick={() => setSelectedMedia({ url: msg.payload.url, type: 'image' })}
+                    onClick={() => setSelectedMedia({ url: mediaUrl, type: 'image' })}
                 >
-                    <img src={msg.payload.url} alt="shared image" className="max-w-full h-auto object-cover max-h-60" />
+                    <img src={mediaUrl} alt="shared image" className="max-w-full h-auto object-cover max-h-60" />
                 </div>
             )
         }
 
         if (msg.type === 'video') {
+            const mediaUrl = optimizeCloudinaryUrl(msg.payload?.url)
             return (
                 <div
                     className={`relative cursor-pointer rounded-2xl overflow-hidden border ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
                     style={{ background: '#000', borderColor: 'var(--color-border)', width: '220px', maxWidth: '75vw' }}
-                    onClick={() => setSelectedMedia({ url: msg.payload.url, type: 'video' })}
+                    onClick={() => setSelectedMedia({ url: mediaUrl, type: 'video' })}
                 >
                     {/* Thumbnail preview */}
                     <video
-                        src={msg.payload.url}
+                        src={mediaUrl}
                         preload="metadata"
                         muted
                         playsInline
@@ -563,6 +566,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
 
         if (msg.type === 'audio') {
             const isMe = msg.sender === 'me'
+            const mediaUrl = optimizeCloudinaryUrl(msg.payload?.url)
             return (
                 <div 
                     className={`max-w-[80%] px-4 py-3 rounded-2xl flex flex-col gap-2 ${isMe ? 'text-white self-end rounded-br-none' : 'bg-[var(--color-surface2)] text-[var(--color-text)] self-start rounded-bl-none'}`}
@@ -577,7 +581,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                         </div>
                     </div>
                     <audio 
-                        src={msg.payload.url} 
+                        src={mediaUrl} 
                         controls 
                         className={`w-full h-8 ${isMe ? 'brightness-200 contrast-50' : ''}`}
                         style={{ filter: isMe ? 'invert(1) hue-rotate(180deg)' : 'none' }}
@@ -587,6 +591,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
         }
 
         if (msg.type === 'file') {
+            const mediaUrl = optimizeCloudinaryUrl(msg.payload?.url)
             return (
                 <div 
                     className={`max-w-[70%] px-4 py-3 rounded-2xl flex items-center gap-3 ${msg.sender === 'me' ? 'text-white self-end rounded-br-none' : 'bg-[var(--color-surface2)] text-[var(--color-text)] self-start rounded-bl-none'}`}
@@ -597,7 +602,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                     </div>
                     <div className="min-w-0">
                         <p className="text-xs font-bold truncate">{msg.payload.name}</p>
-                        <a href={msg.payload.url} target="_blank" rel="noreferrer" className="text-[10px] underline opacity-80 decoration-white/30">Download</a>
+                        <a href={mediaUrl} target="_blank" rel="noreferrer" className="text-[10px] underline opacity-80 decoration-white/30">Download</a>
                     </div>
                 </div>
             )
@@ -1039,7 +1044,8 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
             {/* Fullscreen Video / Image Modal */}
             <AnimatePresence>
                 {selectedMedia && (() => {
-                    const mediaUrl = typeof selectedMedia === 'object' ? selectedMedia?.url : selectedMedia;
+                    const rawUrl = typeof selectedMedia === 'object' ? selectedMedia?.url : selectedMedia;
+                    const mediaUrl = optimizeCloudinaryUrl(rawUrl);
                     const isVideo = (typeof selectedMedia === 'object' && selectedMedia?.type === 'video');
 
                     return (

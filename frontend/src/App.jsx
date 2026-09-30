@@ -18,23 +18,32 @@ import { usePushNotifications } from './hooks/usePushNotifications'
  * browser picks up the fresh index.html and resolves the new chunk URLs.
  */
 function lazyWithRetry(importFn) {
-  return lazy(() =>
-    importFn().catch((err) => {
+  return lazy(async () => {
+    try {
+      const component = await importFn()
+      // Clear flag after a successful chunk load
+      sessionStorage.removeItem('chunk_reload')
+      return component
+    } catch (err) {
       const isChunkError =
         err?.message?.includes('Failed to fetch dynamically imported module') ||
         err?.message?.includes('Importing a module script failed') ||
-        err?.name === 'ChunkLoadError'
-      if (isChunkError && !sessionStorage.getItem('chunk_reload')) {
-        sessionStorage.setItem('chunk_reload', '1')
-        window.location.reload()
-        // Return a never-resolving promise so React doesn't render during reload
-        return new Promise(() => {})
+        err?.name === 'ChunkLoadError' ||
+        (err?.message && err.message.includes('/assets/'))
+        
+      if (isChunkError) {
+        const lastReload = sessionStorage.getItem('chunk_reload')
+        const now = Date.now()
+        // If we haven't reloaded in the last 10 seconds, force reload to get new index.html & chunks
+        if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+          sessionStorage.setItem('chunk_reload', now.toString())
+          window.location.reload()
+          return new Promise(() => {})
+        }
       }
-      // Clear the flag on successful load so future deploys can retry again
-      sessionStorage.removeItem('chunk_reload')
       throw err
-    })
-  )
+    }
+  })
 }
 
 // Rarely-visited user pages — code-split out of the initial bundle
