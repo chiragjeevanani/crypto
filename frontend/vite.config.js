@@ -1,28 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
-
+// https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    tailwindcss(),
     react(),
+    tailwindcss(),
   ],
   server: {
-    port: 5174,
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          agora: ['agora-rtc-sdk-ng', 'agora-rtc-react'],
-          firebase: ['firebase/app', 'firebase/messaging'],
-          gsap: ['gsap'],
-          'framer-motion': ['framer-motion'],
-          hls: ['hls.js'],
-        },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:5000',
+        ws: true,
+        changeOrigin: true,
       },
     },
   },
