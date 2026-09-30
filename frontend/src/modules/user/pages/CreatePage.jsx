@@ -2666,9 +2666,6 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((editorSettings.rotation * Math.PI) / 180);
-            if (facingMode === 'user') {
-              ctx.scale(-1, 1);
-            }
             ctx.filter = getCombinedFilter();
             const mediaWidth = renderVideo.videoWidth || 720;
             const mediaHeight = renderVideo.videoHeight || 1280;
@@ -4059,7 +4056,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   }
                 }}
                 style={{
-                  transform: `rotate(${editorSettings.rotation}deg) ${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'}`,
+                  transform: `rotate(${editorSettings.rotation}deg)`,
                   filter: getCombinedFilter()
                 }}
               />
@@ -4741,7 +4738,7 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
                   }
               }}
               style={{ 
-                  transform: `rotate(${editorSettings.rotation}deg) ${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'}`,
+                  transform: `rotate(${editorSettings.rotation}deg)`,
                   transformOrigin: 'center center',
                   filter: getCombinedFilter()
               }}

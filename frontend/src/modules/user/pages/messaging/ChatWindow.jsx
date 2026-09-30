@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Info, Phone, Video, Send, Image as ImageIcon, Smile, Paperclip, PlayCircle, MoreHorizontal, X, Trash2, Edit2 } from 'lucide-react'
+import { ChevronLeft, Info, Phone, Video, Send, Image as ImageIcon, Smile, Paperclip, PlayCircle, MoreHorizontal, X, Trash2, Edit2, Maximize2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore } from '../../store/useUserStore'
 import { useCallStore } from '../../store/useCallStore'
@@ -24,7 +24,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
     const typingTimeoutRef = useRef(null)
     const fileInputRef = useRef(null)
     const [isUploading, setIsUploading] = useState(false)
-    const [selectedImage, setSelectedImage] = useState(null)
+    const [selectedMedia, setSelectedMedia] = useState(null)
     const [activeMessageOptions, setActiveMessageOptions] = useState(null)
     const [editingMessage, setEditingMessage] = useState(null)
     const [editInputValue, setEditInputValue] = useState('')
@@ -524,7 +524,7 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 <div 
                     className={`max-w-[70%] rounded-2xl overflow-hidden border cursor-pointer ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
-                    onClick={() => setSelectedImage(msg.payload.url)}
+                    onClick={() => setSelectedMedia({ url: msg.payload.url, type: 'image' })}
                 >
                     <img src={msg.payload.url} alt="shared image" className="max-w-full h-auto object-cover max-h-60" />
                 </div>
@@ -533,17 +533,30 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
 
         if (msg.type === 'video') {
             return (
-                <div 
-                    className={`max-w-[80%] rounded-2xl overflow-hidden border ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
-                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                <div
+                    className={`relative cursor-pointer rounded-2xl overflow-hidden border ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}
+                    style={{ background: '#000', borderColor: 'var(--color-border)', width: '220px', maxWidth: '75vw' }}
+                    onClick={() => setSelectedMedia({ url: msg.payload.url, type: 'video' })}
                 >
-                    <video 
-                        src={msg.payload.url} 
-                        controls 
-                        playsInline
-                        className="w-full h-auto max-h-80 object-contain rounded-2xl bg-black"
+                    {/* Thumbnail preview */}
+                    <video
+                        src={msg.payload.url}
                         preload="metadata"
+                        muted
+                        playsInline
+                        className="w-full rounded-2xl bg-black"
+                        style={{ height: '280px', objectFit: 'cover', pointerEvents: 'none' }}
                     />
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center border border-white/30 shadow-xl">
+                            <PlayCircle size={32} className="text-white" />
+                        </div>
+                    </div>
+                    {/* Tap to play label */}
+                    <div className="absolute bottom-2 left-0 right-0 text-center">
+                        <span className="text-[11px] text-white/70 bg-black/40 px-2 py-0.5 rounded-full">Tap to play</span>
+                    </div>
                 </div>
             )
         }
@@ -1023,32 +1036,72 @@ export default function ChatWindow({ chat, onBack, sharingPost, clearSharingPost
                 </form>
             </div>
 
-            {/* Image Preview Lightbox */}
+            {/* Fullscreen Video / Image Modal */}
             <AnimatePresence>
-                {selectedImage && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setSelectedImage(null)}
-                        className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
-                    >
-                        <motion.button
-                            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
-                            onClick={() => setSelectedImage(null)}
+                {selectedMedia && (() => {
+                    const mediaUrl = typeof selectedMedia === 'object' ? selectedMedia?.url : selectedMedia;
+                    const isVideo = (typeof selectedMedia === 'object' && selectedMedia?.type === 'video');
+
+                    return (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9999] bg-black flex flex-col"
+                            style={{ touchAction: 'none' }}
                         >
-                            <X size={24} />
-                        </motion.button>
-                        <motion.img
-                            initial={{ scale: 0.9 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.9 }}
-                            src={selectedImage}
-                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    </motion.div>
-                )}
+                            {/* Header bar with close */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-black/80 backdrop-blur-sm shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
+                                <span className="text-white text-sm font-medium opacity-80">
+                                    {isVideo ? 'Video' : 'Image'}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedMedia(null)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Media area */}
+                            <div className="flex-1 relative overflow-hidden bg-black">
+                                {isVideo ? (
+                                    <video
+                                        key={mediaUrl}
+                                        src={mediaUrl}
+                                        controls
+                                        autoPlay
+                                        playsInline
+                                        style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                        }}
+                                    />
+                                ) : (
+                                    <img
+                                        src={mediaUrl}
+                                        alt="media"
+                                        style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                        }}
+                                        onClick={() => setSelectedMedia(null)}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Bottom safe area */}
+                            <div className="bg-black shrink-0" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+                        </motion.div>
+                    );
+                })()}
             </AnimatePresence>
 
             <ActionConfirmationModal 
