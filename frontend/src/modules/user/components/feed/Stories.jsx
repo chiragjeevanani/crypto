@@ -909,9 +909,9 @@ export default function Stories({ hideFeed = false }) {
                                         e.stopPropagation();
                                         setIsCreatingStory(true);
                                     }}
-                                    className="absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-black flex items-center justify-center bg-blue-500 text-white"
+                                    className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full border-2 border-black flex items-center justify-center bg-blue-500 text-white shadow-md transition-transform active:scale-95 z-10"
                                 >
-                                    <Plus size={12} />
+                                    <Plus size={16} strokeWidth={2.5} />
                                 </button>
                             )}
                         </div>
