@@ -529,9 +529,11 @@ export default function UserProfilePage() {
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                                            {nft.caption || 'Untitled V-World'}
-                                        </p>
+                                         {nft.caption && nft.caption !== 'Untitled V-World' && nft.caption !== 'Untitled NFT' && nft.caption !== 'Untitled' && (
+                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
+                                                 {nft.caption}
+                                             </p>
+                                         )}
                                         <NFTBadge status={nft.status === 'approved' ? 'listed' : 'sold'} price={nft.nftPriceINR || 0} className="mt-1" />
                                     </div>
                                     <div className="shrink-0 flex items-center gap-2">
