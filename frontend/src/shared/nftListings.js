@@ -6,7 +6,7 @@ function normalizeListing(item, idx = 0) {
     const thumbnail = String(item?.thumbnail || item?.previewUrl || '')
     return {
         id: String(item?.id || `user_nft_${Date.now()}_${idx}`),
-        title: String(item?.title || 'Untitled NFT'),
+        title: (item?.title && item.title !== 'Untitled NFT' && item.title !== 'Untitled') ? String(item.title) : '',
         thumbnail,
         price: Math.max(1, Math.round(Number(item?.price || 1))),
         currency: 'INR',

@@ -4,9 +4,9 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "build": "npm install"
+    "start": "node api.js && node server.js",
+    "dev": "node api.js && node server.js",
+    "build": "node api.js && npm install"
   },
   "dependencies": {
     "@privy-io/server-auth": "^1.15.0",
