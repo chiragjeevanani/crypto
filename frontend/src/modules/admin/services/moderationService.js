@@ -71,6 +71,17 @@ export const moderationService = {
         return data.post;
     },
 
+    async updatePostTitle(id, title) {
+        const res = await fetch(`${ADMIN_CONTENT}/${id}/title`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ title })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.message || "Failed to update title");
+        return data.post;
+    },
+
     async softDelete(id) {
         const res = await fetch(`${ADMIN_CONTENT}/${id}/status`, {
             method: "PATCH",
