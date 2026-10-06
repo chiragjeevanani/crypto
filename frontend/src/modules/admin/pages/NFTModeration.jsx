@@ -18,7 +18,8 @@ import {
     Save,
     Loader2,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Edit2
 } from 'lucide-react';
 import { AdminPageHeader } from '../components/shared';
 import { moderationService } from '../services/moderationService';
@@ -147,6 +148,9 @@ export default function NFTModeration() {
     // Modals state
     const [rejectAsset, setRejectAsset] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [editTitleAsset, setEditTitleAsset] = useState(null);
+    const [titleInput, setTitleInput] = useState('');
+    const [savingTitle, setSavingTitle] = useState(false);
 
     React.useEffect(() => {
         loadData();
@@ -157,25 +161,44 @@ export default function NFTModeration() {
         try {
             const data = await moderationService.fetchPosts({ isNFT: true, status: activeTab });
             // Adapt real data to component interface
-            const adapted = data.map(p => ({
-                id: p.id,
-                name: p.caption || 'Untitled NFT',
-                creator: p.author || 'Anonymous',
-                collection: 'User Submission',
-                originalityScore: 'N/A',
-                status: p.status.toLowerCase(),
-                image: p.mediaUrl || p.thumbnail,
-                mediaType: p.mediaType || (p.media?.type),
-                rejectReason: p.rejectReason || '',
-                history: Array.isArray(p.history) && p.history.length > 0 
-                    ? p.history.map(h => ({ date: new Date(h.date || Date.now()).toLocaleString(), action: h.action }))
-                    : [{ date: new Date(p.createdAt || Date.now()).toLocaleString(), action: 'Submission created' }]
-            }));
+            const adapted = data.map(p => {
+                const rawName = (p.caption || p.title || '').trim();
+                const cleanName = (rawName === 'Untitled NFT' || rawName === 'Untitled') ? '' : rawName;
+                return {
+                    id: p.id,
+                    name: cleanName,
+                    creator: p.author || 'Anonymous',
+                    collection: 'User Submission',
+                    originalityScore: 'N/A',
+                    status: p.status.toLowerCase(),
+                    image: p.mediaUrl || p.thumbnail,
+                    mediaType: p.mediaType || (p.media?.type),
+                    rejectReason: p.rejectReason || '',
+                    history: Array.isArray(p.history) && p.history.length > 0 
+                        ? p.history.map(h => ({ date: new Date(h.date || Date.now()).toLocaleString(), action: h.action }))
+                        : [{ date: new Date(p.createdAt || Date.now()).toLocaleString(), action: 'Submission created' }]
+                };
+            });
             setNfts(adapted);
         } catch (err) {
             console.error("Failed to load NFTs", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSaveTitle = async () => {
+        if (!editTitleAsset) return;
+        setSavingTitle(true);
+        try {
+            await moderationService.updatePostTitle(editTitleAsset.id, titleInput);
+            setNfts(prev => prev.map(item => item.id === editTitleAsset.id ? { ...item, name: titleInput.trim() } : item));
+            setEditTitleAsset(null);
+            setTitleInput('');
+        } catch (err) {
+            alert('Failed to update title: ' + (err.message || err));
+        } finally {
+            setSavingTitle(false);
         }
     };
 
@@ -281,7 +304,24 @@ export default function NFTModeration() {
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <p className="text-[9px] font-bold text-primary uppercase tracking-wider mb-0.5">{nft.collection}</p>
-                                            <h3 className="text-sm font-bold text-text truncate max-w-[190px] sm:max-w-[150px]">{nft.name}</h3>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {nft.name ? (
+                                                    <h3 className="text-sm font-bold text-text truncate max-w-[170px] sm:max-w-[130px]">{nft.name}</h3>
+                                                ) : (
+                                                    <span className="text-[10px] italic text-muted font-medium bg-surface2 px-1.5 py-0.5 rounded">(No Title)</span>
+                                                )}
+                                                <button
+                                                    onClick={() => {
+                                                        setEditTitleAsset(nft);
+                                                        setTitleInput(nft.name || '');
+                                                    }}
+                                                    className="p-1 rounded-md text-muted hover:text-primary hover:bg-surface2 transition-all flex items-center gap-1 text-[10px] font-medium cursor-pointer"
+                                                    title="Edit NFT Title"
+                                                >
+                                                    <Edit2 className="w-3 h-3 text-primary" />
+                                                    <span className="text-[9px] font-semibold text-primary">Edit Title</span>
+                                                </button>
+                                            </div>
                                             <p className="text-[9px] text-muted font-medium mt-1">Creator: <span className="text-text">{nft.creator}</span></p>
                                         </div>
                                         <div className="flex flex-col items-end">
@@ -380,6 +420,51 @@ export default function NFTModeration() {
                                     className="flex-1 py-2.5 bg-rose-500 text-white font-bold text-[9px] uppercase tracking-widest rounded-lg hover:bg-rose-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Confirm Rejection
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+
+                {/* Edit NFT Title Modal */}
+                {editTitleAsset && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-surface border border-surface rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4"
+                        >
+                            <h3 className="text-sm font-bold text-text uppercase tracking-widest flex items-center gap-2">
+                                <Edit2 className="w-4 h-4 text-primary" /> Edit NFT Title
+                            </h3>
+                            <p className="text-[10px] text-muted font-medium">
+                                Update title for this NFT. Leave empty if no title should be displayed.
+                            </p>
+
+                            <input
+                                type="text"
+                                value={titleInput}
+                                onChange={(e) => setTitleInput(e.target.value)}
+                                placeholder="Enter NFT title..."
+                                className="w-full bg-bg border border-surface rounded-lg p-3 text-xs font-semibold text-text outline-none focus:border-primary/50"
+                            />
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => { setEditTitleAsset(null); setTitleInput(''); }}
+                                    className="flex-1 py-2.5 bg-surface2 text-text font-bold text-[9px] uppercase tracking-widest rounded-lg border border-surface hover:bg-surface transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveTitle}
+                                    disabled={savingTitle}
+                                    className="flex-1 py-2.5 bg-primary text-black font-bold text-[9px] uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                >
+                                    {savingTitle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                    Save Title
                                 </button>
                             </div>
                         </motion.div>

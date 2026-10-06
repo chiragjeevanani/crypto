@@ -259,72 +259,103 @@ export default function HomePage() {
                             Reels
                         </span>
                     </div>
-                    <div className="relative flex items-center gap-1.5 shrink-0">
+                    <div className="relative flex items-center gap-2 shrink-0">
                         <button
                             onClick={() => navigate('/auctions')}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden relative"
-                            style={{ 
-                                background: 'rgba(244, 63, 94, 0.1)', 
-                                color: 'var(--color-danger)',
-                                border: '1px solid rgba(244, 63, 94, 0.3)'
-                            }}
+                            className="flex flex-col items-center gap-0.5 cursor-pointer lg:hidden group"
                             aria-label="Auctions"
                         >
-                            <Gavel size={16} className="animate-pulse" />
-                            {liveAuctionCount > 0 && (
-                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-bg animate-ping" />
-                            )}
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center relative transition-transform active:scale-95"
+                                style={{ 
+                                    background: 'rgba(244, 63, 94, 0.1)', 
+                                    color: 'var(--color-danger)',
+                                    border: '1px solid rgba(244, 63, 94, 0.3)'
+                                }}
+                            >
+                                <Gavel size={15} className="animate-pulse" />
+                                {liveAuctionCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-bg animate-ping" />
+                                )}
+                            </div>
+                            <span className="text-[9px] font-semibold tracking-tight text-rose-500 leading-none">Auction</span>
                         </button>
+
                         <button
                             onClick={() => {
                                 setQuery('')
                                 navigate('/search')
                             }}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer lg:hidden"
-                            style={{
-                                background: 'var(--color-surface2)',
-                                color: isExplore ? 'var(--color-primary)' : 'var(--color-text)',
-                                border: isExplore ? '1px solid var(--color-primary)' : '1px solid transparent',
-                            }}
+                            className="flex flex-col items-center gap-0.5 cursor-pointer lg:hidden group"
                             aria-label="Search"
                         >
-                            <Search size={16} />
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-95"
+                                style={{
+                                    background: 'var(--color-surface2)',
+                                    color: isExplore ? 'var(--color-primary)' : 'var(--color-text)',
+                                    border: isExplore ? '1px solid var(--color-primary)' : '1px solid transparent',
+                                }}
+                            >
+                                <Search size={15} />
+                            </div>
+                            <span className="text-[9px] font-medium tracking-tight leading-none" style={{ color: 'var(--color-muted)' }}>Search</span>
                         </button>
+
                         <button
                             onClick={() => navigate('/wallet')}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
-                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            className="flex flex-col items-center gap-0.5 cursor-pointer group"
                             aria-label="Wallet"
                         >
-                            <Wallet size={16} />
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-95"
+                                style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            >
+                                <Wallet size={15} />
+                            </div>
+                            <span className="text-[9px] font-medium tracking-tight leading-none" style={{ color: 'var(--color-muted)' }}>Wallet</span>
                         </button>
-                         <button
+
+                        <button
                             onClick={() => navigate('/messaging')}
-                            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer relative"
-                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            className="flex flex-col items-center gap-0.5 cursor-pointer group"
+                            aria-label="Messages"
                         >
-                            <MessageCircle size={16} />
-                            {unreadTotal > 0 && (
-                                <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
-                                    style={{ background: '#3b82f6', color: '#fff' }}>
-                                    {unreadTotal}
-                                </span>
-                            )}
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center relative transition-transform active:scale-95"
+                                style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            >
+                                <MessageCircle size={15} />
+                                {unreadTotal > 0 && (
+                                    <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                                        style={{ background: '#3b82f6', color: '#fff' }}>
+                                        {unreadTotal}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[9px] font-medium tracking-tight leading-none" style={{ color: 'var(--color-muted)' }}>Msg</span>
                         </button>
+
                         <button
                             onClick={() => {
                                 navigate('/notifications')
                             }}
-                            className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer relative transition-transform active:scale-90"
-                            style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            className="flex flex-col items-center gap-0.5 cursor-pointer group"
+                            aria-label="Notifications"
                         >
-                            <Bell size={18} />
-                            {unreadNotifications > 0 && (
-                                <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center shadow-[0_2px_8px_rgba(239,68,68,0.4)] border-2 border-[var(--color-bg)]"
-                                    style={{ background: '#ef4444', color: '#fff' }}>
-                                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                                </span>
-                            )}
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center relative transition-transform active:scale-95"
+                                style={{ background: 'var(--color-surface2)', color: 'var(--color-text)' }}
+                            >
+                                <Bell size={15} />
+                                {unreadNotifications > 0 && (
+                                    <span className="absolute -right-0.5 -top-0.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] font-black flex items-center justify-center shadow-[0_2px_8px_rgba(239,68,68,0.4)] border-2 border-[var(--color-bg)]"
+                                        style={{ background: '#ef4444', color: '#fff' }}>
+                                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[9px] font-medium tracking-tight leading-none" style={{ color: 'var(--color-muted)' }}>Alerts</span>
                         </button>
                     </div>
                 </div>

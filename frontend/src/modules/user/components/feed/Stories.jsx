@@ -465,14 +465,14 @@ export default function Stories({ hideFeed = false }) {
             // Flatten feed stories into a simple structure
             const mapped = feed.map((s) => ({
                 id: s.id,
-                userId: s.user.id,
-                username: s.user.username || s.user.handle || 'User',
-                avatar: (s.media?.type === 'image' && s.media?.url) ? s.media.url : (s.user.avatar || NO_IMAGE_AVATAR),
-                isPremium: s.user.isPremium,
+                userId: s.user?.id || s.userId,
+                username: s.user?.username || s.user?.handle || 'User',
+                avatar: s.user?.avatar || profile?.avatar || NO_IMAGE_AVATAR,
+                isPremium: s.user?.isPremium,
                 hasUnseen: true,
                 isMe: s.isMe,
-                mediaUrl: s.media?.url,
-                mediaType: s.media?.type || 'image',
+                mediaUrl: s.media?.url || s.mediaUrl,
+                mediaType: s.media?.type || s.mediaType || 'image',
                 caption: s.caption || '',
                 captionStyle: s.captionStyle || null,
                 musicData: s.musicData || null,
@@ -506,7 +506,7 @@ export default function Stories({ hideFeed = false }) {
             const baseTile = {
                 id: 'me',
                 username: 'Your Story',
-                avatar: mine ? mine.avatar : (profile?.avatar || NO_IMAGE_AVATAR),
+                avatar: profile?.avatar || mine?.avatar || NO_IMAGE_AVATAR,
                 isPremium: profile?.isPremium,
                 hasUnseen: !!mine,
                 isMe: true,
@@ -898,7 +898,7 @@ export default function Stories({ hideFeed = false }) {
                                     }`}
                             >
                                 <div className="w-full h-full rounded-full border-2 border-black overflow-hidden bg-black flex items-center justify-center">
-                                    <Avatar src={story.avatar} alt={story.username} size="w-full h-full" isPremium={story.isPremium} />
+                                    <Avatar src={story.avatar} alt={story.username} size="w-full h-full" className="w-full h-full" isPremium={story.isPremium} />
                                 </div>
                             </div>
 
@@ -909,9 +909,9 @@ export default function Stories({ hideFeed = false }) {
                                         e.stopPropagation();
                                         setIsCreatingStory(true);
                                     }}
-                                    className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full border-2 border-black flex items-center justify-center bg-blue-500 text-white shadow-md transition-transform active:scale-95 z-10"
+                                    className="absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-black flex items-center justify-center bg-blue-500 text-white shadow-md transition-transform active:scale-95 z-10"
                                 >
-                                    <Plus size={16} strokeWidth={2.5} />
+                                    <Plus size={12} strokeWidth={3} />
                                 </button>
                             )}
                         </div>

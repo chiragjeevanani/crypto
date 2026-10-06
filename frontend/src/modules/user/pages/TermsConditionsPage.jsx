@@ -29,22 +29,22 @@ export default function TermsConditionsPage() {
     }
 
     return (
-        <div className="px-4 pt-4 pb-24">
+        <div className="min-h-screen overflow-y-auto px-4 pt-4 pb-24 max-w-2xl mx-auto select-text">
             <div className="flex items-center gap-3 mb-4">
                 <button onClick={handleBack} className="p-2 rounded-full" style={{ background: 'var(--color-surface2)' }}>
                     <ChevronLeft size={18} style={{ color: 'var(--color-text)' }} />
                 </button>
                 <h1 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Terms & Conditions</h1>
             </div>
-            <div className="rounded-2xl p-4 space-y-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                <div className="flex items-center gap-2">
-                    <FileText size={16} style={{ color: 'var(--color-primary)' }} />
+            <div className="rounded-2xl p-4 md:p-6 space-y-4" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+                    <FileText size={18} style={{ color: 'var(--color-primary)' }} />
                     <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Platform Terms</p>
                 </div>
                 {loading ? (
                     <p className="text-sm animate-pulse" style={{ color: 'var(--color-sub)' }}>Loading...</p>
                 ) : (
-                    <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--color-sub)' }}>{terms}</p>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--color-sub)' }}>{terms}</div>
                 )}
             </div>
         </div>

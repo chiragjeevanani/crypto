@@ -197,6 +197,32 @@ exports.acknowledgeBusinessAds = async (req, res) => {
 };
 
 /**
+ * Admin module: update NFT / post title. Requires token + admin role.
+ */
+exports.updatePostTitle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+    const post = await Post.findById(id);
+    if (!post) return res.status(404).json({ success: false, message: "Post not found" });
+
+    post.caption = title ? String(title).trim() : "";
+    await post.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Title updated successfully",
+      post: {
+        id: post._id.toString(),
+        caption: post.caption
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Admin module: get counts for sidebar badges.
  */
 exports.getModerationStats = async (req, res) => {

@@ -108,7 +108,7 @@ export default function ProfilePage() {
     const nftListings = useMemo(() => {
         const createdNfts = profilePosts.filter(p => p.isNFT || p.postType === 'nft').map(p => ({
             ...p,
-            title: p.title || p.caption || 'Untitled NFT',
+            title: (p.title || p.caption) && (p.title || p.caption) !== 'Untitled NFT' && (p.title || p.caption) !== 'Untitled' ? (p.title || p.caption) : '',
             price: p.price || p.nftPriceINR || 0,
             views: p.views || 0,
             bids: p.bids || 0
@@ -123,8 +123,8 @@ export default function ProfilePage() {
                 avatar: o.creator?.avatar || profile.avatar
             },
             media: { url: o.mediaUrl, type: o.mediaType },
-            caption: o.description || o.title || 'Owned NFT',
-            title: o.title || 'Owned NFT',
+            caption: (o.description || o.title || '') === 'Owned NFT' || (o.description || o.title || '') === 'Untitled NFT' ? '' : (o.description || o.title || ''),
+            title: (o.title || o.description || '') === 'Owned NFT' || (o.title || o.description || '') === 'Untitled NFT' ? '' : (o.title || o.description || ''),
             status: o.status || 'sold',
             price: o.salePrice || 0,
             nftPriceINR: o.salePrice || 0,
@@ -552,25 +552,27 @@ export default function ProfilePage() {
                 )}
             </AnimatePresence>
 
-            <div className="flex items-center justify-end gap-2 px-4 mb-3">
+            <div className="flex items-center justify-end gap-2.5 px-4 mb-3">
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => {
                         setSettingsMode('menu')
                         setSettingsOpen(true)
                     }}
-                    className="flex items-center justify-center p-2 rounded-full cursor-pointer"
+                    className="flex items-center justify-center p-2.5 rounded-full cursor-pointer"
                     style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                    title="Settings"
                 >
-                    <Settings size={15} />
+                    <Settings size={19} />
                 </motion.button>
                 <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={toggleDarkMode}
-                    className="flex items-center justify-center p-2 rounded-full cursor-pointer"
+                    className="flex items-center justify-center p-2.5 rounded-full cursor-pointer"
                     style={{ background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                    title="Toggle Theme"
                 >
-                    {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+                    {darkMode ? <Sun size={19} /> : <Moon size={19} />}
                 </motion.button>
             </div>
 

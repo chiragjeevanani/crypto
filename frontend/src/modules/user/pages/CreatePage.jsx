@@ -265,7 +265,7 @@ const overlayButtonClass =
   'w-9 h-9 rounded-full bg-black/30 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:opacity-70';
 
 const sheetOverlayClass =
-  'fixed inset-0 z-[100] bg-black/55 backdrop-blur-[2px] flex items-end justify-center';
+  'fixed inset-0 z-[100] bg-black/60 backdrop-blur-[4px] flex items-end md:items-center justify-center p-0 md:p-4';
 
 const Toggle = ({ enabled, onToggle, isDarkMode = false }) => (
   <button
@@ -6334,16 +6334,16 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
   const renderExitFlowConfirmation = () => (
     <div className={sheetOverlayClass} onClick={() => setActiveSheet(null)}>
       <div 
-        className="absolute bottom-0 left-0 right-0 rounded-t-[32px] bg-[#1c1c1e] px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom))] text-white shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
+        className="w-full md:max-w-[400px] md:w-full rounded-t-[32px] md:rounded-[28px] bg-[#1c1c1e] px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] md:pb-6 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.5)] md:shadow-2xl border border-transparent md:border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center">
-          <div className="w-10 h-1 bg-white/10 rounded-full mt-2 mb-8" />
-          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-             <BiTrash size={32} className="text-[#fe2c55]" />
+          <div className="w-10 h-1 bg-white/10 rounded-full mt-1 mb-6 md:hidden" />
+          <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 mt-2 md:mt-2">
+             <BiTrash size={30} className="text-[#fe2c55]" />
           </div>
-          <h3 className="text-[20px] font-bold mb-2">Discard video?</h3>
-          <p className="text-[14px] text-white/50 text-center mb-8 px-4 leading-relaxed">
+          <h3 className="text-[19px] md:text-[20px] font-bold mb-2">Discard video?</h3>
+          <p className="text-[13px] md:text-[14px] text-white/50 text-center mb-6 md:mb-8 px-2 leading-relaxed">
             If you go back now, your video edits will be lost. You can't undo this action.
           </p>
         </div>
@@ -6367,13 +6367,13 @@ const CREATE_CANVAS_IMAGE = createFlow.canvasImage || '';
               setActiveSheet(null);
               navigate(-1);
             }}
-            className="h-[56px] w-full rounded-[16px] bg-[#fe2c55] text-[16px] font-bold text-white shadow-[0_8px_20px_rgba(254,44,85,0.3)] active:scale-[0.98] transition-all"
+            className="h-[52px] w-full rounded-[14px] md:rounded-[16px] bg-[#fe2c55] text-[15px] md:text-[16px] font-bold text-white shadow-[0_8px_20px_rgba(254,44,85,0.3)] active:scale-[0.98] transition-all cursor-pointer"
           >
             Discard
           </button>
           <button
             onClick={() => setActiveSheet(null)}
-            className="h-[56px] w-full rounded-[16px] bg-white/5 text-[16px] font-bold text-white hover:bg-white/10 active:scale-[0.98] transition-all"
+            className="h-[52px] w-full rounded-[14px] md:rounded-[16px] bg-white/5 text-[15px] md:text-[16px] font-bold text-white hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
           >
             Keep
           </button>

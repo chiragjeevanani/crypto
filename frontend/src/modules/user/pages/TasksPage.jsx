@@ -28,7 +28,7 @@ const mapPostToNFT = (post) => {
     return {
         id: post.id || post._id,
         collectibleId: post.collectibleId,
-        title: post.caption || post.title || 'Untitled NFT',
+        title: (post.caption || post.title) && (post.caption || post.title) !== 'Untitled NFT' && (post.caption || post.title) !== 'Untitled' ? (post.caption || post.title) : '',
         thumbnail: post.thumbnail || (mediaType === 'image' ? mediaUrl : (post.media?.thumbnail || '')),
         price: post.resalePrice || post.nftPriceINR || post.salePrice || post.basePrice || 1000,
         currency: 'INR',
@@ -750,12 +750,12 @@ export default function TasksPage() {
                             
                             <div className="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 relative z-10">
                                 {[
-                                    ...marketingDeals.map(deal => ({
+                                    ...marketingDeals.filter(deal => Boolean(deal.media?.url || deal.mediaUrl)).map(deal => ({
                                         id: deal._id || deal.id,
                                         title: deal.title,
                                         price: deal.price,
-                                        mediaUrl: deal.media?.url,
-                                        mediaType: deal.media?.type || 'video',
+                                        mediaUrl: deal.media?.url || deal.mediaUrl,
+                                        mediaType: deal.media?.type || 'image',
                                         link: deal.link,
                                         isPromotion: true
                                     })),
@@ -995,12 +995,14 @@ export default function TasksPage() {
                                     {/* ── Card Body ── */}
                                     <div className="p-3.5 flex flex-col gap-1.5">
                                         <div className="flex items-start justify-between gap-2">
-                                            <p
-                                                className="text-[14px] font-bold truncate leading-tight group-hover:text-[var(--color-primary)] transition-colors duration-300 flex-1"
-                                                style={{ color: 'var(--color-text)' }}
-                                            >
-                                                {nft.title}
-                                            </p>
+                                            {nft.title && nft.title !== 'Untitled NFT' && nft.title !== 'Untitled' && (
+                                                <p
+                                                    className="text-[14px] font-bold truncate leading-tight group-hover:text-[var(--color-primary)] transition-colors duration-300 flex-1"
+                                                    style={{ color: 'var(--color-text)' }}
+                                                >
+                                                    {nft.title}
+                                                </p>
+                                            )}
                                             {isOwnerOrCreator && (
                                                 <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
                                                     <button

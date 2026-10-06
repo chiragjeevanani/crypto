@@ -18,24 +18,27 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
     };
 
     useEffect(() => {
-        // Initially try the optimized version
-        setLoaded(false);
         if (src && src !== 'null' && src !== 'undefined' && !src.includes('placeholder.com') && src !== '/person.png') {
             setImgSrc(optimizeCloudinaryUrl(src));
+            setLoaded(false);
         } else {
             setImgSrc(NO_IMAGE_AVATAR);
+            setLoaded(true);
         }
     }, [src]);
 
-    const handleError = (e) => {
+    const handleError = () => {
         if (imgSrc !== NO_IMAGE_AVATAR) {
             setImgSrc(NO_IMAGE_AVATAR);
         }
+        setLoaded(true);
     };
 
+    const dimensions = sizeClasses[size] || size;
+
     return (
-        <div className={`relative flex-shrink-0 ${className}`}>
-            <div className={`${sizeClasses[size] || size} rounded-full overflow-hidden bg-surface2/30`}>
+        <div className={`relative flex-shrink-0 ${dimensions} ${className}`}>
+            <div className="w-full h-full rounded-full overflow-hidden bg-surface2/30">
                 <img
                     src={imgSrc}
                     alt={alt}
@@ -45,6 +48,11 @@ export default function Avatar({ src, alt = 'user', className = '', size = 'md',
                     style={{ opacity: loaded ? 1 : 0 }}
                     onLoad={() => setLoaded(true)}
                     onError={handleError}
+                    ref={(el) => {
+                        if (el && el.complete && el.naturalWidth !== 0 && !loaded) {
+                            setLoaded(true);
+                        }
+                    }}
                     {...props}
                 />
             </div>
