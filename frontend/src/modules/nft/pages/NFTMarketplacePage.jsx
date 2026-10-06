@@ -595,7 +595,9 @@ const NFTMarketplacePage = () => {
                     <img src={nft.creator?.avatar || '/default-avatar.png'} className="w-5 h-5 rounded-full" alt="" />
                     <span className="text-xs text-gray-500 truncate">@{nft.creator?.handle || 'creator'}</span>
                   </div>
-                  <h3 className="font-bold truncate mb-1">{nft.title}</h3>
+                  {nft.title && nft.title !== 'Untitled NFT' && nft.title !== 'Untitled' && (
+                    <h3 className="font-bold truncate mb-1">{nft.title}</h3>
+                  )}
                   <div className="flex items-center justify-between mt-3">
                     <div className="text-xs text-gray-500">Highest Bid</div>
                     <div className="font-bold text-yellow-500">{nft.highestBid} Coins</div>

@@ -128,7 +128,9 @@ const MyNFTsPage = () => {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold truncate mb-2">{item.title || 'Untitled Collectible'}</h3>
+                    {item.title && item.title !== 'Untitled Collectible' && item.title !== 'Untitled NFT' && item.title !== 'Untitled' && (
+                      <h3 className="font-bold truncate mb-2">{item.title}</h3>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">KnQ Verified</span>
                       <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-yellow-500 group-hover:translate-x-1 transition-all" />
@@ -141,7 +143,9 @@ const MyNFTsPage = () => {
                     <img src={item.mediaUrl} className="w-full h-full object-cover" alt={item.title} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-black truncate">{item.title}</h3>
+                    {item.title && item.title !== 'Untitled Collectible' && item.title !== 'Untitled NFT' && item.title !== 'Untitled' && (
+                      <h3 className="font-black truncate">{item.title}</h3>
+                    )}
                     <div className="text-xs text-gray-500 font-mono">{item.collectibleId}</div>
                   </div>
                   <div className="hidden md:block text-right">

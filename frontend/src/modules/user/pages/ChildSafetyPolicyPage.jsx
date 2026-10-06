@@ -14,7 +14,7 @@ export default function ChildSafetyPolicyPage() {
     }
 
     return (
-        <div className="h-screen overflow-y-auto px-4 pt-4 pb-24 max-w-2xl mx-auto select-text">
+        <div className="min-h-screen overflow-y-auto px-4 pt-4 pb-24 max-w-2xl mx-auto select-text">
             <div className="flex items-center gap-3 mb-4">
                 <button onClick={handleBack} className="p-2 rounded-full" style={{ background: 'var(--color-surface2)' }}>
                     <ChevronLeft size={18} style={{ color: 'var(--color-text)' }} />

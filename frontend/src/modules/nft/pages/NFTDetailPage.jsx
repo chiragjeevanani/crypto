@@ -155,7 +155,9 @@ const NFTDetailPage = () => {
                   <ShieldCheck className="w-3 h-3" /> Platform Verified
                 </div>
               </div>
-              <h1 className="text-4xl font-black mb-4 leading-tight">{nft.auction?.title}</h1>
+              {nft.auction?.title && nft.auction?.title !== 'Untitled NFT' && nft.auction?.title !== 'Untitled' && (
+                <h1 className="text-4xl font-black mb-4 leading-tight">{nft.auction.title}</h1>
+              )}
               <p className={`text-lg mb-8 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {nft.auction?.description}
               </p>
